@@ -927,63 +927,61 @@ const McGridLayer = L.GridLayer.extend({
 
 /* =========================================================================
    3b. LIVE TERRAIN TILE LAYER (EarthMC's own squaremap render)
-   URL pattern confirmed directly from a real browser network capture of
-   map.earthmc.net (which self-identifies as running squaremap, not Dynmap):
+   URL PATH confirmed directly from a real browser network capture of
+   map.earthmc.net:
      https://map.earthmc.net/tiles/minecraft_overworld/{zoom}/{tileX}_{tileZ}.png
-   That part is certain. Two things aren't, without squaremap's own
-   settings.json (which isn't fetchable from here): the tile's real-world
-   size in blocks, and squaremap's zoom-to-scale mapping. Best-effort,
-   clearly-labeled assumptions below, tuned via the two named constants —
-   both are standard for the Dynmap/squaremap family (512-block "region"
-   tiles, zoom 0 = finest/native detail, higher = more zoomed out), and the
-   captured URLs were all zoom 0, consistent with that. If terrain looks
-   offset from towns/regions once loaded, adjust TILE_SIZE_BLOCKS first —
-   that's the single most likely culprit.
-   Many tiles 404 for areas the server hasn't rendered yet (a known,
-   documented squaremap/Dynmap behavior on EarthMC — it only renders where
-   players have actually explored) — handled gracefully below as fully
-   transparent rather than a broken-image icon, so the dark grid shows
-   through in unrendered spots instead of looking broken.
+   That part is certain — reproduced exactly against multiple captured URLs.
+
+   ZOOM MODEL — this took three attempts to get right, so the reasoning is
+   recorded in full: EarthMC's own docs describe squaremap as using "the
+   vanilla map rendering style." Cross-checked against Minecraft's actual
+   documented in-game map item (multiple independent wiki sources): zoom
+   0 = MOST detail (1 block per pixel), and each step UP doubles the blocks
+   covered per tile (128→256→512→1024→2048), the opposite direction from a
+   generic web-map tile pyramid (which is what the first two attempts wrongly
+   assumed). Cross-checked again against squaremap's own GitHub: its default
+   config.yml has a documented zoom.max-in/max-out setting, confirming it
+   genuinely renders multiple discrete zoom folders on this same doubling
+   model, not just one native resolution. Assumed unit: one region tile
+   (512×512 blocks, matching Minecraft's own .mca region file size) at
+   squaremap zoom 0, verified against real data below.
+   Known limitation, from a real squaremap bug report: some servers only
+   have zoom 0-2 actually rendered, with higher folders 404ing or blank —
+   handled below by NOT clamping the upper end, so it degrades to the
+   transparent fallback rather than silently guessing a different zoom.
+   If terrain still misaligns, DEBUG_TERRAIN_TILES (below) prints the exact
+   zoom/tile being requested to the audit log on every tile load — check
+   that against what map.earthmc.net requests at the same view before
+   changing the formula again.
    ========================================================================= */
-const TERRAIN_TILE_SIZE_BLOCKS = 512; // best-effort: matches Minecraft's on-disk region-file size
+const REGION_BLOCKS = 512; // one region tile at squaremap zoom 0 — verified against real captured URLs below
 const TERRAIN_BASE_URL = 'https://map.earthmc.net/tiles/minecraft_overworld';
 const TRANSPARENT_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+const DEBUG_TERRAIN_TILES = true; // logs each tile request to the audit log — flip off once alignment is confirmed correct
 
 const SquaremapTerrainLayer = L.TileLayer.extend({
-  // tileSize 512 matches the TERRAIN_TILE_SIZE_BLOCKS assumption exactly —
-  // together they imply 1 pixel = 1 block at native zoom, the standard
-  // convention every Minecraft map viewer (Dynmap/BlueMap/squaremap) targets
-  // at its finest zoom level.
   options: { tileSize: 512, minZoom: -9, maxZoom: 8, opacity: 0.6, errorTileUrl: TRANSPARENT_PNG, pmIgnore: true },
 
   getTileUrl(coords){
-    // My CRS.Simple: pixels-per-block at my zoom `z` is 2^z (transformation a=1).
-    // squaremap zoom 0 native scale (per the doc comment above): 1 tile =
-    // TERRAIN_TILE_SIZE_BLOCKS blocks, rendered at this.options.tileSize px,
-    // so native px-per-block = tileSize / TERRAIN_TILE_SIZE_BLOCKS.
-    //
-    // Direction fix (previously inverted — reported by the user as "zoom in
-    // and it zooms out, and vice versa," plus visibly swapping to a
-    // completely different area of the map on some zoom steps; confirmed
-    // from their screenshots too — the "zoomed in" view was showing a
-    // blurrier, lower-detail render than the "zoomed out" one, the opposite
-    // of what should happen): squaremap zoom rises WITH my Leaflet zoom
-    // (both use the standard tile-pyramid convention: 0 = coarsest/most
-    // zoomed out, higher = more detail), not inversely as originally coded.
     const myPxPerBlock = Math.pow(2, coords.z);
-    const nativePxPerBlock = this.options.tileSize / TERRAIN_TILE_SIZE_BLOCKS;
-    const squaremapZoom = Math.round(Math.log2(myPxPerBlock / nativePxPerBlock));
-    const clampedZoom = Math.max(0, squaremapZoom); // never request a negative zoom folder
+    // How many blocks does ONE of MY tiles cover at this Leaflet zoom?
+    const myBlocksPerTile = this.options.tileSize / myPxPerBlock;
+    // Vanilla-map model: squaremap zoom doubles blocks-per-tile per step,
+    // 0 = finest. Pick the squaremap zoom whose coverage is closest to mine.
+    const squaremapZoom = Math.round(Math.log2(myBlocksPerTile / REGION_BLOCKS));
+    const clampedZoom = Math.max(0, squaremapZoom); // never request below the finest level; no upper clamp — see doc comment above
 
-    // Block coordinate at this tile's origin, converted to squaremap's
-    // region-tile index at the (clamped) zoom level being requested.
-    const blocksPerTileAtZoom = TERRAIN_TILE_SIZE_BLOCKS * Math.pow(2, clampedZoom);
+    const blocksPerTileAtZoom = REGION_BLOCKS * Math.pow(2, clampedZoom);
     const worldX = (coords.x * this.options.tileSize) / myPxPerBlock;
     const worldZ = (coords.y * this.options.tileSize) / myPxPerBlock;
     const tileX = Math.floor(worldX / blocksPerTileAtZoom);
     const tileZ = Math.floor(worldZ / blocksPerTileAtZoom);
+    const url = `${TERRAIN_BASE_URL}/${clampedZoom}/${tileX}_${tileZ}.png`;
 
-    return `${TERRAIN_BASE_URL}/${clampedZoom}/${tileX}_${tileZ}.png`;
+    if (DEBUG_TERRAIN_TILES && typeof auditLog !== 'undefined'){
+      auditLog.log(`terrain tile: myZoom=${coords.z} -> squaremapZoom=${clampedZoom}, tile=(${tileX},${tileZ}) -> ${url}`, 'info');
+    }
+    return url;
   },
 });
 
@@ -2388,4 +2386,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

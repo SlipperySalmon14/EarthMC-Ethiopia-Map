@@ -1000,22 +1000,18 @@ const DEBUG_TERRAIN_TILES = true; // logs each tile request to the audit log —
 const SquaremapTerrainLayer = L.TileLayer.extend({
   options: { tileSize: 512, minZoom: -9, maxZoom: 8, opacity: 0.6, errorTileUrl: TRANSPARENT_PNG, pmIgnore: true },
 
-  // Confirmed by the person directly: (0,0) sits at the center of the
-  // world, which spans 128,000 × 64,000 blocks — so valid coordinates are
-  // X: ±64,000, Z: ±32,000. NOT symmetric (2:1 aspect ratio) — X and Z
-  // have genuinely different bounds, unlike every earlier version of this
-  // layer, which implicitly assumed both axes shared the same range.
-  // Checked directly against last night's real logged requests: at
-  // squaremap zoom 7, several actually-requested tiles (e.g. tileZ=1) fall
-  // OUTSIDE this valid Z range — a confirmed, real bug, not a guess.
-  // Skipping the fetch entirely for an out-of-bounds tile (rather than
-  // requesting it and hoping for a clean 404) avoids pulling back
-  // whatever squaremap happens to return for a nonexistent region —
-  // which may not always fail cleanly, and is a plausible contributor to
-  // terrain that looks like real, textured ground but doesn't correspond
-  // to where it's drawn.
-  WORLD_X_MIN: -64000, WORLD_X_MAX: 64000,
-  WORLD_Z_MIN: -32000, WORLD_Z_MAX: 32000,
+  // World-bounds check REMOVED here. It previously hardcoded ±64,000 X /
+  // ±32,000 Z — but that described "Terra Aurora," the map EarthMC reset
+  // away from on April 19, 2026. The live server (and this app's own API
+  // calls) are on "Terra Nostra," a confirmed-different, ~4x-larger map —
+  // so that bounds check was silently discarding valid tiles near the
+  // real map's actual (larger, unknown-to-this-code) edges. Better to
+  // request every tile and let a genuinely out-of-range one 404 /
+  // transparent-fallback naturally (already handled below via
+  // errorTileUrl) than to enforce a boundary for a world that no longer
+  // exists. If EarthMC resets again, watch for this same class of bug —
+  // any hardcoded world-size constant is only valid for the map it was
+  // measured against.
 
   getTileUrl(coords){
     const myPxPerBlock = Math.pow(2, coords.z);
@@ -1031,20 +1027,8 @@ const SquaremapTerrainLayer = L.TileLayer.extend({
     const worldZ = (coords.y * this.options.tileSize) / myPxPerBlock;
     const tileX = Math.floor(worldX / blocksPerTileAtZoom);
     const tileZ = Math.floor(worldZ / blocksPerTileAtZoom);
-
-    // Reject a tile whose covered range falls entirely outside the real
-    // world bounds — this tile has no valid content to show, so fall back
-    // to the transparent placeholder instead of requesting it at all.
     const tileWorldXStart = tileX * blocksPerTileAtZoom, tileWorldXEnd = (tileX + 1) * blocksPerTileAtZoom;
     const tileWorldZStart = tileZ * blocksPerTileAtZoom, tileWorldZEnd = (tileZ + 1) * blocksPerTileAtZoom;
-    const outOfBounds = tileWorldXEnd <= this.WORLD_X_MIN || tileWorldXStart >= this.WORLD_X_MAX
-                      || tileWorldZEnd <= this.WORLD_Z_MIN || tileWorldZStart >= this.WORLD_Z_MAX;
-    if (outOfBounds){
-      if (DEBUG_TERRAIN_TILES && typeof auditLog !== 'undefined'){
-        auditLog.log(`terrain tile: myZoom=${coords.z} -> squaremapZoom=${clampedZoom}, tile=(${tileX},${tileZ}) is OUTSIDE world bounds — skipped, using transparent fallback`, 'warn');
-      }
-      return TRANSPARENT_PNG;
-    }
 
     const url = `${TERRAIN_BASE_URL}/${clampedZoom}/${tileX}_${tileZ}.png`;
 

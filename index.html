@@ -1672,6 +1672,28 @@ class MapController{
     this.map.setView([0, 0], -4);
     this.map.attributionControl.setPrefix('Live data: EarthMC API · Leaflet + Turf + Geoman');
 
+    // #map is sized via CSS (`position: absolute; inset: 0`), not fixed
+    // pixel dimensions in markup. Leaflet reads the container's real size
+    // at construction time to build its internal pixel-origin/tile-grid —
+    // but with an absolutely-positioned container, the browser can still be
+    // resolving layout on the very frame this constructor runs, so Leaflet
+    // can end up computing that grid against a stale or zero-sized
+    // container. This is a well-documented Leaflet gotcha independent of
+    // any tile-URL logic: the fix is to force a fresh size read once the
+    // container's true dimensions are guaranteed settled. Two calls,
+    // because the failure mode has two different possible timings:
+    //  - next animation frame: catches a same-tick layout race
+    //  - window 'load': catches slower cases (fonts/images still
+    //    reflowing the layout after the frame above already ran)
+    // A wrong/stale size here doesn't corrupt individual tile URLs (those
+    // are computed independently and were verified correct against real
+    // captured data) — it corrupts WHERE Leaflet places the whole tile
+    // grid on screen, which is a plausible explanation for tiles loading
+    // successfully (confirmed 512×512, real URLs) yet visibly not lining
+    // up with the town markers placed via the same map's coordinate system.
+    requestAnimationFrame(() => this.map.invalidateSize());
+    window.addEventListener('load', () => this.map.invalidateSize());
+
     new McGridLayer().addTo(this.map);
 
     // Real terrain from EarthMC's own live map, sitting on top of the dark
@@ -2424,4 +2446,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

@@ -982,67 +982,70 @@ const McGridLayer = L.GridLayer.extend({
    genuinely renders multiple discrete zoom folders on this same doubling
    model, not just one native resolution. Assumed unit: one region tile
    (512×512 blocks, matching Minecraft's own .mca region file size) at
-   squaremap zoom 0, verified against real data below.
-   Known limitation, from a real squaremap bug report: some servers only
-   have zoom 0-2 actually rendered, with higher folders 404ing or blank —
-   handled below by NOT clamping the upper end, so it degrades to the
-   transparent fallback rather than silently guessing a different zoom.
-   If terrain still misaligns, DEBUG_TERRAIN_TILES (below) prints the exact
-   zoom/tile being requested to the audit log on every tile load — check
-   that against what map.earthmc.net requests at the same view before
-   changing the formula again.
+   TERRAIN LAYER — REBUILT to match a real, working reference implementation
+   (TNIH's ice-highways-map, github.com/XiLeF2211/ice-highways-map, which
+   targets this exact server: map.earthmc.net/tiles/minecraft_overworld).
+   Their entire terrain layer is a STANDARD L.tileLayer with a URL template
+   string — no custom getTileUrl(), no hand-derived zoom formula. Leaflet
+   fills {z}/{x}/{y} itself using its own native, built-in tile-index
+   convention; maxNativeZoom/minNativeZoom tell it which folder range
+   squaremap actually has, and Leaflet's own native-zoom clamping (scaling
+   the nearest real tile up/down) handles anything outside that range —
+   all for free, none of it hand-written.
+
+   This directly explains a bug that survived multiple "verified against
+   real captured URLs" passes today: those checks were only ever run at
+   squaremap zoom 0, and 0 is the ONE zoom level where "finest at 0" and
+   "coarsest at 0" give an IDENTICAL answer (log2 of a 1:1 ratio is 0
+   either way) — so the test could never have caught the direction being
+   backwards. TNIH's working config (maxNativeZoom: 5, minNativeZoom: 0)
+   proves squaremap folder 0 is the COARSEST (whole-world) level and 5 is
+   the FINEST — the reverse of what every version of this file assumed.
+
+   TNIH also applies a fixed `projection` divisor (64, for this exact
+   world — down from 16 on the previous map, "Terra Aurora," matching
+   EarthMC's own confirmation that the new map is 4× larger) to every
+   coordinate before it enters Leaflet's CRS.Simple space. This app's
+   town/region layers never divided by anything — CoordUtils.mcToLatLng
+   passes raw block coordinates straight into lat/lng. Reworking every
+   consumer of that convention is a bigger change than the terrain layer
+   alone; for now, PROJECTION exists so terrain can be corrected on its
+   own terms, matched to the tile server directly rather than to this
+   app's town-coordinate convention, which is left as explicitly unscaled.
    ========================================================================= */
-const REGION_BLOCKS = 512; // one region tile at squaremap zoom 0 — verified against real captured URLs below
 const TERRAIN_BASE_URL = 'https://map.earthmc.net/tiles/minecraft_overworld';
-const TRANSPARENT_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-const DEBUG_TERRAIN_TILES = true; // logs each tile request to the audit log — flip off once alignment is confirmed correct
+const TERRAIN_MAX_NATIVE_ZOOM = 5; // squaremap's finest folder — confirmed working value from TNIH's live config
+const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
 
+// TNIH divides every real block coordinate by PROJECTION (64, for this
+// world) before it enters Leaflet — meaning THEIR map's lat/lng units
+// are scaled-down blocks, not raw ones. This app's mcToLatLng was
+// deliberately left unscaled (13 other Turf call sites depend on it
+// staying in real block units) — so PROJECTION does NOT apply here.
+// With an unscaled map, Leaflet's own native tile x/y/z at any zoom
+// already correspond directly to real block positions — the same
+// native-tile math TNIH relies on, just riding on a differently-scaled
+// (but internally consistent) coordinate space. Subclassing TileLayer
+// and overriding getTileUrl (Leaflet's own documented extension point —
+// leafletjs.com/examples/extending/extending-2-layers.html) is only
+// needed here to clamp z into squaremap's real native-zoom range, since
+// this map's zoom span (-9 to 8) is wider than squaremap actually has
+// tiles for (0 to 5).
 const SquaremapTerrainLayer = L.TileLayer.extend({
-  options: { tileSize: 512, minZoom: -9, maxZoom: 8, opacity: 0.6, errorTileUrl: TRANSPARENT_PNG, pmIgnore: true },
-
-  // World-bounds check REMOVED here. It previously hardcoded ±64,000 X /
-  // ±32,000 Z — but that described "Terra Aurora," the map EarthMC reset
-  // away from on April 19, 2026. The live server (and this app's own API
-  // calls) are on "Terra Nostra," a confirmed-different, ~4x-larger map —
-  // so that bounds check was silently discarding valid tiles near the
-  // real map's actual (larger, unknown-to-this-code) edges. Better to
-  // request every tile and let a genuinely out-of-range one 404 /
-  // transparent-fallback naturally (already handled below via
-  // errorTileUrl) than to enforce a boundary for a world that no longer
-  // exists. If EarthMC resets again, watch for this same class of bug —
-  // any hardcoded world-size constant is only valid for the map it was
-  // measured against.
-
+  options: {
+    maxNativeZoom: TERRAIN_MAX_NATIVE_ZOOM, // squaremap's finest folder — confirmed via TNIH's live, working config
+    minNativeZoom: TERRAIN_MIN_NATIVE_ZOOM, // squaremap's coarsest (whole-world) folder
+    minZoom: -9, maxZoom: 8, opacity: 0.6, pmIgnore: true,
+  },
   getTileUrl(coords){
-    const myPxPerBlock = Math.pow(2, coords.z);
-    // How many blocks does ONE of MY tiles cover at this Leaflet zoom?
-    const myBlocksPerTile = this.options.tileSize / myPxPerBlock;
-    // Vanilla-map model: squaremap zoom doubles blocks-per-tile per step,
-    // 0 = finest. Pick the squaremap zoom whose coverage is closest to mine.
-    const squaremapZoom = Math.round(Math.log2(myBlocksPerTile / REGION_BLOCKS));
-    const clampedZoom = Math.max(0, squaremapZoom); // never request below the finest level; no upper clamp — see doc comment above
-
-    const blocksPerTileAtZoom = REGION_BLOCKS * Math.pow(2, clampedZoom);
-    const worldX = (coords.x * this.options.tileSize) / myPxPerBlock;
-    const worldZ = (coords.y * this.options.tileSize) / myPxPerBlock;
-    const tileX = Math.floor(worldX / blocksPerTileAtZoom);
-    const tileZ = Math.floor(worldZ / blocksPerTileAtZoom);
-    const tileWorldXStart = tileX * blocksPerTileAtZoom, tileWorldXEnd = (tileX + 1) * blocksPerTileAtZoom;
-    const tileWorldZStart = tileZ * blocksPerTileAtZoom, tileWorldZEnd = (tileZ + 1) * blocksPerTileAtZoom;
-
-    const url = `${TERRAIN_BASE_URL}/${clampedZoom}/${tileX}_${tileZ}.png`;
-
-    if (DEBUG_TERRAIN_TILES && typeof auditLog !== 'undefined'){
-      // Includes the real-world block range this tile covers so it can be
-      // eyeballed directly against a town's known coordinates (e.g. the
-      // on-screen X/Z readout) without doing any math by hand.
-      const worldXRange = `${Math.round(tileWorldXStart)}–${Math.round(tileWorldXEnd)}`;
-      const worldZRange = `${Math.round(tileWorldZStart)}–${Math.round(tileWorldZEnd)}`;
-      auditLog.log(`terrain tile: myZoom=${coords.z} -> squaremapZoom=${clampedZoom}, tile=(${tileX},${tileZ}) covers worldX ${worldXRange}, worldZ ${worldZRange} -> ${url}`, 'info');
-    }
-    return url;
+    const z = Math.min(Math.max(coords.z, TERRAIN_MIN_NATIVE_ZOOM), TERRAIN_MAX_NATIVE_ZOOM);
+    return `${TERRAIN_BASE_URL}/${z}/${coords.x}_${coords.y}.png`;
   },
 });
+
+function buildTerrainLayer(){
+  return new SquaremapTerrainLayer();
+}
 
 /* =========================================================================
    4. EARTHMC API CLIENT

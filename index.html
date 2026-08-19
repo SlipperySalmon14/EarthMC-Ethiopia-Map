@@ -1809,7 +1809,20 @@ class MapController{
           text.textContent = row.label;
           label.appendChild(checkbox);
           label.appendChild(text);
-          checkbox.addEventListener('change', () => row.set(checkbox.checked));
+          checkbox.addEventListener('change', (e) => {
+            // A confirmed Leaflet bug (github.com/Leaflet/Leaflet/issues/7750):
+            // disableClickPropagation on a PARENT container can intermittently
+            // swallow events on its own children, not just parents further up —
+            // exactly the "checkbox toggle sometimes does nothing, no error
+            // logged" symptom seen here. Explicitly stopping propagation on
+            // the checkbox's OWN event, inside its OWN listener, doesn't hit
+            // that bug — this is always delivered correctly per the same
+            // issue thread — and still keeps clicks from reaching the map
+            // underneath, which is what disableClickPropagation(panel) below
+            // was for in the first place.
+            L.DomEvent.stopPropagation(e);
+            row.set(checkbox.checked);
+          });
           panel.appendChild(label);
         });
         L.DomEvent.disableClickPropagation(panel);
@@ -2494,4 +2507,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

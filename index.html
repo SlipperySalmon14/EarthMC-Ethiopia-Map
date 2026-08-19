@@ -797,37 +797,18 @@ let showTowns = true;   // same reasoning — town markers get their own indepen
 
 /* =========================================================================
    1. COORDINATE MATH
-   Mirrors TNIH's ice-highways-map (github.com/XiLeF2211/ice-highways-map),
-   a live, working EarthMC overlay on this same squaremap tile server.
+   L.CRS.Simple used as a flat Minecraft X/Z plane. Convention: lng = worldX,
+   lat = -worldZ, in REAL, UNSCALED blocks. The world is 128,000 x 64,000, so
+   the map spans X -64,000..+64,000 and Z -32,000..+32,000, centred on 0,0.
 
-   Their whole approach rests on one decision: divide every real block
-   coordinate by `projection` (64) before it reaches Leaflet. That makes the
-   map's lat/lng space identical to squaremap's own tile space, which is why
-   their tile layer needs no zoomOffset, no custom getTileUrl, and no tileSize
-   override — Leaflet zoom N maps straight onto squaremap folder N.
-
-   Verbatim from their source:
-       const projection = 64;
-       L.marker([-station.z / projection, station.x / projection])
-       vertices.push([-vertex.z / projection, vertex.x / projection])
-       map.panTo([-z / projection, x / projection])
-
-   Earlier attempts here kept raw block coordinates and tried to compensate
-   inside the tile layer instead. That repeatedly failed. Matching TNIH's
-   coordinate convention is what makes the rest of the config work.
-
-   Turf is unaffected: every operation used in this file (kinks, bbox,
-   lineIntersect, union, booleanPointInPolygon, flatten) is topological, so
-   uniform scaling can't change results. turf.buffer/turf.area — the two that
-   would care about absolute units — are deliberately unused.
+   This is the ground truth the EarthMC API returns, and town markers, claim
+   outlines and regions all use it directly. Do not scale it — the terrain
+   layer converts into squaremap's own tile scale internally instead.
    ========================================================================= */
-const MC_PROJECTION = 64; // real blocks per map unit — TNIH's `projection`
-
 const CoordUtils = {
-  mcToLatLng(x, z){ return L.latLng(-z / MC_PROJECTION, x / MC_PROJECTION); },
-  latLngToMc(latlng){ return { x: latlng.lng * MC_PROJECTION, z: -latlng.lat * MC_PROJECTION }; },
-  // Real block coords -> the plain [x,y] plane Turf and the claim tracer use.
-  mcToPlane(x, z){ return [x / MC_PROJECTION, -z / MC_PROJECTION]; },
+  mcToLatLng(x, z){ return L.latLng(-z, x); },
+  latLngToMc(latlng){ return { x: latlng.lng, z: -latlng.lat }; },
+  mcToPlane(x, z){ return [x, -z]; },
   fmt(n){
     if (n === null || n === undefined || Number.isNaN(n)) return '—';
     return Math.round(n).toLocaleString('en-US');
@@ -962,8 +943,7 @@ const McGridLayer = L.GridLayer.extend({
       ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, size.y); ctx.stroke();
       if (isMajor){
         ctx.fillStyle = isAxis ? 'rgba(193,97,58,.9)' : 'rgba(139,150,171,.7)';
-        // x is in map units (block/MC_PROJECTION); label real blocks.
-        ctx.fillText(Math.round(x * MC_PROJECTION).toLocaleString(), px + 3, 2);
+        ctx.fillText(Math.round(x).toLocaleString(), px + 3, 2);
       }
     }
 
@@ -977,8 +957,7 @@ const McGridLayer = L.GridLayer.extend({
       ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(size.x, py); ctx.stroke();
       if (isMajor && !isAxis){
         ctx.fillStyle = 'rgba(139,150,171,.7)';
-        // z is in map units (block/MC_PROJECTION); label real blocks.
-        ctx.fillText(Math.round(z * MC_PROJECTION).toLocaleString(), 3, py + 3);
+        ctx.fillText(Math.round(z).toLocaleString(), 3, py + 3);
       }
     }
 
@@ -1040,31 +1019,44 @@ const TERRAIN_BASE_URL = 'https://map.earthmc.net/tiles/minecraft_overworld';
 const TERRAIN_MAX_NATIVE_ZOOM = 5; // squaremap's finest folder
 const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
 
-// Terrain layer — TNIH's configuration verbatim (ice-highways-map/index.js):
+// Terrain layer.
 //
-//     L.tileLayer(mapURL + '/minecraft_overworld/{z}/{x}_{y}.png', {
-//         maxNativeZoom: 5,
-//         minNativeZoom: 0,
-//         maxZoom: 15,
-//         minZoom: -2
-//     })
+// Squaremap's scheme, confirmed against TNIH's live map on this same server
+// (github.com/XiLeF2211/ice-highways-map):
+//   - path is `{z}/{x}_{y}.png` (underscore, not the usual {x}/{y})
+//   - folder 0 is the COARSEST (whole world), folder 5 the finest
+//   - a folder-5 tile covers 512 real blocks; each step coarser doubles it,
+//     so folder 0 covers 16,384 blocks and the world fits in 8x4 tiles
 //
-// No tileSize override (Leaflet's 256 default), no zoomOffset, no custom
-// getTileUrl. All of that is unnecessary because CoordUtils already divides
-// coordinates by MC_PROJECTION, so map zoom N == squaremap folder N.
+// TNIH divides every coordinate by 64 before Leaflet sees it, which makes
+// their zoom N equal folder N. This app keeps REAL block coordinates (towns,
+// claims and regions all depend on them), so the tile layer adapts instead,
+// via two settings that have to agree:
 //
-// maxNativeZoom: 5 is what makes zooming past the finest folder work — past
-// nz5 Leaflet reuses one tile and scales it up in CSS rather than requesting
-// a separate fetch per grid cell. Overriding getTileUrl bypasses that, which
-// is what previously caused hundreds of duplicate requests for one image.
+//   tileSize   how many coordinate units (= blocks) one tile spans
+//   zoomOffset requested folder = mapZoom + zoomOffset
+//
+// Leaflet spans tileSize/2^z units at zoom z, and folder nz must cover
+// 512*2^(5-nz) blocks. Solving those together gives tileSize = 512*2^(5-off).
+// With off = 3 that's tileSize 2048, which puts folder 0 at map zoom -3 and
+// renders it at a standard 256px on screen. Folder 5 lands at map zoom 2.
+//
+// maxNativeZoom is what makes zooming past folder 5 work: Leaflet reuses one
+// tile and scales it in CSS instead of fetching a separate copy per grid
+// cell. A custom getTileUrl bypasses that entirely, which is what previously
+// caused hundreds of duplicate requests for the same image.
+const TERRAIN_TILE_SIZE = 2048;  // blocks spanned by one tile at map zoom 0
+const TERRAIN_ZOOM_OFFSET = 3;   // map zoom -3 -> folder 0; map zoom 2 -> folder 5
 const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
 
 function buildTerrainLayer(){
   return L.tileLayer(TERRAIN_URL_TEMPLATE, {
+    tileSize: TERRAIN_TILE_SIZE,
+    zoomOffset: TERRAIN_ZOOM_OFFSET,
     maxNativeZoom: TERRAIN_MAX_NATIVE_ZOOM,
     minNativeZoom: TERRAIN_MIN_NATIVE_ZOOM,
-    maxZoom: 15,
-    minZoom: -2,
+    minZoom: -3,
+    maxZoom: 8,
     opacity: 0.6,
     pmIgnore: true,
     errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
@@ -1721,9 +1713,10 @@ class MapController{
       // Pinned to squaremap's coarsest real tile level (nz0). Below this
       // there is no terrain data to serve, and a single Leaflet tile would
       // span more world than one squaremap tile covers.
-      // TNIH's exact zoom range for this tile server.
-      minZoom: -2,
-      maxZoom: 15,
+      // Map zoom -3 shows the whole world (folder 0, 8x4 tiles).
+      // Past map zoom 2 (folder 5) Leaflet scales tiles instead of fetching more.
+      minZoom: -3,
+      maxZoom: 8,
       // Integer zoom snapping. zoomSnap 0.25 previously allowed 57 distinct
       // zoom levels between the floor and ceiling, each triggering its own
       // non-reusable tile set — roughly 4× the requests for no visual gain,
@@ -1736,7 +1729,7 @@ class MapController{
     });
     // Whole-world view: at zoom -6 one Leaflet tile is exactly one nz0
     // squaremap tile, and the full 128,000×64,000 world fits in ~32 tiles.
-    this.map.setView([0, 0], 1); // TNIH's initial zoom
+    this.map.setView([0, 0], -3); // whole world, centred on origin
     this.map.attributionControl.setPrefix('Live data: EarthMC API · Leaflet + Turf + Geoman');
 
     // #map is sized via CSS (`position: absolute; inset: 0`), not fixed

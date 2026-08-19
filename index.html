@@ -797,25 +797,37 @@ let showTowns = true;   // same reasoning — town markers get their own indepen
 
 /* =========================================================================
    1. COORDINATE MATH
-   The map's CRS is L.CRS.Simple, used as a flat Minecraft X/Z plane rather
-   than real-world lat/lng (EarthMC coordinates ARE the ground truth here).
-   Convention used everywhere in this file: lng = worldX, lat = -worldZ,
-   in REAL, UNSCALED Minecraft blocks. The world spans 128,000 × 64,000
-   blocks, so the map covers X -64,000..+64,000 and Z -32,000..+32,000.
-   That keeps north (-Z, matching Minecraft's F3 compass) pointing up on
-   screen, and lets every Turf operation run on plain, unit-agnostic
-   planar coordinates — no real-world projection or scale factor needed.
+   Mirrors TNIH's ice-highways-map (github.com/XiLeF2211/ice-highways-map),
+   a live, working EarthMC overlay on this same squaremap tile server.
 
-   Squaremap's own tiles are indexed in a 64-blocks-per-unit space, which
-   is NOT this space. That conversion is handled entirely inside
-   SquaremapTerrainLayer (see MC_PER_TILE_UNIT below), so terrain stretches
-   to fit real block coordinates rather than everything else shrinking to
-   fit squaremap. Towns, claims, regions and the grid all stay in real
-   blocks — the ground truth the EarthMC API actually returns.
+   Their whole approach rests on one decision: divide every real block
+   coordinate by `projection` (64) before it reaches Leaflet. That makes the
+   map's lat/lng space identical to squaremap's own tile space, which is why
+   their tile layer needs no zoomOffset, no custom getTileUrl, and no tileSize
+   override — Leaflet zoom N maps straight onto squaremap folder N.
+
+   Verbatim from their source:
+       const projection = 64;
+       L.marker([-station.z / projection, station.x / projection])
+       vertices.push([-vertex.z / projection, vertex.x / projection])
+       map.panTo([-z / projection, x / projection])
+
+   Earlier attempts here kept raw block coordinates and tried to compensate
+   inside the tile layer instead. That repeatedly failed. Matching TNIH's
+   coordinate convention is what makes the rest of the config work.
+
+   Turf is unaffected: every operation used in this file (kinks, bbox,
+   lineIntersect, union, booleanPointInPolygon, flatten) is topological, so
+   uniform scaling can't change results. turf.buffer/turf.area — the two that
+   would care about absolute units — are deliberately unused.
    ========================================================================= */
+const MC_PROJECTION = 64; // real blocks per map unit — TNIH's `projection`
+
 const CoordUtils = {
-  mcToLatLng(x, z){ return L.latLng(-z, x); },
-  latLngToMc(latlng){ return { x: latlng.lng, z: -latlng.lat }; },
+  mcToLatLng(x, z){ return L.latLng(-z / MC_PROJECTION, x / MC_PROJECTION); },
+  latLngToMc(latlng){ return { x: latlng.lng * MC_PROJECTION, z: -latlng.lat * MC_PROJECTION }; },
+  // Real block coords -> the plain [x,y] plane Turf and the claim tracer use.
+  mcToPlane(x, z){ return [x / MC_PROJECTION, -z / MC_PROJECTION]; },
   fmt(n){
     if (n === null || n === undefined || Number.isNaN(n)) return '—';
     return Math.round(n).toLocaleString('en-US');
@@ -950,7 +962,8 @@ const McGridLayer = L.GridLayer.extend({
       ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, size.y); ctx.stroke();
       if (isMajor){
         ctx.fillStyle = isAxis ? 'rgba(193,97,58,.9)' : 'rgba(139,150,171,.7)';
-        ctx.fillText(Math.round(x).toLocaleString(), px + 3, 2);
+        // x is in map units (block/MC_PROJECTION); label real blocks.
+        ctx.fillText(Math.round(x * MC_PROJECTION).toLocaleString(), px + 3, 2);
       }
     }
 
@@ -964,7 +977,8 @@ const McGridLayer = L.GridLayer.extend({
       ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(size.x, py); ctx.stroke();
       if (isMajor && !isAxis){
         ctx.fillStyle = 'rgba(139,150,171,.7)';
-        ctx.fillText(Math.round(z).toLocaleString(), 3, py + 3);
+        // z is in map units (block/MC_PROJECTION); label real blocks.
+        ctx.fillText(Math.round(z * MC_PROJECTION).toLocaleString(), 3, py + 3);
       }
     }
 
@@ -1023,80 +1037,38 @@ const McGridLayer = L.GridLayer.extend({
    app's town-coordinate convention, which is left as explicitly unscaled.
    ========================================================================= */
 const TERRAIN_BASE_URL = 'https://map.earthmc.net/tiles/minecraft_overworld';
-const TERRAIN_MAX_NATIVE_ZOOM = 5; // squaremap's finest folder — confirmed working value from TNIH's live config
+const TERRAIN_MAX_NATIVE_ZOOM = 5; // squaremap's finest folder
 const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
-const TERRAIN_TILE_SIZE = 512; // squaremap serves 512x512 tiles — confirmed by inspecting a real tile's natural size in DevTools
-const TERRAIN_PROJECTION = 64;  // real blocks per squaremap tile-unit (confirmed against TNIH's live config)
 
-// This map works in REAL, UNSCALED block coordinates (see section 1) —
-// squaremap's tiles do not. Squaremap indexes tiles in a
-// 64-blocks-per-unit space, so one of its tiles at native zoom nz covers
-// TERRAIN_TILE_SIZE * TERRAIN_PROJECTION / 2^nz real blocks:
+// Terrain layer — TNIH's configuration verbatim (ice-highways-map/index.js):
 //
-//   nz0 = 16,384 blocks   nz3 = 2,048 blocks
-//   nz1 =  8,192 blocks   nz4 = 1,024 blocks
-//   nz2 =  4,096 blocks   nz5 =   512 blocks  (finest)
+//     L.tileLayer(mapURL + '/minecraft_overworld/{z}/{x}_{y}.png', {
+//         maxNativeZoom: 5,
+//         minNativeZoom: 0,
+//         maxZoom: 15,
+//         minZoom: -2
+//     })
 //
-// A Leaflet tile in real-block space at map zoom z covers 256/2^z blocks,
-// which lines those up exactly: map zoom -6 matches nz0, -5 matches nz1,
-// and so on up to -1 matching nz5. Hence nativeZoom = z + TERRAIN_ZOOM_OFFSET.
+// No tileSize override (Leaflet's 256 default), no zoomOffset, no custom
+// getTileUrl. All of that is unnecessary because CoordUtils already divides
+// coordinates by MC_PROJECTION, so map zoom N == squaremap folder N.
 //
-// The alternative — dividing every coordinate in the app by 64 so this
-// map lives in squaremap's space — was tried and reverted: it does align
-// the layers, but it shrinks the whole 128,000×64,000 world into ~2,000×1,000
-// units, which breaks the tuned zoom range and makes Leaflet try to tile the
-// entire planet at once. Real blocks stay the ground truth; terrain converts.
-//
-// Squaremap has six native zoom folders (nz0 coarsest .. nz5 finest), and
-// with 512px tiles each nz level covers 512*64/2^nz real blocks: 32,768 at
-// nz0 down to 1,024 at nz5. A 512px Leaflet tile in real-block space covers
-// 512/2^z blocks, so the two line up exactly with a constant +6 shift:
-// map zoom -6 = nz0, -5 = nz1, ... -1 = nz5.
-//
-// That shift is expressed with Leaflet's own `zoomOffset` rather than a
-// custom getTileUrl. This matters: overriding getTileUrl recomputes tile
-// indices by hand, which BYPASSES Leaflet's maxNativeZoom machinery — the
-// thing that, past the finest available level, reuses one tile and scales
-// it up via CSS instead of requesting a new one per grid cell. Without it,
-// zooming past nz5 asked for 4, then 64, then 1,024 separate fetches of the
-// SAME image, which is what made loading crawl tile-by-tile and stopped the
-// grid from subdividing properly. With zoomOffset + maxNativeZoom doing the
-// work, it's a steady ~6 tiles per view at every zoom level.
-const TERRAIN_ZOOM_OFFSET = 6;                    // map zoom -6 ⇄ squaremap nz0
-const TERRAIN_MIN_MAP_ZOOM = -TERRAIN_ZOOM_OFFSET; // nothing coarser than nz0 exists
-
-const SquaremapTerrainLayer = L.TileLayer.extend({
-  options: {
-    // Squaremap serves 512x512 tiles. Left at Leaflet's 256px default, a
-    // 512px image gets laid into a 256px cell — the world renders squashed
-    // and the request count quadruples.
-    tileSize: TERRAIN_TILE_SIZE,
-    zoomOffset: TERRAIN_ZOOM_OFFSET,
-    maxNativeZoom: TERRAIN_MAX_NATIVE_ZOOM,
-    minNativeZoom: TERRAIN_MIN_NATIVE_ZOOM,
-    minZoom: TERRAIN_MIN_MAP_ZOOM,
-    maxZoom: 8,
-    opacity: 0.6,
-    pmIgnore: true,
-    // Tiles are fetched from map.earthmc.net directly (never through the
-    // Worker proxy), so throughput is bounded by the browser's per-host
-    // connection limit — request fewer, more reusable tiles rather than
-    // trying to parallelise harder.
-    keepBuffer: 1,           // thin off-screen ring; each extra ring grows the count as (w+2n)(h+2n)
-    updateWhenZooming: false, // don't fire requests for intermediate zoom frames
-    updateInterval: 150,      // coalesce rapid pan events into fewer batches
-    // Keeps a genuinely missing edge tile as a quiet transparent gap rather
-    // than a broken-image icon or a stalled load.
-    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  },
-});
-
-// Squaremap's tile paths are `{z}/{x}_{y}.png` — underscore-separated,
-// not the `{z}/{x}/{y}.png` most tile servers use.
+// maxNativeZoom: 5 is what makes zooming past the finest folder work — past
+// nz5 Leaflet reuses one tile and scales it up in CSS rather than requesting
+// a separate fetch per grid cell. Overriding getTileUrl bypasses that, which
+// is what previously caused hundreds of duplicate requests for one image.
 const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
 
 function buildTerrainLayer(){
-  return new SquaremapTerrainLayer(TERRAIN_URL_TEMPLATE);
+  return L.tileLayer(TERRAIN_URL_TEMPLATE, {
+    maxNativeZoom: TERRAIN_MAX_NATIVE_ZOOM,
+    minNativeZoom: TERRAIN_MIN_NATIVE_ZOOM,
+    maxZoom: 15,
+    minZoom: -2,
+    opacity: 0.6,
+    pmIgnore: true,
+    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  });
 }
 
 /* =========================================================================
@@ -1555,7 +1527,9 @@ class RegionManager{
   recalcStats(region){
     const feature = region.layer.toGeoJSON();
     const contained = this.currentTowns.filter(t => {
-      try{ return turf.booleanPointInPolygon(turf.point([t.mcX, -t.mcZ]), feature); }
+      // Region polygons are in map space, so scale the town's raw block
+      // coordinates before testing containment.
+      try{ return turf.booleanPointInPolygon(turf.point(CoordUtils.mcToPlane(t.mcX, t.mcZ)), feature); }
       catch(_err){ return false; }
     });
     region.containedTowns = contained;
@@ -1747,8 +1721,9 @@ class MapController{
       // Pinned to squaremap's coarsest real tile level (nz0). Below this
       // there is no terrain data to serve, and a single Leaflet tile would
       // span more world than one squaremap tile covers.
-      minZoom: TERRAIN_MIN_MAP_ZOOM,
-      maxZoom: 8,
+      // TNIH's exact zoom range for this tile server.
+      minZoom: -2,
+      maxZoom: 15,
       // Integer zoom snapping. zoomSnap 0.25 previously allowed 57 distinct
       // zoom levels between the floor and ceiling, each triggering its own
       // non-reusable tile set — roughly 4× the requests for no visual gain,
@@ -1761,7 +1736,7 @@ class MapController{
     });
     // Whole-world view: at zoom -6 one Leaflet tile is exactly one nz0
     // squaremap tile, and the full 128,000×64,000 world fits in ~32 tiles.
-    this.map.setView([0, 0], TERRAIN_MIN_MAP_ZOOM);
+    this.map.setView([0, 0], 1); // TNIH's initial zoom
     this.map.attributionControl.setPrefix('Live data: EarthMC API · Leaflet + Turf + Geoman');
 
     // #map is sized via CSS (`position: absolute; inset: 0`), not fixed
@@ -2551,4 +2526,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

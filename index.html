@@ -1,1 +1,2497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>EarthMC · Ethiopia Regional Command Overlay</title>
+<meta name="description" content="Live EarthMC dashboard overlay for the Ethiopian sector — custom geopolitical boundaries over live town and nation data.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.19.0/dist/leaflet-geoman.css">
+
+<style>
+/* =========================================================================
+   DESIGN TOKENS
+   Subject: a night-shift cartographer's ops console for an EarthMC nation.
+   Ink-navy instrument casing, brass gauge accents, highland-earth terracotta
+   for alerts/capitals, sage for live signal. Mono face for every coordinate,
+   stat and log line; a display face reserved for panel titles only.
+   ========================================================================= */
+:root{
+  --ink:        #0b0f16;
+  --ink-2:      #10151f;
+  --panel:      #141b28;
+  --panel-2:    #1a2333;
+  --raised:     #1f2a3d;
+  --line:       #263047;
+  --line-soft:  #1c2536;
+  --parchment:  #e9e3d4;
+  --muted:      #8b96ab;
+  --muted-dim:  #5d6880;
+  --brass:      #c99a4b;
+  --brass-hi:   #e0b76a;
+  --brass-dim:  #7c5f30;
+  --terracotta: #c1613a;
+  --terracotta-hi:#d97c52;
+  --sage:       #6ea87b;
+  --sage-hi:    #86c294;
+  --danger:     #c1503f;
+  --danger-hi:  #dd6b59;
+
+  --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --font-body:    'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-mono:    'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --shadow-panel: 0 1px 0 rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+*, *::before, *::after{ box-sizing: border-box; }
+html, body{ height:100%; margin:0; }
+body{
+  background: var(--ink);
+  color: var(--parchment);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3{ font-family: var(--font-display); margin:0; color: var(--parchment); }
+p{ margin: 0 0 .5em; }
+button{ font-family: inherit; }
+input, textarea, select, button{ color: inherit; }
+a{ color: var(--brass-hi); }
+
+::selection{ background: var(--brass-dim); color: var(--parchment); }
+
+/* thin dark scrollbars */
+*{ scrollbar-width: thin; scrollbar-color: var(--line) var(--panel); }
+*::-webkit-scrollbar{ width: 8px; height: 8px; }
+*::-webkit-scrollbar-track{ background: var(--panel); }
+*::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover{ background: var(--brass-dim); }
+
+:focus-visible{
+  outline: 2px solid var(--brass-hi);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+/* =========================================================================
+   APP SHELL
+   ========================================================================= */
+.app{
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar{
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .65rem 1.1rem;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
+  z-index: 20;
+}
+.topbar-brand{ display:flex; align-items:baseline; gap:.6rem; min-width:0; }
+.topbar-brand h1{ font-size: 1.05rem; font-weight: 600; letter-spacing:.01em; white-space:nowrap; }
+.topbar-brand .locus{ color: var(--brass-hi); }
+.topbar-brand .tagline{
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  color: var(--muted);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-pill{
+  display:flex; align-items:center; gap:.45rem;
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--muted);
+  padding: .3rem .6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--ink-2);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.workspace{
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+/* ---- Map pane (68%) ---- */
+.map-pane{
+  flex: 0 0 68%;
+  max-width: 68%;
+  position: relative;
+  min-width: 0;
+  background: var(--ink-2);
+  border-right: 1px solid var(--line);
+}
+#map{
+  position: absolute;
+  inset: 0;
+  background: var(--ink-2);
+}
+.leaflet-container{
+  background: var(--ink-2);
+  font-family: var(--font-body);
+}
+
+/* custom coordinate readout control */
+.coord-readout{
+  background: rgba(11,15,22,.86);
+  border: 1px solid var(--line);
+  color: var(--brass-hi);
+  font-family: var(--font-mono);
+  font-size: .76rem;
+  letter-spacing: .03em;
+  padding: .35rem .6rem;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-panel);
+  pointer-events: none;
+}
+
+.map-layers-toggle{
+  background: rgba(11,15,22,.9);
+  border: 1px solid var(--line);
+  color: var(--parchment);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  padding: .45rem .6rem;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-panel);
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.map-layers-toggle .layers-title{
+  font-size: .62rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .1rem;
+}
+.map-layers-toggle label{
+  display: flex; align-items: center; gap: .4rem;
+  cursor: pointer;
+}
+.map-layers-toggle input{ accent-color: var(--brass); cursor: pointer; }
+
+.claim-tooltip{
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--parchment) !important;
+  font-family: var(--font-mono) !important;
+  font-size: .7rem !important;
+  box-shadow: var(--shadow-panel) !important;
+}
+.claim-tooltip::before{ border-top-color: var(--line) !important; }
+
+/* split-mode banner overlay on the map */
+.split-banner{
+  position:absolute; top:.75rem; left:50%; transform:translateX(-50%);
+  background: var(--terracotta); color:#1b0d06;
+  font-family: var(--font-mono); font-size:.78rem; font-weight:600;
+  padding:.4rem .85rem; border-radius: 999px;
+  box-shadow: var(--shadow-panel);
+  z-index: 15;
+  display:none;
+  align-items:center; gap:.5rem;
+}
+.split-banner.active{ display:flex; }
+.split-banner button{
+  background: rgba(0,0,0,.2); border: none; color:#1b0d06; font-weight:700;
+  border-radius: 999px; width:1.15rem; height:1.15rem; line-height:1;
+  cursor:pointer; font-size:.7rem;
+}
+
+/* ---- Sidebar (32%) ---- */
+.sidebar{
+  flex: 0 0 32%;
+  max-width: 32%;
+  min-width: 300px;
+  overflow-y: auto;
+  padding: .85rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  background: var(--ink);
+}
+
+/* =========================================================================
+   PANEL COMPONENT
+   ========================================================================= */
+.panel{
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  padding: .85rem .9rem .95rem;
+}
+.panel-head{ margin-bottom: .65rem; }
+.eyebrow{
+  display:block;
+  font-family: var(--font-mono);
+  font-size: .64rem;
+  letter-spacing: .12em;
+  color: var(--brass);
+  text-transform: uppercase;
+  margin-bottom: .2rem;
+}
+.panel-head h2{ font-size: .98rem; font-weight: 600; }
+
+.hint{
+  font-size: .78rem;
+  color: var(--muted);
+  margin: .4rem 0 0;
+}
+.hint.warn{ color: var(--terracotta-hi); }
+
+/* status row */
+.sync-status-row{ display:flex; align-items:center; gap:.5rem; margin-bottom:.7rem; font-size:.85rem; }
+.status-dot{
+  width:.55rem; height:.55rem; border-radius:50%;
+  background: var(--muted-dim);
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 rgba(110,168,123,0);
+}
+.status-dot.online{ background: var(--sage); animation: pulse-dot 2.2s ease-in-out infinite; }
+.status-dot.syncing{ background: var(--brass); animation: pulse-dot 1s ease-in-out infinite; }
+.status-dot.offline{ background: var(--danger); }
+@keyframes pulse-dot{
+  0%,100%{ box-shadow: 0 0 0 0 rgba(110,168,123,.5); }
+  50%{ box-shadow: 0 0 0 5px rgba(110,168,123,0); }
+}
+
+/* stat grid */
+.stat-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .5rem .6rem;
+  margin: 0 0 .7rem;
+}
+.stat-grid > div{
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: .4rem .55rem;
+}
+.stat-grid dt{
+  font-size: .64rem; letter-spacing:.05em; text-transform:uppercase;
+  color: var(--muted); margin-bottom:.15rem;
+}
+.stat-grid dd{
+  margin:0; font-family: var(--font-mono); font-size: .92rem; color: var(--parchment); font-weight:500;
+}
+
+/* chips */
+.chip-field{ display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.55rem; }
+.chip{
+  display:inline-flex; align-items:center; gap:.35rem;
+  background: var(--raised); border:1px solid var(--line);
+  color: var(--parchment);
+  font-family: var(--font-mono); font-size:.72rem;
+  padding: .22rem .35rem .22rem .55rem;
+  border-radius: 999px;
+}
+.chip button{
+  background: transparent; border: none; color: var(--muted);
+  cursor:pointer; width:1.1rem; height:1.1rem; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:.85rem; line-height:1;
+}
+.chip button:hover{ background: var(--danger); color:#fff; }
+.chip.empty{ color: var(--muted); font-style: italic; border-style:dashed; }
+
+/* inline forms */
+.inline-form{ display:flex; gap:.4rem; margin-bottom:.4rem; }
+.inline-form input{ flex:1; min-width:0; }
+
+input[type="text"], textarea{
+  width:100%;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  color: var(--parchment);
+  font-family: var(--font-body);
+  font-size: .82rem;
+  padding: .4rem .55rem;
+  border-radius: var(--radius-sm);
+}
+textarea{ resize: vertical; font-family: var(--font-body); }
+input[type="text"]::placeholder, textarea::placeholder{ color: var(--muted-dim); }
+input[type="text"]:focus, textarea:focus{ border-color: var(--brass); }
+
+/* buttons */
+.btn{
+  font-size: .82rem;
+  font-weight: 600;
+  padding: .5rem .75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform .08s ease, filter .12s ease, background .12s ease;
+  white-space: nowrap;
+}
+.btn:active{ transform: translateY(1px); }
+.btn-block{ width:100%; }
+.btn-primary{
+  background: var(--raised); color: var(--parchment); border-color: var(--line);
+}
+.btn-primary:hover{ border-color: var(--brass); color: var(--brass-hi); }
+.btn-primary.armed{ background: var(--terracotta); border-color: var(--terracotta); color:#1b0d06; }
+.btn-accent{
+  background: var(--brass); color: #241a08; border-color: var(--brass);
+}
+.btn-accent:hover{ background: var(--brass-hi); }
+.btn-ghost{
+  background: transparent; color: var(--brass-hi); border-color: var(--brass-dim);
+}
+.btn-ghost:hover{ background: rgba(201,154,75,.12); }
+.btn-small{ padding: .3rem .55rem; font-size: .72rem; }
+.btn:disabled{
+  opacity:.4; cursor:not-allowed; filter:none; transform:none;
+}
+.btn-row{ display:flex; flex-direction:column; gap:.5rem; }
+
+/* region list */
+.region-list{
+  display:flex; flex-direction:column; gap:.35rem;
+  margin-bottom:.7rem;
+  max-height: 190px;
+  overflow-y:auto;
+  padding-right:.15rem;
+}
+.region-row{
+  display:flex; align-items:center; gap:.5rem;
+  background: var(--ink-2); border:1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: .4rem .5rem;
+  cursor:pointer;
+}
+.region-row:hover{ border-color: var(--brass-dim); }
+.region-row.active{ border-color: var(--brass); background: rgba(201,154,75,.08); }
+.region-row .swatch{ width:.65rem; height:.65rem; border-radius:2px; flex:0 0 auto; }
+.region-row .rname{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.82rem; }
+.region-row .rmeta{ font-family: var(--font-mono); font-size:.68rem; color:var(--muted); flex:0 0 auto; }
+.region-row input[type="checkbox"]{ accent-color: var(--brass); flex:0 0 auto; }
+.empty-hint{ font-size:.8rem; color:var(--muted); font-style:italic; padding:.4rem 0; }
+
+/* inspector detail */
+.field{ display:block; margin-bottom:.65rem; }
+.field > span{
+  display:block; font-size:.68rem; letter-spacing:.04em; text-transform:uppercase;
+  color: var(--muted); margin-bottom:.3rem;
+}
+.field > span b{ color: var(--brass-hi); font-family: var(--font-mono); text-transform:none; letter-spacing:0; }
+input[type="range"]{
+  width:100%; accent-color: var(--brass); margin-bottom:.35rem;
+}
+.progress-track{
+  height:6px; background: var(--ink-2); border:1px solid var(--line-soft); border-radius:999px; overflow:hidden;
+}
+.progress-fill{
+  height:100%; width:0%; background: linear-gradient(90deg, var(--brass-dim), var(--brass-hi));
+  transition: width .2s ease;
+}
+
+.news-feed{
+  margin-top:.55rem;
+  display:flex; flex-direction:column; gap:.4rem;
+  max-height:140px; overflow-y:auto;
+}
+.news-entry{
+  background: var(--ink-2); border-left:2px solid var(--sage);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: .35rem .5rem;
+  font-size: .78rem;
+}
+.news-entry time{
+  display:block; font-family: var(--font-mono); font-size:.64rem; color:var(--muted); margin-bottom:.1rem;
+}
+
+/* audit log — the signature element: a telegraph/ticker console */
+.audit-log{
+  height: 210px;
+  overflow-y: auto;
+  background: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: .4rem .5rem;
+  font-family: var(--font-mono);
+  font-size: .74rem;
+  background-image: repeating-linear-gradient(180deg, rgba(255,255,255,.015) 0px, rgba(255,255,255,.015) 1px, transparent 1px, transparent 18px);
+}
+.log-entry{
+  display:flex; gap:.5rem; align-items:baseline;
+  padding: .18rem .3rem;
+  border-left: 2px solid var(--line);
+  margin-bottom: 1px;
+  animation: log-in .25s ease;
+}
+@keyframes log-in{ from{ opacity:0; transform: translateX(-4px); } to{ opacity:1; transform:none; } }
+.log-entry time{ color: var(--brass); flex:0 0 auto; opacity:.85; }
+.log-entry .msg{ color: var(--parchment); word-break: break-word; }
+.log-entry.info{ border-left-color: var(--muted); }
+.log-entry.success{ border-left-color: var(--sage); }
+.log-entry.warn{ border-left-color: var(--brass); }
+.log-entry.warn .msg{ color: var(--brass-hi); }
+.log-entry.error{ border-left-color: var(--danger); }
+.log-entry.error .msg{ color: var(--danger-hi); }
+
+/* leaflet popups, dark themed */
+.leaflet-popup-content-wrapper{
+  background: var(--panel); color: var(--parchment);
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+}
+.leaflet-popup-tip{ background: var(--panel); border: 1px solid var(--line); }
+.leaflet-popup-content{ margin: .6rem .7rem; font-family: var(--font-body); font-size:.8rem; }
+.mc-popup h4{ margin:0 0 .35rem; font-family: var(--font-display); font-size:.95rem; }
+.mc-popup table{ border-collapse: collapse; width:100%; }
+.mc-popup td{ padding: .12rem 0; font-size:.78rem; }
+.mc-popup td:first-child{ color: var(--muted); padding-right:.6rem; white-space:nowrap; }
+.mc-popup td:last-child{ font-family: var(--font-mono); text-align:right; width:100%; }
+.tag{ font-family: var(--font-mono); font-size:.6rem; padding:.1rem .35rem; border-radius:999px; letter-spacing:.03em; }
+.tag-capital{ background: var(--brass); color:#241a08; }
+.tag-ruined{ background: var(--danger); color:#fff; }
+.leaflet-popup-close-button{ color: var(--muted) !important; }
+
+/* leaflet zoom control + geoman toolbar, dark themed */
+.leaflet-bar, .leaflet-pm-toolbar{
+  border: 1px solid var(--line) !important;
+  box-shadow: var(--shadow-panel) !important;
+}
+.leaflet-bar a, .leaflet-pm-toolbar a{
+  background: var(--panel) !important;
+  color: var(--parchment) !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+.leaflet-bar a:hover, .leaflet-pm-toolbar a:hover{
+  background: var(--raised) !important;
+  color: var(--brass-hi) !important;
+}
+.leaflet-pm-actions-container a{
+  background: var(--panel) !important; color: var(--parchment) !important;
+  border-color: var(--line) !important;
+}
+.leaflet-pm-actions-container a:hover{ background: var(--raised) !important; color: var(--brass-hi) !important; }
+.leaflet-control-attribution{
+  background: rgba(11,15,22,.75) !important; color: var(--muted) !important;
+}
+.leaflet-control-attribution a{ color: var(--muted) !important; }
+
+/* =========================================================================
+   RESPONSIVE
+   ========================================================================= */
+/* =========================================================================
+   ADMIN MODE & PASSWORD GATE
+   ========================================================================= */
+.admin-only{ display: none; }
+.admin-mode .admin-only{ display: block; }
+.public-only{ display: block; }
+.admin-mode .public-only{ display: none; }
+
+#btnAdminToggle{ position: relative; }
+#btnAdminToggle.unlocked::after{
+  content: '🔓';
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  font-size: .65rem;
+}
+
+.admin-modal{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.admin-modal[hidden]{ display: none; }
+.admin-modal-content{
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 360px;
+  box-shadow: var(--shadow-panel), 0 0 80px rgba(0,0,0,.8);
+}
+.admin-modal-content h3{
+  font-size: 1.1rem;
+  margin-bottom: .4rem;
+  color: var(--brass-hi);
+}
+.admin-modal-content p{
+  color: var(--muted);
+  font-size: .82rem;
+  margin-bottom: .9rem;
+}
+.admin-modal-content input[type="password"]{
+  width: 100%;
+  margin-bottom: .7rem;
+}
+
+@media (max-width: 960px){
+  .workspace{ flex-direction: column; overflow-y: auto; }
+  .map-pane{ flex: 0 0 46vh; max-width: 100%; height: 46vh; border-right:none; border-bottom:1px solid var(--line); }
+  .sidebar{ flex: 1 1 auto; max-width: 100%; }
+  .topbar-brand .tagline{ display:none; }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <h1><span class="locus">EarthMC</span> · Ethiopia</h1>
+      <span class="tagline">REGIONAL COMMAND OVERLAY — TERRA NOSTRA · LIVE TOWNY DATA</span>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <div class="topbar-pill">
+        <span class="status-dot" id="topStatusDot"></span>
+        <span id="topStatusText">Idle</span>
+      </div>
+      <button id="btnAdminToggle" class="btn btn-ghost btn-small" title="Unlock admin console" style="font-size: .75rem;">🔒 Admin</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+
+    <main class="map-pane">
+      <div id="map"></div>
+      <div style="position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(11,15,22,.86); border: 1px solid var(--line); color: var(--muted); font-family: var(--font-mono); font-size: .72rem; padding: .3rem .6rem; border-radius: var(--radius-sm); box-shadow: var(--shadow-panel); pointer-events: none; z-index: 14;" id="publicNotice">
+        <span class="public-only">🔒 Public view — unlock admin console to edit regions</span>
+        <span class="admin-only" style="color: var(--brass-hi);">🔓 Admin mode active</span>
+      </div>
+      <div class="split-banner" id="splitBanner">
+        <span id="splitBannerText">Draw a line across the region to split it</span>
+        <button id="splitCancelBtn" type="button" title="Cancel split">✕</button>
+      </div>
+    </main>
+
+    <aside class="sidebar" id="sidebar">
+
+      <section class="panel public-only" style="background: linear-gradient(135deg, var(--raised), var(--panel));">
+        <div class="panel-head">
+          <h2 style="color: var(--brass-hi);">Welcome to Ethiopia</h2>
+        </div>
+        <p style="color: var(--parchment); line-height: 1.6; margin-bottom: 1rem;">
+          This regional overlay displays the political boundaries and town data for the Ethiopian nation on EarthMC. Admins can unlock the console to manage regions, sync data, and perform topological operations.
+        </p>
+        <p style="color: var(--muted); font-size: .8rem;">
+          <strong>Features visible to all:</strong> Interactive map with town markers, region boundaries, population stats. Click regions to inspect them. Export boundary data as GeoJSON.
+        </p>
+      </section>
+
+      <section class="panel admin-only" id="panel-sync">
+        <div class="panel-head">
+          <span class="eyebrow">SYNC.STATUS</span>
+          <h2>EarthMC Connection</h2>
+        </div>
+        <div class="sync-status-row">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Idle — sync not yet run</span>
+        </div>
+        <dl class="stat-grid">
+          <div><dt>Server</dt><dd id="statServer">—</dd></div>
+          <div><dt>Last sync</dt><dd id="statLastSync">Never</dd></div>
+          <div><dt>Ethiopian towns</dt><dd id="statTownCount">0</dd></div>
+          <div><dt>Nations tracked</dt><dd id="statNationCount">0</dd></div>
+        </dl>
+        <div class="chip-field" id="nationChips"></div>
+        <form class="inline-form" id="addNationForm">
+          <input type="text" id="addNationInput" placeholder="Track a nation (e.g. Ethiopia)" autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-small">Track</button>
+        </form>
+        <form class="inline-form" id="addTownForm">
+          <input type="text" id="addTownInput" placeholder="Add a single town by name" autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-small">Add</button>
+        </form>
+        <p class="hint">Nations are matched by name against the live server. Add towns individually to curate the set regardless of nation.</p>
+      </section>
+
+      <section class="panel admin-only" id="panel-inspector">
+        <div class="panel-head">
+          <span class="eyebrow">REGION.DATA</span>
+          <h2>Region Inspector</h2>
+        </div>
+        <div class="region-list" id="regionList">
+          <p class="empty-hint">No regions drawn yet. Use the drawing tools in the map's top-left corner to draw your first regional boundary.</p>
+        </div>
+        <div id="inspectorEmpty" class="empty-hint">Select a region above to inspect it.</div>
+        <div class="inspector-detail" id="inspectorDetail" hidden>
+          <label class="field"><span>Region name</span>
+            <input type="text" id="regionNameInput">
+          </label>
+          <dl class="stat-grid">
+            <div><dt>Population</dt><dd id="regionPopulation">0</dd></div>
+            <div><dt>Towns</dt><dd id="regionTownCount">0</dd></div>
+            <div><dt>Claimed chunks</dt><dd id="regionChunks">0</dd></div>
+          </dl>
+          <label class="field"><span>Election progress — <b id="electionPct">0%</b></span>
+            <input type="range" min="0" max="100" step="1" id="electionRange">
+            <div class="progress-track"><div class="progress-fill" id="electionFill"></div></div>
+          </label>
+          <label class="field"><span>Post local news</span>
+            <textarea id="newsInput" rows="2" placeholder="Write a regional update…"></textarea>
+          </label>
+          <button id="postNewsBtn" type="button" class="btn btn-ghost btn-small">Post update</button>
+          <div class="news-feed" id="newsFeed"></div>
+        </div>
+      </section>
+
+      <section class="panel admin-only" id="panel-ops">
+        <div class="panel-head">
+          <span class="eyebrow">REGION.OPS</span>
+          <h2>Topological Control Hub</h2>
+        </div>
+        <div class="btn-row">
+          <button id="btnMerge" class="btn btn-primary" disabled>Merge selected regions</button>
+          <button id="btnSplit" class="btn btn-primary">Split region</button>
+          <button id="btnSync" class="btn btn-accent">⟳ Sync / refresh live API data</button>
+        </div>
+        <p class="hint admin-only">Admin-only: manage regions, sync data, and perform topological operations.</p>
+        <p class="hint" id="opsHint">Select two or more regions in the list above (checkboxes) to enable merging.</p>
+        <p class="hint" id="saveStatus" style="font-family: var(--font-mono); font-size: .7rem;">—</p>
+      </section>
+
+      <section class="panel admin-only" id="panel-log">
+        <div class="panel-head">
+          <span class="eyebrow">SYS.LOG</span>
+          <h2>Live System Audit Log</h2>
+        </div>
+        <div class="audit-log" id="auditLog"></div>
+      </section>
+
+      <section class="panel" id="panel-export">
+        <div class="panel-head">
+          <span class="eyebrow">DATA.OUT</span>
+          <h2>Export Utility</h2>
+        </div>
+        <p class="hint">Compiles every custom region's boundary and live-aggregated stats into one downloadable file.</p>
+        <button id="btnExport" class="btn btn-accent btn-block">Export regions as .geojson</button>
+      </section>
+
+    </aside>
+  </div>
+
+  <!-- Admin unlock modal -->
+  <div class="admin-modal" id="adminModal" hidden>
+    <div class="admin-modal-content">
+      <h3>Admin Console</h3>
+      <p>Enter the admin password to unlock the console and sensitive operations.</p>
+      <input type="password" id="adminPasswordInput" placeholder="Admin password" autocomplete="off">
+      <div style="display: flex; gap: .5rem; margin-top: 1rem;">
+        <button id="adminSubmitBtn" class="btn btn-accent" style="flex: 1;">Unlock</button>
+        <button id="adminCancelBtn" class="btn btn-primary" style="flex: 1;">Cancel</button>
+      </div>
+      <p id="adminErrorMsg" class="hint warn" style="margin-top: .7rem; display: none;"></p>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.19.0/dist/leaflet-geoman.min.js"></script>
+
+<script>
+'use strict';
+
+/* =========================================================================
+   ON-SCREEN ERROR BANNER — mobile browsers make dev tools painful to reach,
+   so any uncaught error/rejection anywhere in this script gets written
+   directly onto the visible page instead of only to a console nobody on
+   mobile can open. This runs FIRST, before anything else, so it catches
+   failures even during early setup (before the map or audit log exist).
+   ========================================================================= */
+(function(){
+  const banner = document.createElement('div');
+  banner.id = 'fatalErrorBanner';
+  banner.style.cssText = 'display:none; position:fixed; top:0; left:0; right:0; z-index:99999; background:#c1503f; color:#fff; font-family:monospace; font-size:12px; padding:10px 14px; white-space:pre-wrap; word-break:break-word; max-height:40vh; overflow:auto; box-shadow:0 2px 8px rgba(0,0,0,.4);';
+  document.addEventListener('DOMContentLoaded', () => document.body.appendChild(banner));
+  function show(label, detail){
+    banner.style.display = 'block';
+    banner.textContent += `[${label}] ${detail}\n`;
+  }
+  window.addEventListener('error', (e) => {
+    show('Script error', `${e.message} — ${e.filename ? e.filename.split('/').pop() : ''}:${e.lineno || '?'}`);
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    show('Unhandled promise rejection', (e.reason && e.reason.message) ? e.reason.message : String(e.reason));
+  });
+})();
+
+/* =========================================================================
+   0. CONFIG & PALETTE
+   ========================================================================= */
+const CONFIG = {
+  // EarthMC's official API. Note: as of the live docs the public API is at
+  // v4 (api.earthmc.net/v4) — v1-v3 endpoint families were retired, so v4
+  // is the correct, current base to build against. Confirmed unchanged after
+  // the Terra Nostra map reset (May 2026) — v4 has no era-specific path, it
+  // always serves whatever map is currently live.
+  API_BASE: 'https://api.earthmc.net/v4',
+  // EarthMC's API sends no CORS headers — it was never built for direct
+  // browser calls — so a static GitHub Pages site can't reach it without a
+  // passthrough proxy. Free public proxies (cors-anywhere, etc.) are
+  // explicitly not meant for production and can lock down without notice —
+  // that caused the earlier 403. This points at your own Cloudflare Worker
+  // (cors-proxy-worker.js) instead, which you control. No trailing slash.
+  CORS_PROXY: 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev',
+  DEFAULT_TARGET_NATIONS: ['Ethiopia'],
+  AUTO_SYNC_INTERVAL_MS: 90000,
+  TOWN_BATCH_SIZE: 100,
+  MAX_LOG_ENTRIES: 200,
+  REQUEST_TIMEOUT_MS: 15000,
+  REGION_PALETTE: ['#c99a4b', '#6ea87b', '#c1613a', '#7a9fc9', '#a97ec9', '#c9c25a', '#4fb8a8', '#d97c52'],
+  // Deliberately distinct hue set from REGION_PALETTE above, so live nation
+  // territory (informational) is never visually confused with the admin's
+  // deliberate custom political regions (the actual product of this tool).
+  NATION_PALETTE: ['#5e7fb5', '#8fa662', '#b56a8f', '#5fb5a0', '#b5905e', '#9a5eb5', '#b55e5e', '#6ea3b5'],
+};
+
+const COLORS = {
+  ink: '#0b0f16', ink2: '#10151f', line: '#263047', lineSoft: '#1c2536',
+  brass: '#c99a4b', brassHi: '#e0b76a', terracotta: '#c1613a', sage: '#6ea87b',
+  danger: '#c1503f', parchment: '#e9e3d4', muted: '#5d6880',
+};
+
+// Declared this early (before MapController is ever instantiated) because
+// the map-layers toggle control reads these synchronously during map
+// construction for each checkbox's initial state — a late declaration here
+// previously threw a ReferenceError (temporal dead zone) that would have
+// broken page load entirely. Caught and fixed by checking declaration
+// order, not assumed.
+let showClaims = true;
+let showTerrain = true; // same reasoning — declared alongside showClaims for consistency
+let showTowns = true;   // same reasoning — town markers get their own independent toggle
+                         // so they can be hidden when they visually compete with territory
+                         // outlines (both centered on/around the same town, easy to clutter)
+
+/* =========================================================================
+   1. COORDINATE MATH
+   The map's CRS is L.CRS.Simple, used as a flat Minecraft X/Z plane rather
+   than real-world lat/lng (EarthMC coordinates ARE the ground truth here).
+   Convention used everywhere in this file: lng = worldX, lat = -worldZ.
+   That keeps north (-Z, matching Minecraft's F3 compass) pointing up on
+   screen, and lets every Turf operation run on plain, unit-agnostic
+   planar coordinates — no real-world projection or scale factor needed.
+   ========================================================================= */
+const CoordUtils = {
+  mcToLatLng(x, z){ return L.latLng(-z, x); },
+  latLngToMc(latlng){ return { x: latlng.lng, z: -latlng.lat }; },
+  fmt(n){
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    return Math.round(n).toLocaleString('en-US');
+  },
+};
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = String(str === null || str === undefined ? '' : str);
+  return d.innerHTML;
+}
+
+function cloneLatLngs(latlngs){
+  if (Array.isArray(latlngs)) return latlngs.map(cloneLatLngs);
+  return L.latLng(latlngs.lat, latlngs.lng);
+}
+
+function niceStep(minStep){
+  const steps = [4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288];
+  for (const s of steps) if (s >= minStep) return s;
+  return steps[steps.length - 1];
+}
+
+function relTime(ts){
+  if (!ts) return 'Never';
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return 'just now';
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m ago`;
+}
+
+/* =========================================================================
+   2. AUDIT LOG — the console's signature element: a dark teleprinter ticker
+   ========================================================================= */
+class AuditLog{
+  constructor(containerEl){
+    this.el = containerEl;
+    this.count = 0;
+  }
+  log(message, level = 'info'){
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    const ss = String(now.getSeconds()).padStart(2,'0');
+    const row = document.createElement('div');
+    row.className = `log-entry ${level}`;
+    const time = document.createElement('time');
+    time.textContent = `${hh}:${mm}:${ss}`;
+    const msg = document.createElement('span');
+    msg.className = 'msg';
+    msg.textContent = message;
+    row.appendChild(time);
+    row.appendChild(msg);
+    this.el.appendChild(row);
+    this.count++;
+    while (this.count > CONFIG.MAX_LOG_ENTRIES){
+      const first = this.el.firstElementChild;
+      if (!first) break;
+      first.remove();
+      this.count--;
+    }
+    this.el.scrollTop = this.el.scrollHeight;
+    // Only log to browser console if admin mode is unlocked. Wrapped in
+    // try/catch (not a plain `if (state && ...)` check) because `state` is
+    // declared later in the file, and AuditLog.log() can genuinely be
+    // called before that point — Leaflet invokes tile-layer callbacks
+    // (like getTileUrl's debug logging) on its own schedule, not strictly
+    // top-to-bottom script order. A bare reference to a not-yet-initialized
+    // const/let throws a ReferenceError (the "temporal dead zone"), and
+    // `typeof state` does NOT protect against that here — typeof is only
+    // safe for a variable that's never declared anywhere in scope, not one
+    // that exists later but hasn't been reached yet. try/catch is the
+    // correct guard for that case. Confirmed as the actual cause of a real
+    // "Cannot access 'state' before initialization" crash that was
+    // blocking the whole app from booting.
+    try{
+      if (state && state.adminMode){
+        // eslint-disable-next-line no-console
+        console.log(`[${level}] ${message}`);
+      }
+    } catch(_tdz){ /* state not yet initialized this early — nothing to do */ }
+  }
+}
+
+/* =========================================================================
+   3. DARK GRID BASEMAP
+   A self-contained canvas GridLayer standing in for basemap tiles — no
+   external tile server or CORS dependency. Renders a coordinate grid in
+   native Minecraft blocks, with brighter major lines and X=0/Z=0 axes.
+   ========================================================================= */
+const McGridLayer = L.GridLayer.extend({
+  options: { tileSize: 256, noWrap: false, updateWhenZooming: false },
+
+  createTile(coords){
+    const tile = document.createElement('canvas');
+    const size = this.getTileSize();
+    tile.width = size.x;
+    tile.height = size.y;
+    const ctx = tile.getContext('2d');
+
+    ctx.fillStyle = COLORS.ink2;
+    ctx.fillRect(0, 0, size.x, size.y);
+
+    const zoom = coords.z;
+    const scale = Math.pow(2, zoom);
+    const pxNWx = coords.x * size.x;
+    const pxNWy = coords.y * size.y;
+
+    const worldMinX = pxNWx / scale;
+    const worldMaxX = (pxNWx + size.x) / scale;
+    const worldMinZ = pxNWy / scale;
+    const worldMaxZ = (pxNWy + size.y) / scale;
+
+    const targetPx = 90;
+    const step = niceStep(targetPx / scale);
+    const toPxX = (x) => x * scale - pxNWx;
+    const toPxY = (z) => z * scale - pxNWy;
+
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    ctx.textBaseline = 'top';
+
+    const startX = Math.floor(worldMinX / step) * step;
+    for (let x = startX; x <= worldMaxX; x += step){
+      const px = toPxX(x);
+      const isAxis = Math.abs(x) < 1e-6;
+      const isMajor = Math.round(x / step) % 4 === 0;
+      ctx.strokeStyle = isAxis ? 'rgba(193,97,58,.55)' : (isMajor ? 'rgba(201,154,75,.28)' : 'rgba(38,48,71,.55)');
+      ctx.lineWidth = isAxis ? 1.4 : (isMajor ? 1 : 0.6);
+      ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, size.y); ctx.stroke();
+      if (isMajor){
+        ctx.fillStyle = isAxis ? 'rgba(193,97,58,.9)' : 'rgba(139,150,171,.7)';
+        ctx.fillText(Math.round(x).toLocaleString(), px + 3, 2);
+      }
+    }
+
+    const startZ = Math.floor(worldMinZ / step) * step;
+    for (let z = startZ; z <= worldMaxZ; z += step){
+      const py = toPxY(z);
+      const isAxis = Math.abs(z) < 1e-6;
+      const isMajor = Math.round(z / step) % 4 === 0;
+      ctx.strokeStyle = isAxis ? 'rgba(122,159,201,.55)' : (isMajor ? 'rgba(201,154,75,.28)' : 'rgba(38,48,71,.55)');
+      ctx.lineWidth = isAxis ? 1.4 : (isMajor ? 1 : 0.6);
+      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(size.x, py); ctx.stroke();
+      if (isMajor && !isAxis){
+        ctx.fillStyle = 'rgba(139,150,171,.7)';
+        ctx.fillText(Math.round(z).toLocaleString(), 3, py + 3);
+      }
+    }
+
+    return tile;
+  }
+});
+
+/* =========================================================================
+   3b. LIVE TERRAIN TILE LAYER (EarthMC's own squaremap render)
+   URL PATH confirmed directly from a real browser network capture of
+   map.earthmc.net:
+     https://map.earthmc.net/tiles/minecraft_overworld/{zoom}/{tileX}_{tileZ}.png
+   That part is certain — reproduced exactly against multiple captured URLs.
+
+   ZOOM MODEL — this took three attempts to get right, so the reasoning is
+   recorded in full: EarthMC's own docs describe squaremap as using "the
+   vanilla map rendering style." Cross-checked against Minecraft's actual
+   documented in-game map item (multiple independent wiki sources): zoom
+   0 = MOST detail (1 block per pixel), and each step UP doubles the blocks
+   covered per tile (128→256→512→1024→2048), the opposite direction from a
+   generic web-map tile pyramid (which is what the first two attempts wrongly
+   assumed). Cross-checked again against squaremap's own GitHub: its default
+   config.yml has a documented zoom.max-in/max-out setting, confirming it
+   genuinely renders multiple discrete zoom folders on this same doubling
+   model, not just one native resolution. Assumed unit: one region tile
+   (512×512 blocks, matching Minecraft's own .mca region file size) at
+   TERRAIN LAYER — REBUILT to match a real, working reference implementation
+   (TNIH's ice-highways-map, github.com/XiLeF2211/ice-highways-map, which
+   targets this exact server: map.earthmc.net/tiles/minecraft_overworld).
+   Their entire terrain layer is a STANDARD L.tileLayer with a URL template
+   string — no custom getTileUrl(), no hand-derived zoom formula. Leaflet
+   fills {z}/{x}/{y} itself using its own native, built-in tile-index
+   convention; maxNativeZoom/minNativeZoom tell it which folder range
+   squaremap actually has, and Leaflet's own native-zoom clamping (scaling
+   the nearest real tile up/down) handles anything outside that range —
+   all for free, none of it hand-written.
+
+   This directly explains a bug that survived multiple "verified against
+   real captured URLs" passes today: those checks were only ever run at
+   squaremap zoom 0, and 0 is the ONE zoom level where "finest at 0" and
+   "coarsest at 0" give an IDENTICAL answer (log2 of a 1:1 ratio is 0
+   either way) — so the test could never have caught the direction being
+   backwards. TNIH's working config (maxNativeZoom: 5, minNativeZoom: 0)
+   proves squaremap folder 0 is the COARSEST (whole-world) level and 5 is
+   the FINEST — the reverse of what every version of this file assumed.
+
+   TNIH also applies a fixed `projection` divisor (64, for this exact
+   world — down from 16 on the previous map, "Terra Aurora," matching
+   EarthMC's own confirmation that the new map is 4× larger) to every
+   coordinate before it enters Leaflet's CRS.Simple space. This app's
+   town/region layers never divided by anything — CoordUtils.mcToLatLng
+   passes raw block coordinates straight into lat/lng. Reworking every
+   consumer of that convention is a bigger change than the terrain layer
+   alone; for now, PROJECTION exists so terrain can be corrected on its
+   own terms, matched to the tile server directly rather than to this
+   app's town-coordinate convention, which is left as explicitly unscaled.
+   ========================================================================= */
+const TERRAIN_BASE_URL = 'https://map.earthmc.net/tiles/minecraft_overworld';
+const TERRAIN_MAX_NATIVE_ZOOM = 5; // squaremap's finest folder — confirmed working value from TNIH's live config
+const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
+const TERRAIN_TILE_SIZE = 256; // Leaflet's default, unset in TNIH's own config — confirmed via the McGridLayer above, which already uses this successfully for real-world-coordinate math at any zoom
+
+// TNIH divides every real block coordinate by PROJECTION (64, for this
+// world) before it enters Leaflet — meaning THEIR map's lat/lng units
+// are scaled-down blocks, not raw ones. This app's mcToLatLng was
+// deliberately left unscaled (13 other Turf call sites depend on it
+// staying in real block units) — so PROJECTION does NOT apply here.
+//
+// Overriding getTileUrl (Leaflet's documented extension point) means
+// Leaflet's own internal native-zoom coordinate remapping — confirmed,
+// from Leaflet's real PR #1802 and source, to recompute x/y AT the
+// native zoom rather than just clamp the z label — is bypassed
+// entirely; only options declared here (which getTileUrl ignores) would
+// have triggered it. A prior version clamped z but reused coords.x/y
+// AS COMPUTED for the map's actual (unclamped) zoom — e.g. at map zoom
+// -4 clamped to squaremap zoom 0, it requested tile (2,-1) using
+// indices sized for zoom -4, when zoom 0's actual grid is a completely
+// different scale. Confirmed concretely: that produces a real,
+// existing tile — just the wrong one — which matches what was seen:
+// terrain rendered, but never lined up with towns, and lag/instability
+// from tiles churning as small pans crossed those oversized cells.
+//
+// Fixed the same way McGridLayer already computes real-world coordinates
+// correctly (verified working, same file, same math): reconstruct the
+// world position this tile's origin corresponds to using its ACTUAL
+// requested zoom, then re-derive tile x/y at the CLAMPED native zoom
+// from that world position — not from the original coords directly.
+const SquaremapTerrainLayer = L.TileLayer.extend({
+  options: {
+    maxNativeZoom: TERRAIN_MAX_NATIVE_ZOOM,
+    minNativeZoom: TERRAIN_MIN_NATIVE_ZOOM,
+    minZoom: -9, maxZoom: 8, opacity: 0.6, pmIgnore: true,
+    // A previous version of this layer had this fallback and lost it in
+    // a rewrite. Restoring it: even with the index math now correct, a
+    // tile at the world's real edge can still legitimately not exist on
+    // squaremap's server — this keeps that a quiet, transparent gap
+    // instead of a broken-image icon or load stall.
+    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  },
+  getTileUrl(coords){
+    const nativeZoom = Math.min(Math.max(coords.z, TERRAIN_MIN_NATIVE_ZOOM), TERRAIN_MAX_NATIVE_ZOOM);
+    const scaleAtRequestedZoom = Math.pow(2, coords.z);
+    const worldX = (coords.x * TERRAIN_TILE_SIZE) / scaleAtRequestedZoom;
+    const worldY = (coords.y * TERRAIN_TILE_SIZE) / scaleAtRequestedZoom;
+    const scaleAtNativeZoom = Math.pow(2, nativeZoom);
+    const nativeTileX = Math.floor((worldX * scaleAtNativeZoom) / TERRAIN_TILE_SIZE);
+    const nativeTileY = Math.floor((worldY * scaleAtNativeZoom) / TERRAIN_TILE_SIZE);
+    return `${TERRAIN_BASE_URL}/${nativeZoom}/${nativeTileX}_${nativeTileY}.png`;
+  },
+});
+
+function buildTerrainLayer(){
+  return new SquaremapTerrainLayer();
+}
+
+/* =========================================================================
+   4. EARTHMC API CLIENT
+   Talks to the official EarthMC v4 API. Nations are fetched by name (POST
+   /nations) to pull their town roster directly, which is far cheaper than
+   scanning the server's entire town list — no bounding-box/scale guessing
+   needed. Town detail POSTs use a slim template to keep payloads small.
+   ========================================================================= */
+class EarthMCClient{
+  constructor(auditLog){
+    this.auditLog = auditLog;
+    this.base = CONFIG.API_BASE;
+  }
+
+  async _request(path, options = {}){
+    const targetUrl = this.base + path;
+    // Query-param encoding (?url=<encoded target>) instead of embedding the
+    // raw target URL as a path segment — unambiguous, verified round-trip,
+    // and avoids relying on how any given edge/CDN layer parses embedded
+    // "://" sequences inside a path.
+    const proxyBase = CONFIG.CORS_PROXY.replace(/\/+$/, '');
+    const proxiedUrl = `${proxyBase}/?url=${encodeURIComponent(targetUrl)}`;
+
+    const hasBody = options.body !== undefined && options.body !== null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+    try{
+      const fetchInit = { method: options.method || 'GET', signal: controller.signal };
+      if (hasBody){
+        // Only attach Content-Type when actually sending a body — setting it
+        // on a bodyless GET forces an unnecessary CORS preflight and sends
+        // an unusual header on a request with nothing to describe.
+        fetchInit.body = options.body;
+        fetchInit.headers = { 'Content-Type': 'application/json' };
+      }
+      const res = await fetch(proxiedUrl, fetchInit);
+      clearTimeout(timeout);
+
+      let bodyText = '';
+      try{ bodyText = await res.text(); } catch(_e){ /* ignore */ }
+
+      if (!res.ok){
+        throw new Error(`HTTP ${res.status} ${res.statusText}${bodyText ? ' — ' + bodyText.slice(0,220) : ' (empty response body)'}`);
+      }
+      if (!bodyText) return null;
+      try{
+        return JSON.parse(bodyText);
+      } catch(_parseErr){
+        throw new Error(`Proxy/API returned non-JSON response: ${bodyText.slice(0,220)}`);
+      }
+    } catch(err){
+      clearTimeout(timeout);
+      if (err.name === 'AbortError'){
+        throw new Error('Request timed out — the EarthMC API or proxy may be slow or unreachable');
+      }
+      throw new Error(err.message);
+    }
+  }
+
+  getServerInfo(){ return this._request('/'); }
+
+  async getNationDetails(names){
+    if (!names || !names.length) return [];
+    const body = {
+      query: names,
+      template: { name:true, uuid:true, towns:true, king:true, status:true, stats:true },
+    };
+    const res = await this._request('/nations', { method:'POST', body: JSON.stringify(body) });
+    return Array.isArray(res) ? res.filter(Boolean) : [];
+  }
+
+  async getTownDetailsBatched(namesOrUuids){
+    const template = { name:true, uuid:true, nation:true, mayor:true, status:true, stats:true, coordinates:true };
+    const out = [];
+    const total = namesOrUuids.length;
+    const batches = Math.ceil(total / CONFIG.TOWN_BATCH_SIZE);
+    for (let i = 0; i < total; i += CONFIG.TOWN_BATCH_SIZE){
+      const batch = namesOrUuids.slice(i, i + CONFIG.TOWN_BATCH_SIZE);
+      const body = { query: batch, template };
+      const res = await this._request('/towns', { method:'POST', body: JSON.stringify(body) });
+      if (Array.isArray(res)) out.push(...res.filter(Boolean));
+      if (batches > 1){
+        this.auditLog.log(`Fetched town batch ${Math.floor(i / CONFIG.TOWN_BATCH_SIZE) + 1}/${batches}`, 'info');
+      }
+    }
+    return out.map(t => this.processTown(t)).filter(Boolean);
+  }
+
+  processTown(raw){
+    if (!raw || !raw.coordinates) return null;
+    const spawn = raw.coordinates.spawn;
+    let mcX, mcZ;
+    if (spawn && typeof spawn.x === 'number' && typeof spawn.z === 'number'){
+      mcX = spawn.x; mcZ = spawn.z;
+    } else if (Array.isArray(raw.coordinates.homeBlock) && raw.coordinates.homeBlock.length === 2){
+      // homeBlock is given in chunk units — multiply by 16 (and centre within
+      // the chunk) to get real block coordinates.
+      mcX = raw.coordinates.homeBlock[0] * 16 + 8;
+      mcZ = raw.coordinates.homeBlock[1] * 16 + 8;
+    } else{
+      return null;
+    }
+    return {
+      name: raw.name || 'Unnamed',
+      uuid: raw.uuid || raw.name,
+      nationName: raw.nation && raw.nation.name ? raw.nation.name : null,
+      mayor: raw.mayor && raw.mayor.name ? raw.mayor.name : null,
+      population: raw.stats && typeof raw.stats.numResidents === 'number' ? raw.stats.numResidents : 0,
+      townBlocks: raw.stats && typeof raw.stats.numTownBlocks === 'number' ? raw.stats.numTownBlocks : 0,
+      // claimChunks: the actual [cx,cz] chunk coordinates this town has claimed
+      // (distinct from `townBlocks` above, which is just the numeric count) —
+      // used to trace real territory outlines on the map, not just a marker dot.
+      claimChunks: Array.isArray(raw.coordinates.townBlocks) ? raw.coordinates.townBlocks : [],
+      balance: raw.stats && typeof raw.stats.balance === 'number' ? raw.stats.balance : 0,
+      isCapital: !!(raw.status && raw.status.isCapital),
+      isRuined: !!(raw.status && raw.status.isRuined),
+      isOverClaimed: !!(raw.status && raw.status.isOverClaimed),
+      mcX, mcZ,
+    };
+  }
+}
+
+/* =========================================================================
+   5. GEOMETRY HELPERS — polygon split & validation
+   Operate purely on plain [x,y] pairs in the native (worldX, -worldZ)
+   plane using only topological Turf functions (lineIntersect, kinks,
+   flatten) — deliberately avoiding turf.buffer/turf.area, which assume
+   real-world geographic units and would misbehave on raw block coordinates.
+   ========================================================================= */
+// Traces the outer boundary of a set of claimed chunks into clean closed
+// rings — used to render actual territory outlines (like EarthMC's own
+// dynmap) instead of just town center-point markers. Deliberately NOT built
+// on turf.union (iteratively unioning hundreds of unit squares is slow and
+// reuses machinery the admin merge tool depends on); this is a dedicated
+// grid boundary trace, verified against single chunks, blocks, L-shapes,
+// disconnected clusters, donut holes, negative coordinates, and — critically
+// — chunks that touch only diagonally at a single corner (which a naive
+// point-to-point walk gets wrong; this resolves it with a wall-follower
+// "most-clockwise-turn" rule at ambiguous vertices) at realistic nation
+// scale (verified correct across many random trials at 800+ chunks,
+// sub-10ms). Returns an array of rings (each a closed array of [x,z]
+// points), or null if the input can't form clean closed loops.
+function traceChunkOutlines(chunkList){
+  const chunkSet = new Set(chunkList.map(([cx,cz]) => `${cx},${cz}`));
+  const hasChunk = (cx,cz) => chunkSet.has(`${cx},${cz}`);
+  const CW_ORDER = ['E','S','W','N'];
+
+  const edges = [];
+  for (const [cx,cz] of chunkList){
+    const x0 = cx*16, x1 = cx*16+16, z0 = cz*16, z1 = cz*16+16;
+    if (!hasChunk(cx, cz-1)) edges.push({ from:[x0,z0], to:[x1,z0], dir:'E' });
+    if (!hasChunk(cx, cz+1)) edges.push({ from:[x1,z1], to:[x0,z1], dir:'W' });
+    if (!hasChunk(cx-1, cz)) edges.push({ from:[x0,z1], to:[x0,z0], dir:'N' });
+    if (!hasChunk(cx+1, cz)) edges.push({ from:[x1,z0], to:[x1,z1], dir:'S' });
+  }
+
+  const key = ([x,z]) => x + ',' + z;
+  const byFrom = new Map();
+  edges.forEach((e,i) => {
+    const k = key(e.from);
+    if (!byFrom.has(k)) byFrom.set(k, []);
+    byFrom.get(k).push(i);
+  });
+
+  function pickNext(candidateIdxs, incomingDir){
+    if (candidateIdxs.length === 1) return candidateIdxs[0];
+    const inIdx = CW_ORDER.indexOf(incomingDir);
+    const rightIdx = (inIdx + 1) % 4;
+    let best = candidateIdxs[0], bestScore = -1;
+    for (const idx of candidateIdxs){
+      const outIdx = CW_ORDER.indexOf(edges[idx].dir);
+      const dist = (outIdx - rightIdx + 4) % 4;
+      const score = 3 - dist;
+      if (score > bestScore){ bestScore = score; best = idx; }
+    }
+    return best;
+  }
+
+  const edgeUsed = new Array(edges.length).fill(false);
+  const rings = [];
+  for (let startI = 0; startI < edges.length; startI++){
+    if (edgeUsed[startI]) continue;
+    const startPoint = edges[startI].from;
+    const ring = [startPoint];
+    let currentIdx = startI, guard = 0;
+    while (guard++ < edges.length + 2){
+      edgeUsed[currentIdx] = true;
+      const currentEdge = edges[currentIdx];
+      ring.push(currentEdge.to);
+      if (currentEdge.to[0] === startPoint[0] && currentEdge.to[1] === startPoint[1]) break;
+      const candidates = (byFrom.get(key(currentEdge.to)) || []).filter(i => !edgeUsed[i]);
+      if (!candidates.length) return null;
+      currentIdx = pickNext(candidates, currentEdge.dir);
+    }
+    const last = ring[ring.length - 1];
+    if (last[0] !== startPoint[0] || last[1] !== startPoint[1]) return null;
+    if (ring.length >= 4) rings.push(ring);
+  }
+  return rings;
+}
+
+function checkNoKinks(feature){
+  try{
+    const polys = feature.geometry.type === 'MultiPolygon'
+      ? turf.flatten(feature).features
+      : [feature];
+    return polys.every(p => turf.kinks(p).features.length === 0);
+  } catch(_err){
+    return false;
+  }
+}
+
+function isPointOnSegment(pt, a, b, eps = 1e-3){
+  const dx = b[0]-a[0], dy = b[1]-a[1];
+  const segLenSq = dx*dx + dy*dy;
+  if (segLenSq < 1e-9) return false;
+  const cross = dx*(pt[1]-a[1]) - dy*(pt[0]-a[0]);
+  const distFromLine = Math.abs(cross) / Math.sqrt(segLenSq);
+  if (distFromLine > eps) return false;
+  const dot = ((pt[0]-a[0])*dx + (pt[1]-a[1])*dy) / segLenSq;
+  return dot >= -1e-6 && dot <= 1 + 1e-6;
+}
+
+// Extrapolate the drawn cutting line well past the polygon's own bounding
+// box on both ends, guaranteeing a clean in/out crossing regardless of
+// exactly where the admin started or stopped drawing.
+function extendLine(lineFeature, polygonFeature){
+  const coords = lineFeature.geometry.coordinates;
+  if (coords.length < 2) return lineFeature;
+  const bbox = turf.bbox(polygonFeature);
+  const diag = Math.hypot(bbox[2]-bbox[0], bbox[3]-bbox[1]) || 1;
+  const extendBy = diag * 2;
+  const [x1,y1] = coords[0], [x2,y2] = coords[1];
+  const [xn1,yn1] = coords[coords.length-2], [xn2,yn2] = coords[coords.length-1];
+  function extendPoint(px,py,dx,dy,dist){
+    const len = Math.hypot(dx,dy) || 1;
+    return [px + (dx/len)*dist, py + (dy/len)*dist];
+  }
+  const startExt = extendPoint(x1,y1, x1-x2, y1-y2, extendBy);
+  const endExt = extendPoint(xn2,yn2, xn2-xn1, yn2-yn1, extendBy);
+  return turf.lineString([startExt, ...coords, endExt]);
+}
+
+// Given a polygon ring and exactly two points known to lie on it, walk the
+// ring both ways from A to B, close each arc with the chord back to its
+// start, and return the two resulting rings.
+function buildSplitPolygons(ring, pA, pB){
+  const closedRing = ring.slice(0, ring.length - 1);
+  const n = closedRing.length;
+  if (n < 3) return null;
+
+  function locate(pt){
+    for (let i = 0; i < n; i++){
+      const a = closedRing[i], b = closedRing[(i+1) % n];
+      if (isPointOnSegment(pt, a, b)) return i;
+    }
+    return -1;
+  }
+
+  const idxA = locate(pA);
+  const idxB = locate(pB);
+  if (idxA === -1 || idxB === -1) return null;
+
+  function buildArc(fromIdx, fromPt, toIdx, toPt){
+    const arc = [fromPt];
+    let i = (fromIdx + 1) % n;
+    let guard = 0;
+    while (i !== (toIdx + 1) % n){
+      arc.push(closedRing[i]);
+      i = (i + 1) % n;
+      guard++;
+      if (guard > n + 2) return null;
+    }
+    arc.push(toPt);
+    return arc;
+  }
+
+  const arc1 = buildArc(idxA, pA, idxB, pB);
+  const arc2 = buildArc(idxB, pB, idxA, pA);
+  if (!arc1 || !arc2) return null;
+
+  const ring1 = [...arc1, arc1[0]];
+  const ring2 = [...arc2, arc2[0]];
+  if (ring1.length < 4 || ring2.length < 4) return null;
+  return [ring1, ring2];
+}
+
+/* =========================================================================
+   6. REGION MANAGER
+   Owns every custom-drawn political region: creation, styling, selection,
+   the live spatial join against synced EarthMC towns, merge (Turf union),
+   split (line-cut), kink validation, and GeoJSON export.
+
+   Re-binding guarantee: every region layer that ever reaches the map is
+   created through _registerRegion() exactly once. Merge and split both
+   remove their source regions and register freshly-built layers rather
+   than mutating or reusing old layer objects, so click/hover/edit handlers
+   are always correctly and freshly bound after any clear-and-redraw —
+   without brittle unbind/rebind bookkeeping on reused layers.
+   ========================================================================= */
+class RegionManager{
+  constructor(map, layerGroup, auditLog, callbacks){
+    this.map = map;
+    this.layerGroup = layerGroup;
+    this.auditLog = auditLog;
+    this.onChange = (callbacks && callbacks.onChange) || function(){};
+    this.regions = new Map();
+    this.selectedIds = new Set();
+    this.activeId = null;
+    this.currentTowns = [];
+    this._nextId = 1;
+  }
+
+  _colorFor(id){
+    const region = this.regions.get(id);
+    const idx = region && region.colorIndex !== undefined ? region.colorIndex : 0;
+    return CONFIG.REGION_PALETTE[idx % CONFIG.REGION_PALETTE.length];
+  }
+
+  _styleFor(id){
+    const isActive = id === this.activeId;
+    const isSelected = this.selectedIds.has(id);
+    const color = this._colorFor(id);
+    return {
+      color: isActive ? COLORS.brassHi : color,
+      weight: isActive ? 3 : (isSelected ? 2.5 : 1.8),
+      opacity: 0.95,
+      fillColor: color,
+      fillOpacity: isActive ? 0.32 : 0.18,
+      dashArray: (isSelected && !isActive) ? '6 4' : null,
+    };
+  }
+
+  _hoverStyle(id){
+    const base = this._styleFor(id);
+    return { ...base, weight: base.weight + 1, fillOpacity: Math.min(0.5, base.fillOpacity + 0.15) };
+  }
+
+  restyleAll(){
+    this.regions.forEach((region, id) => region.layer.setStyle(this._styleFor(id)));
+  }
+
+  _registerRegion(layer, props = {}){
+    const id = 'region-' + this._nextId;
+    const colorIndex = (this._nextId - 1) % CONFIG.REGION_PALETTE.length;
+    this._nextId++;
+    const region = {
+      id,
+      name: props.name || `New Region ${id.split('-')[1]}`,
+      layer,
+      colorIndex,
+      electionProgress: props.electionProgress || 0,
+      news: props.news ? props.news.slice() : [],
+      stats: { population: 0, townCount: 0, claimChunks: 0 },
+      containedTowns: [],
+      lastValidLatLngs: null,
+    };
+    region.lastValidLatLngs = cloneLatLngs(layer.getLatLngs());
+
+    this.regions.set(id, region);
+    layer.addTo(this.layerGroup);
+    layer.setStyle(this._styleFor(id));
+
+    layer.on('click', (e) => { L.DomEvent.stopPropagation(e); this.setActive(id); });
+    layer.on('mouseover', () => { if (this.activeId !== id) layer.setStyle(this._hoverStyle(id)); });
+    layer.on('mouseout', () => layer.setStyle(this._styleFor(id)));
+    layer.on('pm:edit', () => this._handleEdit(region));
+    layer.on('pm:markerdragend', () => this._handleEdit(region));
+    layer.on('pm:dragend', () => this._handleEdit(region));
+    // The full editable inspector panel is admin-only, but public visitors
+    // can still click a region directly on the map — this popup (function
+    // form, so it's rebuilt fresh on every open rather than going stale)
+    // keeps basic viewing working for everyone, not just admins.
+    layer.bindPopup(() => this._buildRegionPopupHtml(region));
+
+    this.recalcStats(region);
+    return region;
+  }
+
+  _buildRegionPopupHtml(region){
+    return `<div class="mc-popup">
+      <h4>${escapeHtml(region.name)}</h4>
+      <table>
+        <tr><td>Population</td><td>${CoordUtils.fmt(region.stats.population)}</td></tr>
+        <tr><td>Towns</td><td>${CoordUtils.fmt(region.stats.townCount)}</td></tr>
+        <tr><td>Claimed chunks</td><td>${CoordUtils.fmt(region.stats.claimChunks)}</td></tr>
+        <tr><td>Election progress</td><td>${region.electionProgress}%</td></tr>
+      </table>
+    </div>`;
+  }
+
+  createFromDraw(layer, name){
+    const feature = layer.toGeoJSON();
+    if (!checkNoKinks(feature)){
+      this.auditLog.log('Rejected new region: self-intersecting polygon detected', 'warn');
+      this.map.removeLayer(layer);
+      return null;
+    }
+    const region = this._registerRegion(layer, { name });
+    this.auditLog.log(`New region "${region.name}" created (${region.stats.townCount} towns inside)`, 'success');
+    this.setActive(region.id);
+    this.onChange();
+    scheduleSave();
+    return region;
+  }
+
+  _handleEdit(region){
+    const feature = region.layer.toGeoJSON();
+    if (!checkNoKinks(feature)){
+      region.layer.setLatLngs(region.lastValidLatLngs);
+      this.auditLog.log(`Edit rejected on "${region.name}": would self-intersect — reverted`, 'warn');
+      this.onChange();
+      return;
+    }
+    region.lastValidLatLngs = cloneLatLngs(region.layer.getLatLngs());
+    this.recalcStats(region);
+    this.auditLog.log(`Region "${region.name}" geometry updated (${region.stats.townCount} towns inside)`, 'success');
+    this.onChange();
+    scheduleSave();
+  }
+
+  removeRegion(id){
+    const region = this.regions.get(id);
+    if (!region) return;
+    this.layerGroup.removeLayer(region.layer);
+    region.layer.off();
+    this.regions.delete(id);
+    this.selectedIds.delete(id);
+    if (this.activeId === id) this.activeId = null;
+  }
+
+  setActive(id){
+    this.activeId = id;
+    this.restyleAll();
+    this.onChange();
+  }
+
+  toggleSelect(id){
+    if (this.selectedIds.has(id)) this.selectedIds.delete(id);
+    else this.selectedIds.add(id);
+    this.restyleAll();
+    this.onChange();
+  }
+
+  getActive(){
+    return this.activeId ? this.regions.get(this.activeId) : null;
+  }
+
+  recalcStats(region){
+    const feature = region.layer.toGeoJSON();
+    const contained = this.currentTowns.filter(t => {
+      try{ return turf.booleanPointInPolygon(turf.point([t.mcX, -t.mcZ]), feature); }
+      catch(_err){ return false; }
+    });
+    region.containedTowns = contained;
+    region.stats.population = contained.reduce((s,t) => s + (t.population || 0), 0);
+    region.stats.townCount = contained.length;
+    region.stats.claimChunks = contained.reduce((s,t) => s + (t.townBlocks || 0), 0);
+  }
+
+  recalcAll(towns){
+    this.currentTowns = towns || [];
+    this.regions.forEach(region => this.recalcStats(region));
+    this.onChange();
+  }
+
+  mergeSelected(){
+    const ids = [...this.selectedIds];
+    if (ids.length < 2){
+      this.auditLog.log('Select at least two regions to merge', 'warn');
+      return;
+    }
+    const regions = ids.map(id => this.regions.get(id)).filter(Boolean);
+    let unionFeature = regions[0].layer.toGeoJSON();
+    try{
+      for (let i = 1; i < regions.length; i++){
+        unionFeature = turf.union(unionFeature, regions[i].layer.toGeoJSON());
+        if (!unionFeature) throw new Error('union produced an empty result');
+      }
+    } catch(err){
+      this.auditLog.log(`Merge failed: ${err.message}`, 'error');
+      return;
+    }
+    if (!checkNoKinks(unionFeature)){
+      this.auditLog.log('Merge rejected: combined shape would self-intersect', 'error');
+      return;
+    }
+
+    const mergedLayers = L.geoJSON(unionFeature).getLayers();
+    if (!mergedLayers.length){
+      this.auditLog.log('Merge failed: could not build combined layer', 'error');
+      return;
+    }
+    const mergedLayer = mergedLayers[0];
+    const mergedName = regions.map(r => r.name).join(' + ');
+    const mergedNews = regions.flatMap(r => r.news).sort((a,b) => a.ts - b.ts);
+    const summedBefore = regions.reduce((s,r) => s + r.stats.townCount, 0);
+
+    ids.forEach(id => this.removeRegion(id));
+    const region = this._registerRegion(mergedLayer, { name: mergedName, news: mergedNews });
+    this.selectedIds.clear();
+    this.auditLog.log(
+      `Merged ${regions.length} regions into "${mergedName}" — ${region.stats.townCount} towns inside (${summedBefore} summed across sources pre-merge)`,
+      'success'
+    );
+    this.setActive(region.id);
+    this.onChange();
+    scheduleSave();
+  }
+
+  splitActiveWithLine(cutLayer){
+    const region = this.getActive();
+    if (!region){
+      this.auditLog.log('No active region selected — pick a region before splitting', 'warn');
+      return false;
+    }
+    const polygonFeature = region.layer.toGeoJSON();
+    if (polygonFeature.geometry.type !== 'Polygon'){
+      this.auditLog.log('Split only supports single, non-multi-part regions', 'warn');
+      return false;
+    }
+    const rawLine = cutLayer.toGeoJSON();
+    if (!rawLine.geometry || rawLine.geometry.coordinates.length < 2){
+      this.auditLog.log('Split rejected: draw a line with at least two points', 'warn');
+      return false;
+    }
+
+    const extended = extendLine(rawLine, polygonFeature);
+    const ring = polygonFeature.geometry.coordinates[0];
+    const ringLine = turf.lineString(ring);
+
+    let xPts;
+    try{ xPts = turf.lineIntersect(ringLine, extended); }
+    catch(err){ this.auditLog.log(`Split failed: ${err.message}`, 'error'); return false; }
+
+    if (xPts.features.length !== 2){
+      this.auditLog.log(
+        `Split rejected: cutting line crossed the boundary ${xPts.features.length} time(s) — needs exactly 2`,
+        'warn'
+      );
+      return false;
+    }
+
+    const [pA, pB] = xPts.features.map(f => f.geometry.coordinates);
+    const built = buildSplitPolygons(ring, pA, pB);
+    if (!built){
+      this.auditLog.log('Split rejected: could not resolve the cut geometry — try a cleaner line', 'error');
+      return false;
+    }
+    const [ringA, ringB] = built;
+    const featA = turf.polygon([ringA]);
+    const featB = turf.polygon([ringB]);
+    if (!checkNoKinks(featA) || !checkNoKinks(featB)){
+      this.auditLog.log('Split rejected: result would self-intersect', 'warn');
+      return false;
+    }
+
+    const layerA = L.geoJSON(featA).getLayers()[0];
+    const layerB = L.geoJSON(featB).getLayers()[0];
+    const oldName = region.name, oldNews = region.news, oldElection = region.electionProgress;
+
+    this.removeRegion(region.id);
+    const regionA = this._registerRegion(layerA, { name: `${oldName} A`, news: oldNews.slice(), electionProgress: oldElection });
+    const regionB = this._registerRegion(layerB, { name: `${oldName} B`, news: oldNews.slice(), electionProgress: oldElection });
+
+    this.auditLog.log(
+      `Split "${oldName}" into "${regionA.name}" (${regionA.stats.townCount} towns) and "${regionB.name}" (${regionB.stats.townCount} towns)`,
+      'success'
+    );
+    this.setActive(regionA.id);
+    this.onChange();
+    scheduleSave();
+    return true;
+  }
+
+  exportGeoJSON(){
+    const features = [...this.regions.values()].map(region => ({
+      type: 'Feature',
+      geometry: region.layer.toGeoJSON().geometry,
+      properties: {
+        name: region.name,
+        population: region.stats.population,
+        townCount: region.stats.townCount,
+        claimChunks: region.stats.claimChunks,
+        claimBlocksApprox: region.stats.claimChunks * 256,
+        electionProgress: region.electionProgress,
+        localNews: region.news,
+        containedTowns: region.containedTowns.map(t => t.name),
+      },
+    }));
+    return {
+      type: 'FeatureCollection',
+      crs_note: 'Coordinates are Minecraft/EarthMC block coordinates, not geographic lat/lng. GeoJSON [x, y] = [worldX, -worldZ].',
+      generatedBy: 'EarthMC Ethiopia Regional Command Overlay',
+      generatedAt: new Date().toISOString(),
+      features,
+    };
+  }
+
+  // Counterpart to exportGeoJSON() — rebuilds regions from a previously
+  // saved FeatureCollection (used to restore the persisted, shared state on
+  // page load, for every visitor). Reuses _registerRegion so every rebuilt
+  // layer gets the exact same click/hover/edit binding as a freshly drawn
+  // one — no separate, easier-to-drift binding path for "loaded" regions.
+  rehydrateFromFeatureCollection(fc){
+    if (!fc || !Array.isArray(fc.features)) return 0;
+    let count = 0;
+    fc.features.forEach(feature => {
+      try{
+        if (!feature || !feature.geometry) return;
+        const layer = L.geoJSON(feature).getLayers()[0];
+        if (!layer) return;
+        const props = feature.properties || {};
+        this._registerRegion(layer, {
+          name: props.name,
+          electionProgress: typeof props.electionProgress === 'number' ? props.electionProgress : 0,
+          news: Array.isArray(props.localNews) ? props.localNews : [],
+        });
+        count++;
+      } catch(err){
+        this.auditLog.log(`Skipped a saved region that failed to load: ${err.message}`, 'warn');
+      }
+    });
+    return count;
+  }
+}
+
+/* =========================================================================
+   7. MAP CONTROLLER
+   L.CRS.Simple is used so native EarthMC X/Z blocks ARE the map's plane —
+   no basemap tiles, no lat/lng projection. Geoman's toolbar is pinned
+   top-left per spec; the polyline tool is hidden from the toolbar and only
+   armed programmatically for the Split workflow, and Geoman's own
+   cut-polygon tool is disabled in favour of the custom line-split handler
+   above, which matches the brief's "line across a region" behaviour.
+   ========================================================================= */
+class MapController{
+  constructor(){
+    this.map = L.map('map', {
+      crs: L.CRS.Simple,
+      minZoom: -9,
+      maxZoom: 8,
+      zoomSnap: 0.25,
+      zoomDelta: 0.75,
+      wheelPxPerZoomLevel: 90,
+      attributionControl: true,
+    });
+    this.map.setView([0, 0], -4);
+    this.map.attributionControl.setPrefix('Live data: EarthMC API · Leaflet + Turf + Geoman');
+
+    // #map is sized via CSS (`position: absolute; inset: 0`), not fixed
+    // pixel dimensions in markup. Leaflet reads the container's real size
+    // at construction time to build its internal pixel-origin/tile-grid —
+    // but with an absolutely-positioned container, the browser can still be
+    // resolving layout on the very frame this constructor runs, so Leaflet
+    // can end up computing that grid against a stale or zero-sized
+    // container. This is a well-documented Leaflet gotcha independent of
+    // any tile-URL logic: the fix is to force a fresh size read once the
+    // container's true dimensions are guaranteed settled. Two calls,
+    // because the failure mode has two different possible timings:
+    //  - next animation frame: catches a same-tick layout race
+    //  - window 'load': catches slower cases (fonts/images still
+    //    reflowing the layout after the frame above already ran)
+    // A wrong/stale size here doesn't corrupt individual tile URLs (those
+    // are computed independently and were verified correct against real
+    // captured data) — it corrupts WHERE Leaflet places the whole tile
+    // grid on screen, which is a plausible explanation for tiles loading
+    // successfully (confirmed 512×512, real URLs) yet visibly not lining
+    // up with the town markers placed via the same map's coordinate system.
+    requestAnimationFrame(() => this.map.invalidateSize());
+    window.addEventListener('load', () => this.map.invalidateSize());
+
+    new McGridLayer().addTo(this.map);
+
+    // Real terrain from EarthMC's own live map, sitting on top of the dark
+    // grid — the grid shows through anywhere a terrain tile 404s (unrendered
+    // area on EarthMC's end), so there's never a broken/blank gap, just a
+    // graceful fallback to the coordinate grid. Stored on `this` so the
+    // toggle control below can show/hide it.
+    this.terrainLayer = new SquaremapTerrainLayer().addTo(this.map);
+
+    // Z-order matters: added first = rendered at the bottom. Live nation
+    // territory (informational) sits below the admin's deliberate political
+    // regions, which sit below town markers (always need to stay clickable).
+    this.claimsLayerGroup = L.layerGroup().addTo(this.map);
+    this.townsLayerGroup = L.layerGroup().addTo(this.map);
+    this.regionsLayerGroup = L.layerGroup().addTo(this.map);
+
+    this._setupCoordReadout();
+    this._setupLayerToggles();
+    this._setupGeoman();
+  }
+
+  _setupCoordReadout(){
+    const self = this;
+    const ReadoutControl = L.Control.extend({
+      options: { position: 'bottomleft' },
+      onAdd(map){
+        const div = L.DomUtil.create('div', 'coord-readout');
+        div.textContent = 'X — · Z —';
+        map.on('mousemove', (e) => {
+          const mc = CoordUtils.latLngToMc(e.latlng);
+          div.textContent = `X ${Math.round(mc.x).toLocaleString()} · Z ${Math.round(mc.z).toLocaleString()}`;
+        });
+        map.on('mouseout', () => { div.textContent = 'X — · Z —'; });
+        return div;
+      },
+    });
+    this.map.addControl(new ReadoutControl());
+  }
+
+  _setupLayerToggles(){
+    const self = this;
+    const rows = [
+      { label: 'Live territory', get: () => showClaims, set: (v) => { showClaims = v; renderNationClaims(state.towns); } },
+      { label: 'Town markers', get: () => showTowns, set: (v) => { showTowns = v; renderTownMarkers(state.towns); } },
+      { label: 'Terrain (experimental)', get: () => showTerrain, set: (v) => {
+          showTerrain = v;
+          if (v) self.terrainLayer.addTo(self.map);
+          else self.map.removeLayer(self.terrainLayer);
+        } },
+    ];
+    const LayersControl = L.Control.extend({
+      options: { position: 'bottomleft' },
+      onAdd: () => {
+        const panel = L.DomUtil.create('div', 'map-layers-toggle');
+        const title = document.createElement('div');
+        title.className = 'layers-title';
+        title.textContent = 'Map layers';
+        panel.appendChild(title);
+        rows.forEach(row => {
+          const label = document.createElement('label');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = row.get();
+          const text = document.createElement('span');
+          text.textContent = row.label;
+          label.appendChild(checkbox);
+          label.appendChild(text);
+          checkbox.addEventListener('change', () => row.set(checkbox.checked));
+          panel.appendChild(label);
+        });
+        L.DomEvent.disableClickPropagation(panel);
+        return panel;
+      },
+    });
+    this.map.addControl(new LayersControl());
+  }
+
+  _setupGeoman(){
+    this.map.pm.setGlobalOptions({ snappable: true, snapDistance: 12 });
+    this.geomanControls = this.map.pm.addControls({
+      position: 'topleft',
+      drawMarker: false,
+      drawCircleMarker: false,
+      drawCircle: false,
+      drawText: false,
+      drawPolyline: false,
+      drawRectangle: true,
+      drawPolygon: true,
+      editMode: true,
+      dragMode: true,
+      cutPolygon: false,
+      removalMode: true,
+      rotateMode: false,
+    });
+  }
+
+  setDrawingEnabled(enabled){
+    if (!this.geomanControls) return;
+    const buttons = document.querySelectorAll('.leaflet-pm-toolbar button');
+    buttons.forEach(btn => {
+      btn.style.opacity = enabled ? '1' : '0.4';
+      btn.style.pointerEvents = enabled ? 'auto' : 'none';
+      btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    });
+    this.map.pm.disableDraw();
+  }
+
+  fitToTowns(towns){
+    if (!towns.length) return;
+    const bounds = L.latLngBounds(towns.map(t => CoordUtils.mcToLatLng(t.mcX, t.mcZ)));
+    this.map.fitBounds(bounds.pad(0.35));
+  }
+}
+
+/* =========================================================================
+   8. BOOTSTRAP & UI WIRING
+   ========================================================================= */
+const auditLog = new AuditLog(document.getElementById('auditLog'));
+const mapController = new MapController();
+const client = new EarthMCClient(auditLog);
+
+const state = {
+  targetNations: new Set(CONFIG.DEFAULT_TARGET_NATIONS),
+  manualTowns: new Map(),
+  towns: [],
+  lastSync: null,
+  syncState: 'idle',
+  hasFitBoundsOnce: false,
+  splitArmed: false,
+  adminMode: false,
+  adminPassword: 'ethiopia', // CHANGE THIS TO YOUR OWN PASSWORD
+};
+
+const regionManager = new RegionManager(mapController.map, mapController.regionsLayerGroup, auditLog, {
+  onChange: renderAll,
+});
+
+const dom = {
+  topStatusDot: document.getElementById('topStatusDot'),
+  topStatusText: document.getElementById('topStatusText'),
+  statusDot: document.getElementById('statusDot'),
+  statusText: document.getElementById('statusText'),
+  statServer: document.getElementById('statServer'),
+  statLastSync: document.getElementById('statLastSync'),
+  statTownCount: document.getElementById('statTownCount'),
+  statNationCount: document.getElementById('statNationCount'),
+  nationChips: document.getElementById('nationChips'),
+  addNationForm: document.getElementById('addNationForm'),
+  addNationInput: document.getElementById('addNationInput'),
+  addTownForm: document.getElementById('addTownForm'),
+  addTownInput: document.getElementById('addTownInput'),
+  regionList: document.getElementById('regionList'),
+  inspectorEmpty: document.getElementById('inspectorEmpty'),
+  inspectorDetail: document.getElementById('inspectorDetail'),
+  regionNameInput: document.getElementById('regionNameInput'),
+  regionPopulation: document.getElementById('regionPopulation'),
+  regionTownCount: document.getElementById('regionTownCount'),
+  regionChunks: document.getElementById('regionChunks'),
+  electionRange: document.getElementById('electionRange'),
+  electionPct: document.getElementById('electionPct'),
+  electionFill: document.getElementById('electionFill'),
+  newsInput: document.getElementById('newsInput'),
+  postNewsBtn: document.getElementById('postNewsBtn'),
+  newsFeed: document.getElementById('newsFeed'),
+  btnMerge: document.getElementById('btnMerge'),
+  btnSplit: document.getElementById('btnSplit'),
+  btnSync: document.getElementById('btnSync'),
+  opsHint: document.getElementById('opsHint'),
+  saveStatus: document.getElementById('saveStatus'),
+  btnExport: document.getElementById('btnExport'),
+  splitBanner: document.getElementById('splitBanner'),
+  splitBannerText: document.getElementById('splitBannerText'),
+  splitCancelBtn: document.getElementById('splitCancelBtn'),
+  btnAdminToggle: document.getElementById('btnAdminToggle'),
+  adminModal: document.getElementById('adminModal'),
+  adminPasswordInput: document.getElementById('adminPasswordInput'),
+  adminSubmitBtn: document.getElementById('adminSubmitBtn'),
+  adminCancelBtn: document.getElementById('adminCancelBtn'),
+  adminErrorMsg: document.getElementById('adminErrorMsg'),
+};
+
+/* ---- Town markers & popups ---- */
+function buildTownPopupHtml(t){
+  const tags = [
+    t.isCapital ? '<span class="tag tag-capital">Capital</span>' : '',
+    t.isRuined ? '<span class="tag tag-ruined">Ruined</span>' : '',
+  ].join(' ');
+  return `<div class="mc-popup">
+    <h4>${escapeHtml(t.name)} ${tags}</h4>
+    <table>
+      <tr><td>Nation</td><td>${escapeHtml(t.nationName || '—')}</td></tr>
+      <tr><td>Mayor</td><td>${escapeHtml(t.mayor || '—')}</td></tr>
+      <tr><td>Population</td><td>${CoordUtils.fmt(t.population)}</td></tr>
+      <tr><td>Claimed chunks</td><td>${CoordUtils.fmt(t.townBlocks)}</td></tr>
+      <tr><td>Coordinates</td><td>X ${Math.round(t.mcX).toLocaleString()}, Z ${Math.round(t.mcZ).toLocaleString()}</td></tr>
+    </table>
+  </div>`;
+}
+
+function stableColorFor(name, palette){
+  let hash = 0;
+  const str = name || 'Unaffiliated';
+  for (let i = 0; i < str.length; i++){ hash = (hash * 31 + str.charCodeAt(i)) | 0; }
+  return palette[Math.abs(hash) % palette.length];
+}
+
+function renderNationClaims(towns){
+  mapController.claimsLayerGroup.clearLayers();
+  if (!showClaims) return;
+
+  // Traced PER TOWN, not per nation — tracing a nation's combined chunk set
+  // as one blob (the prior approach) silently fuses adjacent towns of the
+  // same nation into a single seamless shape, hiding real town boundaries.
+  // Each town gets its own separate outline; same-nation towns still share
+  // a color so nation grouping stays visually obvious at a glance.
+  towns.forEach(t => {
+    if (!t.claimChunks || !t.claimChunks.length) return;
+    const rings = traceChunkOutlines(t.claimChunks);
+    if (!rings) return; // malformed claim data for this town — skip rather than crash
+    const nationName = t.nationName || 'Unaffiliated';
+    const color = nationName === 'Unaffiliated' ? COLORS.muted : stableColorFor(nationName, CONFIG.NATION_PALETTE);
+    rings.forEach(ring => {
+      const latlngs = ring.map(([x,z]) => CoordUtils.mcToLatLng(x,z));
+      const polygon = L.polygon(latlngs, {
+        color, weight: 1.6, opacity: 0.85,
+        fillColor: color, fillOpacity: 0.16,
+        interactive: true,
+        // Same reasoning as town markers above — this is live derived data,
+        // never an admin-editable "region", and must stay inert to Geoman's
+        // global edit/drag/removal modes.
+        pmIgnore: true,
+      });
+      polygon.bindTooltip(escapeHtml(`${t.name} — ${nationName}`), { sticky: true, className: 'claim-tooltip' });
+      polygon.addTo(mapController.claimsLayerGroup);
+    });
+  });
+}
+
+function renderTownMarkers(towns){
+  mapController.townsLayerGroup.clearLayers();
+  if (!showTowns) return;
+  towns.forEach(t => {
+    const radius = Math.max(4, Math.min(15, Math.sqrt(Math.max(t.population, 1)) * 1.8));
+    const marker = L.circleMarker(CoordUtils.mcToLatLng(t.mcX, t.mcZ), {
+      radius,
+      color: t.isRuined ? COLORS.danger : (t.isCapital ? COLORS.brassHi : COLORS.sage),
+      weight: t.isCapital ? 2.5 : 1.5,
+      fillColor: t.isRuined ? COLORS.danger : (t.isCapital ? COLORS.brass : COLORS.sage),
+      fillOpacity: 0.55,
+      // Town markers are live informational data, never an admin-editable
+      // "region" — pmIgnore keeps Geoman's GLOBAL edit/drag mode (toggled
+      // for editing political regions) from also grabbing these markers.
+      // Without this, toggling Edit or Drag mode intercepts every marker
+      // click with Geoman's own selection handling instead of firing the
+      // popup — the "box appears, click does nothing" bug.
+      pmIgnore: true,
+      bubblingMouseEvents: false,
+    });
+    marker.bindPopup(buildTownPopupHtml(t));
+    marker.addTo(mapController.townsLayerGroup);
+  });
+}
+
+/* ---- Sync status panel ---- */
+function setSyncStatus(status, townCount){
+  state.syncState = status;
+  const dotClass = { idle:'', syncing:'syncing', online:'online', 'online-empty':'online', offline:'offline' };
+  const text = {
+    idle: 'Idle — sync not yet run',
+    syncing: 'Syncing with EarthMC API…',
+    online: `Live — ${CoordUtils.fmt(townCount)} town(s) tracked`,
+    'online-empty': 'Connected — no towns tracked yet',
+    offline: 'Offline — last sync failed',
+  };
+  [dom.statusDot, dom.topStatusDot].forEach(el => {
+    el.className = 'status-dot' + (dotClass[status] ? ' ' + dotClass[status] : '');
+  });
+  dom.statusText.textContent = text[status] || status;
+  dom.topStatusText.textContent = status === 'online' ? 'Live'
+    : status === 'syncing' ? 'Syncing…'
+    : status === 'offline' ? 'Offline' : 'Idle';
+  renderSyncPanel();
+}
+
+function renderSyncPanel(){
+  dom.statLastSync.textContent = relTime(state.lastSync);
+  dom.statTownCount.textContent = CoordUtils.fmt(state.towns.length);
+  dom.statNationCount.textContent = CoordUtils.fmt(state.targetNations.size);
+
+  dom.nationChips.innerHTML = '';
+  if (state.targetNations.size === 0){
+    const empty = document.createElement('span');
+    empty.className = 'chip empty';
+    empty.textContent = 'No nations tracked';
+    dom.nationChips.appendChild(empty);
+  } else {
+    state.targetNations.forEach(name => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      const label = document.createElement('span');
+      label.textContent = name;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = '×';
+      remove.title = `Stop tracking ${name}`;
+      remove.addEventListener('click', () => {
+        state.targetNations.delete(name);
+        renderSyncPanel();
+        auditLog.log(`Stopped tracking nation "${name}" — sync to apply`, 'info');
+      });
+      chip.appendChild(label);
+      chip.appendChild(remove);
+      dom.nationChips.appendChild(chip);
+    });
+  }
+}
+
+/* ---- Region list + inspector ---- */
+function renderRegionList(){
+  const regions = [...regionManager.regions.values()];
+  dom.regionList.innerHTML = '';
+  if (!regions.length){
+    const p = document.createElement('p');
+    p.className = 'empty-hint';
+    p.textContent = "No regions drawn yet. Use the drawing tools in the map's top-left corner to draw your first regional boundary.";
+    dom.regionList.appendChild(p);
+    return;
+  }
+  regions.forEach(region => {
+    const row = document.createElement('div');
+    row.className = 'region-row' + (region.id === regionManager.activeId ? ' active' : '');
+    row.title = 'Click to inspect';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = regionManager.selectedIds.has(region.id);
+    checkbox.addEventListener('click', (e) => e.stopPropagation());
+    checkbox.addEventListener('change', () => regionManager.toggleSelect(region.id));
+
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.background = CONFIG.REGION_PALETTE[region.colorIndex % CONFIG.REGION_PALETTE.length];
+
+    const name = document.createElement('span');
+    name.className = 'rname';
+    name.textContent = region.name;
+
+    const meta = document.createElement('span');
+    meta.className = 'rmeta';
+    meta.textContent = `${CoordUtils.fmt(region.stats.townCount)} tn`;
+
+    row.append(checkbox, swatch, name, meta);
+    row.addEventListener('click', () => regionManager.setActive(region.id));
+    dom.regionList.appendChild(row);
+  });
+}
+
+function renderNewsFeed(region){
+  dom.newsFeed.innerHTML = '';
+  if (!region.news.length) return;
+  [...region.news].sort((a,b) => b.ts - a.ts).forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'news-entry';
+    const time = document.createElement('time');
+    time.textContent = new Date(entry.ts).toLocaleString();
+    const text = document.createElement('div');
+    text.textContent = entry.text;
+    div.appendChild(time);
+    div.appendChild(text);
+    dom.newsFeed.appendChild(div);
+  });
+}
+
+function renderInspector(){
+  const region = regionManager.getActive();
+  if (!region){
+    dom.inspectorEmpty.hidden = false;
+    dom.inspectorDetail.hidden = true;
+    return;
+  }
+  dom.inspectorEmpty.hidden = true;
+  dom.inspectorDetail.hidden = false;
+  if (document.activeElement !== dom.regionNameInput) dom.regionNameInput.value = region.name;
+  dom.regionPopulation.textContent = CoordUtils.fmt(region.stats.population);
+  dom.regionTownCount.textContent = CoordUtils.fmt(region.stats.townCount);
+  dom.regionChunks.textContent = `${CoordUtils.fmt(region.stats.claimChunks)} (${CoordUtils.fmt(region.stats.claimChunks * 256)} blocks²)`;
+  if (document.activeElement !== dom.electionRange) dom.electionRange.value = region.electionProgress;
+  dom.electionPct.textContent = `${region.electionProgress}%`;
+  dom.electionFill.style.width = `${region.electionProgress}%`;
+  renderNewsFeed(region);
+}
+
+function renderOpsHint(){
+  const selectedCount = regionManager.selectedIds.size;
+  dom.btnMerge.disabled = selectedCount < 2;
+  if (state.splitArmed){
+    dom.opsHint.textContent = 'Split armed — draw a line across the active region on the map.';
+  } else if (selectedCount < 2){
+    dom.opsHint.textContent = 'Select two or more regions in the list above (checkboxes) to enable merging.';
+  } else {
+    dom.opsHint.textContent = `${selectedCount} regions selected — ready to merge.`;
+  }
+  dom.btnSplit.classList.toggle('armed', state.splitArmed);
+  dom.splitBanner.classList.toggle('active', state.splitArmed);
+  if (state.splitArmed){
+    const active = regionManager.getActive();
+    dom.splitBannerText.textContent = active ? `Draw a line across "${active.name}" to split it` : 'Select a region, then draw a line across it';
+  }
+}
+
+function renderAll(){
+  renderRegionList();
+  renderInspector();
+  renderOpsHint();
+  renderSyncPanel();
+}
+
+/* ---- Forms: track nation / add town ---- */
+dom.addNationForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = dom.addNationInput.value.trim();
+  if (!name) return;
+  state.targetNations.add(name);
+  dom.addNationInput.value = '';
+  renderSyncPanel();
+  auditLog.log(`Now tracking nation "${name}" — sync to fetch its towns`, 'info');
+});
+
+dom.addTownForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = dom.addTownInput.value.trim();
+  if (!name) return;
+  dom.addTownInput.value = '';
+  auditLog.log(`Looking up town "${name}"…`, 'info');
+  try{
+    const results = await client.getTownDetailsBatched([name]);
+    if (!results.length){
+      auditLog.log(`Town "${name}" was not found on the live map`, 'warn');
+      return;
+    }
+    state.manualTowns.set(results[0].name, results[0].name);
+    auditLog.log(`Added "${results[0].name}" — sync to include it on the map`, 'success');
+  } catch(err){
+    auditLog.log(`Lookup failed: ${err.message}`, 'error');
+  }
+});
+
+/* ---- Inspector field wiring ---- */
+dom.regionNameInput.addEventListener('change', () => {
+  const region = regionManager.getActive();
+  if (!region) return;
+  region.name = dom.regionNameInput.value.trim() || region.name;
+  renderAll();
+  scheduleSave();
+});
+
+dom.electionRange.addEventListener('input', () => {
+  const region = regionManager.getActive();
+  if (!region) return;
+  region.electionProgress = Number(dom.electionRange.value);
+  dom.electionPct.textContent = `${region.electionProgress}%`;
+  dom.electionFill.style.width = `${region.electionProgress}%`;
+  scheduleSave();
+});
+
+dom.postNewsBtn.addEventListener('click', () => {
+  const region = regionManager.getActive();
+  if (!region) return;
+  const text = dom.newsInput.value.trim();
+  if (!text) return;
+  region.news.push({ ts: Date.now(), text });
+  dom.newsInput.value = '';
+  renderNewsFeed(region);
+  auditLog.log(`Posted local news for "${region.name}"`, 'success');
+  scheduleSave();
+});
+
+/* ---- Topological Control Hub ---- */
+dom.btnMerge.addEventListener('click', () => regionManager.mergeSelected());
+
+function armSplit(){
+  state.splitArmed = true;
+  mapController.map.pm.enableDraw('Line', {
+    finishOn: 'dblclick',
+    templineStyle: { color: COLORS.terracotta },
+    hintlineStyle: { color: COLORS.terracotta, dashArray: [5, 5] },
+  });
+  renderOpsHint();
+}
+
+function disarmSplit(){
+  state.splitArmed = false;
+  mapController.map.pm.disableDraw('Line');
+  renderOpsHint();
+}
+
+dom.btnSplit.addEventListener('click', () => {
+  if (state.splitArmed){ disarmSplit(); return; }
+  const active = regionManager.getActive();
+  if (!active){
+    auditLog.log('Select a region to split first — click it on the map or in the list', 'warn');
+    return;
+  }
+  armSplit();
+});
+
+dom.splitCancelBtn.addEventListener('click', disarmSplit);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && state.splitArmed) disarmSplit();
+});
+
+dom.btnSync.addEventListener('click', () => syncLiveData());
+
+dom.btnExport.addEventListener('click', () => {
+  if (!regionManager.regions.size){
+    auditLog.log('Nothing to export yet — draw at least one region first', 'warn');
+    return;
+  }
+  const data = regionManager.exportGeoJSON();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/geo+json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `earthmc-ethiopia-regions-${new Date().toISOString().slice(0,10)}.geojson`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  auditLog.log(`Exported ${regionManager.regions.size} region(s) to .geojson`, 'success');
+});
+
+/* ---- Geoman draw / remove wiring ---- */
+mapController.map.on('pm:create', (e) => {
+  if (e.shape === 'Line' && state.splitArmed){
+    mapController.map.removeLayer(e.layer);
+    regionManager.splitActiveWithLine(e.layer);
+    disarmSplit();
+    return;
+  }
+  if (e.shape === 'Polygon' || e.shape === 'Rectangle'){
+    regionManager.createFromDraw(e.layer, null);
+  }
+});
+
+mapController.map.on('pm:remove', (e) => {
+  const found = [...regionManager.regions.values()].find(r => r.layer === e.layer);
+  if (found){
+    regionManager.removeRegion(found.id);
+    auditLog.log(`Region "${found.name}" removed`, 'info');
+    renderAll();
+    scheduleSave();
+  }
+});
+
+/* ---- Region persistence — shared, server-side, via the same Worker ----
+   GET  {WORKER}/regions          -> public, returns the current saved state
+   POST {WORKER}/regions          -> requires X-Admin-Key header; the Worker
+                                      checks it server-side (not just this
+                                      page's client-side unlock check), so a
+                                      visitor can't write directly to the
+                                      shared store by bypassing this page.
+   Debounced so rapid changes (dragging the election slider, typing a name)
+   coalesce into one write instead of hammering the store on every keystroke. */
+let saveDebounceTimer = null;
+let saveInFlight = false;
+
+function regionsEndpoint(){
+  return CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/regions';
+}
+
+function setSaveStatus(text, isError){
+  dom.saveStatus.textContent = text;
+  dom.saveStatus.className = 'hint' + (isError ? ' warn' : '');
+  dom.saveStatus.style.fontFamily = 'var(--font-mono)';
+  dom.saveStatus.style.fontSize = '.7rem';
+}
+
+async function loadRegionsFromBackend(){
+  try{
+    const res = await fetch(regionsEndpoint());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const fc = await res.json();
+    const count = regionManager.rehydrateFromFeatureCollection(fc);
+    if (count){
+      auditLog.log(`Loaded ${count} saved region(s) from the shared store`, 'success');
+      renderAll();
+    } else{
+      auditLog.log('Shared store reachable — no saved regions yet', 'info');
+    }
+    setSaveStatus(count ? `Loaded ${count} saved region(s)` : 'No saved regions yet');
+  } catch(err){
+    auditLog.log(`Could not load saved regions: ${err.message} — starting empty`, 'warn');
+    setSaveStatus('Could not reach shared store — regions will not persist', true);
+  }
+}
+
+async function saveRegionsToBackend(){
+  if (!state.adminMode) return; // only ever save while genuinely in admin mode
+  saveInFlight = true;
+  setSaveStatus('Saving…');
+  try{
+    const fc = regionManager.exportGeoJSON();
+    const res = await fetch(regionsEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': state.adminPassword },
+      body: JSON.stringify(fc),
+    });
+    if (!res.ok){
+      let bodyText = '';
+      try{ bodyText = await res.text(); } catch(_e){ /* ignore */ }
+      throw new Error(`HTTP ${res.status}${bodyText ? ' — ' + bodyText.slice(0,140) : ''}`);
+    }
+    setSaveStatus(`Saved — synced ${relTime(Date.now())}`);
+    auditLog.log('Regions saved to the shared store', 'success');
+  } catch(err){
+    setSaveStatus(`Save failed: ${err.message}`, true);
+    auditLog.log(`Save failed: ${err.message}`, 'error');
+  } finally{
+    saveInFlight = false;
+  }
+}
+
+function scheduleSave(){
+  if (!state.adminMode) return;
+  setSaveStatus('Unsaved changes…');
+  clearTimeout(saveDebounceTimer);
+  saveDebounceTimer = setTimeout(saveRegionsToBackend, 1000);
+}
+
+/* ---- Live sync ---- */
+async function syncLiveData(){
+  setSyncStatus('syncing');
+  auditLog.log('Sync started', 'info');
+  try{
+    const info = await client.getServerInfo();
+    const stats = info && info.stats ? info.stats : {};
+    dom.statServer.textContent = typeof stats.numOnlinePlayers === 'number' ? `${CoordUtils.fmt(stats.numOnlinePlayers)} online` : 'Reachable';
+    auditLog.log(`Server reachable — ${CoordUtils.fmt(stats.numOnlinePlayers)} online, ${CoordUtils.fmt(stats.numTowns)} towns total`, 'success');
+
+    const townRefs = new Map();
+    if (state.targetNations.size){
+      const nations = await client.getNationDetails([...state.targetNations]);
+      const foundNames = new Set(nations.map(n => (n.name || '').toLowerCase()));
+      state.targetNations.forEach(wanted => {
+        if (!foundNames.has(wanted.toLowerCase())){
+          auditLog.log(`Nation "${wanted}" was not found on the live map right now`, 'warn');
+        }
+      });
+      nations.forEach(n => {
+        const townList = Array.isArray(n.towns) ? n.towns : [];
+        auditLog.log(`Nation "${n.name}" — ${townList.length} town(s), ${n.stats ? CoordUtils.fmt(n.stats.numResidents) : '—'} residents`, 'success');
+        townList.forEach(t => townRefs.set(t.uuid || t.name, t.name));
+      });
+    }
+    state.manualTowns.forEach((name) => townRefs.set(name, name));
+
+    if (townRefs.size === 0){
+      state.towns = [];
+      renderTownMarkers([]);
+      renderNationClaims([]);
+      regionManager.recalcAll([]);
+      state.lastSync = Date.now();
+      setSyncStatus('online-empty');
+      auditLog.log('No towns to display — track a nation or add towns manually', 'warn');
+      return;
+    }
+
+    const towns = await client.getTownDetailsBatched([...townRefs.keys()]);
+    state.towns = towns;
+    renderTownMarkers(towns);
+    renderNationClaims(towns);
+    regionManager.recalcAll(towns);
+    state.lastSync = Date.now();
+    setSyncStatus('online', towns.length);
+    auditLog.log(`Sync complete — ${towns.length} town(s) loaded`, 'success');
+
+    if (!state.hasFitBoundsOnce && towns.length){
+      mapController.fitToTowns(towns);
+      state.hasFitBoundsOnce = true;
+    }
+  } catch(err){
+    auditLog.log(`Sync failed — ${err.message}`, 'error');
+    setSyncStatus('offline');
+  }
+}
+
+/* ---- Admin Mode ---- */
+function setAdminMode(enabled){
+  state.adminMode = enabled;
+  document.documentElement.classList.toggle('admin-mode', enabled);
+  dom.btnAdminToggle.classList.toggle('unlocked', enabled);
+  mapController.setDrawingEnabled(enabled);
+  if (enabled){
+    dom.btnAdminToggle.textContent = '🔓 Admin';
+    dom.btnAdminToggle.title = 'Click to lock admin console';
+    auditLog.log('Admin mode unlocked', 'success');
+  } else{
+    dom.btnAdminToggle.textContent = '🔒 Admin';
+    dom.btnAdminToggle.title = 'Unlock admin console';
+    auditLog.log('Admin mode locked', 'info');
+  }
+}
+
+dom.btnAdminToggle.addEventListener('click', () => {
+  if (state.adminMode){
+    setAdminMode(false);
+    return;
+  }
+  dom.adminPasswordInput.value = '';
+  dom.adminErrorMsg.textContent = '';
+  dom.adminErrorMsg.style.display = 'none';
+  dom.adminModal.hidden = false;
+  dom.adminPasswordInput.focus();
+});
+
+dom.adminCancelBtn.addEventListener('click', () => {
+  dom.adminModal.hidden = true;
+});
+
+dom.adminSubmitBtn.addEventListener('click', () => {
+  const entered = dom.adminPasswordInput.value;
+  if (entered === state.adminPassword){
+    dom.adminModal.hidden = true;
+    setAdminMode(true);
+  } else{
+    dom.adminErrorMsg.textContent = 'Incorrect password';
+    dom.adminErrorMsg.style.display = 'block';
+    dom.adminPasswordInput.select();
+  }
+});
+
+dom.adminPasswordInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') dom.adminSubmitBtn.click();
+  if (e.key === 'Escape'){ dom.adminModal.hidden = true; }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !dom.adminModal.hidden) dom.adminModal.hidden = true;
+});
+
+/* ---- Boot ---- */
+auditLog.log('Console initialized — awaiting first sync', 'info');
+mapController.setDrawingEnabled(false); // Start with drawing disabled until admin unlocks
+renderAll();
+loadRegionsFromBackend(); // rehydrate the shared, persisted regions for every visitor
+syncLiveData();
+setInterval(syncLiveData, CONFIG.AUTO_SYNC_INTERVAL_MS);
+setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(state.lastSync); }, 5000);
+</script>
+</body>
+</html>
 

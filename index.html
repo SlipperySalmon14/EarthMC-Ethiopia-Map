@@ -1374,7 +1374,10 @@ const CONFIG = {
   // that feature is actually being used.
   FETCH_RESIDENTS: false,
   MAX_LOG_ENTRIES: 200,
-  REQUEST_TIMEOUT_MS: 15000,
+  // 15s was long enough that a stalled request looked like a hang rather
+  // than a failure. 8s still tolerates a slow response but surfaces a real
+  // problem quickly.
+  REQUEST_TIMEOUT_MS: 8000,
   REGION_PALETTE: ['#c99a4b', '#6ea87b', '#c1613a', '#7a9fc9', '#a97ec9', '#c9c25a', '#4fb8a8', '#d97c52'],
   // Deliberately distinct hue set from REGION_PALETTE above, so live nation
   // territory (informational) is never visually confused with the admin's
@@ -1760,7 +1763,10 @@ class EarthMCClient{
     }
   }
 
-  getServerInfo(){ return this._request('/'); }
+  // No trailing slash: the docs give this endpoint as api.earthmc.net/v4,
+  // and '/v4/' can redirect — which doesn't always survive being encoded
+  // through the proxy.
+  getServerInfo(){ return this._request(''); }
 
   // Player activity. Batched, and deliberately NOT called on every sync —
   // lastOnline moves slowly, while sync runs every 15s. See ACTIVITY_TTL_MS.
@@ -4555,11 +4561,20 @@ async function syncLiveData(){
   setSyncStatus('syncing');
   auditLog.log('Sync started', 'info');
   try{
-    auditLog.log('→ requesting server info…', 'info');
-    const info = await client.getServerInfo();
-    const stats = info && info.stats ? info.stats : {};
-    dom.statServer.textContent = typeof stats.numOnlinePlayers === 'number' ? `${CoordUtils.fmt(stats.numOnlinePlayers)} online` : 'Reachable';
-    auditLog.log(`Server reachable — ${CoordUtils.fmt(stats.numOnlinePlayers)} online, ${CoordUtils.fmt(stats.numTowns)} towns total`, 'success');
+    // Server info is only used for the online-player counter, so a failure
+    // here must not stop the town sync — previously one stalled call blocked
+    // everything behind it for the full 15s timeout, and the sync appeared
+    // to hang with no error.
+    try{
+      auditLog.log('→ requesting server info…', 'info');
+      const info = await client.getServerInfo();
+      const stats = info && info.stats ? info.stats : {};
+      dom.statServer.textContent = typeof stats.numOnlinePlayers === 'number' ? `${CoordUtils.fmt(stats.numOnlinePlayers)} online` : 'Reachable';
+      auditLog.log(`Server reachable — ${CoordUtils.fmt(stats.numOnlinePlayers)} online, ${CoordUtils.fmt(stats.numTowns)} towns total`, 'success');
+    } catch(infoErr){
+      dom.statServer.textContent = '—';
+      auditLog.log(`Server info unavailable (continuing) — ${infoErr.message}`, 'warn');
+    }
 
     const townRefs = new Map();
     if (state.targetNations.size){

@@ -2226,7 +2226,15 @@ class RegionManager{
 
   recalcStats(region){
     const feature = region.layer.toGeoJSON();
+    // Cheap rejection first: most towns are nowhere near most regions, and a
+    // bounds check is far cheaper than booleanPointInPolygon against a
+    // polygon traced from chunk outlines. Without this, every sync ran one
+    // full polygon test per town per region.
+    const b = region.layer.getBounds();
+    const west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
     const contained = this.currentTowns.filter(t => {
+      const lat = -t.mcZ, lng = t.mcX;
+      if (lng < west || lng > east || lat < south || lat > north) return false;
       // Region polygons are in map space, so scale the town's raw block
       // coordinates before testing containment.
       try{ return turf.booleanPointInPolygon(turf.point(CoordUtils.mcToPlane(t.mcX, t.mcZ)), feature); }
@@ -3453,7 +3461,25 @@ function daysSince(ts){
 }
 
 // Most recent login across a town's residents, plus who's been seen lately.
+// Memoised per render pass. This was being recomputed for every town in
+// three separate places (table rows, the falling filter, the health panel) —
+// roughly 900 calls per render, each looping residents and sorting. The key
+// includes the activity cache timestamp so it invalidates when new data
+// arrives, and town name + resident count so it tracks roster changes.
+const activityMemo = new Map();
+
 function townActivity(town){
+  const memoKey = town.name + ':' + (town.residents ? town.residents.length : 0) + ':' + activityCache.fetchedAt;
+  const cached = activityMemo.get(memoKey);
+  if (cached) return cached;
+  const result = computeTownActivity(town);
+  // Bounded so a long session can't grow it without limit.
+  if (activityMemo.size > 4000) activityMemo.clear();
+  activityMemo.set(memoKey, result);
+  return result;
+}
+
+function computeTownActivity(town){
   const names = (town.residents && town.residents.length) ? town.residents : (town.mayor ? [town.mayor] : []);
   let newest = null;
   let known = 0;
@@ -4562,8 +4588,11 @@ async function syncLiveData(){
       return;
     }
 
+    const tFetch = performance.now();
     const towns = await client.getTownDetailsBatched([...townRefs.keys()]);
+    const fetchMs = Math.round(performance.now() - tFetch);
     state.towns = towns;
+    const tRender = performance.now();
     renderTownMarkers(towns);
     renderNationClaims(towns);
     if (activeView === 'ethiopia'){
@@ -4579,7 +4608,10 @@ async function syncLiveData(){
     regionManager.recalcAll(towns);
     state.lastSync = Date.now();
     setSyncStatus('online', towns.length);
-    auditLog.log(`Sync complete — ${towns.length} town(s) loaded`, 'success');
+    // Split timing so a slow sync can be attributed to the network or to
+    // rendering, rather than guessed at.
+    const renderMs = Math.round(performance.now() - tRender);
+    auditLog.log(`Sync complete — ${towns.length} town(s) · fetch ${fetchMs}ms · render ${renderMs}ms`, 'success');
 
     if (!state.hasFitBoundsOnce && towns.length){
       mapController.fitToTowns(towns);

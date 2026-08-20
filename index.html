@@ -1659,6 +1659,10 @@ const TERRAIN_OPACITY_DIM = 0.22;    // "Dim terrain" — pushes it back so clai
 // zoom 5 draws a 16,384px tile, which is the common mobile GPU limit.
 // The previous pairing (tileSize 2048, offset 3) hit 65,536px by zoom 7 —
 // far past what any browser will paint, so zooming silently stopped working.
+// Declared early: MapController's constructor reads this, and it runs long
+// before the rendering section further down.
+const IS_SMALL_SCREEN = window.matchMedia('(max-width: 820px)').matches;
+
 const MAP_MIN_ZOOM = -TERRAIN_ZOOM_OFFSET; // folder 0 — nothing coarser exists
 const MAP_MAX_ZOOM = 5; // ~1 block per 8px — individual chunks clearly visible
 
@@ -2487,7 +2491,11 @@ class MapController{
     // area on EarthMC's end), so there's never a broken/blank gap, just a
     // graceful fallback to the coordinate grid. Stored on `this` so the
     // toggle control below can show/hide it.
-    this.terrainLayer = buildTerrainLayer().addTo(this.map);
+    this.terrainLayer = buildTerrainLayer();
+    // On mobile the map starts hidden behind the overlay, so the tile layer
+    // stays detached until it's actually opened — no point fetching images
+    // for a zero-sized container.
+    if (!IS_SMALL_SCREEN) this.terrainLayer.addTo(this.map);
     if (showDim) this.terrainLayer.setOpacity(TERRAIN_OPACITY_DIM);
 
 
@@ -2879,10 +2887,17 @@ function townsForActiveView(towns){
 // the heaviest thing on the map — hundreds of polygons rebuilt every sync.
 // Capping how many render keeps the page alive; the towns themselves still
 // all appear as markers, which are cheap.
-const IS_SMALL_SCREEN = window.matchMedia('(max-width: 820px)').matches;
 const MAX_CLAIM_TOWNS = IS_SMALL_SCREEN ? 120 : 1200;
 
+// On mobile the map sits behind a display:none overlay. Leaflet can't measure
+// a hidden container, so anything added while it's closed is deferred and
+// then lands in one synchronous burst when it opens — which was crashing the
+// tab. This gates layer rendering; declared here because renderTownMarkers
+// and renderNationClaims below are the earliest consumers.
+let mapVisible = !IS_SMALL_SCREEN;
+
 function renderNationClaims(allTowns){
+  if (!mapVisible) return;
   let towns = townsForActiveView(allTowns);
   mapController.claimsLayerGroup.clearLayers();
   if (!showClaims) return;
@@ -2929,6 +2944,9 @@ function renderNationClaims(allTowns){
 }
 
 function renderTownMarkers(allTowns){
+  // Nothing to gain from populating a hidden map, and plenty to lose —
+  // see setMapOverlay.
+  if (!mapVisible) return;
   const towns = townsForActiveView(allTowns);
   mapController.townsLayerGroup.clearLayers();
   if (!showTowns) return;
@@ -3552,10 +3570,16 @@ function setSidebarView(view){
     renderSettings();
   } else if (view === 'ethiopia'){
     renderEthiopiaPanel(state.towns);
-    // Ethiopia needs every resident's activity; fetched on demand and cached.
-    refreshActivity('ethiopia').then(() => {
-      if (activeView === 'ethiopia') renderEthiopiaPanel(state.towns);
-    });
+    // Activity data (~8 batched requests for every resident) is deliberately
+    // NOT fetched here at boot: Ethiopia is the default view, so this fired
+    // before the first sync had returned any towns — racing the sync through
+    // the same proxy and slowing both. It only runs once towns actually
+    // exist, and the cache TTL stops it repeating on every view switch.
+    if (state.towns.length){
+      refreshActivity('ethiopia').then(() => {
+        if (activeView === 'ethiopia') renderEthiopiaPanel(state.towns);
+      });
+    }
   } else {
     renderNationPanel(state.towns);
   }
@@ -4054,13 +4078,43 @@ function setGuiHidden(on){
 const mapOpenBtn = document.getElementById('mapOpenBtn');
 const mapCloseBtn = document.getElementById('mapCloseBtn');
 
+// On mobile the map lives behind a display:none overlay. Leaflet can't
+// measure a hidden container, so everything added while it's closed is
+// deferred — and then lands in one synchronous burst the moment it opens,
+// which is what was killing the tab. mapVisible gates layer rendering so
+// nothing accumulates while hidden, and opening builds up in stages.
 function setMapOverlay(open){
   document.body.classList.toggle('map-open-mode', open);
-  if (!open) return;
-  // Leaflet can't measure a display:none container, so it must be told to
-  // re-read its size once the overlay is actually visible — otherwise the
-  // map renders at zero size or with a stale viewport.
-  requestAnimationFrame(() => mapController.map.invalidateSize());
+  mapVisible = open || !IS_SMALL_SCREEN;
+
+  if (!open){
+    // Drop the markers and outlines so a closed map holds nothing. They're
+    // rebuilt from state.towns on reopen — no data is lost.
+    if (mapController){
+      mapController.townsLayerGroup.clearLayers();
+      mapController.claimsLayerGroup.clearLayers();
+      // Detach the tile layer too — otherwise it keeps requesting and
+      // caching images for a map nobody can see.
+      if (mapController.terrainLayer && mapController.map.hasLayer(mapController.terrainLayer)){
+        mapController.map.removeLayer(mapController.terrainLayer);
+      }
+    }
+    return;
+  }
+
+  if (mapController.terrainLayer && showTerrain && !mapController.map.hasLayer(mapController.terrainLayer)){
+    mapController.terrainLayer.addTo(mapController.map);
+  }
+
+  // Staged: size first, then tiles settle, then markers, then outlines.
+  // Spreading it across frames keeps any single frame survivable.
+  requestAnimationFrame(() => {
+    mapController.map.invalidateSize();
+    setTimeout(() => {
+      renderTownMarkers(state.towns);
+      setTimeout(() => renderNationClaims(state.towns), 120);
+    }, 60);
+  });
 }
 
 if (mapOpenBtn)  mapOpenBtn.addEventListener('click', () => setMapOverlay(true));
@@ -4512,8 +4566,16 @@ async function syncLiveData(){
     state.towns = towns;
     renderTownMarkers(towns);
     renderNationClaims(towns);
-    if (activeView === 'ethiopia') renderEthiopiaPanel(towns);
-    else renderNationPanel(towns);
+    if (activeView === 'ethiopia'){
+      renderEthiopiaPanel(towns);
+      // Now that towns exist, activity can be fetched — after the sync, not
+      // alongside it.
+      refreshActivity('ethiopia').then(() => {
+        if (activeView === 'ethiopia') renderEthiopiaPanel(state.towns);
+      });
+    } else {
+      renderNationPanel(towns);
+    }
     regionManager.recalcAll(towns);
     state.lastSync = Date.now();
     setSyncStatus('online', towns.length);

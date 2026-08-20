@@ -4595,7 +4595,15 @@ async function syncLiveData(){
     if (state.targetNations.size){
       auditLog.log(`→ requesting ${state.targetNations.size} nation(s)…`, 'info');
     if (window.__diag) window.__diag('sync: requesting nations');
-      const nations = await client.getNationDetails([...state.targetNations]);
+      let nations = [];
+      try{
+        nations = await client.getNationDetails([...state.targetNations]);
+      } catch(nationErr){
+        // Isolated so a nations failure can't strand the whole sync — any
+        // manually-added towns below still resolve.
+        auditLog.log(`Nation lookup failed — ${nationErr.message}`, 'error');
+        if (window.__diag) window.__diag(`NATIONS FAILED: ${nationErr.message}`);
+      }
       const foundNames = new Set(nations.map(n => (n.name || '').toLowerCase()));
       state.targetNations.forEach(wanted => {
         if (!foundNames.has(wanted.toLowerCase())){
@@ -4668,6 +4676,7 @@ async function syncLiveData(){
   } catch(err){
     auditLog.log(`Sync failed — ${err.message}`, 'error');
     if (window.__diag) window.__diag(`SYNC FAILED: ${err.message}`);
+    setSyncStatus('offline');
     if (window.__showFatal) window.__showFatal('Sync failed', err.message);
     setSyncStatus('offline');
   }

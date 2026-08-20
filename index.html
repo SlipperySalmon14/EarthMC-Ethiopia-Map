@@ -1347,6 +1347,20 @@ input[type="range"]{
   // them here — the audit log panel lives in the Admin view, which is
   // unreachable if startup fails before the tabs work.
   window.__showFatal = show;
+
+  // Always-visible diagnostic strip. The audit log lives inside a panel, so
+  // if the view system or a render function is broken it can't be read —
+  // this attaches directly to <body> and never depends on app state.
+  const diag = document.createElement('div');
+  diag.id = 'diagStrip';
+  diag.style.cssText = 'position:fixed; bottom:0; left:0; right:0; z-index:99998; background:#141b28; color:#8b96ab; border-top:1px solid #263047; font-family:monospace; font-size:11px; padding:4px 8px; max-height:22vh; overflow:auto; white-space:pre-wrap;';
+  document.addEventListener('DOMContentLoaded', () => document.body.appendChild(diag));
+  let diagCount = 0;
+  window.__diag = function(msg){
+    diagCount++;
+    diag.textContent = `[${diagCount}] ${msg}\n` + diag.textContent;
+    if (diagCount > 40) diag.textContent = diag.textContent.split('\n').slice(0,40).join('\n');
+  };
 })();
 
 /* =========================================================================
@@ -4567,6 +4581,7 @@ async function syncLiveData(){
     // to hang with no error.
     try{
       auditLog.log('→ requesting server info…', 'info');
+    if (window.__diag) window.__diag('sync: requesting server info');
       const info = await client.getServerInfo();
       const stats = info && info.stats ? info.stats : {};
       dom.statServer.textContent = typeof stats.numOnlinePlayers === 'number' ? `${CoordUtils.fmt(stats.numOnlinePlayers)} online` : 'Reachable';
@@ -4579,6 +4594,7 @@ async function syncLiveData(){
     const townRefs = new Map();
     if (state.targetNations.size){
       auditLog.log(`→ requesting ${state.targetNations.size} nation(s)…`, 'info');
+    if (window.__diag) window.__diag('sync: requesting nations');
       const nations = await client.getNationDetails([...state.targetNations]);
       const foundNames = new Set(nations.map(n => (n.name || '').toLowerCase()));
       state.targetNations.forEach(wanted => {
@@ -4618,6 +4634,7 @@ async function syncLiveData(){
     }
 
     auditLog.log(`→ requesting details for ${townRefs.size} town(s)…`, 'info');
+    if (window.__diag) window.__diag('sync: requesting town details');
     const tFetch = performance.now();
     const towns = await client.getTownDetailsBatched([...townRefs.keys()]);
     const fetchMs = Math.round(performance.now() - tFetch);
@@ -4642,6 +4659,7 @@ async function syncLiveData(){
     // rendering, rather than guessed at.
     const renderMs = Math.round(performance.now() - tRender);
     auditLog.log(`Sync complete — ${towns.length} town(s) · fetch ${fetchMs}ms · render ${renderMs}ms`, 'success');
+    if (window.__diag) window.__diag(`sync OK: ${towns.length} towns, fetch ${fetchMs}ms, render ${renderMs}ms`);
 
     if (!state.hasFitBoundsOnce && towns.length){
       mapController.fitToTowns(towns);
@@ -4649,6 +4667,7 @@ async function syncLiveData(){
     }
   } catch(err){
     auditLog.log(`Sync failed — ${err.message}`, 'error');
+    if (window.__diag) window.__diag(`SYNC FAILED: ${err.message}`);
     if (window.__showFatal) window.__showFatal('Sync failed', err.message);
     setSyncStatus('offline');
   }
@@ -4719,10 +4738,15 @@ document.addEventListener('keydown', (e) => {
    never ran, and panels from other views stayed visible because
    setSidebarView had thrown partway through. */
 auditLog.log('Console initialized — awaiting first sync', 'info');
+if (window.__diag) window.__diag('boot: script reached the end and is running');
 
 function bootStep(label, fn){
-  try{ fn(); }
+  try{
+    fn();
+    if (window.__diag) window.__diag(`boot ok: ${label}`);
+  }
   catch(err){
+    if (window.__diag) window.__diag(`BOOT FAILED: ${label} — ${err.message}`);
     auditLog.log(`Startup step "${label}" failed — ${err.message}`, 'error');
     console.error(`[boot:${label}]`, err);
     // Also paint it on the page: the audit log lives in the Admin view, which

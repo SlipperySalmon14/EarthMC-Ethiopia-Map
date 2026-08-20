@@ -477,84 +477,26 @@ input[type="text"]:focus, textarea:focus{ border-color: var(--brass); }
   background: var(--panel-2); border: 1px solid var(--line-soft); color: var(--muted);
 }
 
+.tab-util{ margin-left: auto; font-size: .68rem; padding: .3rem .55rem; }
+.tab-util + .tab-util{ margin-left: .25rem; }
 .view-tab.is-active{ background: var(--terracotta); border-color: var(--terracotta); color: var(--parchment); }
 
-/* Hide GUI — everything except the map itself, including Leaflet's own
-   controls, the attribution and the coordinate readout. */
+/* Hide GUI — everything except the map itself. */
 body.gui-hidden .sidebar,
 body.gui-hidden .view-switcher,
-body.gui-hidden header,
 body.gui-hidden #publicNotice,
 body.gui-hidden .map-layers-toggle,
-body.gui-hidden .leaflet-control-container,
-body.gui-hidden .leaflet-control-attribution,
-body.gui-hidden .split-banner,
-body.gui-hidden .map-open{ display: none !important; }
-body.gui-hidden .workspace{ padding: 0; }
-/* The base rule caps this at 68% width for the two-column layout. Going
-   position:fixed doesn't lift that cap, so the pane stayed 68% wide and left
-   a dark strip where the sidebar had been — every one of these has to be
-   reset explicitly. */
-body.gui-hidden .map-pane{
-  position: fixed;
-  inset: 0;
-  flex: 1 1 auto;
-  max-width: none;
-  width: 100%;
-  border-right: none;
-}
-
-/* A sliver stays on the right edge as the way back. It sits mostly
-   off-screen and slides out on hover, so it doesn't cover the map. */
-.gui-restore{
-  display: none;
-  position: fixed;
-  top: 50%;
-  right: 0;
-  transform: translate(calc(100% - 14px), -50%);
-  z-index: 1200;
-  background: rgba(11,15,22,.92);
-  color: var(--parchment);
-  border: 1px solid var(--line);
-  border-right: none;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: .7rem;
-  padding: .7rem .6rem;
+body.gui-hidden header{ display: none !important; }
+body.gui-hidden .map-pane{ position: fixed; inset: 0; }
+/* One way back — a small floating restore button. */
+body.gui-hidden #btnHideGui{
+  display: block !important;
+  position: fixed; top: .6rem; right: .6rem; z-index: 1200;
+  background: rgba(11,15,22,.9); border: 1px solid var(--line);
+  color: var(--parchment); border-radius: var(--radius-sm);
+  padding: .4rem .7rem; font-family: var(--font-mono); font-size: .7rem;
   cursor: pointer;
-  writing-mode: vertical-rl;
-  transition: transform .18s ease, background .18s ease;
 }
-body.gui-hidden .gui-restore{ display: block; }
-.gui-restore:hover,
-.gui-restore:focus-visible{
-  transform: translate(0, -50%);
-  background: var(--brass);
-  color: var(--ink);
-}
-
-/* Settings toggles */
-.setting-row{
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: .8rem; padding: .6rem 0; border-bottom: 1px solid var(--line-soft);
-}
-.setting-row:last-of-type{ border-bottom: none; }
-.setting-text{ display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
-.setting-text strong{ font-size: .82rem; color: var(--parchment); font-weight: 600; }
-.setting-text span{ font-size: .72rem; color: var(--muted); line-height: 1.35; }
-.toggle-switch{
-  flex: none; width: 2.6rem; height: 1.45rem; margin-top: .1rem;
-  background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: 999px; cursor: pointer; padding: 0; position: relative;
-  transition: background .18s ease, border-color .18s ease;
-}
-.toggle-switch span{
-  position: absolute; top: 2px; left: 2px;
-  width: 1.05rem; height: 1.05rem; border-radius: 50%;
-  background: var(--muted); transition: transform .18s ease, background .18s ease;
-}
-.toggle-switch[aria-checked="true"]{ background: var(--brass-dim); border-color: var(--brass); }
-.toggle-switch[aria-checked="true"] span{ transform: translateX(1.15rem); background: var(--brass-hi); }
 
 /* =========================================================================
    MOBILE LAYOUT
@@ -1003,7 +945,7 @@ input[type="range"]{
   <header class="topbar">
     <div class="topbar-brand">
       <h1><span class="locus">EarthMC</span> · Ethiopia</h1>
-      <span class="tagline">MAP PROJECTION — TERRA NOSTRA · LIVE TOWNY DATA</span>
+      <span class="tagline">REGIONAL COMMAND OVERLAY — TERRA NOSTRA · LIVE TOWNY DATA</span>
     </div>
     <div style="display: flex; gap: 1rem; align-items: center;">
       <div class="topbar-pill">
@@ -1015,7 +957,6 @@ input[type="range"]{
   </header>
 
   <button type="button" id="mapOpenBtn" class="map-open">🗺 Open map</button>
-  <button type="button" id="guiRestoreBtn" class="gui-restore" title="Show the interface again">Show UI</button>
 
   <div class="workspace">
 
@@ -1037,8 +978,9 @@ input[type="range"]{
       <div class="view-switcher" role="tablist" aria-label="Sidebar view">
         <button type="button" class="view-tab is-active" id="viewTabEthiopia" role="tab" aria-selected="true">Ethiopia</button>
         <button type="button" class="view-tab" id="viewTabGlobal" role="tab" aria-selected="false">Global</button>
-        <button type="button" class="view-tab" id="viewTabSettings" role="tab" aria-selected="false">Settings</button>
         <button type="button" class="view-tab" id="viewTabAdmin" role="tab" aria-selected="false" hidden>Admin</button>
+        <button type="button" class="view-tab tab-util" id="btnLowQuality" title="Fewer, coarser tiles and no claim outlines — for slower devices">Low</button>
+        <button type="button" class="view-tab tab-util" id="btnHideGui" title="Hide all panels and overlays">Hide GUI</button>
       </div>
 
 
@@ -1052,31 +994,6 @@ input[type="range"]{
         <p style="color: var(--muted); font-size: .8rem;">
           <strong>Features visible to all:</strong> Interactive map with town markers, region boundaries, population stats. Click regions to inspect them. Export boundary data as GeoJSON.
         </p>
-      </section>
-
-      <section class="panel view-settings" id="panel-settings">
-        <div class="panel-head">
-          <span class="eyebrow">DISPLAY</span>
-          <h2>Settings</h2>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-text">
-            <strong>Low resolution terrain</strong>
-            <span>Coarser tiles and no claim outlines. Much lighter on phones and older machines.</span>
-          </div>
-          <button type="button" class="toggle-switch" id="btnLowQuality" role="switch" aria-checked="false"><span></span></button>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-text">
-            <strong>Hide GUI</strong>
-            <span>Hides every panel and control for a clean full-screen map. A tab on the edge brings it back.</span>
-          </div>
-          <button type="button" class="toggle-switch" id="btnHideGui" role="switch" aria-checked="false"><span></span></button>
-        </div>
-
-        <p class="hint" id="settingsHint">Display only — nothing here changes the data or affects other visitors.</p>
       </section>
 
       <section class="panel view-admin" id="panel-sync">
@@ -1278,7 +1195,7 @@ input[type="range"]{
         <p class="hint" id="saveStatus" style="font-family: var(--font-mono); font-size: .7rem;">—</p>
       </section>
 
-      <section class="panel view-settings" id="panel-log">
+      <section class="panel view-admin" id="panel-log">
         <div class="panel-head">
           <span class="eyebrow">SYS.LOG</span>
           <h2>Live System Audit Log</h2>
@@ -1343,24 +1260,6 @@ input[type="range"]{
   window.addEventListener('unhandledrejection', (e) => {
     show('Unhandled promise rejection', (e.reason && e.reason.message) ? e.reason.message : String(e.reason));
   });
-  // Exposed so guarded code (which swallows its own errors) can still surface
-  // them here — the audit log panel lives in the Admin view, which is
-  // unreachable if startup fails before the tabs work.
-  window.__showFatal = show;
-
-  // Always-visible diagnostic strip. The audit log lives inside a panel, so
-  // if the view system or a render function is broken it can't be read —
-  // this attaches directly to <body> and never depends on app state.
-  const diag = document.createElement('div');
-  diag.id = 'diagStrip';
-  diag.style.cssText = 'position:fixed; bottom:0; left:0; right:0; z-index:99998; background:#141b28; color:#8b96ab; border-top:1px solid #263047; font-family:monospace; font-size:11px; padding:4px 8px; max-height:22vh; overflow:auto; white-space:pre-wrap;';
-  document.addEventListener('DOMContentLoaded', () => document.body.appendChild(diag));
-  let diagCount = 0;
-  window.__diag = function(msg){
-    diagCount++;
-    diag.textContent = `[${diagCount}] ${msg}\n` + diag.textContent;
-    if (diagCount > 40) diag.textContent = diag.textContent.split('\n').slice(0,40).join('\n');
-  };
 })();
 
 /* =========================================================================
@@ -1383,15 +1282,8 @@ const CONFIG = {
   DEFAULT_TARGET_NATIONS: ['Ethiopia'],
   AUTO_SYNC_INTERVAL_MS: 90000,
   TOWN_BATCH_SIZE: 100,
-  // Residents and councillor ranks are only needed for the falling-towns
-  // countdown. They roughly double the town payload, so they're off unless
-  // that feature is actually being used.
-  FETCH_RESIDENTS: false,
   MAX_LOG_ENTRIES: 200,
-  // 15s was long enough that a stalled request looked like a hang rather
-  // than a failure. 8s still tolerates a slow response but surfaces a real
-  // problem quickly.
-  REQUEST_TIMEOUT_MS: 8000,
+  REQUEST_TIMEOUT_MS: 15000,
   REGION_PALETTE: ['#c99a4b', '#6ea87b', '#c1613a', '#7a9fc9', '#a97ec9', '#c9c25a', '#4fb8a8', '#d97c52'],
   // Deliberately distinct hue set from REGION_PALETTE above, so live nation
   // territory (informational) is never visually confused with the admin's
@@ -1415,11 +1307,6 @@ let showClaims = true;
 let showTerrain = true; // same reasoning — declared alongside showClaims for consistency
 let showTowns = true;   // same reasoning — town markers get their own independent toggle
 let showDim = false;    // translucent mask over terrain, off by default so the map reads normally
-// Display settings. Declared here beside showDim rather than next to their
-// handlers, because setSidebarView -> renderSettings reads them and is
-// defined much earlier in the file.
-let lowQuality = false; // coarser tiles, no claim outlines — for slower devices
-let guiHidden = false;  // hides every panel and control for a bare map
                          // so they can be hidden when they visually compete with territory
                          // outlines (both centered on/around the same town, easy to clutter)
 
@@ -1673,23 +1560,12 @@ const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
 // tile and scales it in CSS instead of fetching a separate copy per grid
 // cell. A custom getTileUrl bypasses that entirely, which is what previously
 // caused hundreds of duplicate requests for the same image.
-const TERRAIN_TILE_SIZE = 256;   // Leaflet's default; small tiles keep upscaled sizes within browser texture limits
-const TERRAIN_ZOOM_OFFSET = 6;   // map zoom -6 -> folder 0; map zoom -1 -> folder 5
+const TERRAIN_TILE_SIZE = 2048;  // blocks spanned by one tile at map zoom 0
+const TERRAIN_ZOOM_OFFSET = 3;   // map zoom -3 -> folder 0; map zoom 2 -> folder 5
 const TERRAIN_OPACITY_NORMAL = 0.6;  // default — terrain visible but not overpowering
 const TERRAIN_OPACITY_DIM = 0.22;    // "Dim terrain" — pushes it back so claims read clearly
 
-// With tileSize 256 and zoomOffset 6, squaremap's finest folder (5) lands at
-// map zoom -1. Every level past that upscales the same tile, so the practical
-// ceiling is set by the browser's max texture size, not by the tile server:
-// zoom 5 draws a 16,384px tile, which is the common mobile GPU limit.
-// The previous pairing (tileSize 2048, offset 3) hit 65,536px by zoom 7 —
-// far past what any browser will paint, so zooming silently stopped working.
-// Declared early: MapController's constructor reads this, and it runs long
-// before the rendering section further down.
-const IS_SMALL_SCREEN = window.matchMedia('(max-width: 820px)').matches;
-
-const MAP_MIN_ZOOM = -TERRAIN_ZOOM_OFFSET; // folder 0 — nothing coarser exists
-const MAP_MAX_ZOOM = 5; // ~1 block per 8px — individual chunks clearly visible
+const MAP_MAX_ZOOM = 7; // ~25 blocks across a phone screen at the closest zoom
 
 const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
 
@@ -1702,10 +1578,7 @@ function buildTerrainLayer(){
     // -7 fits the whole 128,000-block world in view. Below folder 0 there is
     // nothing coarser to fetch, so minNativeZoom:0 makes Leaflet reuse the
     // same 8x4 folder-0 tile set and scale it down — no extra requests.
-    // Must equal -TERRAIN_ZOOM_OFFSET. Any lower and the requested folder
-    // goes negative, and every tile 404s — which is exactly what blanked the
-    // terrain when the offset changed from 3 to 6 without this following it.
-    minZoom: MAP_MIN_ZOOM,
+    minZoom: -7,
     // IMPORTANT: this must match the map's own maxZoom, not the tile server's.
     // On a tile layer maxZoom means "hide this layer past here" — setting it
     // below the map's ceiling makes terrain vanish when you zoom in, which is
@@ -1740,13 +1613,6 @@ class EarthMCClient{
     // "://" sequences inside a path.
     const proxyBase = CONFIG.CORS_PROXY.replace(/\/+$/, '');
     const proxiedUrl = `${proxyBase}/?url=${encodeURIComponent(targetUrl)}`;
-    // Show the exact URL once, so it can be opened directly in a tab to test
-    // the proxy independently of the app.
-    if (!window.__loggedProxyUrl){
-      window.__loggedProxyUrl = true;
-      if (window.__diag) window.__diag('first request URL: ' + proxiedUrl);
-      auditLog.log(`Requesting via proxy: ${proxiedUrl}`, 'info');
-    }
 
     const hasBody = options.body !== undefined && options.body !== null;
     const controller = new AbortController();
@@ -1760,10 +1626,8 @@ class EarthMCClient{
         fetchInit.body = options.body;
         fetchInit.headers = { 'Content-Type': 'application/json' };
       }
-      const tReq = Date.now();
       const res = await fetch(proxiedUrl, fetchInit);
       clearTimeout(timeout);
-      if (window.__diag) window.__diag(`${path || '/'} → HTTP ${res.status} in ${Date.now() - tReq}ms`);
 
       let bodyText = '';
       try{ bodyText = await res.text(); } catch(_e){ /* ignore */ }
@@ -1780,18 +1644,13 @@ class EarthMCClient{
     } catch(err){
       clearTimeout(timeout);
       if (err.name === 'AbortError'){
-        if (window.__diag) window.__diag(`${path || '/'} → TIMED OUT after ${CONFIG.REQUEST_TIMEOUT_MS}ms`);
         throw new Error('Request timed out — the EarthMC API or proxy may be slow or unreachable');
       }
-      if (window.__diag) window.__diag(`${path || '/'} → NETWORK ERROR: ${err.message}`);
       throw new Error(err.message);
     }
   }
 
-  // No trailing slash: the docs give this endpoint as api.earthmc.net/v4,
-  // and '/v4/' can redirect — which doesn't always survive being encoded
-  // through the proxy.
-  getServerInfo(){ return this._request(''); }
+  getServerInfo(){ return this._request('/'); }
 
   // Player activity. Batched, and deliberately NOT called on every sync —
   // lastOnline moves slowly, while sync runs every 15s. See ACTIVITY_TTL_MS.
@@ -1842,13 +1701,9 @@ class EarthMCClient{
   }
 
   async getTownDetailsBatched(namesOrUuids){
-    // residents + ranks roughly double the response size and are only needed
-    // by the falling-towns view, so they're opt-in rather than on every sync.
-    const template = { name:true, uuid:true, nation:true, mayor:true, status:true, stats:true, coordinates:true };
-    if (CONFIG.FETCH_RESIDENTS){
-      template.residents = true;
-      template.ranks = true;
-    }
+    // residents + ranks come from the same /towns POST — no extra request,
+    // just more fields. ranks.Councillor is who inherits a fallen town.
+    const template = { name:true, uuid:true, nation:true, mayor:true, status:true, stats:true, coordinates:true, residents:true, ranks:true };
     const out = [];
     const total = namesOrUuids.length;
     const batches = Math.ceil(total / CONFIG.TOWN_BATCH_SIZE);
@@ -2269,15 +2124,7 @@ class RegionManager{
 
   recalcStats(region){
     const feature = region.layer.toGeoJSON();
-    // Cheap rejection first: most towns are nowhere near most regions, and a
-    // bounds check is far cheaper than booleanPointInPolygon against a
-    // polygon traced from chunk outlines. Without this, every sync ran one
-    // full polygon test per town per region.
-    const b = region.layer.getBounds();
-    const west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
     const contained = this.currentTowns.filter(t => {
-      const lat = -t.mcZ, lng = t.mcX;
-      if (lng < west || lng > east || lat < south || lat > north) return false;
       // Region polygons are in map space, so scale the town's raw block
       // coordinates before testing containment.
       try{ return turf.booleanPointInPolygon(turf.point(CoordUtils.mcToPlane(t.mcX, t.mcZ)), feature); }
@@ -2490,10 +2337,7 @@ class MapController{
       // -7 shows the entire world; folder 0 tiles are reused and scaled below
       // map zoom -3, so the extra range costs no additional requests.
       // Past map zoom 2 (folder 5) Leaflet scales tiles instead of fetching more.
-      // Must equal -TERRAIN_ZOOM_OFFSET. Any lower and the requested folder
-    // goes negative, and every tile 404s — which is exactly what blanked the
-    // terrain when the offset changed from 3 to 6 without this following it.
-    minZoom: MAP_MIN_ZOOM,
+      minZoom: -7,
       // 7 puts roughly 25 blocks across a phone screen — a few chunks, close
       // enough to pick out individual claims. Past this the upscale factor
       // needs a >100,000px tile, which browsers refuse to allocate.
@@ -2510,7 +2354,7 @@ class MapController{
     });
     // Whole-world view: at zoom -6 one Leaflet tile is exactly one nz0
     // squaremap tile, and the full 128,000×64,000 world fits in ~32 tiles.
-    this.map.setView([0, 0], MAP_MIN_ZOOM); // whole world, centred on origin
+    this.map.setView([0, 0], -3); // whole world, centred on origin
     this.map.attributionControl.setPrefix('Live data: EarthMC API · Leaflet + Turf + Geoman');
 
     // #map is sized via CSS (`position: absolute; inset: 0`), not fixed
@@ -2535,18 +2379,14 @@ class MapController{
     requestAnimationFrame(() => this.map.invalidateSize());
     window.addEventListener('load', () => this.map.invalidateSize());
 
-    this.gridLayer = new McGridLayer().addTo(this.map);
+    new McGridLayer().addTo(this.map);
 
     // Real terrain from EarthMC's own live map, sitting on top of the dark
     // grid — the grid shows through anywhere a terrain tile 404s (unrendered
     // area on EarthMC's end), so there's never a broken/blank gap, just a
     // graceful fallback to the coordinate grid. Stored on `this` so the
     // toggle control below can show/hide it.
-    this.terrainLayer = buildTerrainLayer();
-    // On mobile the map starts hidden behind the overlay, so the tile layer
-    // stays detached until it's actually opened — no point fetching images
-    // for a zero-sized container.
-    if (!IS_SMALL_SCREEN) this.terrainLayer.addTo(this.map);
+    this.terrainLayer = buildTerrainLayer().addTo(this.map);
     if (showDim) this.terrainLayer.setOpacity(TERRAIN_OPACITY_DIM);
 
 
@@ -2731,9 +2571,7 @@ const dom = {
   bulkLoadHint: document.getElementById('bulkLoadHint'),
   viewTabEthiopia: document.getElementById('viewTabEthiopia'),
   viewTabGlobal: document.getElementById('viewTabGlobal'),
-  viewTabSettings: document.getElementById('viewTabSettings'),
   viewTabAdmin: document.getElementById('viewTabAdmin'),
-  guiRestoreBtn: document.getElementById('guiRestoreBtn'),
   btnLowQuality: document.getElementById('btnLowQuality'),
   btnHideGui: document.getElementById('btnHideGui'),
   regionFillInput: document.getElementById('regionFillInput'),
@@ -2917,7 +2755,7 @@ const worldCache = {
 function townsForActiveView(towns){
   const list = towns || [];
   // Admin edits Ethiopia's regions, so it shows the same towns Ethiopia does.
-  if (activeView === 'ethiopia' || activeView === 'admin' || activeView === 'settings'){
+  if (activeView === 'ethiopia' || activeView === 'admin'){
     return list.filter(t => (t.nationName || '') === HOME_NATION);
   }
   const tracked = list.filter(t => {
@@ -2938,17 +2776,10 @@ function townsForActiveView(towns){
 // the heaviest thing on the map — hundreds of polygons rebuilt every sync.
 // Capping how many render keeps the page alive; the towns themselves still
 // all appear as markers, which are cheap.
+const IS_SMALL_SCREEN = window.matchMedia('(max-width: 820px)').matches;
 const MAX_CLAIM_TOWNS = IS_SMALL_SCREEN ? 120 : 1200;
 
-// On mobile the map sits behind a display:none overlay. Leaflet can't measure
-// a hidden container, so anything added while it's closed is deferred and
-// then lands in one synchronous burst when it opens — which was crashing the
-// tab. This gates layer rendering; declared here because renderTownMarkers
-// and renderNationClaims below are the earliest consumers.
-let mapVisible = !IS_SMALL_SCREEN;
-
 function renderNationClaims(allTowns){
-  if (!mapVisible) return;
   let towns = townsForActiveView(allTowns);
   mapController.claimsLayerGroup.clearLayers();
   if (!showClaims) return;
@@ -2995,9 +2826,6 @@ function renderNationClaims(allTowns){
 }
 
 function renderTownMarkers(allTowns){
-  // Nothing to gain from populating a hidden map, and plenty to lose —
-  // see setMapOverlay.
-  if (!mapVisible) return;
   const towns = townsForActiveView(allTowns);
   mapController.townsLayerGroup.clearLayers();
   if (!showTowns) return;
@@ -3504,25 +3332,7 @@ function daysSince(ts){
 }
 
 // Most recent login across a town's residents, plus who's been seen lately.
-// Memoised per render pass. This was being recomputed for every town in
-// three separate places (table rows, the falling filter, the health panel) —
-// roughly 900 calls per render, each looping residents and sorting. The key
-// includes the activity cache timestamp so it invalidates when new data
-// arrives, and town name + resident count so it tracks roster changes.
-const activityMemo = new Map();
-
 function townActivity(town){
-  const memoKey = town.name + ':' + (town.residents ? town.residents.length : 0) + ':' + activityCache.fetchedAt;
-  const cached = activityMemo.get(memoKey);
-  if (cached) return cached;
-  const result = computeTownActivity(town);
-  // Bounded so a long session can't grow it without limit.
-  if (activityMemo.size > 4000) activityMemo.clear();
-  activityMemo.set(memoKey, result);
-  return result;
-}
-
-function computeTownActivity(town){
   const names = (town.residents && town.residents.length) ? town.residents : (town.mayor ? [town.mayor] : []);
   let newest = null;
   let known = 0;
@@ -3615,8 +3425,7 @@ function setSidebarView(view){
   document.querySelectorAll('.view-ethiopia').forEach(el => { el.hidden = view !== 'ethiopia'; });
   document.querySelectorAll('.view-global').forEach(el => { el.hidden = view !== 'global'; });
   document.querySelectorAll('.view-admin').forEach(el => { el.hidden = view !== 'admin'; });
-  document.querySelectorAll('.view-settings').forEach(el => { el.hidden = view !== 'settings'; });
-  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal, settings: dom.viewTabSettings, admin: dom.viewTabAdmin };
+  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal, admin: dom.viewTabAdmin };
   Object.entries(tabs).forEach(([name, el]) => {
     if (!el) return;
     el.classList.toggle('is-active', name === view);
@@ -3624,7 +3433,7 @@ function setSidebarView(view){
   });
   // Regions are Ethiopia's own political data — visible in the Ethiopia view
   // and in Admin (where they're edited), hidden in Global.
-  const showsRegions = view === 'ethiopia' || view === 'admin' || view === 'settings';
+  const showsRegions = view === 'ethiopia' || view === 'admin';
   if (mapController && mapController.regionsLayerGroup){
     if (showsRegions) mapController.regionsLayerGroup.addTo(mapController.map);
     else mapController.map.removeLayer(mapController.regionsLayerGroup);
@@ -3635,20 +3444,12 @@ function setSidebarView(view){
 
   if (view === 'admin'){
     renderAll();
-  } else if (view === 'settings'){
-    renderSettings();
   } else if (view === 'ethiopia'){
     renderEthiopiaPanel(state.towns);
-    // Activity data (~8 batched requests for every resident) is deliberately
-    // NOT fetched here at boot: Ethiopia is the default view, so this fired
-    // before the first sync had returned any towns — racing the sync through
-    // the same proxy and slowing both. It only runs once towns actually
-    // exist, and the cache TTL stops it repeating on every view switch.
-    if (state.towns.length){
-      refreshActivity('ethiopia').then(() => {
-        if (activeView === 'ethiopia') renderEthiopiaPanel(state.towns);
-      });
-    }
+    // Ethiopia needs every resident's activity; fetched on demand and cached.
+    refreshActivity('ethiopia').then(() => {
+      if (activeView === 'ethiopia') renderEthiopiaPanel(state.towns);
+    });
   } else {
     renderNationPanel(state.towns);
   }
@@ -4086,104 +3887,54 @@ if (dom.econToggleDetail){
   });
 }
 
-/* ---- Settings panel ---- */
-function renderSettings(){
-  const set = (el, on) => { if (el) el.setAttribute('aria-checked', String(on)); };
-  set(dom.btnLowQuality, lowQuality);
-  set(dom.btnHideGui, guiHidden);
-}
-
 /* ---- Performance mode ---- */
 // Low quality does three things, in order of how much they cost:
 //   1. stops rendering claim outlines entirely (by far the heaviest)
 //   2. caps terrain at a coarser folder, so tiles cover more ground and
 //      fewer are needed for the same view
 //   3. widens the sync interval so the whole pipeline runs less often
+let lowQuality = false;
 
 function setLowQuality(on){
   lowQuality = on;
   document.body.classList.toggle('low-quality', on);
-  if (dom.btnLowQuality) dom.btnLowQuality.setAttribute('aria-checked', String(on));
+  if (dom.btnLowQuality) dom.btnLowQuality.classList.toggle('is-active', on);
 
   if (mapController && mapController.terrainLayer){
     const layer = mapController.terrainLayer;
-    // Fetch two folders coarser and let Leaflet upscale. This genuinely does
-    // make the terrain blurrier — the earlier version only changed which
-    // folder was requested, so anything already cached looked identical.
+    // Dropping maxNativeZoom means Leaflet fetches coarser tiles and scales
+    // them up — fewer requests, less memory, softer image.
     layer.options.maxNativeZoom = on ? 3 : TERRAIN_MAX_NATIVE_ZOOM;
-    layer.setOpacity(layer.options.opacity); // force a repaint at the new level
     layer.redraw();
   }
 
-  // The coordinate grid is a whole second tile layer redrawing a canvas for
-  // every tile on every pan — and it's completely hidden under the terrain.
-  // Dropping it is pure saved work with no visual loss.
-  if (mapController && mapController.gridLayer){
-    if (on) mapController.map.removeLayer(mapController.gridLayer);
-    else mapController.gridLayer.addTo(mapController.map);
-  }
-
-  auditLog.log(on ? 'Low quality — coarser terrain, no claim outlines, grid off' : 'Low quality off', 'info');
+  auditLog.log(on ? 'Low quality mode on — claim outlines hidden, coarser terrain' : 'Low quality mode off', 'info');
   renderTownMarkers(state.towns);
   renderNationClaims(state.towns);
 }
 
 /* ---- Hide GUI ---- */
+let guiHidden = false;
 
 function setGuiHidden(on){
   guiHidden = on;
   document.body.classList.toggle('gui-hidden', on);
-  if (dom.btnHideGui) dom.btnHideGui.setAttribute('aria-checked', String(on));
-  // Hiding the sidebar makes the map container wider, but Leaflet caches the
-  // old size — leaving a black strip where the sidebar used to be, since no
-  // tiles were ever requested for that area. invalidateSize makes it
-  // re-measure and fill the gap. Called twice: once next frame for the
-  // layout change, once after the CSS transition has settled.
+  if (dom.btnHideGui) dom.btnHideGui.classList.toggle('is-active', on);
+  // Sidebar visibility changes the map's width, so Leaflet has to re-measure.
   requestAnimationFrame(() => mapController.map.invalidateSize());
-  setTimeout(() => mapController.map.invalidateSize(), 250);
 }
 
 /* ---- Mobile: map overlay ---- */
 const mapOpenBtn = document.getElementById('mapOpenBtn');
 const mapCloseBtn = document.getElementById('mapCloseBtn');
 
-// On mobile the map lives behind a display:none overlay. Leaflet can't
-// measure a hidden container, so everything added while it's closed is
-// deferred — and then lands in one synchronous burst the moment it opens,
-// which is what was killing the tab. mapVisible gates layer rendering so
-// nothing accumulates while hidden, and opening builds up in stages.
 function setMapOverlay(open){
   document.body.classList.toggle('map-open-mode', open);
-  mapVisible = open || !IS_SMALL_SCREEN;
-
-  if (!open){
-    // Drop the markers and outlines so a closed map holds nothing. They're
-    // rebuilt from state.towns on reopen — no data is lost.
-    if (mapController){
-      mapController.townsLayerGroup.clearLayers();
-      mapController.claimsLayerGroup.clearLayers();
-      // Detach the tile layer too — otherwise it keeps requesting and
-      // caching images for a map nobody can see.
-      if (mapController.terrainLayer && mapController.map.hasLayer(mapController.terrainLayer)){
-        mapController.map.removeLayer(mapController.terrainLayer);
-      }
-    }
-    return;
-  }
-
-  if (mapController.terrainLayer && showTerrain && !mapController.map.hasLayer(mapController.terrainLayer)){
-    mapController.terrainLayer.addTo(mapController.map);
-  }
-
-  // Staged: size first, then tiles settle, then markers, then outlines.
-  // Spreading it across frames keeps any single frame survivable.
-  requestAnimationFrame(() => {
-    mapController.map.invalidateSize();
-    setTimeout(() => {
-      renderTownMarkers(state.towns);
-      setTimeout(() => renderNationClaims(state.towns), 120);
-    }, 60);
-  });
+  if (!open) return;
+  // Leaflet can't measure a display:none container, so it must be told to
+  // re-read its size once the overlay is actually visible — otherwise the
+  // map renders at zero size or with a stale viewport.
+  requestAnimationFrame(() => mapController.map.invalidateSize());
 }
 
 if (mapOpenBtn)  mapOpenBtn.addEventListener('click', () => setMapOverlay(true));
@@ -4262,11 +4013,8 @@ if (dom.regionColorReset){
 if (dom.viewTabEthiopia) dom.viewTabEthiopia.addEventListener('click', () => setSidebarView('ethiopia'));
 if (dom.viewTabGlobal)   dom.viewTabGlobal.addEventListener('click', () => setSidebarView('global'));
 if (dom.viewTabAdmin)    dom.viewTabAdmin.addEventListener('click', () => setSidebarView('admin'));
-if (dom.viewTabSettings) dom.viewTabSettings.addEventListener('click', () => setSidebarView('settings'));
 if (dom.btnLowQuality)   dom.btnLowQuality.addEventListener('click', () => setLowQuality(!lowQuality));
 if (dom.btnHideGui)      dom.btnHideGui.addEventListener('click', () => setGuiHidden(!guiHidden));
-if (dom.guiRestoreBtn)   dom.guiRestoreBtn.addEventListener('click', () => setGuiHidden(false));
-
 
 /* ---- Public nation tracking (Global view) ---- */
 if (dom.publicTrackForm){
@@ -4586,35 +4334,14 @@ async function syncLiveData(){
   setSyncStatus('syncing');
   auditLog.log('Sync started', 'info');
   try{
-    // Server info is only used for the online-player counter, so a failure
-    // here must not stop the town sync — previously one stalled call blocked
-    // everything behind it for the full 15s timeout, and the sync appeared
-    // to hang with no error.
-    try{
-      auditLog.log('→ requesting server info…', 'info');
-    if (window.__diag) window.__diag('sync: requesting server info');
-      const info = await client.getServerInfo();
-      const stats = info && info.stats ? info.stats : {};
-      dom.statServer.textContent = typeof stats.numOnlinePlayers === 'number' ? `${CoordUtils.fmt(stats.numOnlinePlayers)} online` : 'Reachable';
-      auditLog.log(`Server reachable — ${CoordUtils.fmt(stats.numOnlinePlayers)} online, ${CoordUtils.fmt(stats.numTowns)} towns total`, 'success');
-    } catch(infoErr){
-      dom.statServer.textContent = '—';
-      auditLog.log(`Server info unavailable (continuing) — ${infoErr.message}`, 'warn');
-    }
+    const info = await client.getServerInfo();
+    const stats = info && info.stats ? info.stats : {};
+    dom.statServer.textContent = typeof stats.numOnlinePlayers === 'number' ? `${CoordUtils.fmt(stats.numOnlinePlayers)} online` : 'Reachable';
+    auditLog.log(`Server reachable — ${CoordUtils.fmt(stats.numOnlinePlayers)} online, ${CoordUtils.fmt(stats.numTowns)} towns total`, 'success');
 
     const townRefs = new Map();
     if (state.targetNations.size){
-      auditLog.log(`→ requesting ${state.targetNations.size} nation(s)…`, 'info');
-    if (window.__diag) window.__diag('sync: requesting nations');
-      let nations = [];
-      try{
-        nations = await client.getNationDetails([...state.targetNations]);
-      } catch(nationErr){
-        // Isolated so a nations failure can't strand the whole sync — any
-        // manually-added towns below still resolve.
-        auditLog.log(`Nation lookup failed — ${nationErr.message}`, 'error');
-        if (window.__diag) window.__diag(`NATIONS FAILED: ${nationErr.message}`);
-      }
+      const nations = await client.getNationDetails([...state.targetNations]);
       const foundNames = new Set(nations.map(n => (n.name || '').toLowerCase()));
       state.targetNations.forEach(wanted => {
         if (!foundNames.has(wanted.toLowerCase())){
@@ -4652,33 +4379,16 @@ async function syncLiveData(){
       return;
     }
 
-    auditLog.log(`→ requesting details for ${townRefs.size} town(s)…`, 'info');
-    if (window.__diag) window.__diag('sync: requesting town details');
-    const tFetch = performance.now();
     const towns = await client.getTownDetailsBatched([...townRefs.keys()]);
-    const fetchMs = Math.round(performance.now() - tFetch);
     state.towns = towns;
-    const tRender = performance.now();
     renderTownMarkers(towns);
     renderNationClaims(towns);
-    if (activeView === 'ethiopia'){
-      renderEthiopiaPanel(towns);
-      // Now that towns exist, activity can be fetched — after the sync, not
-      // alongside it.
-      refreshActivity('ethiopia').then(() => {
-        if (activeView === 'ethiopia') renderEthiopiaPanel(state.towns);
-      });
-    } else {
-      renderNationPanel(towns);
-    }
+    if (activeView === 'ethiopia') renderEthiopiaPanel(towns);
+    else renderNationPanel(towns);
     regionManager.recalcAll(towns);
     state.lastSync = Date.now();
     setSyncStatus('online', towns.length);
-    // Split timing so a slow sync can be attributed to the network or to
-    // rendering, rather than guessed at.
-    const renderMs = Math.round(performance.now() - tRender);
-    auditLog.log(`Sync complete — ${towns.length} town(s) · fetch ${fetchMs}ms · render ${renderMs}ms`, 'success');
-    if (window.__diag) window.__diag(`sync OK: ${towns.length} towns, fetch ${fetchMs}ms, render ${renderMs}ms`);
+    auditLog.log(`Sync complete — ${towns.length} town(s) loaded`, 'success');
 
     if (!state.hasFitBoundsOnce && towns.length){
       mapController.fitToTowns(towns);
@@ -4686,9 +4396,6 @@ async function syncLiveData(){
     }
   } catch(err){
     auditLog.log(`Sync failed — ${err.message}`, 'error');
-    if (window.__diag) window.__diag(`SYNC FAILED: ${err.message}`);
-    setSyncStatus('offline');
-    if (window.__showFatal) window.__showFatal('Sync failed', err.message);
     setSyncStatus('offline');
   }
 }
@@ -4752,37 +4459,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !dom.adminModal.hidden) dom.adminModal.hidden = true;
 });
 
-/* ---- Boot ----
-   Each step is guarded so one failure can't stop the rest of startup. A
-   crash here previously left the app in a half-initialised state — sync
-   never ran, and panels from other views stayed visible because
-   setSidebarView had thrown partway through. */
+/* ---- Boot ---- */
 auditLog.log('Console initialized — awaiting first sync', 'info');
-if (window.__diag) window.__diag('boot: script reached the end and is running');
-
-function bootStep(label, fn){
-  try{
-    fn();
-    if (window.__diag) window.__diag(`boot ok: ${label}`);
-  }
-  catch(err){
-    if (window.__diag) window.__diag(`BOOT FAILED: ${label} — ${err.message}`);
-    auditLog.log(`Startup step "${label}" failed — ${err.message}`, 'error');
-    console.error(`[boot:${label}]`, err);
-    // Also paint it on the page: the audit log lives in the Admin view, which
-    // can't be reached if the step that failed was the view switcher itself.
-    if (window.__showFatal) window.__showFatal(`Startup: ${label}`, err.message);
-  }
-}
-
-bootStep('sidebar view', () => setSidebarView('ethiopia'));
+setSidebarView('ethiopia'); // Ethiopia is the default sidebar view
 // Phones start in low quality — claim outlines are what crashes them, and
-// it can be turned off from Settings if the device copes.
-bootStep('low quality default', () => { if (IS_SMALL_SCREEN) setLowQuality(true); });
-bootStep('drawing lock', () => mapController.setDrawingEnabled(false));
-bootStep('initial render', () => renderAll());
-bootStep('load regions', () => loadRegionsFromBackend());
-// Sync runs last and outside the guards above, so nothing earlier can stop it.
+// it can be turned off from the tab bar if the device copes.
+if (IS_SMALL_SCREEN) setLowQuality(true);
+mapController.setDrawingEnabled(false); // Start with drawing disabled until admin unlocks
+renderAll();
+loadRegionsFromBackend(); // rehydrate the shared, persisted regions for every visitor
 syncLiveData();
 setInterval(syncLiveData, CONFIG.AUTO_SYNC_INTERVAL_MS);
 // Activity (lastOnline, balances) moves far slower than town data, so it
@@ -4805,5 +4490,4 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-
 

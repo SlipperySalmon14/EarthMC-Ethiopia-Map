@@ -1369,6 +1369,10 @@ const CONFIG = {
   DEFAULT_TARGET_NATIONS: ['Ethiopia'],
   AUTO_SYNC_INTERVAL_MS: 90000,
   TOWN_BATCH_SIZE: 100,
+  // Residents and councillor ranks are only needed for the falling-towns
+  // countdown. They roughly double the town payload, so they're off unless
+  // that feature is actually being used.
+  FETCH_RESIDENTS: false,
   MAX_LOG_ENTRIES: 200,
   REQUEST_TIMEOUT_MS: 15000,
   REGION_PALETTE: ['#c99a4b', '#6ea87b', '#c1613a', '#7a9fc9', '#a97ec9', '#c9c25a', '#4fb8a8', '#d97c52'],
@@ -1807,9 +1811,13 @@ class EarthMCClient{
   }
 
   async getTownDetailsBatched(namesOrUuids){
-    // residents + ranks come from the same /towns POST — no extra request,
-    // just more fields. ranks.Councillor is who inherits a fallen town.
-    const template = { name:true, uuid:true, nation:true, mayor:true, status:true, stats:true, coordinates:true, residents:true, ranks:true };
+    // residents + ranks roughly double the response size and are only needed
+    // by the falling-towns view, so they're opt-in rather than on every sync.
+    const template = { name:true, uuid:true, nation:true, mayor:true, status:true, stats:true, coordinates:true };
+    if (CONFIG.FETCH_RESIDENTS){
+      template.residents = true;
+      template.ranks = true;
+    }
     const out = [];
     const total = namesOrUuids.length;
     const batches = Math.ceil(total / CONFIG.TOWN_BATCH_SIZE);
@@ -4547,6 +4555,7 @@ async function syncLiveData(){
   setSyncStatus('syncing');
   auditLog.log('Sync started', 'info');
   try{
+    auditLog.log('→ requesting server info…', 'info');
     const info = await client.getServerInfo();
     const stats = info && info.stats ? info.stats : {};
     dom.statServer.textContent = typeof stats.numOnlinePlayers === 'number' ? `${CoordUtils.fmt(stats.numOnlinePlayers)} online` : 'Reachable';
@@ -4554,6 +4563,7 @@ async function syncLiveData(){
 
     const townRefs = new Map();
     if (state.targetNations.size){
+      auditLog.log(`→ requesting ${state.targetNations.size} nation(s)…`, 'info');
       const nations = await client.getNationDetails([...state.targetNations]);
       const foundNames = new Set(nations.map(n => (n.name || '').toLowerCase()));
       state.targetNations.forEach(wanted => {
@@ -4592,6 +4602,7 @@ async function syncLiveData(){
       return;
     }
 
+    auditLog.log(`→ requesting details for ${townRefs.size} town(s)…`, 'info');
     const tFetch = performance.now();
     const towns = await client.getTownDetailsBatched([...townRefs.keys()]);
     const fetchMs = Math.round(performance.now() - tFetch);

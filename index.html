@@ -4682,15 +4682,29 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !dom.adminModal.hidden) dom.adminModal.hidden = true;
 });
 
-/* ---- Boot ---- */
+/* ---- Boot ----
+   Each step is guarded so one failure can't stop the rest of startup. A
+   crash here previously left the app in a half-initialised state — sync
+   never ran, and panels from other views stayed visible because
+   setSidebarView had thrown partway through. */
 auditLog.log('Console initialized — awaiting first sync', 'info');
-setSidebarView('ethiopia'); // Ethiopia is the default sidebar view
+
+function bootStep(label, fn){
+  try{ fn(); }
+  catch(err){
+    auditLog.log(`Startup step "${label}" failed — ${err.message}`, 'error');
+    console.error(`[boot:${label}]`, err);
+  }
+}
+
+bootStep('sidebar view', () => setSidebarView('ethiopia'));
 // Phones start in low quality — claim outlines are what crashes them, and
-// it can be turned off from the tab bar if the device copes.
-if (IS_SMALL_SCREEN) setLowQuality(true);
-mapController.setDrawingEnabled(false); // Start with drawing disabled until admin unlocks
-renderAll();
-loadRegionsFromBackend(); // rehydrate the shared, persisted regions for every visitor
+// it can be turned off from Settings if the device copes.
+bootStep('low quality default', () => { if (IS_SMALL_SCREEN) setLowQuality(true); });
+bootStep('drawing lock', () => mapController.setDrawingEnabled(false));
+bootStep('initial render', () => renderAll());
+bootStep('load regions', () => loadRegionsFromBackend());
+// Sync runs last and outside the guards above, so nothing earlier can stop it.
 syncLiveData();
 setInterval(syncLiveData, CONFIG.AUTO_SYNC_INTERVAL_MS);
 // Activity (lastOnline, balances) moves far slower than town data, so it

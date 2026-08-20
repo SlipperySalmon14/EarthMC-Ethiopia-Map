@@ -481,71 +481,22 @@ input[type="text"]:focus, textarea:focus{ border-color: var(--brass); }
 .tab-util + .tab-util{ margin-left: .25rem; }
 .view-tab.is-active{ background: var(--terracotta); border-color: var(--terracotta); color: var(--parchment); }
 
-/* Hide GUI — everything except the map itself, including Leaflet's own
-   controls, the attribution and the coordinate readout. */
+/* Hide GUI — everything except the map itself. */
 body.gui-hidden .sidebar,
 body.gui-hidden .view-switcher,
-body.gui-hidden header,
 body.gui-hidden #publicNotice,
 body.gui-hidden .map-layers-toggle,
-body.gui-hidden .leaflet-control-container,
-body.gui-hidden .leaflet-control-attribution,
-body.gui-hidden .split-banner,
-body.gui-hidden .map-open{ display: none !important; }
-body.gui-hidden .workspace{ padding: 0; }
+body.gui-hidden header{ display: none !important; }
 body.gui-hidden .map-pane{ position: fixed; inset: 0; }
-
-/* A sliver stays on the right edge as the way back. It sits mostly
-   off-screen and slides out on hover, so it doesn't cover the map. */
-.gui-restore{
-  display: none;
-  position: fixed;
-  top: 50%;
-  right: 0;
-  transform: translate(calc(100% - 14px), -50%);
-  z-index: 1200;
-  background: rgba(11,15,22,.92);
-  color: var(--parchment);
-  border: 1px solid var(--line);
-  border-right: none;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: .7rem;
-  padding: .7rem .6rem;
+/* One way back — a small floating restore button. */
+body.gui-hidden #btnHideGui{
+  display: block !important;
+  position: fixed; top: .6rem; right: .6rem; z-index: 1200;
+  background: rgba(11,15,22,.9); border: 1px solid var(--line);
+  color: var(--parchment); border-radius: var(--radius-sm);
+  padding: .4rem .7rem; font-family: var(--font-mono); font-size: .7rem;
   cursor: pointer;
-  writing-mode: vertical-rl;
-  transition: transform .18s ease, background .18s ease;
 }
-body.gui-hidden .gui-restore{ display: block; }
-.gui-restore:hover,
-.gui-restore:focus-visible{
-  transform: translate(0, -50%);
-  background: var(--brass);
-  color: var(--ink);
-}
-
-/* Settings toggles */
-.setting-row{
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: .8rem; padding: .6rem 0; border-bottom: 1px solid var(--line-soft);
-}
-.setting-row:last-of-type{ border-bottom: none; }
-.setting-text{ display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
-.setting-text strong{ font-size: .82rem; color: var(--parchment); font-weight: 600; }
-.setting-text span{ font-size: .72rem; color: var(--muted); line-height: 1.35; }
-.toggle-switch{
-  flex: none; width: 2.6rem; height: 1.45rem; margin-top: .1rem;
-  background: var(--panel-2); border: 1px solid var(--line);
-  border-radius: 999px; cursor: pointer; padding: 0; position: relative;
-  transition: background .18s ease, border-color .18s ease;
-}
-.toggle-switch span{
-  position: absolute; top: 2px; left: 2px;
-  width: 1.05rem; height: 1.05rem; border-radius: 50%;
-  background: var(--muted); transition: transform .18s ease, background .18s ease;
-}
-.toggle-switch[aria-checked="true"]{ background: var(--brass-dim); border-color: var(--brass); }
-.toggle-switch[aria-checked="true"] span{ transform: translateX(1.15rem); background: var(--brass-hi); }
 
 /* =========================================================================
    MOBILE LAYOUT
@@ -1006,7 +957,6 @@ input[type="range"]{
   </header>
 
   <button type="button" id="mapOpenBtn" class="map-open">🗺 Open map</button>
-  <button type="button" id="guiRestoreBtn" class="gui-restore" title="Show the interface again">Show UI</button>
 
   <div class="workspace">
 
@@ -1028,8 +978,9 @@ input[type="range"]{
       <div class="view-switcher" role="tablist" aria-label="Sidebar view">
         <button type="button" class="view-tab is-active" id="viewTabEthiopia" role="tab" aria-selected="true">Ethiopia</button>
         <button type="button" class="view-tab" id="viewTabGlobal" role="tab" aria-selected="false">Global</button>
-        <button type="button" class="view-tab" id="viewTabSettings" role="tab" aria-selected="false">Settings</button>
         <button type="button" class="view-tab" id="viewTabAdmin" role="tab" aria-selected="false" hidden>Admin</button>
+        <button type="button" class="view-tab tab-util" id="btnLowQuality" title="Fewer, coarser tiles and no claim outlines — for slower devices">Low</button>
+        <button type="button" class="view-tab tab-util" id="btnHideGui" title="Hide all panels and overlays">Hide GUI</button>
       </div>
 
 
@@ -1043,39 +994,6 @@ input[type="range"]{
         <p style="color: var(--muted); font-size: .8rem;">
           <strong>Features visible to all:</strong> Interactive map with town markers, region boundaries, population stats. Click regions to inspect them. Export boundary data as GeoJSON.
         </p>
-      </section>
-
-      <section class="panel view-settings" id="panel-settings">
-        <div class="panel-head">
-          <span class="eyebrow">DISPLAY</span>
-          <h2>Settings</h2>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-text">
-            <strong>Low resolution terrain</strong>
-            <span>Coarser tiles and no claim outlines. Much lighter on phones and older machines.</span>
-          </div>
-          <button type="button" class="toggle-switch" id="btnLowQuality" role="switch" aria-checked="false"><span></span></button>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-text">
-            <strong>Hide GUI</strong>
-            <span>Hides every panel and control for a clean full-screen map. A tab on the edge brings it back.</span>
-          </div>
-          <button type="button" class="toggle-switch" id="btnHideGui" role="switch" aria-checked="false"><span></span></button>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-text">
-            <strong>Dim terrain</strong>
-            <span>Pushes the terrain back so claim borders and towns read more clearly.</span>
-          </div>
-          <button type="button" class="toggle-switch" id="btnDimSetting" role="switch" aria-checked="false"><span></span></button>
-        </div>
-
-        <p class="hint" id="settingsHint">Display only — nothing here changes the data or affects other visitors.</p>
       </section>
 
       <section class="panel view-admin" id="panel-sync">
@@ -1389,11 +1307,6 @@ let showClaims = true;
 let showTerrain = true; // same reasoning — declared alongside showClaims for consistency
 let showTowns = true;   // same reasoning — town markers get their own independent toggle
 let showDim = false;    // translucent mask over terrain, off by default so the map reads normally
-// Display settings. Declared here beside showDim rather than next to their
-// handlers, because setSidebarView -> renderSettings reads them and is
-// defined much earlier in the file.
-let lowQuality = false; // coarser tiles, no claim outlines — for slower devices
-let guiHidden = false;  // hides every panel and control for a bare map
                          // so they can be hidden when they visually compete with territory
                          // outlines (both centered on/around the same town, easy to clutter)
 
@@ -2658,10 +2571,7 @@ const dom = {
   bulkLoadHint: document.getElementById('bulkLoadHint'),
   viewTabEthiopia: document.getElementById('viewTabEthiopia'),
   viewTabGlobal: document.getElementById('viewTabGlobal'),
-  viewTabSettings: document.getElementById('viewTabSettings'),
   viewTabAdmin: document.getElementById('viewTabAdmin'),
-  btnDimSetting: document.getElementById('btnDimSetting'),
-  guiRestoreBtn: document.getElementById('guiRestoreBtn'),
   btnLowQuality: document.getElementById('btnLowQuality'),
   btnHideGui: document.getElementById('btnHideGui'),
   regionFillInput: document.getElementById('regionFillInput'),
@@ -2845,7 +2755,7 @@ const worldCache = {
 function townsForActiveView(towns){
   const list = towns || [];
   // Admin edits Ethiopia's regions, so it shows the same towns Ethiopia does.
-  if (activeView === 'ethiopia' || activeView === 'admin' || activeView === 'settings'){
+  if (activeView === 'ethiopia' || activeView === 'admin'){
     return list.filter(t => (t.nationName || '') === HOME_NATION);
   }
   const tracked = list.filter(t => {
@@ -3515,8 +3425,7 @@ function setSidebarView(view){
   document.querySelectorAll('.view-ethiopia').forEach(el => { el.hidden = view !== 'ethiopia'; });
   document.querySelectorAll('.view-global').forEach(el => { el.hidden = view !== 'global'; });
   document.querySelectorAll('.view-admin').forEach(el => { el.hidden = view !== 'admin'; });
-  document.querySelectorAll('.view-settings').forEach(el => { el.hidden = view !== 'settings'; });
-  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal, settings: dom.viewTabSettings, admin: dom.viewTabAdmin };
+  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal, admin: dom.viewTabAdmin };
   Object.entries(tabs).forEach(([name, el]) => {
     if (!el) return;
     el.classList.toggle('is-active', name === view);
@@ -3524,7 +3433,7 @@ function setSidebarView(view){
   });
   // Regions are Ethiopia's own political data — visible in the Ethiopia view
   // and in Admin (where they're edited), hidden in Global.
-  const showsRegions = view === 'ethiopia' || view === 'admin' || view === 'settings';
+  const showsRegions = view === 'ethiopia' || view === 'admin';
   if (mapController && mapController.regionsLayerGroup){
     if (showsRegions) mapController.regionsLayerGroup.addTo(mapController.map);
     else mapController.map.removeLayer(mapController.regionsLayerGroup);
@@ -3535,8 +3444,6 @@ function setSidebarView(view){
 
   if (view === 'admin'){
     renderAll();
-  } else if (view === 'settings'){
-    renderSettings();
   } else if (view === 'ethiopia'){
     renderEthiopiaPanel(state.towns);
     // Ethiopia needs every resident's activity; fetched on demand and cached.
@@ -3980,25 +3887,18 @@ if (dom.econToggleDetail){
   });
 }
 
-/* ---- Settings panel ---- */
-function renderSettings(){
-  const set = (el, on) => { if (el) el.setAttribute('aria-checked', String(on)); };
-  set(dom.btnLowQuality, lowQuality);
-  set(dom.btnHideGui, guiHidden);
-  set(dom.btnDimSetting, showDim);
-}
-
 /* ---- Performance mode ---- */
 // Low quality does three things, in order of how much they cost:
 //   1. stops rendering claim outlines entirely (by far the heaviest)
 //   2. caps terrain at a coarser folder, so tiles cover more ground and
 //      fewer are needed for the same view
 //   3. widens the sync interval so the whole pipeline runs less often
+let lowQuality = false;
 
 function setLowQuality(on){
   lowQuality = on;
   document.body.classList.toggle('low-quality', on);
-  if (dom.btnLowQuality) dom.btnLowQuality.setAttribute('aria-checked', String(on));
+  if (dom.btnLowQuality) dom.btnLowQuality.classList.toggle('is-active', on);
 
   if (mapController && mapController.terrainLayer){
     const layer = mapController.terrainLayer;
@@ -4014,11 +3914,12 @@ function setLowQuality(on){
 }
 
 /* ---- Hide GUI ---- */
+let guiHidden = false;
 
 function setGuiHidden(on){
   guiHidden = on;
   document.body.classList.toggle('gui-hidden', on);
-  if (dom.btnHideGui) dom.btnHideGui.setAttribute('aria-checked', String(on));
+  if (dom.btnHideGui) dom.btnHideGui.classList.toggle('is-active', on);
   // Sidebar visibility changes the map's width, so Leaflet has to re-measure.
   requestAnimationFrame(() => mapController.map.invalidateSize());
 }
@@ -4112,24 +4013,8 @@ if (dom.regionColorReset){
 if (dom.viewTabEthiopia) dom.viewTabEthiopia.addEventListener('click', () => setSidebarView('ethiopia'));
 if (dom.viewTabGlobal)   dom.viewTabGlobal.addEventListener('click', () => setSidebarView('global'));
 if (dom.viewTabAdmin)    dom.viewTabAdmin.addEventListener('click', () => setSidebarView('admin'));
-if (dom.viewTabSettings) dom.viewTabSettings.addEventListener('click', () => setSidebarView('settings'));
 if (dom.btnLowQuality)   dom.btnLowQuality.addEventListener('click', () => setLowQuality(!lowQuality));
 if (dom.btnHideGui)      dom.btnHideGui.addEventListener('click', () => setGuiHidden(!guiHidden));
-if (dom.guiRestoreBtn)   dom.guiRestoreBtn.addEventListener('click', () => setGuiHidden(false));
-if (dom.btnDimSetting){
-  dom.btnDimSetting.addEventListener('click', () => {
-    showDim = !showDim;
-    dom.btnDimSetting.setAttribute('aria-checked', String(showDim));
-    if (mapController.terrainLayer){
-      mapController.terrainLayer.setOpacity(showDim ? TERRAIN_OPACITY_DIM : TERRAIN_OPACITY_NORMAL);
-    }
-    // Keep the map-layers checkbox in step with the setting.
-    document.querySelectorAll('.map-layers-toggle input').forEach(cb => {
-      const label = cb.closest('label');
-      if (label && /dim/i.test(label.textContent)) cb.checked = showDim;
-    });
-  });
-}
 
 /* ---- Public nation tracking (Global view) ---- */
 if (dom.publicTrackForm){
@@ -4605,3 +4490,4 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
+

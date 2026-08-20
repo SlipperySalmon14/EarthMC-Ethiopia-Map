@@ -156,9 +156,6 @@ a{ color: var(--brass-hi); }
 .leaflet-container{
   background: var(--ink-2);
   font-family: var(--font-body);
-  /* Leaflet's own stylesheet sets this, but #terrainDim is absolutely
-     positioned against it — stating it here means the overlay can't break
-     if Leaflet's CSS load order ever changes. */
   position: relative;
 }
 
@@ -477,6 +474,19 @@ input[type="text"]:focus, textarea:focus{ border-color: var(--brass); }
   background: var(--panel-2); border: 1px solid var(--line-soft); color: var(--muted);
 }
 
+/* ---- Region colour pickers ---- */
+.field-row{ display:flex; align-items:flex-end; gap:.5rem; margin-bottom:.5rem; }
+.field-color{ flex:0 0 auto; }
+.field-color input[type="color"]{
+  width: 3.2rem; height: 1.9rem; padding: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.field-color input[type="color"]::-webkit-color-swatch-wrapper{ padding: 2px; }
+.field-color input[type="color"]::-webkit-color-swatch{ border: none; border-radius: 2px; }
+.field-row .btn{ margin-bottom: .05rem; }
+
 /* ---- Economy ---- */
 .econ-tabs{ display:flex; gap:.25rem; margin-bottom:.7rem; flex-wrap:wrap; }
 .econ-tab{
@@ -696,16 +706,6 @@ input[type="range"]{
 }
 .leaflet-bar a:hover{ background: var(--raised); }
 
-#terrainDim{
-  position: absolute;
-  inset: 0;
-  z-index: 250;             /* above tilePane (200), below overlayPane (400) */
-  background: #060910;
-  opacity: .35;
-  pointer-events: none;     /* never swallow a click meant for a town */
-  transition: opacity .18s ease;
-}
-#terrainDim[hidden]{ display: none; }
 
 .mc-popup td{ padding: .12rem 0; font-size:.78rem; }
 
@@ -782,6 +782,11 @@ input[type="range"]{
 .admin-mode .admin-only{ display: block; }
 .public-only{ display: block; }
 .admin-mode .public-only{ display: none; }
+/* The view system toggles [hidden] on panels. These display rules are more
+   specific than the browser default for [hidden], so state it explicitly —
+   otherwise a panel carrying both public-only and a view class stays visible
+   in the wrong view. */
+[hidden]{ display: none !important; }
 
 #btnAdminToggle{ position: relative; }
 #btnAdminToggle.unlocked::after{
@@ -871,6 +876,7 @@ input[type="range"]{
       <div class="view-switcher" role="tablist" aria-label="Sidebar view">
         <button type="button" class="view-tab is-active" id="viewTabEthiopia" role="tab" aria-selected="true">Ethiopia</button>
         <button type="button" class="view-tab" id="viewTabGlobal" role="tab" aria-selected="false">Global</button>
+        <button type="button" class="view-tab" id="viewTabAdmin" role="tab" aria-selected="false" hidden>Admin</button>
       </div>
 
 
@@ -886,7 +892,7 @@ input[type="range"]{
         </p>
       </section>
 
-      <section class="panel admin-only" id="panel-sync">
+      <section class="panel view-admin" id="panel-sync">
         <div class="panel-head">
           <span class="eyebrow">SYNC.STATUS</span>
           <h2>EarthMC Connection</h2>
@@ -1018,7 +1024,7 @@ input[type="range"]{
         <p class="hint" id="townTableHint">—</p>
       </section>
 
-      <section class="panel admin-only" id="panel-inspector">
+      <section class="panel view-admin" id="panel-inspector">
         <div class="panel-head">
           <span class="eyebrow">REGION.DATA</span>
           <h2>Region Inspector</h2>
@@ -1036,6 +1042,15 @@ input[type="range"]{
             <div><dt>Towns</dt><dd id="regionTownCount">0</dd></div>
             <div><dt>Claimed chunks</dt><dd id="regionChunks">0</dd></div>
           </dl>
+          <div class="field-row">
+            <label class="field field-color"><span>Fill</span>
+              <input type="color" id="regionFillInput">
+            </label>
+            <label class="field field-color"><span>Border</span>
+              <input type="color" id="regionStrokeInput">
+            </label>
+            <button type="button" class="btn btn-ghost btn-small" id="regionColorReset" title="Back to the palette colour">Reset</button>
+          </div>
           <label class="field"><span>Regional governor</span>
             <input type="text" id="regionGovernorInput" placeholder="Name of the governor" autocomplete="off">
           </label>
@@ -1056,7 +1071,7 @@ input[type="range"]{
         </div>
       </section>
 
-      <section class="panel admin-only" id="panel-ops">
+      <section class="panel view-admin" id="panel-ops">
         <div class="panel-head">
           <span class="eyebrow">REGION.OPS</span>
           <h2>Topological Control Hub</h2>
@@ -1071,7 +1086,7 @@ input[type="range"]{
         <p class="hint" id="saveStatus" style="font-family: var(--font-mono); font-size: .7rem;">—</p>
       </section>
 
-      <section class="panel admin-only" id="panel-log">
+      <section class="panel view-admin" id="panel-log">
         <div class="panel-head">
           <span class="eyebrow">SYS.LOG</span>
           <h2>Live System Audit Log</h2>
@@ -1438,6 +1453,9 @@ const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
 // caused hundreds of duplicate requests for the same image.
 const TERRAIN_TILE_SIZE = 2048;  // blocks spanned by one tile at map zoom 0
 const TERRAIN_ZOOM_OFFSET = 3;   // map zoom -3 -> folder 0; map zoom 2 -> folder 5
+const TERRAIN_OPACITY_NORMAL = 0.6;  // default — terrain visible but not overpowering
+const TERRAIN_OPACITY_DIM = 0.22;    // "Dim terrain" — pushes it back so claims read clearly
+
 const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
 
 function buildTerrainLayer(){
@@ -1451,7 +1469,7 @@ function buildTerrainLayer(){
     // same 8x4 folder-0 tile set and scale it down — no extra requests.
     minZoom: -7,
     maxZoom: 8,
-    opacity: 0.6,
+    opacity: TERRAIN_OPACITY_NORMAL,
     pmIgnore: true,
     errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   });
@@ -1815,9 +1833,14 @@ class RegionManager{
   _styleFor(id){
     const isActive = id === this.activeId;
     const isSelected = this.selectedIds.has(id);
-    const color = this._colorFor(id);
+    const region = this.regions.get(id);
+    const color = (region && region.fillColor) || this._colorFor(id);
+    // Border falls back to the fill when unset, so picking just a fill still
+    // looks deliberate. The active region keeps its brass highlight either
+    // way — that's selection feedback, not styling.
+    const stroke = (region && region.strokeColor) || color;
     return {
-      color: isActive ? COLORS.brassHi : color,
+      color: isActive ? COLORS.brassHi : stroke,
       weight: isActive ? 3 : (isSelected ? 2.5 : 1.8),
       opacity: 0.95,
       fillColor: color,
@@ -1850,6 +1873,11 @@ class RegionManager{
       // governor are this project's own political data.
       capitalTown: props.capitalTown || null,   // town name
       governor: props.governor || '',           // free text
+      // Admin-chosen colours. null means "use the palette colour derived
+      // from colorIndex", so untouched regions still cycle through the
+      // default palette and only overridden ones diverge.
+      fillColor: props.fillColor || null,
+      strokeColor: props.strokeColor || null,
       news: props.news ? props.news.slice() : [],
       stats: { population: 0, townCount: 0, claimChunks: 0 },
       containedTowns: [],
@@ -2063,7 +2091,7 @@ class RegionManager{
 
     this.removeRegion(region.id);
     const oldCapital = region.capitalTown, oldGovernor = region.governor;
-    const carried = { news: oldNews.slice(), electionProgress: oldElection, capitalTown: oldCapital, governor: oldGovernor };
+    const carried = { news: oldNews.slice(), electionProgress: oldElection, capitalTown: oldCapital, governor: oldGovernor, fillColor: region.fillColor, strokeColor: region.strokeColor };
     const regionA = this._registerRegion(layerA, { name: `${oldName} A`, ...carried });
     const regionB = this._registerRegion(layerB, { name: `${oldName} B`, ...carried });
 
@@ -2090,6 +2118,8 @@ class RegionManager{
         electionProgress: region.electionProgress,
         capitalTown: region.capitalTown,
         governor: region.governor,
+        fillColor: region.fillColor,
+        strokeColor: region.strokeColor,
         localNews: region.news,
         containedTowns: region.containedTowns.map(t => t.name),
       },
@@ -2122,6 +2152,8 @@ class RegionManager{
           electionProgress: typeof props.electionProgress === 'number' ? props.electionProgress : 0,
           capitalTown: props.capitalTown || null,
           governor: props.governor || '',
+          fillColor: props.fillColor || null,
+          strokeColor: props.strokeColor || null,
           news: Array.isArray(props.localNews) ? props.localNews : [],
         });
         count++;
@@ -2204,24 +2236,8 @@ class MapController{
     // graceful fallback to the coordinate grid. Stored on `this` so the
     // toggle control below can show/hide it.
     this.terrainLayer = buildTerrainLayer().addTo(this.map);
+    if (showDim) this.terrainLayer.setOpacity(TERRAIN_OPACITY_DIM);
 
-    // Dimming overlay. A plain div in .leaflet-container — deliberately NOT
-    // a Leaflet pane and NOT inside .leaflet-map-pane, for two reasons that
-    // broke earlier attempts:
-    //   - panes are 0x0 anchors, so a background on one paints nothing, and
-    //     setting cssText on a pane wipes the position:absolute Leaflet needs
-    //   - .leaflet-map-pane always carries a transform, which makes it the
-    //     containing block even for position:fixed children, so inset:0
-    //     collapses against a zero-sized box
-    // .leaflet-container is sized and untransformed, so a simple absolute
-    // div fills it and stays put while the map pans beneath.
-    // Styling lives in the #terrainDim CSS rule; z-index 250 puts it above
-    // the tiles (200) and below claim borders and markers (400 / 600).
-    const dimEl = document.createElement('div');
-    dimEl.id = 'terrainDim';
-    dimEl.hidden = !showDim;
-    this.map.getContainer().appendChild(dimEl);
-    this.dimEl = dimEl;
 
     // Z-order matters: added first = rendered at the bottom. Live nation
     // territory (informational) sits below the admin's deliberate political
@@ -2265,7 +2281,14 @@ class MapController{
         } },
       { label: 'Dim terrain', get: () => showDim, set: (v) => {
           showDim = v;
-          if (self.dimEl) self.dimEl.hidden = !v;
+          // Dim by lowering the tile layer's own opacity rather than laying a
+          // dark sheet over it. The terrain already renders at 0.6 over a
+          // near-black background, so an overlay had little left to darken —
+          // it read as a barely-perceptible flicker. Driving the layer
+          // opacity directly is both stronger and simpler: no extra element,
+          // no stacking order to get wrong, and claim borders and markers are
+          // untouched because they're separate layers.
+          if (self.terrainLayer) self.terrainLayer.setOpacity(v ? TERRAIN_OPACITY_DIM : TERRAIN_OPACITY_NORMAL);
         } },
     ];
     const LayersControl = L.Control.extend({
@@ -2394,6 +2417,10 @@ const dom = {
   nationSummary: document.getElementById('nationSummary'),
   viewTabEthiopia: document.getElementById('viewTabEthiopia'),
   viewTabGlobal: document.getElementById('viewTabGlobal'),
+  viewTabAdmin: document.getElementById('viewTabAdmin'),
+  regionFillInput: document.getElementById('regionFillInput'),
+  regionStrokeInput: document.getElementById('regionStrokeInput'),
+  regionColorReset: document.getElementById('regionColorReset'),
   ethTowns: document.getElementById('ethTowns'),
   ethResidents: document.getElementById('ethResidents'),
   ethChunks: document.getElementById('ethChunks'),
@@ -2561,7 +2588,8 @@ const globalTrackedNations = new Set();
 
 function townsForActiveView(towns){
   const list = towns || [];
-  if (activeView === 'ethiopia'){
+  // Admin edits Ethiopia's regions, so it shows the same towns Ethiopia does.
+  if (activeView === 'ethiopia' || activeView === 'admin'){
     return list.filter(t => (t.nationName || '') === HOME_NATION);
   }
   return list.filter(t => {
@@ -2767,6 +2795,14 @@ function renderInspector(){
   dom.regionPopulation.textContent = CoordUtils.fmt(region.stats.population);
   dom.regionTownCount.textContent = CoordUtils.fmt(region.stats.townCount);
   dom.regionChunks.textContent = `${CoordUtils.fmt(region.stats.claimChunks)} (${CoordUtils.fmt(region.stats.claimChunks * 256)} blocks²)`;
+  // Show the effective colour, whether custom or from the palette, so the
+  // swatch always matches what's drawn on the map.
+  if (dom.regionFillInput && document.activeElement !== dom.regionFillInput){
+    dom.regionFillInput.value = region.fillColor || regionManager._colorFor(region.id);
+  }
+  if (dom.regionStrokeInput && document.activeElement !== dom.regionStrokeInput){
+    dom.regionStrokeInput.value = region.strokeColor || region.fillColor || regionManager._colorFor(region.id);
+  }
   if (document.activeElement !== dom.regionGovernorInput && dom.regionGovernorInput){
     dom.regionGovernorInput.value = region.governor || '';
   }
@@ -3147,22 +3183,27 @@ function setSidebarView(view){
   activeView = view;
   document.querySelectorAll('.view-ethiopia').forEach(el => { el.hidden = view !== 'ethiopia'; });
   document.querySelectorAll('.view-global').forEach(el => { el.hidden = view !== 'global'; });
-  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal };
+  document.querySelectorAll('.view-admin').forEach(el => { el.hidden = view !== 'admin'; });
+  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal, admin: dom.viewTabAdmin };
   Object.entries(tabs).forEach(([name, el]) => {
     if (!el) return;
     el.classList.toggle('is-active', name === view);
     el.setAttribute('aria-selected', String(name === view));
   });
-  // Regions are Ethiopia's own political data — they disappear in Global.
+  // Regions are Ethiopia's own political data — visible in the Ethiopia view
+  // and in Admin (where they're edited), hidden in Global.
+  const showsRegions = view === 'ethiopia' || view === 'admin';
   if (mapController && mapController.regionsLayerGroup){
-    if (view === 'ethiopia') mapController.regionsLayerGroup.addTo(mapController.map);
+    if (showsRegions) mapController.regionsLayerGroup.addTo(mapController.map);
     else mapController.map.removeLayer(mapController.regionsLayerGroup);
   }
   // Map contents differ per view, so both layers re-render on every switch.
   renderTownMarkers(state.towns);
   renderNationClaims(state.towns);
 
-  if (view === 'ethiopia'){
+  if (view === 'admin'){
+    renderAll();
+  } else if (view === 'ethiopia'){
     renderEthiopiaPanel(state.towns);
     // Ethiopia needs every resident's activity; fetched on demand and cached.
     refreshActivity('ethiopia').then(() => {
@@ -3580,9 +3621,34 @@ if (dom.econToggleDetail){
   });
 }
 
+/* ---- Region colours (admin) ---- */
+function applyRegionColor(){
+  const region = regionManager.getActive();
+  if (!region) return;
+  region.fillColor = dom.regionFillInput.value;
+  region.strokeColor = dom.regionStrokeInput.value;
+  regionManager.restyleAll();
+  scheduleSave();
+}
+if (dom.regionFillInput)   dom.regionFillInput.addEventListener('input', applyRegionColor);
+if (dom.regionStrokeInput) dom.regionStrokeInput.addEventListener('input', applyRegionColor);
+if (dom.regionColorReset){
+  dom.regionColorReset.addEventListener('click', () => {
+    const region = regionManager.getActive();
+    if (!region) return;
+    // null means "fall back to the palette colour from colorIndex".
+    region.fillColor = null;
+    region.strokeColor = null;
+    regionManager.restyleAll();
+    renderInspector();
+    scheduleSave();
+  });
+}
+
 /* ---- Sidebar view tabs ---- */
 if (dom.viewTabEthiopia) dom.viewTabEthiopia.addEventListener('click', () => setSidebarView('ethiopia'));
 if (dom.viewTabGlobal)   dom.viewTabGlobal.addEventListener('click', () => setSidebarView('global'));
+if (dom.viewTabAdmin)    dom.viewTabAdmin.addEventListener('click', () => setSidebarView('admin'));
 
 /* ---- Public nation tracking (Global view) ---- */
 if (dom.publicTrackForm){
@@ -3754,6 +3820,29 @@ dom.splitCancelBtn.addEventListener('click', disarmSplit);
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && state.splitArmed) disarmSplit();
+
+  // Undo the last placed vertex while drawing. Geoman exposes this as a
+  // toolbar action, but actions render beneath their parent draw button —
+  // and the split uses enableDraw('Line') while drawPolyline is false, so
+  // there's no Line button for the action to hang off. A keyboard shortcut
+  // covers both cases uniformly, and mid-draw a stray click is otherwise
+  // unrecoverable.
+  const undoKey = e.key === 'Backspace' || (e.key === 'z' && (e.ctrlKey || e.metaKey));
+  if (!undoKey) return;
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+
+  const pm = mapController.map.pm;
+  if (!pm.globalDrawModeEnabled || !pm.globalDrawModeEnabled()) return;
+  e.preventDefault();
+  // Find whichever Draw handler is currently enabled. getActiveShape isn't
+  // present in every Geoman version, so scan the handlers instead of relying
+  // on it — each exposes _enabled while its mode is running.
+  const draw = pm.Draw || {};
+  const handler = ['Polygon', 'Rectangle', 'Line']
+    .map(name => draw[name])
+    .find(h => h && h._enabled && typeof h._removeLastVertex === 'function');
+  if (handler) handler._removeLastVertex();
 });
 
 dom.btnSync.addEventListener('click', () => syncLiveData());
@@ -3951,14 +4040,19 @@ function setAdminMode(enabled){
   document.documentElement.classList.toggle('admin-mode', enabled);
   dom.btnAdminToggle.classList.toggle('unlocked', enabled);
   mapController.setDrawingEnabled(enabled);
+  // The Admin tab only exists while unlocked.
+  if (dom.viewTabAdmin) dom.viewTabAdmin.hidden = !enabled;
   if (enabled){
     dom.btnAdminToggle.textContent = '🔓 Admin';
     dom.btnAdminToggle.title = 'Click to lock admin console';
     auditLog.log('Admin mode unlocked', 'success');
+    setSidebarView('admin'); // jump straight to the console on unlock
   } else{
     dom.btnAdminToggle.textContent = '🔒 Admin';
     dom.btnAdminToggle.title = 'Unlock admin console';
     auditLog.log('Admin mode locked', 'info');
+    // Locking while viewing Admin would leave an empty sidebar.
+    if (activeView === 'admin') setSidebarView('ethiopia');
   }
 }
 
@@ -4021,4 +4115,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

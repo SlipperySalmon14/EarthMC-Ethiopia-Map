@@ -491,7 +491,18 @@ body.gui-hidden .leaflet-control-attribution,
 body.gui-hidden .split-banner,
 body.gui-hidden .map-open{ display: none !important; }
 body.gui-hidden .workspace{ padding: 0; }
-body.gui-hidden .map-pane{ position: fixed; inset: 0; }
+/* The base rule caps this at 68% width for the two-column layout. Going
+   position:fixed doesn't lift that cap, so the pane stayed 68% wide and left
+   a dark strip where the sidebar had been — every one of these has to be
+   reset explicitly. */
+body.gui-hidden .map-pane{
+  position: fixed;
+  inset: 0;
+  flex: 1 1 auto;
+  max-width: none;
+  width: 100%;
+  border-right: none;
+}
 
 /* A sliver stays on the right edge as the way back. It sits mostly
    off-screen and slides out on hover, so it doesn't cover the map. */
@@ -1065,7 +1076,7 @@ input[type="range"]{
           <button type="button" class="toggle-switch" id="btnHideGui" role="switch" aria-checked="false"><span></span></button>
         </div>
 
-s="hint" id="settingsHint">Display only — nothing here changes the data or affects other visitors.</p>
+        <p class="hint" id="settingsHint">Display only — nothing here changes the data or affects other visitors.</p>
       </section>
 
       <section class="panel view-admin" id="panel-sync">
@@ -1648,6 +1659,7 @@ const TERRAIN_OPACITY_DIM = 0.22;    // "Dim terrain" — pushes it back so clai
 // zoom 5 draws a 16,384px tile, which is the common mobile GPU limit.
 // The previous pairing (tileSize 2048, offset 3) hit 65,536px by zoom 7 —
 // far past what any browser will paint, so zooming silently stopped working.
+const MAP_MIN_ZOOM = -TERRAIN_ZOOM_OFFSET; // folder 0 — nothing coarser exists
 const MAP_MAX_ZOOM = 5; // ~1 block per 8px — individual chunks clearly visible
 
 const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
@@ -1661,7 +1673,10 @@ function buildTerrainLayer(){
     // -7 fits the whole 128,000-block world in view. Below folder 0 there is
     // nothing coarser to fetch, so minNativeZoom:0 makes Leaflet reuse the
     // same 8x4 folder-0 tile set and scale it down — no extra requests.
-    minZoom: -7,
+    // Must equal -TERRAIN_ZOOM_OFFSET. Any lower and the requested folder
+    // goes negative, and every tile 404s — which is exactly what blanked the
+    // terrain when the offset changed from 3 to 6 without this following it.
+    minZoom: MAP_MIN_ZOOM,
     // IMPORTANT: this must match the map's own maxZoom, not the tile server's.
     // On a tile layer maxZoom means "hide this layer past here" — setting it
     // below the map's ceiling makes terrain vanish when you zoom in, which is
@@ -2420,7 +2435,10 @@ class MapController{
       // -7 shows the entire world; folder 0 tiles are reused and scaled below
       // map zoom -3, so the extra range costs no additional requests.
       // Past map zoom 2 (folder 5) Leaflet scales tiles instead of fetching more.
-      minZoom: -7,
+      // Must equal -TERRAIN_ZOOM_OFFSET. Any lower and the requested folder
+    // goes negative, and every tile 404s — which is exactly what blanked the
+    // terrain when the offset changed from 3 to 6 without this following it.
+    minZoom: MAP_MIN_ZOOM,
       // 7 puts roughly 25 blocks across a phone screen — a few chunks, close
       // enough to pick out individual claims. Past this the upscale factor
       // needs a >100,000px tile, which browsers refuse to allocate.
@@ -2437,7 +2455,7 @@ class MapController{
     });
     // Whole-world view: at zoom -6 one Leaflet tile is exactly one nz0
     // squaremap tile, and the full 128,000×64,000 world fits in ~32 tiles.
-    this.map.setView([0, 0], -3); // whole world, centred on origin
+    this.map.setView([0, 0], MAP_MIN_ZOOM); // whole world, centred on origin
     this.map.attributionControl.setPrefix('Live data: EarthMC API · Leaflet + Turf + Geoman');
 
     // #map is sized via CSS (`position: absolute; inset: 0`), not fixed
@@ -4601,4 +4619,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

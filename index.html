@@ -1278,7 +1278,7 @@ input[type="range"]{
         <p class="hint" id="saveStatus" style="font-family: var(--font-mono); font-size: .7rem;">—</p>
       </section>
 
-      <section class="panel view-admin" id="panel-log">
+      <section class="panel view-settings" id="panel-log">
         <div class="panel-head">
           <span class="eyebrow">SYS.LOG</span>
           <h2>Live System Audit Log</h2>
@@ -1343,6 +1343,10 @@ input[type="range"]{
   window.addEventListener('unhandledrejection', (e) => {
     show('Unhandled promise rejection', (e.reason && e.reason.message) ? e.reason.message : String(e.reason));
   });
+  // Exposed so guarded code (which swallows its own errors) can still surface
+  // them here — the audit log panel lives in the Admin view, which is
+  // unreachable if startup fails before the tabs work.
+  window.__showFatal = show;
 })();
 
 /* =========================================================================
@@ -4619,6 +4623,7 @@ async function syncLiveData(){
     }
   } catch(err){
     auditLog.log(`Sync failed — ${err.message}`, 'error');
+    if (window.__showFatal) window.__showFatal('Sync failed', err.message);
     setSyncStatus('offline');
   }
 }
@@ -4694,6 +4699,9 @@ function bootStep(label, fn){
   catch(err){
     auditLog.log(`Startup step "${label}" failed — ${err.message}`, 'error');
     console.error(`[boot:${label}]`, err);
+    // Also paint it on the page: the audit log lives in the Admin view, which
+    // can't be reached if the step that failed was the view switcher itself.
+    if (window.__showFatal) window.__showFatal(`Startup: ${label}`, err.message);
   }
 }
 

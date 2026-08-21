@@ -1551,6 +1551,22 @@ input[type="range"]{
           <select id="ncNationSelect" aria-label="Add to an existing nation"><option value="">Existing nation, new area…</option></select>
           <button type="button" class="btn btn-ghost btn-small" id="ncAddAreaBtn">Draw area</button>
         </div>
+        <div class="hw-route-controls">
+          <button type="button" class="btn btn-accent btn-small" id="ncSuggestBtn" style="flex:1 1 auto">Suggest borders from towns</button>
+        </div>
+        <div id="ncProposalBox" hidden>
+          <p class="hint" id="ncProposalHint"></p>
+          <div class="hw-route-controls">
+            <button type="button" class="btn btn-accent btn-small" id="ncAcceptBtn" style="flex:1 1 auto">Accept &amp; save</button>
+            <button type="button" class="btn btn-primary btn-small" id="ncDiscardBtn">Discard</button>
+          </div>
+        </div>
+        <label class="field"><span>Wilderness reach — <b id="ncReachLabel">4 chunks</b></span>
+          <input type="range" min="0" max="8" step="1" value="4" id="ncReachRange">
+        </label>
+        <label class="field"><span>Ignore groups under — <b id="ncMinBlobLabel">6 chunks</b></span>
+          <input type="range" min="1" max="40" step="1" value="6" id="ncMinBlobRange">
+        </label>
         <p class="hint" id="ncOpsHint">Type a nation, then draw its border. Draw several areas under the same name for territory that isn't joined up — they all count as that nation.</p>
         <div class="hw-admin-list" id="ncAdminList"></div>
       </section>
@@ -1740,7 +1756,7 @@ const CoordUtils = {
 // whatever happens to be underneath it.
 function drawModeArmed(){
   try{
-    return !!(nationClaimState.drawArmed || nationClaimState.editing ||
+    return !!(nationClaimState.drawArmed || nationClaimState.editing || nationClaimState.proposal ||
               highwayState.drawTarget || highwayState.stationTarget || highwayState.editing ||
               state.splitArmed);
   } catch(_notReadyYet){
@@ -3057,6 +3073,9 @@ class MapController{
     // Admin-drawn nation borders. Below the regions, which are the finer
     // subdivision drawn on top of them.
     this.nationClaimsLayerGroup = L.layerGroup().addTo(this.map);
+    // Generated border proposals live above the committed claims, so an
+    // admin can see what would change before anything is written.
+    this.ncProposalLayerGroup = L.layerGroup().addTo(this.map);
     this.regionsLayerGroup = L.layerGroup().addTo(this.map);
     // Ice highways sit above the region fills so routes stay legible, with
     // stations above the lines and the planned-route highlight above both.
@@ -3349,6 +3368,15 @@ const dom = {
   ncCopyRegionBtn: document.getElementById('ncCopyRegionBtn'),
   ncNationSelect: document.getElementById('ncNationSelect'),
   ncAddAreaBtn: document.getElementById('ncAddAreaBtn'),
+  ncSuggestBtn: document.getElementById('ncSuggestBtn'),
+  ncProposalBox: document.getElementById('ncProposalBox'),
+  ncProposalHint: document.getElementById('ncProposalHint'),
+  ncAcceptBtn: document.getElementById('ncAcceptBtn'),
+  ncDiscardBtn: document.getElementById('ncDiscardBtn'),
+  ncReachRange: document.getElementById('ncReachRange'),
+  ncReachLabel: document.getElementById('ncReachLabel'),
+  ncMinBlobRange: document.getElementById('ncMinBlobRange'),
+  ncMinBlobLabel: document.getElementById('ncMinBlobLabel'),
   ncDrawBtn: document.getElementById('ncDrawBtn'),
   ncOpsHint: document.getElementById('ncOpsHint'),
   ncAdminList: document.getElementById('ncAdminList'),
@@ -5817,6 +5845,7 @@ const nationClaimState = {
   activeNation: null,
   drawArmed: false,
   editing: null,          // { id, layer } while a claim's points are editable
+  proposal: null,         // { nation, areas:[{ ring, layer }] } — generated, not yet accepted
   pendingNation: '',
   nextId: 1,
 };
@@ -6317,6 +6346,22 @@ function renderNationClaimAdmin(){
       : "Type a nation, then draw its border. Draw several areas under the same name for territory that isn't joined up — they all count as that nation.";
   }
   if (dom.ncDrawBtn) dom.ncDrawBtn.classList.toggle('armed', nationClaimState.drawArmed);
+
+  const proposal = nationClaimState.proposal;
+  if (dom.ncProposalBox) dom.ncProposalBox.hidden = !proposal;
+  if (dom.ncProposalHint && proposal){
+    const areas = proposal.areas.length;
+    dom.ncProposalHint.textContent =
+      `Proposed ${areas} area${areas > 1 ? 's' : ''} for "${proposal.nation}" — drag any point to adjust, `
+      + 'then accept. Nothing is saved until you do.';
+  }
+  if (dom.ncReachLabel && dom.ncReachRange){
+    const v = Number(dom.ncReachRange.value);
+    dom.ncReachLabel.textContent = v === 0 ? 'town claims only' : `${v} chunk${v > 1 ? 's' : ''}`;
+  }
+  if (dom.ncMinBlobLabel && dom.ncMinBlobRange){
+    dom.ncMinBlobLabel.textContent = `${dom.ncMinBlobRange.value} chunks`;
+  }
   // Region list for the copy control, rebuilt each render so newly drawn
   // regions appear without a reload.
   if (dom.ncRegionSelect && document.activeElement !== dom.ncRegionSelect){
@@ -6528,6 +6573,297 @@ function ncFinishDraw(layer){
   ncEnsureNationDetails();
   renderNationClaimAreas(); renderNationClaimPanel(); renderNationClaimAdmin();
   scheduleSave();
+}
+
+/* =========================================================================
+   BORDER GENERATION
+
+   Turns real town placement into a proposed national border. Four stages:
+
+     1. OWNERSHIP   Every chunk a town actually claims is owned by that town's
+                    nation. This part is exact — it's API data, not a guess.
+
+     2. WILDERNESS  Unclaimed chunks are handed to the nearest nation by a
+                    multi-source breadth-first search outward from every owned
+                    chunk at once, capped at `reach` chunks. BFS from all
+                    sources simultaneously means each cell falls to whichever
+                    nation is genuinely nearest, with no ordering bias. A cell
+                    reached on the same step by two different nations is left
+                    as wilderness rather than awarded arbitrarily — that tie
+                    rule is what stops a contested strip turning into a row of
+                    alternating slivers.
+
+     3. BLOBS       The nation's cells are flood-filled into connected groups
+                    (8-way, so a diagonal touch still counts as joined). Each
+                    group is a candidate area. Groups smaller than `minBlob`,
+                    or containing no genuinely town-owned chunk, are dropped as
+                    noise — a real exclave is anchored by actual claims and
+                    always clears both tests, while a stray wilderness fleck
+                    clears neither. This is the anti-balkanisation step.
+
+     4. TRACE       Each surviving group is outlined with traceChunkOutlines(),
+                    the same edge-walk already used for town claim borders, so
+                    the result is chunk-aligned by construction.
+
+   Nothing here writes to the claim store. The output is a preview the admin
+   edits and then accepts or discards.
+   ========================================================================= */
+const NC_DEFAULT_REACH = 4;      // chunks of wilderness a nation pulls in
+const NC_DEFAULT_MIN_BLOB = 6;   // smaller groups are noise, not territory
+
+function ncChunkKey(cx, cz){ return cx + ',' + cz; }
+
+// Every town currently in memory, deduplicated by name.
+function ncAllTowns(){
+  const seen = new Set();
+  const out = [];
+  (state.towns || []).concat(worldCache.towns || []).forEach(t => {
+    if (!t || seen.has(t.name)) return;
+    seen.add(t.name);
+    out.push(t);
+  });
+  return out;
+}
+
+function ncGenerateBorders(nation, reach, minBlob){
+  const towns = ncAllTowns();
+  const wanted = (nation || '').toLowerCase();
+
+  // Bounds of the target nation's own claims, so the search area stays local
+  // instead of sweeping the whole world when a full scan is loaded.
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  let targetChunks = 0;
+  towns.forEach(t => {
+    if ((t.nationName || '').toLowerCase() !== wanted) return;
+    (t.claimChunks || []).forEach(([cx, cz]) => {
+      targetChunks++;
+      if (cx < minX) minX = cx;
+      if (cx > maxX) maxX = cx;
+      if (cz < minZ) minZ = cz;
+      if (cz > maxZ) maxZ = cz;
+    });
+  });
+  if (!targetChunks){
+    return { error: `No loaded towns belong to "${nation}". Track the nation in the Global tab, or run a world scan, then try again.` };
+  }
+
+  // Must be at least 2*reach: a rival contests any cell both sides can reach,
+  // and both sides expand `reach` chunks, so a rival up to 2*reach beyond this
+  // nation's own extent still has a say. Padding by only `reach` excluded
+  // those rivals from the search entirely and let this nation expand into
+  // contested ground unopposed.
+  const pad = reach * 2 + 2;
+  minX -= pad; maxX += pad; minZ -= pad; maxZ += pad;
+  const inBox = (cx, cz) => cx >= minX && cx <= maxX && cz >= minZ && cz <= maxZ;
+
+  // --- stage 1: exact ownership ---
+  const owner = new Map();     // "cx,cz" -> nation name
+  const townOwned = new Set(); // chunks genuinely claimed by a town
+  towns.forEach(t => {
+    const n = t.nationName || '';
+    if (!n) return;
+    (t.claimChunks || []).forEach(([cx, cz]) => {
+      if (!inBox(cx, cz)) return;
+      const k = ncChunkKey(cx, cz);
+      owner.set(k, n);
+      if (n.toLowerCase() === wanted) townOwned.add(k);
+    });
+  });
+
+  // --- stage 2: multi-source BFS into wilderness ---
+  const NEIGH = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  let frontier = [...owner.keys()].map(k => {
+    const [cx, cz] = k.split(',').map(Number);
+    return { cx, cz, nation: owner.get(k) };
+  });
+  const claimed = new Map(owner);   // final assignment, seeded with real claims
+
+  for (let step = 0; step < reach && frontier.length; step++){
+    const arrivals = new Map();     // "cx,cz" -> Set of nations arriving this step
+    frontier.forEach(({ cx, cz, nation: from }) => {
+      NEIGH.forEach(([dx, dz]) => {
+        const nx = cx + dx, nz = cz + dz;
+        if (!inBox(nx, nz)) return;
+        const k = ncChunkKey(nx, nz);
+        if (claimed.has(k)) return;   // already owned or assigned on an earlier step
+        if (!arrivals.has(k)) arrivals.set(k, new Set());
+        arrivals.get(k).add(from);
+      });
+    });
+    const next = [];
+    arrivals.forEach((nations, k) => {
+      // Reached simultaneously by two nations — genuinely contested, so it
+      // stays wilderness instead of being awarded on a coin flip.
+      if (nations.size !== 1) return;
+      const only = [...nations][0];
+      claimed.set(k, only);
+      const [cx, cz] = k.split(',').map(Number);
+      next.push({ cx, cz, nation: only });
+    });
+    frontier = next;
+  }
+
+  // --- stage 3: flood fill the target nation's cells into blobs ---
+  const mine = new Set();
+  claimed.forEach((n, k) => { if (n.toLowerCase() === wanted) mine.add(k); });
+
+  const unvisited = new Set(mine);
+  const blobs = [];
+  while (unvisited.size){
+    const startKey = unvisited.values().next().value;
+    unvisited.delete(startKey);
+    const blob = [startKey];
+    const queue = [startKey];
+    while (queue.length){
+      const [cx, cz] = queue.pop().split(',').map(Number);
+      NEIGH.forEach(([dx, dz]) => {
+        const k = ncChunkKey(cx + dx, cz + dz);
+        if (!unvisited.has(k)) return;
+        unvisited.delete(k);
+        blob.push(k);
+        queue.push(k);
+      });
+    }
+    blobs.push(blob);
+  }
+
+  // --- anti-balkanisation filter ---
+  const kept = blobs.filter(blob =>
+    blob.length >= minBlob && blob.some(k => townOwned.has(k)));
+  const dropped = blobs.length - kept.length;
+  if (!kept.length){
+    return { error: `Nothing survived the size filter — try a smaller minimum than ${minBlob} chunks.` };
+  }
+
+  // --- stage 4: trace ---
+  const areas = [];
+  kept.sort((a, b) => b.length - a.length).forEach(blob => {
+    const chunkList = blob.map(k => k.split(',').map(Number));
+    let rings = null;
+    try{ rings = traceChunkOutlines(chunkList); }
+    catch(_err){ rings = null; }
+    if (!rings || !rings.length) return;
+    // The longest ring is the outer boundary; inner rings are holes, which a
+    // simple claim polygon can't express, so only the outline is taken.
+    const outer = rings.reduce((a, b) => (b.length > a.length ? b : a), rings[0]);
+    const ring = outer.map(([x, z]) => [Math.round(x), Math.round(z)]);
+    if (ring.length > 1 &&
+        ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]){
+      ring.pop();
+    }
+    if (ring.length >= 3) areas.push({ ring, chunks: blob.length });
+  });
+  if (!areas.length) return { error: 'Could not trace an outline from those chunks.' };
+  return { areas, dropped, totalChunks: [...mine].length };
+}
+
+/* ---- proposal preview ---- */
+function renderNcProposal(){
+  const mc = mapController;
+  if (!mc || !mc.ncProposalLayerGroup) return;
+  mc.ncProposalLayerGroup.clearLayers();
+  const proposal = nationClaimState.proposal;
+  if (!proposal) return;
+  proposal.areas.forEach(area => {
+    const layer = L.polygon(area.ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
+      color: COLORS.brassHi,
+      weight: 3,
+      dashArray: '4 4',
+      fillColor: COLORS.brassHi,
+      fillOpacity: 0.18,
+      pmIgnore: false,       // editable before acceptance
+    }).addTo(mc.ncProposalLayerGroup);
+    try{
+      if (layer.pm && typeof layer.pm.enable === 'function'){
+        layer.pm.enable({ allowSelfIntersection: true });
+      }
+    } catch(_err){ /* editing unavailable — the preview still shows */ }
+    area.layer = layer;
+  });
+}
+
+function ncSuggestBorders(){
+  const nation = (dom.ncNationInput ? dom.ncNationInput.value : '').trim()
+    || (dom.ncNationSelect ? dom.ncNationSelect.value : '');
+  if (!nation){
+    auditLog.log('Enter or pick a nation before suggesting borders', 'warn');
+    return;
+  }
+  ncDiscardProposal();
+  hwDisarm(); hwCancelEdit(); ncDisarm(); ncCancelEdit();
+
+  const reach = dom.ncReachRange ? Number(dom.ncReachRange.value) : NC_DEFAULT_REACH;
+  const minBlob = dom.ncMinBlobRange ? Number(dom.ncMinBlobRange.value) : NC_DEFAULT_MIN_BLOB;
+  const started = performance.now();
+  const result = ncGenerateBorders(nation, reach, minBlob);
+  if (result.error){
+    auditLog.log(result.error, 'warn');
+    renderNationClaimAdmin();
+    return;
+  }
+  nationClaimState.proposal = { nation, areas: result.areas };
+  const ms = Math.round(performance.now() - started);
+  auditLog.log(
+    `Proposed ${result.areas.length} area(s) for "${nation}" from ${CoordUtils.fmt(result.totalChunks)} chunk(s)`
+    + `${result.dropped ? `, ${result.dropped} fleck(s) dropped as noise` : ''} — ${ms}ms. Not saved yet.`,
+    'success');
+  renderNcProposal();
+  renderNationClaimAdmin();
+  hwUpdateBanner();
+
+  const pts = [];
+  result.areas.forEach(a => a.ring.forEach(([x, z]) => pts.push(CoordUtils.mcToLatLng(x, z))));
+  if (pts.length > 2) mapController.map.fitBounds(L.latLngBounds(pts).pad(0.2));
+}
+
+function ncAcceptProposal(){
+  const proposal = nationClaimState.proposal;
+  if (!proposal) return;
+  const existing = [...nationClaimState.claims.values()].filter(c => c.nation === proposal.nation);
+  if (existing.length &&
+      !window.confirm(`Replace ${existing.length} existing area(s) for "${proposal.nation}" with ${proposal.areas.length} generated one(s)?`)){
+    return;
+  }
+  // Read back from the preview layers, so any hand edits made before accepting
+  // are what actually gets saved.
+  const rings = proposal.areas.map(area => {
+    if (!area.layer) return area.ring;
+    const outer = area.layer.getLatLngs()[0] || [];
+    const ring = outer.map(ll => {
+      const mc = CoordUtils.latLngToMc(ll);
+      return [Math.round(mc.x), Math.round(mc.z)];
+    });
+    return ring.length >= 3 ? ring : area.ring;
+  });
+
+  existing.forEach(c => nationClaimState.claims.delete(c.id));
+  rings.forEach((ring, i) => {
+    const id = ncNextId();
+    nationClaimState.claims.set(id, {
+      id, nation: proposal.nation,
+      name: rings.length > 1 ? `part ${i + 1}` : '',
+      fillColor: null, strokeColor: null, ring,
+    });
+  });
+  nationClaimState.activeNation = proposal.nation;
+  ncDiscardProposal();
+  auditLog.log(`Accepted ${rings.length} generated area(s) for "${proposal.nation}"`, 'success');
+  ncEnsureNationDetails();
+  renderNationClaimAreas(); renderNationClaimPanel(); renderNationClaimAdmin();
+  scheduleSave();
+}
+
+function ncDiscardProposal(){
+  const proposal = nationClaimState.proposal;
+  if (!proposal) return;
+  proposal.areas.forEach(area => {
+    if (!area.layer) return;
+    try{ if (area.layer.pm) area.layer.pm.disable(); } catch(_e){ /* already off */ }
+  });
+  nationClaimState.proposal = null;
+  renderNcProposal();
+  renderNationClaimAdmin();
+  hwUpdateBanner();
 }
 
 /* ---- editing an existing claim ----
@@ -7072,6 +7408,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && nationClaimState.drawArmed) ncDisarm();
   if (e.key === 'Escape' && highwayState.editing) hwCancelEdit();
   if (e.key === 'Escape' && nationClaimState.editing) ncCancelEdit();
+  if (e.key === 'Escape' && nationClaimState.proposal) ncDiscardProposal();
   if (e.key === 'Escape' && highwayState.routeFrom) hwClearRouting();
   if (e.key === 'Escape' && state.splitArmed) disarmSplit();
 
@@ -7255,6 +7592,15 @@ if (dom.ncDrawBtn){
     if (nationClaimState.drawArmed) ncDisarm(); else ncArmDraw();
   });
 }
+if (dom.ncSuggestBtn) dom.ncSuggestBtn.addEventListener('click', ncSuggestBorders);
+if (dom.ncAcceptBtn) dom.ncAcceptBtn.addEventListener('click', ncAcceptProposal);
+if (dom.ncDiscardBtn) dom.ncDiscardBtn.addEventListener('click', () => {
+  ncDiscardProposal();
+  auditLog.log('Discarded the proposed borders', 'info');
+});
+[['ncReachRange'], ['ncMinBlobRange']].forEach(([key]) => {
+  if (dom[key]) dom[key].addEventListener('input', renderNationClaimAdmin);
+});
 if (dom.ncAddAreaBtn){
   dom.ncAddAreaBtn.addEventListener('click', () => {
     const nation = dom.ncNationSelect ? dom.ncNationSelect.value : '';
@@ -8206,4 +8552,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

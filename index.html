@@ -5940,62 +5940,78 @@ function ncDisplayName(value){
   return value;
 }
 
-// Which nations actually occupy the ground inside a claim's polygon, by
-// chunk count. Point-in-polygon on each town's real claimed chunks — this
-// reads what's ACTUALLY there, independent of what the claim's own nation
-// field says, which is the only way an overlap or a wrongly-labelled claim
-// would ever be visible.
+// Who actually holds the land inside a claim, broken down by nation.
+//
+// This deliberately uses the SAME containment test regions use: a town counts
+// as inside if its spawn point falls in the polygon. The first version tested
+// every one of a town's claimed chunks individually, which was hundreds of
+// times more work for a result that differs only for towns straddling the
+// border — and a town straddling a border is already counted whole by the
+// region code, so matching that keeps the two features consistent with each
+// other rather than subtly disagreeing.
 function ncOwnershipBreakdown(nation){
-  // Case-insensitive, like nationStatsFor() and the rest of the claim lookups
-  // — a caller passing anything other than the exact stored casing used to
-  // return an empty breakdown with no indication why.
   const wanted = (nation || '').toLowerCase();
-  const areas = [...nationClaimState.claims.values()].filter(c => c.nation.toLowerCase() === wanted);
+  const areas = [...nationClaimState.claims.values()]
+    .filter(c => c.nation.toLowerCase() === wanted && c.ring && c.ring.length >= 3);
   if (!areas.length) return [];
-  const polys = areas
-    .filter(c => c.ring && c.ring.length >= 3)
-    .map(c => turf.polygon([[...c.ring.map(([x, z]) => CoordUtils.mcToPlane(x, z)),
-                              CoordUtils.mcToPlane(c.ring[0][0], c.ring[0][1])]]));
-  if (!polys.length) return [];
 
-  const byOwner = new Map();   // display name -> { chunks, towns:Set }
-  const bump = (owner, chunks) => {
-    if (!byOwner.has(owner)) byOwner.set(owner, { chunks: 0, towns: new Set() });
-    byOwner.get(owner).chunks += chunks;
-  };
-
-  const allTowns = (state.towns || []).concat(worldCache.towns || []);
-  const seen = new Set();
-  allTowns.forEach(t => {
-    if (seen.has(t.name)) return;
-    seen.add(t.name);
-    const chunks = t.claimChunks || [];
-    if (!chunks.length) return;
-    let inside = 0;
-    // Sampled at higher density than the region overlap resolver (which only
-    // needs a majority): a small claim can be a handful of chunks wide, and
-    // an aggressive stride there would misjudge a town that straddles the
-    // border.
-    const step = Math.max(1, Math.ceil(chunks.length / 400));
-    for (let i = 0; i < chunks.length; i += step){
-      const [bx, bz] = chunks[i];
-      const pt = turf.point(CoordUtils.mcToPlane(bx * 16 + 8, bz * 16 + 8));
-      if (polys.some(poly => turf.booleanPointInPolygon(pt, poly))) inside++;
-    }
-    if (!inside) return;
-    const sampledFraction = inside / Math.ceil(chunks.length / step);
-    const estChunks = Math.round(sampledFraction * chunks.length);
-    if (!estChunks) return;
-    const owner = t.nationName || 'Nationless';
-    bump(owner, estChunks);
-    byOwner.get(owner).towns.add(t.name);
+  const features = areas.map(c => turf.polygon([[
+    ...c.ring.map(([x, z]) => CoordUtils.mcToPlane(x, z)),
+    CoordUtils.mcToPlane(c.ring[0][0], c.ring[0][1]),
+  ]]));
+  // Cheap bounding-box reject before the real test, exactly as recalcStats does.
+  const boxes = areas.map(c => {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    c.ring.forEach(([x, z]) => {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    });
+    return { minX, maxX, minZ, maxZ };
   });
 
-  const total = [...byOwner.values()].reduce((s, v) => s + v.chunks, 0);
+  const byOwner = new Map();
+  ncAllTowns().forEach(t => {
+    if (typeof t.mcX !== 'number' || typeof t.mcZ !== 'number') return;
+    let inside = false;
+    for (let i = 0; i < features.length; i++){
+      const b = boxes[i];
+      if (t.mcX < b.minX || t.mcX > b.maxX || t.mcZ < b.minZ || t.mcZ > b.maxZ) continue;
+      try{
+        if (turf.booleanPointInPolygon(turf.point(CoordUtils.mcToPlane(t.mcX, t.mcZ)), features[i])){
+          inside = true;
+          break;
+        }
+      } catch(_err){ /* malformed ring — skip this area */ }
+    }
+    if (!inside) return;
+    const owner = t.nationName || 'Nationless';
+    if (!byOwner.has(owner)) byOwner.set(owner, { chunks: 0, towns: 0 });
+    const entry = byOwner.get(owner);
+    entry.chunks += (t.townBlocks || 0);
+    entry.towns += 1;
+  });
+  if (!byOwner.size) return [];
+
+  // Share of claimed land, which is what "who owns this" means. If none of the
+  // contained towns report any chunks, fall back to a share of town count so
+  // the panel still says something true rather than nothing at all.
+  const totalChunks = [...byOwner.values()].reduce((s, v) => s + v.chunks, 0);
+  const totalTowns = [...byOwner.values()].reduce((s, v) => s + v.towns, 0);
+  const useChunks = totalChunks > 0;
+  const total = useChunks ? totalChunks : totalTowns;
   if (!total) return [];
+
   return [...byOwner.entries()]
-    .map(([owner, v]) => ({ nation: owner, chunks: v.chunks, towns: v.towns.size, pct: (v.chunks / total) * 100 }))
-    .sort((a, b) => b.chunks - a.chunks);
+    .map(([owner, v]) => ({
+      nation: owner,
+      chunks: v.chunks,
+      towns: v.towns,
+      byTownCount: !useChunks,
+      pct: ((useChunks ? v.chunks : v.towns) / total) * 100,
+    }))
+    .sort((a, b) => (b.chunks - a.chunks) || (b.towns - a.towns));
 }
 
 function ncOfficerGroups(stats){
@@ -6301,6 +6317,11 @@ function renderNationClaimPanel(){
 
   if (dom.ncOwnership){
     dom.ncOwnership.replaceChildren();
+    // This nation's own claim, for the swatch colour. `claims` further up is
+    // scoped to the nation-list loop and does NOT exist here — referencing it
+    // threw a ReferenceError that took the whole panel render down with it.
+    const ownClaim = [...nationClaimState.claims.values()]
+      .find(c => c.nation.toLowerCase() === (nation || '').toLowerCase());
     const breakdown = ncOwnershipBreakdown(nation);
     if (!breakdown.length){
       const p = document.createElement('p');
@@ -6315,8 +6336,8 @@ function renderNationClaimPanel(){
         label.className = 'nc-own-label';
         const sw = document.createElement('i');
         sw.className = 'hw-swatch';
-        sw.style.background = row.nation === nation
-          ? ncColors(claims[0]).fill
+        sw.style.background = (row.nation === nation && ownClaim)
+          ? ncColors(ownClaim).fill
           : nationColors(row.nation === 'Nationless' ? null : row.nation).fill;
         const nm = document.createElement('span');
         nm.textContent = row.nation;
@@ -6332,7 +6353,9 @@ function renderNationClaimPanel(){
         fill.style.background = sw.style.background;
         track.appendChild(fill);
         bar.append(label, track);
-        bar.title = `${CoordUtils.fmt(row.chunks)} chunk(s), ${CoordUtils.fmt(row.towns)} town(s)`;
+        bar.title = row.byTownCount
+          ? `${CoordUtils.fmt(row.towns)} town(s) — share by town count, no chunk data loaded`
+          : `${CoordUtils.fmt(row.chunks)} chunk(s), ${CoordUtils.fmt(row.towns)} town(s)`;
         dom.ncOwnership.appendChild(bar);
       });
     }
@@ -6462,9 +6485,15 @@ function renderNationClaimAdmin(){
     const reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'hw-mini';
-    reset.textContent = 'auto';
-    reset.title = "Use the nation's own map colour";
+    reset.textContent = 'reset';
+    reset.title = "Reset the colour to the nation's own map colour";
     reset.addEventListener('click', () => {
+      // Previously did nothing visible when there was no override to clear,
+      // which read as a broken button.
+      if (!claim.fillColor && !claim.strokeColor){
+        auditLog.log(`"${claim.nation}" is already using its own map colour`, 'info');
+        return;
+      }
       claim.fillColor = null;
       claim.strokeColor = null;
       // The picker's own displayed value doesn't update just because the
@@ -6473,6 +6502,7 @@ function renderNationClaimAdmin(){
       // itself keeps showing the old manual colour, which reads as "auto
       // didn't do anything" even though it did.
       colour.value = ncColors(claim).fill;
+      auditLog.log(`"${claim.nation}" reset to its own map colour`, 'success');
       renderNationClaimAreas(); renderNationClaimPanel(); renderNationClaimAdmin();
       scheduleSave();
     });

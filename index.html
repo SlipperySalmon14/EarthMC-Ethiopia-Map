@@ -726,6 +726,13 @@ body.gui-hidden .gui-restore{ display: block; }
 .town-table tr.fall-severe   td:first-child{ border-left: 3px solid var(--terracotta); }
 .town-table tr.fall-warn     td:first-child{ border-left: 3px solid var(--brass); }
 
+.home-link{
+  display:inline-block; margin-bottom:.15rem;
+  font-family:var(--font-mono); font-size:.64rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); text-decoration:none;
+}
+.home-link:hover, .home-link:focus-visible{ color:var(--brass-hi); }
+
 /* ---- Ice highway network ---- */
 .hw-lines{ display:flex; flex-direction:column; gap:.3rem; }
 .hw-row{
@@ -1168,6 +1175,10 @@ input[type="range"]{
 
   <header class="topbar">
     <div class="topbar-brand">
+      <!-- Points at the hub. Once home.html is renamed to index.html this is
+           the way back from the map; before that rename it still works, it just
+           lands on the hub rather than the site root. -->
+      <a class="home-link" href="index.html" title="Ethiopia Ecosystem">&#8592; Ecosystem</a>
       <h1><span class="locus">EarthMC</span> · Ethiopia</h1>
       <span class="tagline">MAP PROJECTION — TERRA NOSTRA · LIVE TOWNY DATA</span>
     </div>
@@ -9138,4 +9149,3 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-

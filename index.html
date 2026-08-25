@@ -440,7 +440,9 @@ footer{
 /* Same Worker the map uses as a CORS proxy. The EarthMC API does not send
    permissive CORS headers, so browser requests have to go through it. */
 const PROXY = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
-const API = 'https://api.earthmc.net/v4/aurora';
+// Must match CONFIG.API_BASE in the map exactly. v4 has no map-name segment —
+// appending '/aurora' (the v3 convention) is a 404.
+const API = 'https://api.earthmc.net/v4';
 const NATION = 'Ethiopia';
 
 const $ = (id) => document.getElementById(id);
@@ -460,13 +462,20 @@ function setLive(state, label){
 }
 
 async function post(path, body){
-  const url = PROXY + '/?url=' + encodeURIComponent(API + path);
+  const target = API + path;
+  const url = PROXY + '/?url=' + encodeURIComponent(target);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
+  if (!res.ok){
+    // Include the target so a wrong endpoint is obvious from the page itself
+    // rather than needing the network tab.
+    const err = new Error('HTTP ' + res.status + ' from ' + target);
+    err.target = target;
+    throw err;
+  }
   return res.json();
 }
 
@@ -572,4 +581,3 @@ loadNation();
 </script>
 </body>
 </html>
-

@@ -1,1 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ethiopia Ecosystem</title>
+<meta name="description" content="Map, treasury, jobs and nation records for Ethiopia on EarthMC.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* Tokens copied verbatim from index.html so the two pages can't drift apart.
+   When these are eventually pulled out into assets/base.css, both files should
+   point at it rather than one of them keeping a private copy. */
+:root{
+  --ink:        #0b0f16;
+  --ink-2:      #10151f;
+  --panel:      #141b28;
+  --panel-2:    #1a2333;
+  --raised:     #1f2a3d;
+  --line:       #263047;
+  --line-soft:  #1c2536;
+  --parchment:  #e9e3d4;
+  --muted:      #8b96ab;
+  --muted-dim:  #5d6880;
+  --brass:      #c99a4b;
+  --brass-hi:   #e0b76a;
+  --brass-dim:  #7c5f30;
+  --terracotta: #c1613a;
+  --terracotta-hi:#d97c52;
+  --sage:       #6ea87b;
+  --sage-hi:    #86c294;
+  --danger:     #c1503f;
+  --danger-hi:  #dd6b59;
+
+  --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --font-body:    'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-mono:    'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --shadow-panel: 0 1px 0 rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  background: var(--ink);
+  color: var(--parchment);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* A faint survey grid, echoing the chunk grid on the map itself. */
+body::before{
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(233,227,212,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(233,227,212,.028) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 78%);
+}
+
+h1,h2,h3{ font-family: var(--font-display); margin: 0; color: var(--parchment); }
+
+a{ color: inherit; text-decoration: none; }
+
+.wrap{
+  position: relative;
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vw, 4rem) clamp(1rem, 4vw, 2rem) 4rem;
+}
+
+/* ---- masthead ---- */
+.masthead{
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1.4rem;
+  margin-bottom: 2.2rem;
+}
+.eyebrow{
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--brass);
+  display: block;
+  margin-bottom: .5rem;
+}
+.masthead h1{
+  font-size: clamp(2rem, 7vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.02;
+}
+.masthead h1 .accent{ color: var(--brass-hi); }
+.masthead p{
+  margin: .7rem 0 0;
+  color: var(--muted);
+  font-size: .95rem;
+  max-width: 40rem;
+  line-height: 1.55;
+}
+
+/* ---- live status strip ---- */
+.status-strip{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.6rem;
+  margin-top: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: .74rem;
+}
+.status-item{ display: flex; align-items: baseline; gap: .4rem; }
+.status-item .k{ color: var(--muted-dim); letter-spacing: .04em; text-transform: uppercase; font-size: .64rem; }
+.status-item .v{ color: var(--parchment); font-variant-numeric: tabular-nums; }
+.status-item .v.pending{ color: var(--muted-dim); }
+.live-dot{
+  width: .5rem; height: .5rem; border-radius: 50%;
+  background: var(--muted-dim); flex: none;
+  align-self: center;
+}
+.live-dot.on{ background: var(--sage-hi); box-shadow: 0 0 8px rgba(134,194,148,.6); }
+.live-dot.err{ background: var(--danger-hi); }
+
+/* ---- the hub ---- */
+.hub{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: .9rem;
+}
+
+.card{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  padding: 1.15rem 1.2rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  transition: border-color .16s ease, transform .16s ease, background .16s ease;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  cursor: pointer;
+}
+/* The left rule is the status: brass = open, dim = not built yet. */
+.card::before{
+  content: '';
+  position: absolute;
+  left: 0; top: .9rem; bottom: .9rem;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--brass);
+}
+.card:hover, .card:focus-visible{
+  border-color: var(--brass-dim);
+  background: var(--panel-2);
+  transform: translateY(-2px);
+  outline: none;
+}
+.card:focus-visible{ border-color: var(--brass-hi); }
+
+.card .num{
+  font-family: var(--font-mono);
+  font-size: .62rem;
+  color: var(--muted-dim);
+  letter-spacing: .1em;
+}
+.card h2{
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.card p{
+  margin: 0;
+  color: var(--muted);
+  font-size: .84rem;
+  line-height: 1.5;
+}
+.card .go{
+  margin-top: .35rem;
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--brass-hi);
+}
+
+/* Not-yet-built cards stay legible but clearly inert. */
+.card.pending{ cursor: default; }
+.card.pending::before{ background: var(--line); }
+.card.pending:hover, .card.pending:focus-visible{
+  transform: none;
+  background: var(--panel);
+  border-color: var(--line);
+}
+.card.pending h2{ color: var(--muted); }
+.card.pending .go{ color: var(--muted-dim); }
+
+.tag{
+  position: absolute;
+  top: .85rem; right: .9rem;
+  font-family: var(--font-mono);
+  font-size: .58rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .18rem .42rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  color: var(--muted-dim);
+}
+.tag.open{ color: var(--sage-hi); border-color: rgba(134,194,148,.4); }
+.tag.admin{ color: var(--brass-hi); border-color: var(--brass-dim); }
+
+/* ---- nation record ---- */
+.record{
+  margin-top: 2.4rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1.6rem;
+}
+.record-head{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.record-head h2{ font-size: 1.3rem; }
+.refresh{
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  padding: .3rem .6rem;
+  cursor: pointer;
+}
+.refresh:hover{ border-color: var(--brass-dim); color: var(--brass-hi); }
+
+.stat-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: .55rem;
+  margin: 0 0 1.2rem;
+}
+.stat{
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: .6rem .7rem;
+}
+.stat dt{
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+  margin-bottom: .25rem;
+}
+.stat dd{
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--parchment);
+}
+.stat dd.pending{ color: var(--muted-dim); font-size: .95rem; font-weight: 500; }
+
+.people-group{ margin-bottom: .8rem; }
+.people-label{
+  font-family: var(--font-mono);
+  font-size: .62rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+  margin-bottom: .35rem;
+}
+.people{ display: flex; flex-wrap: wrap; gap: .35rem; }
+.person{
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .22rem .55rem .22rem .25rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: .74rem;
+}
+.person.leader{ border-color: var(--brass); color: var(--brass-hi); }
+.person img{
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  image-rendering: pixelated;
+  background: var(--raised);
+}
+
+.note{
+  color: var(--muted-dim);
+  font-size: .8rem;
+  font-style: italic;
+  margin: .4rem 0 0;
+}
+
+footer{
+  margin-top: 3rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted-dim);
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">EarthMC · Terra Nostra</span>
+    <h1>Ethiopia <span class="accent">Ecosystem</span></h1>
+    <p>Everything the nation runs on, in one place — the live map, the treasury,
+       open work, and the record of who holds what office.</p>
+
+    <div class="status-strip" id="statusStrip">
+      <span class="status-item"><span class="live-dot" id="liveDot"></span><span class="v" id="liveLabel">Connecting…</span></span>
+      <span class="status-item"><span class="k">Towns</span><span class="v pending" id="sTowns">—</span></span>
+      <span class="status-item"><span class="k">Residents</span><span class="v pending" id="sResidents">—</span></span>
+      <span class="status-item"><span class="k">Chunks</span><span class="v pending" id="sChunks">—</span></span>
+    </div>
+  </header>
+
+  <nav class="hub" aria-label="Sections">
+
+    <a class="card" href="index.html">
+      <span class="tag open">Open</span>
+      <span class="num">01</span>
+      <h2>Map</h2>
+      <p>Live towns and nations, Ethiopia's regions, national claims and the ice
+         highway network with route planning.</p>
+      <span class="go">Open the map →</span>
+    </a>
+
+    <div class="card pending" aria-disabled="true">
+      <span class="tag">Needs backend</span>
+      <span class="num">02</span>
+      <h2>Treasury</h2>
+      <p>Balance over time, deposits and withdrawals, and a full banking history.
+         Treasurers and staff will be able to record transactions here directly.</p>
+      <span class="go">Waiting on accounts and the ledger</span>
+    </div>
+
+    <div class="card pending" aria-disabled="true">
+      <span class="tag">Needs backend</span>
+      <span class="num">03</span>
+      <h2>Job Board</h2>
+      <p>Open EMC Services tickets — what each job is, what it needs, and what it
+         pays. Claim one and it's yours.</p>
+      <span class="go">Waiting on accounts and the ledger</span>
+    </div>
+
+    <button class="card" id="btnRecord" type="button">
+      <span class="tag open">Open</span>
+      <span class="num">04</span>
+      <h2>Nation Information</h2>
+      <p>Live figures straight from the server, and the record of who currently
+         holds each office.</p>
+      <span class="go">Jump to the record ↓</span>
+    </button>
+
+    <div class="card pending" aria-disabled="true">
+      <span class="tag admin">Admin</span>
+      <span class="num">05</span>
+      <h2>Shop</h2>
+      <p>Stock by row, best and worst sellers, low-stock alerts, and sales and
+         profit charts — read automatically from in-game shop data.</p>
+      <span class="go">Waiting on the shop API key</span>
+    </div>
+
+    <div class="card pending" aria-disabled="true">
+      <span class="tag">Needs backend</span>
+      <span class="num">06</span>
+      <h2>Account</h2>
+      <p>Link your Discord and Minecraft names once. Your role decides what you
+         can see and change across the rest of the site.</p>
+      <span class="go">Waiting on Discord sign-in</span>
+    </div>
+
+  </nav>
+
+  <section class="record" id="record">
+    <div class="record-head">
+      <h2>Nation record</h2>
+      <button class="refresh" id="btnRefresh" type="button">Refresh</button>
+    </div>
+
+    <dl class="stat-grid">
+      <div class="stat"><dt>Towns</dt><dd class="pending" id="rTowns">—</dd></div>
+      <div class="stat"><dt>Residents</dt><dd class="pending" id="rResidents">—</dd></div>
+      <div class="stat"><dt>Claimed chunks</dt><dd class="pending" id="rChunks">—</dd></div>
+      <div class="stat"><dt>Nation bank</dt><dd class="pending" id="rBank">—</dd></div>
+    </dl>
+
+    <div id="rPeople"></div>
+    <p class="note" id="rNote">Reading live data from the EarthMC API…</p>
+  </section>
+
+  <footer>
+    <span>Ethiopia · EarthMC</span>
+    <span>Live data: EarthMC API</span>
+  </footer>
+
+</div>
+
+<script>
+'use strict';
+
+/* Same Worker the map uses as a CORS proxy. The EarthMC API does not send
+   permissive CORS headers, so browser requests have to go through it. */
+const PROXY = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+const API = 'https://api.earthmc.net/v4/aurora';
+const NATION = 'Ethiopia';
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n).toLocaleString('en-US');
+
+function setStat(el, value, isPending){
+  if (!el) return;
+  el.textContent = value;
+  el.classList.toggle('pending', !!isPending);
+}
+
+function setLive(state, label){
+  const dot = $('liveDot');
+  if (dot) dot.className = 'live-dot' + (state ? ' ' + state : '');
+  const text = $('liveLabel');
+  if (text) text.textContent = label;
+}
+
+async function post(path, body){
+  const url = PROXY + '/?url=' + encodeURIComponent(API + path);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+/* Rank lists have been seen holding plain names, objects, and bare UUIDs, so
+   every shape is handled rather than assuming one. */
+function memberName(entry){
+  if (typeof entry === 'string') return entry;
+  if (entry && typeof entry === 'object'){
+    return entry.name || entry.username || entry.player || entry.uuid || null;
+  }
+  return null;
+}
+
+function personChip(name, isLeader){
+  const chip = document.createElement('span');
+  chip.className = 'person' + (isLeader ? ' leader' : '');
+  const img = document.createElement('img');
+  img.src = 'https://minotar.net/helm/' + encodeURIComponent(name) + '/20.png';
+  img.alt = '';
+  img.loading = 'lazy';
+  img.onerror = () => { img.remove(); };
+  chip.append(img, document.createTextNode(name));
+  return chip;
+}
+
+function renderPeople(nation){
+  const host = $('rPeople');
+  host.replaceChildren();
+
+  const groups = [];
+  if (nation.king && nation.king.name) groups.push(['Leader', [nation.king.name], true]);
+
+  if (nation.ranks && typeof nation.ranks === 'object'){
+    Object.entries(nation.ranks)
+      // Chancellor first, then alphabetical — offices, not an arbitrary order.
+      .sort((a, b) => (b[0] === 'Chancellor') - (a[0] === 'Chancellor') || a[0].localeCompare(b[0]))
+      .forEach(([rank, members]) => {
+        const names = (Array.isArray(members) ? members : []).map(memberName).filter(Boolean);
+        if (names.length) groups.push([rank, names, false]);
+      });
+  }
+
+  if (!groups.length){
+    const p = document.createElement('p');
+    p.className = 'note';
+    p.textContent = 'No offices are recorded for the nation right now.';
+    host.appendChild(p);
+    return;
+  }
+
+  groups.forEach(([label, names, isLeader]) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'people-group';
+    const head = document.createElement('div');
+    head.className = 'people-label';
+    head.textContent = label;
+    const row = document.createElement('div');
+    row.className = 'people';
+    names.forEach(n => row.appendChild(personChip(n, isLeader)));
+    wrap.append(head, row);
+    host.appendChild(wrap);
+  });
+}
+
+async function loadNation(){
+  setLive('', 'Connecting…');
+  $('rNote').textContent = 'Reading live data from the EarthMC API…';
+  try{
+    const rows = await post('/nations', {
+      query: [NATION],
+      template: { name:true, king:true, towns:true, stats:true, ranks:true },
+    });
+    const nation = Array.isArray(rows) ? rows.find(Boolean) : null;
+    if (!nation) throw new Error('nation not found');
+
+    const stats = nation.stats || {};
+    const towns = Array.isArray(nation.towns) ? nation.towns.length : null;
+
+    setStat($('sTowns'), towns === null ? '—' : fmt(towns), towns === null);
+    setStat($('sResidents'), fmt(stats.numResidents || 0), false);
+    setStat($('sChunks'), fmt(stats.numTownBlocks || 0), false);
+
+    setStat($('rTowns'), towns === null ? 'not reported' : fmt(towns), towns === null);
+    setStat($('rResidents'), fmt(stats.numResidents || 0), false);
+    setStat($('rChunks'), fmt(stats.numTownBlocks || 0), false);
+    setStat($('rBank'), fmt(stats.balance || 0) + 'g', false);
+
+    renderPeople(nation);
+    setLive('on', 'Live');
+    $('rNote').textContent = 'Figures come straight from the server and change as the nation does.';
+  } catch (err){
+    setLive('err', 'Server unreachable');
+    $('rNote').textContent = 'Could not reach the EarthMC API (' + err.message + '). The map still works offline of this page — try Refresh in a moment.';
+  }
+}
+
+$('btnRefresh').addEventListener('click', loadNation);
+$('btnRecord').addEventListener('click', () => {
+  $('record').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+loadNation();
+</script>
+</body>
+</html>
 

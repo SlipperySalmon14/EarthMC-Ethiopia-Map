@@ -1,1 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Government · Ethiopia Ecosystem</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* Tokens copied verbatim from index.html — see the note in home.html. */
+:root{
+  --ink:#0b0f16; --ink-2:#10151f; --panel:#141b28; --panel-2:#1a2333;
+  --raised:#1f2a3d; --line:#263047; --line-soft:#1c2536;
+  --parchment:#e9e3d4; --muted:#8b96ab; --muted-dim:#5d6880;
+  --brass:#c99a4b; --brass-hi:#e0b76a; --brass-dim:#7c5f30;
+  --terracotta:#c1613a; --terracotta-hi:#d97c52;
+  --sage:#6ea87b; --sage-hi:#86c294; --danger:#c1503f; --danger-hi:#dd6b59;
+  --font-display:'Space Grotesk','Segoe UI',sans-serif;
+  --font-body:'IBM Plex Sans','Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+  --radius-sm:4px; --radius-md:7px;
+  --shadow-panel:0 1px 0 rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--ink); color:var(--parchment);
+  font-family:var(--font-body); -webkit-font-smoothing:antialiased; min-height:100vh;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(233,227,212,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(233,227,212,.028) 1px, transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 78%);
+  -webkit-mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 78%);
+}
+h1,h2,h3{ font-family:var(--font-display); margin:0; }
+a{ color:inherit; text-decoration:none; }
+
+.wrap{ position:relative; max-width:74rem; margin:0 auto;
+       padding:clamp(1.2rem,4vw,2.6rem) clamp(1rem,4vw,2rem) 4rem; }
+
+.back{
+  display:inline-block; margin-bottom:.9rem;
+  font-family:var(--font-mono); font-size:.64rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted);
+}
+.back:hover{ color:var(--brass-hi); }
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:.68rem; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--brass); display:block; margin-bottom:.45rem;
+}
+.masthead{ border-bottom:1px solid var(--line); padding-bottom:1.2rem; margin-bottom:1.8rem; }
+.masthead h1{ font-size:clamp(1.8rem,5.5vw,2.8rem); font-weight:700; letter-spacing:-.02em; }
+.masthead p{ margin:.6rem 0 0; color:var(--muted); font-size:.92rem; max-width:44rem; line-height:1.55; }
+
+/* ---- the two branches ---- */
+.branches{ display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media (max-width: 860px){ .branches{ grid-template-columns:1fr; } }
+
+.branch{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius-md); box-shadow:var(--shadow-panel);
+  padding:1.1rem 1.15rem 1.3rem; position:relative; overflow:hidden;
+}
+/* Each branch carries its own accent so the two halves read apart at a glance. */
+.branch.republic{ border-top:2px solid var(--sage); }
+.branch.monarchy{ border-top:2px solid var(--brass); }
+.branch h2{ font-size:1.25rem; font-weight:600; }
+.branch .sub{
+  font-family:var(--font-mono); font-size:.63rem; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted-dim); margin:.2rem 0 1rem;
+}
+
+.office{ padding:.5rem 0; border-bottom:1px solid var(--line-soft); }
+.office:last-child{ border-bottom:none; }
+.office-title{
+  display:flex; align-items:baseline; justify-content:space-between; gap:.6rem;
+  font-family:var(--font-mono); font-size:.66rem; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted-dim); margin-bottom:.35rem;
+}
+.office-title .seats{ font-size:.6rem; color:var(--muted-dim); }
+.holders{ display:flex; flex-wrap:wrap; gap:.35rem; }
+
+.person{
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.22rem .58rem .22rem .25rem;
+  background:var(--panel-2); border:1px solid var(--line-soft);
+  border-radius:999px; font-family:var(--font-mono); font-size:.75rem;
+}
+.person img{ width:20px; height:20px; border-radius:50%; image-rendering:pixelated; background:var(--raised); }
+.person.head{ border-color:var(--brass); color:var(--brass-hi); }
+.person.vacant{ color:var(--muted-dim); font-style:italic; border-style:dashed; }
+
+/* ---- elections ---- */
+.section{ margin-top:2.2rem; border-top:1px solid var(--line); padding-top:1.5rem; }
+.section-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:1rem; flex-wrap:wrap; margin-bottom:1rem;
+}
+.section-head h2{ font-size:1.3rem; }
+
+.election{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius-md); padding:1rem 1.1rem; margin-bottom:.8rem;
+}
+.election-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:.8rem; flex-wrap:wrap; margin-bottom:.2rem;
+}
+.election h3{ font-size:1.02rem; font-weight:600; }
+.election .for{
+  font-family:var(--font-mono); font-size:.66rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--brass); margin-bottom:.7rem;
+}
+.pill{
+  font-family:var(--font-mono); font-size:.58rem; letter-spacing:.1em;
+  text-transform:uppercase; padding:.18rem .45rem; border-radius:var(--radius-sm);
+  border:1px solid var(--line); color:var(--muted-dim); white-space:nowrap;
+}
+.pill.open{ color:var(--sage-hi); border-color:rgba(134,194,148,.4); }
+.pill.closed{ color:var(--muted-dim); }
+
+.candidate{
+  display:flex; align-items:center; gap:.6rem;
+  padding:.45rem .1rem; border-top:1px solid var(--line-soft);
+}
+.candidate:first-of-type{ border-top:none; }
+.cand-main{ flex:1 1 auto; min-width:0; }
+.cand-name{ display:flex; align-items:center; gap:.4rem; font-family:var(--font-mono); font-size:.8rem; }
+.cand-name img{ width:20px; height:20px; border-radius:50%; image-rendering:pixelated; background:var(--raised); }
+.cand-statement{ color:var(--muted); font-size:.76rem; margin-top:.15rem; line-height:1.4; }
+.bar-track{ height:.32rem; background:var(--panel-2); border-radius:999px; margin-top:.35rem; overflow:hidden; }
+.bar-fill{ height:100%; background:var(--brass); border-radius:999px; transition:width .3s ease; }
+.cand-pct{
+  flex:none; font-family:var(--font-mono); font-size:.78rem;
+  color:var(--brass-hi); font-variant-numeric:tabular-nums; min-width:3.4rem; text-align:right;
+}
+.btn-vote{
+  flex:none; background:var(--brass); color:var(--ink); border:none;
+  border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:.7rem;
+  padding:.3rem .7rem; cursor:pointer; font-weight:600;
+}
+.btn-vote:hover{ background:var(--brass-hi); }
+.btn-vote:disabled{ background:var(--line); color:var(--muted-dim); cursor:default; }
+
+/* ---- regional results ---- */
+.region-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(13rem,1fr)); gap:.6rem; }
+.region-card{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:.65rem .75rem;
+}
+.region-card .rname{
+  font-family:var(--font-mono); font-size:.68rem; letter-spacing:.06em;
+  color:var(--parchment); margin-bottom:.4rem;
+}
+.region-row{
+  display:flex; justify-content:space-between; gap:.5rem;
+  font-family:var(--font-mono); font-size:.72rem; color:var(--muted); padding:.12rem 0;
+}
+.region-row.winner{ color:var(--brass-hi); }
+.region-row .n{ font-variant-numeric:tabular-nums; }
+
+.note{ color:var(--muted-dim); font-size:.82rem; font-style:italic; }
+.empty{
+  background:var(--panel); border:1px dashed var(--line);
+  border-radius:var(--radius-md); padding:1.4rem; text-align:center;
+  color:var(--muted); font-size:.86rem;
+}
+footer{
+  margin-top:3rem; padding-top:1.1rem; border-top:1px solid var(--line-soft);
+  color:var(--muted-dim); font-family:var(--font-mono); font-size:.68rem;
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+}
+@media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="index.html">&#8592; Ecosystem</a>
+
+  <header class="masthead">
+    <span class="eyebrow">Ethiopia · Offices of State</span>
+    <h1>Government</h1>
+    <p>Who currently holds each office in both branches, and every election on
+       the record — candidates, results by region, and the seats they decide.</p>
+  </header>
+
+  <div class="branches">
+    <section class="branch republic">
+      <h2>Republic</h2>
+      <div class="sub">Elected offices</div>
+      <div id="republicList"><p class="note">Loading…</p></div>
+    </section>
+
+    <section class="branch monarchy">
+      <h2>Monarchy</h2>
+      <div class="sub">Crown and appointed offices</div>
+      <div id="monarchyList"><p class="note">Loading…</p></div>
+    </section>
+  </div>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>House of Representatives</h2>
+      <span class="pill" id="housePill">—</span>
+    </div>
+    <div id="houseList"><p class="note">Loading…</p></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Elections</h2>
+      <span class="pill" id="votePill">—</span>
+    </div>
+    <div id="electionList"><p class="note">Loading…</p></div>
+  </section>
+
+  <section class="section" id="resultsSection" hidden>
+    <div class="section-head"><h2>Results by region</h2></div>
+    <div class="region-grid" id="regionResults"></div>
+    <p class="note" id="resultsNote"></p>
+  </section>
+
+  <footer>
+    <span>Ethiopia · EarthMC</span>
+    <span id="footNote">Government record</span>
+  </footer>
+</div>
+
+<script>
+'use strict';
+
+/* Reads the Worker API. Until the backend phases land, every endpoint 404s and
+   each section shows an honest empty state rather than invented office holders
+   — a fake President is exactly the sort of thing that gets believed. */
+const API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, c => (
+  { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+let me = null;   // { tier, signedIn, ... } once loaded
+
+async function api(path, options){
+  const res = await fetch(API + path, Object.assign({ credentials: 'include' }, options || {}));
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+function head(name){
+  return '<img src="https://minotar.net/helm/' + encodeURIComponent(name) +
+         '/20.png" alt="" loading="lazy" onerror="this.remove()">';
+}
+
+function personChip(name, isHead){
+  if (!name) return '<span class="person vacant">vacant</span>';
+  return '<span class="person' + (isHead ? ' head' : '') + '">' + head(name) + esc(name) + '</span>';
+}
+
+function emptyState(host, message){
+  host.innerHTML = '<div class="empty">' + esc(message) + '</div>';
+}
+
+/* ---- rosters ---- */
+function renderBranch(host, offices){
+  if (!offices || !offices.length){
+    emptyState(host, 'No offices recorded for this branch yet.');
+    return;
+  }
+  host.innerHTML = offices.map(o => {
+    const holders = (o.holders && o.holders.length)
+      ? o.holders.map(h => personChip(h.mcName || h.discordName, !!o.isHead)).join('')
+      : personChip(null);
+    const seats = o.seats > 1 ? '<span class="seats">' + (o.holders ? o.holders.length : 0) +
+                                ' / ' + o.seats + '</span>' : '';
+    return '<div class="office">' +
+             '<div class="office-title"><span>' + esc(o.title) + '</span>' + seats + '</div>' +
+             '<div class="holders">' + holders + '</div>' +
+           '</div>';
+  }).join('');
+}
+
+function renderHouse(house, totalSeats, filled){
+  const host = $('houseList');
+  if (!house || !house.length){
+    emptyState(host, 'No House seats recorded yet.');
+    $('housePill').textContent = '\u2014';
+    return;
+  }
+  /* A region can return several representatives: 20 seats in total, one
+     guaranteed per region and the remainder apportioned, so each card holds a
+     list rather than a single name. */
+  $('housePill').textContent = (filled || 0) + ' of ' + (totalSeats || 20) + ' seats filled';
+  host.innerHTML = '<div class="region-grid">' + house.map(r => {
+    const chips = (r.holders && r.holders.length)
+      ? r.holders.map(h => personChip(h.mcName || h.discordName)).join('')
+      : personChip(null);
+    const count = (r.holders && r.holders.length > 1)
+      ? '<span class="seats">' + r.holders.length + '</span>' : '';
+    return '<div class="region-card">' +
+      '<div class="office-title"><span>' + esc(r.region) + '</span>' + count + '</div>' +
+      '<div class="holders">' + chips + '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+/* ---- elections ---- */
+function renderElections(elections){
+  const host = $('electionList');
+  if (!elections || !elections.length){
+    emptyState(host, 'No elections are open, and none have been held yet.');
+    $('votePill').textContent = '—';
+    return;
+  }
+  const open = elections.filter(e => e.status === 'open').length;
+  $('votePill').textContent = open ? open + ' open for voting' : 'none open';
+
+  host.innerHTML = elections.map(e => {
+    const total = (e.candidates || []).reduce((s, c) => s + (c.votes || 0), 0);
+    const canVote = e.status === 'open' && me && me.tier !== 'unverified' && !e.youVoted;
+
+    const cands = (e.candidates || []).map(c => {
+      const pct = total ? (c.votes / total) * 100 : 0;
+      // Tallies stay hidden while voting is open, so early numbers can't sway
+      // the people who haven't voted yet.
+      const showCount = e.status !== 'open';
+      return '<div class="candidate">' +
+        '<div class="cand-main">' +
+          '<div class="cand-name">' + head(c.mcName || c.discordName) +
+            esc(c.mcName || c.discordName) + '</div>' +
+          (c.statement ? '<div class="cand-statement">' + esc(c.statement) + '</div>' : '') +
+          (showCount ? '<div class="bar-track"><div class="bar-fill" style="width:' +
+             pct.toFixed(1) + '%"></div></div>' : '') +
+        '</div>' +
+        (showCount
+          ? '<div class="cand-pct">' + pct.toFixed(1) + '%</div>'
+          : (canVote
+              ? '<button class="btn-vote" data-election="' + e.id + '" data-candidate="' + c.id + '">Vote</button>'
+              : '')) +
+      '</div>';
+    }).join('');
+
+    const status = e.status === 'open'
+      ? '<span class="pill open">Open</span>'
+      : '<span class="pill closed">' + esc(e.status) + '</span>';
+
+    return '<div class="election">' +
+      '<div class="election-head"><h3>' + esc(e.title) + '</h3>' + status + '</div>' +
+      '<div class="for">For ' + esc(e.officeTitle || 'office') +
+        (e.region ? ' · ' + esc(e.region) : ' · nation-wide') + '</div>' +
+      cands +
+      (e.youVoted ? '<p class="note" style="margin-top:.5rem">Your vote is recorded.</p>' : '') +
+      (e.status !== 'open' && total ? '<p class="note" style="margin-top:.5rem">' +
+        total.toLocaleString('en-US') + ' votes cast.</p>' : '') +
+    '</div>';
+  }).join('');
+
+  host.querySelectorAll('.btn-vote').forEach(btn => {
+    btn.addEventListener('click', () => castVote(btn));
+  });
+}
+
+async function castVote(btn){
+  btn.disabled = true;
+  btn.textContent = '…';
+  try{
+    await api('/api/elections/' + btn.dataset.election + '/vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId: Number(btn.dataset.candidate) }),
+    });
+    load();
+  } catch (err){
+    btn.disabled = false;
+    btn.textContent = 'Vote';
+    // 409 is the database's one-vote-per-account guard, not a failure.
+    alert(String(err.message).includes('409')
+      ? 'You have already voted in this election.'
+      : 'Could not record your vote: ' + err.message);
+  }
+}
+
+function renderRegionResults(results){
+  const section = $('resultsSection');
+  if (!results || !results.length){ section.hidden = true; return; }
+  section.hidden = false;
+  $('regionResults').innerHTML = results.map(r => {
+    const rows = r.tally.map((t, i) =>
+      '<div class="region-row' + (i === 0 ? ' winner' : '') + '">' +
+        '<span>' + esc(t.name) + '</span><span class="n">' + t.votes + '</span></div>').join('');
+    return '<div class="region-card"><div class="rname">' + esc(r.region) + '</div>' + rows + '</div>';
+  }).join('');
+  $('resultsNote').textContent =
+    'Every vote is filed against the voter\u2019s region at the moment it was cast, so a later border change cannot rewrite a past result.';
+}
+
+async function load(){
+  try{ me = await api('/api/me'); } catch(_e){ me = null; }
+
+  const signedInCitizen = !!(me && me.signedIn &&
+    ['citizen','treasurer','manager'].indexOf(me.tier) !== -1);
+
+  try{
+    const gov = await api('/api/government');
+    renderBranch($('republicList'), gov.republic);
+    renderBranch($('monarchyList'), gov.monarchy);
+    renderHouse(gov.house, gov.houseSeats, gov.houseFilled);
+    $('footNote').textContent = 'Live from Discord roles';
+  } catch (err){
+    /* A 401 here is not a broken backend — it is someone who has not signed in.
+       Saying "not connected" would send them debugging the wrong thing. */
+    const msg = signedInCitizen
+      ? 'Government records are not connected yet — this page will fill in once the backend is live.'
+      : 'Sign in as a verified citizen to view the government record.';
+    emptyState($('republicList'), msg);
+    emptyState($('monarchyList'), msg);
+    emptyState($('houseList'), msg);
+    $('footNote').textContent = signedInCitizen
+      ? 'Backend not connected (' + err.message + ')'
+      : 'Not signed in';
+  }
+
+  try{
+    const data = await api('/api/elections');
+    renderElections(data.elections);
+    renderRegionResults(data.regionResults);
+  } catch(_err){
+    emptyState($('electionList'), signedInCitizen
+      ? 'Elections are not connected yet.'
+      : 'Sign in as a verified citizen to see elections.');
+  }
+}
+
+load();
+</script>
+</body>
+</html>
 

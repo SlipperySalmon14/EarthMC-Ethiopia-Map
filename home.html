@@ -1,1 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ethiopia Ecosystem</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    header { border-bottom: 1px solid #ccc; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+    h1 { margin: 0; }
+    .profile { display: flex; align-items: center; gap: 15px; }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; }
+    button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .nav { display: flex; gap: 15px; margin: 20px 0; }
+    .nav a, .nav button { padding: 10px 15px; text-decoration: none; color: #007bff; border: 1px solid #007bff; border-radius: 4px; background: white; cursor: pointer; }
+    .nav a:hover, .nav button:hover { background: #f0f0f0; }
+    .section { margin: 30px 0; padding: 20px; border: 1px solid #e0e0e0; border-radius: 4px; }
+    .treasurer-only, .manager-only, .citizen-only { display: block; }
+    .citizen-only { display: none; }
+    .treasurer-only { display: none; }
+    .manager-only { display: none; }
+  </style>
+  <script src="assets/shared.js?v=1"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Ethiopia Ecosystem</h1>
+      <div class="profile">
+        <img class="avatar" id="avatar" src="" alt="avatar">
+        <span id="name">Loading...</span>
+        <button onclick="window.doLogout()">Sign out</button>
+      </div>
+    </header>
+
+    <div class="nav">
+      <a href="index.html">Map</a>
+      <a href="home.html">Home</a>
+      <button class="citizen-only" onclick="window.location.href='treasury.html'">Treasury</button>
+      <button class="citizen-only" onclick="window.location.href='jobs.html'">Jobs</button>
+      <button class="treasurer-only" onclick="window.location.href='shop.html'">Shop</button>
+      <button class="manager-only" onclick="window.location.href='admin.html'">Admin</button>
+    </div>
+
+    <div class="section citizen-only">
+      <h2>Treasury</h2>
+      <p>Current balance: [not yet built]</p>
+    </div>
+
+    <div class="section manager-only">
+      <h2>Admin Console</h2>
+      <p>Admin panel: [not yet built]</p>
+    </div>
+
+    <div class="section">
+      <h2>Your Account</h2>
+      <p>Discord: <span id="discord-name">—</span></p>
+      <p>Minecraft: <span id="mc-name">Not linked</span></p>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('auth:ready', () => {
+      // Not logged in — redirect to map
+      if (!window.auth.signedIn) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Update profile display
+      document.getElementById('name').textContent = window.auth.discordName || 'User';
+      document.getElementById('avatar').src = window.auth.avatarUrl || '';
+      document.getElementById('discord-name').textContent = window.auth.discordName || '—';
+      document.getElementById('mc-name').textContent = window.auth.mcName || 'Not linked';
+
+      // Gate content by tier
+      window.gateElementsByClass('citizen-only', 'citizen');
+      window.gateElementsByClass('treasurer-only', 'treasurer');
+      window.gateElementsByClass('manager-only', 'manager');
+    });
+  </script>
+</body>
+</html>
 

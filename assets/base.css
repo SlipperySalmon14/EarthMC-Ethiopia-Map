@@ -1,0 +1,197 @@
+/* ===========================================================================
+   Ethiopia Ecosystem — shared design system
+   ---------------------------------------------------------------------------
+   Direction: "Codex". The palette is taken from Ethiopian Orthodox manuscript
+   painting rather than from the flag — the pigments a Ge'ez scribe actually
+   worked in: cinnabar red for rubrics, deep enset green, gold leaf, on a warm
+   ink ground. Warm brown-black, never blue-slate.
+
+   Load this before any page styles:
+     <link rel="stylesheet" href="assets/base.css?v=1">
+   =========================================================================== */
+
+:root{
+  /* --- ground: warm ink, not blue-black ---------------------------------- */
+  --ink:        #14100c;   /* page ground — brown-black, like iron-gall ink   */
+  --ink-raised: #1d1811;   /* panels                                          */
+  --ink-high:   #291f17;   /* hover / raised edges                            */
+
+  /* --- the three manuscript pigments ------------------------------------- */
+  --cinnabar:   #a8331f;   /* rubric red — headings, live state               */
+  --cinnabar-hi:#c9563c;
+  --enset:      #3d6b45;   /* deep green                                      */
+  --enset-hi:   #5b9166;
+  --leaf:       #c4922e;   /* gold leaf — the one bright                      */
+  --leaf-hi:    #e0b45c;
+
+  /* --- vellum: the text --------------------------------------------------- */
+  --vellum:     #ece0c6;   /* primary text — aged goatskin, warmer than cream */
+  --vellum-mid: #9c9078;   /* secondary                                       */
+  --vellum-low: #6b6353;   /* tertiary / disabled                             */
+
+  --rule:       #322a1f;   /* hairlines                                       */
+  --rule-soft:  #241d15;
+
+  /* --- type --------------------------------------------------------------- */
+  --display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --body:    'Karla', 'Segoe UI', system-ui, sans-serif;
+  --data:    'Martian Mono', 'SFMono-Regular', Consolas, monospace;
+  --ethiopic:'Noto Serif Ethiopic', serif;
+
+  --step--1: clamp(.72rem, .69rem + .12vw, .78rem);
+  --step-0:  clamp(.94rem, .9rem + .18vw, 1.02rem);
+  --step-1:  clamp(1.15rem, 1.05rem + .4vw, 1.4rem);
+  --step-2:  clamp(1.5rem, 1.3rem + .9vw, 2.1rem);
+  --step-3:  clamp(2.2rem, 1.6rem + 2.8vw, 4.2rem);
+
+  --spine-w: 30px;
+}
+
+@media (max-width: 720px){ :root{ --spine-w: 0px; } }
+
+*, *::before, *::after{ box-sizing: border-box; }
+
+html{ -webkit-text-size-adjust: 100%; }
+
+body{
+  margin: 0;
+  background: var(--ink);
+  color: var(--vellum);
+  font-family: var(--body);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  padding-left: var(--spine-w);
+  min-height: 100vh;
+}
+
+/* ---------------------------------------------------------------------------
+   THE TIBEB SPINE — the signature element.
+
+   Tibeb is the woven geometric border on a habesha kemis: narrow bands of
+   colour flanking a lattice of diamonds. Here it runs the full height of the
+   page as its left edge, so it is structure holding the page together rather
+   than an ornament sitting on top of it.
+
+   Built from stacked gradients: two crossing diagonals make the lattice, and
+   flat stops make the flanking stripes. Collapses to a horizontal band on
+   narrow screens.
+   --------------------------------------------------------------------------- */
+.tibeb{
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--spine-w);
+  z-index: 50;
+  background-color: #0d0a07;
+  background-image:
+    repeating-linear-gradient( 45deg, var(--cinnabar) 0 2px, transparent 2px 11px),
+    repeating-linear-gradient(-45deg, var(--enset)    0 2px, transparent 2px 11px),
+    linear-gradient(90deg,
+      var(--enset)    0 3px,
+      transparent     3px 5px,
+      var(--leaf)     5px 6px,
+      transparent     6px calc(100% - 6px),
+      var(--leaf)     calc(100% - 6px) calc(100% - 5px),
+      transparent     calc(100% - 5px) calc(100% - 3px),
+      var(--cinnabar) calc(100% - 3px) 100%);
+  border-right: 1px solid var(--rule);
+}
+
+@media (max-width: 720px){
+  .tibeb{
+    inset: 0 0 auto 0;
+    width: auto;
+    height: 8px;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+    background-image:
+      repeating-linear-gradient( 45deg, var(--cinnabar) 0 2px, transparent 2px 11px),
+      repeating-linear-gradient(-45deg, var(--enset)    0 2px, transparent 2px 11px),
+      linear-gradient(180deg,
+        var(--enset) 0 2px, transparent 2px calc(100% - 2px), var(--cinnabar) calc(100% - 2px) 100%);
+  }
+  body{ padding-top: 8px; }
+}
+
+/* --- typography ---------------------------------------------------------- */
+
+h1, h2, h3{
+  font-family: var(--display);
+  font-weight: 600;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  letter-spacing: -.015em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+a{ color: inherit; }
+
+/* Amharic labels sit beside their English counterparts. They name the section
+   in the nation's own script — a label, not decoration. */
+.am{
+  font-family: var(--ethiopic);
+  font-weight: 400;
+  color: var(--vellum-low);
+  letter-spacing: 0;
+}
+
+/* Small caps data label. Used for field names and nothing else. */
+.field{
+  font-family: var(--data);
+  font-size: var(--step--1);
+  font-weight: 400;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--vellum-low);
+}
+
+.num{
+  font-family: var(--data);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+
+/* --- shared furniture ---------------------------------------------------- */
+
+.shell{
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: clamp(1.6rem, 4vw, 3.4rem) clamp(1.1rem, 4vw, 2.6rem) 5rem;
+}
+
+.rule{ height: 1px; background: var(--rule); border: 0; margin: 0; }
+
+.panel{
+  background: var(--ink-raised);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+
+.btn{
+  display: inline-block;
+  font-family: var(--data);
+  font-size: var(--step--1);
+  letter-spacing: .04em;
+  padding: .5rem .9rem;
+  border: 1px solid var(--leaf);
+  border-radius: 2px;
+  color: var(--leaf-hi);
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .18s ease, color .18s ease;
+}
+.btn:hover{ background: var(--leaf); color: var(--ink); }
+
+/* Keyboard focus must always be visible, on every interactive thing. */
+:focus-visible{
+  outline: 2px solid var(--leaf-hi);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition: none !important; }
+}
+

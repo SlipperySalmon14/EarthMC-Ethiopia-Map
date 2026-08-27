@@ -1,1 +1,145 @@
+/* ===========================================================================
+   Ethiopia Ecosystem — shared design system  (v2)
+   ---------------------------------------------------------------------------
+   Identity comes from the Ethiopian flag: the green/gold/red bands and the
+   blue disc with its rayed star. Used as structure — the page edge, the
+   watermark, the accent per section — not as a badge stuck in a corner.
+
+   Ground is warm and near-black rather than blue-slate, so the flag colours
+   read as pigment on it instead of glowing.
+
+     <link rel="stylesheet" href="assets/base.css?v=2">
+   =========================================================================== */
+
+:root{
+  /* --- ground ------------------------------------------------------------ */
+  --ink:        #100e0b;
+  --ink-raised: #1a1714;
+  --ink-high:   #23201b;
+
+  /* --- flag ---------------------------------------------------------------
+     Adjusted for legibility on a dark ground: the flag's own #078930 and
+     #FCDD09 vibrate against near-black, so each is pulled toward the value
+     that keeps it recognisably itself while staying readable.              */
+  --green:      #189d4d;
+  --green-dim:  #0d5c2c;
+  --gold:       #edb912;
+  --gold-dim:   #8a6a0c;
+  --red:        #cf2029;
+  --red-dim:    #7a1318;
+  --blue:       #17539e;
+
+  /* --- text --------------------------------------------------------------- */
+  --text:       #f2ece0;
+  --text-mid:   #a89e8c;
+  --text-low:   #756c5d;
+
+  --rule:       #2b2620;
+  --rule-soft:  #201c17;
+
+  /* --- type --------------------------------------------------------------- */
+  --display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --body:    'Karla', 'Segoe UI', system-ui, sans-serif;
+  --data:    'Martian Mono', 'SFMono-Regular', Consolas, monospace;
+  --ethiopic:'Noto Serif Ethiopic', serif;
+
+  --step--1: clamp(.72rem, .69rem + .12vw, .78rem);
+  --step-0:  clamp(.94rem, .9rem + .18vw, 1.02rem);
+  --step-1:  clamp(1.12rem, 1.02rem + .38vw, 1.34rem);
+  --step-2:  clamp(1.45rem, 1.25rem + .85vw, 2rem);
+  --step-3:  clamp(2.4rem, 1.7rem + 3vw, 4rem);
+
+  --edge: 10px;
+}
+
+*, *::before, *::after{ box-sizing: border-box; }
+html{ -webkit-text-size-adjust: 100%; }
+
+body{
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  padding-left: var(--edge);
+  min-height: 100vh;
+}
+
+/* ---------------------------------------------------------------------------
+   FLAG EDGE
+   The three bands as a narrow rule down the page. Earlier this carried a woven
+   lattice; at 30px of repeating diagonals it read as a decorative ribbon
+   competing with the content, so it is now flat colour at a third the width —
+   recognisably the flag, quiet enough to be furniture.
+   --------------------------------------------------------------------------- */
+.flag-edge{
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--edge);
+  z-index: 50;
+  background: linear-gradient(180deg,
+    var(--green) 0 33.33%,
+    var(--gold)  33.33% 66.66%,
+    var(--red)   66.66% 100%);
+}
+@media (max-width: 720px){
+  :root{ --edge: 0px; }
+  body{ padding-left: 0; padding-top: 5px; }
+  .flag-edge{
+    inset: 0 0 auto 0; width: auto; height: 5px;
+    background: linear-gradient(90deg,
+      var(--green) 0 33.33%, var(--gold) 33.33% 66.66%, var(--red) 66.66% 100%);
+  }
+}
+
+/* --- type ---------------------------------------------------------------- */
+h1, h2, h3{
+  font-family: var(--display);
+  font-weight: 600;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  letter-spacing: -.018em;
+  line-height: 1.08;
+  margin: 0;
+}
+a{ color: inherit; }
+
+.am{ font-family: var(--ethiopic); font-weight: 400; letter-spacing: 0; }
+
+.field{
+  font-family: var(--data);
+  font-size: var(--step--1);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-low);
+}
+
+/* --- furniture ----------------------------------------------------------- */
+.shell{
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1.1rem, 4vw, 2.4rem) 4.5rem;
+}
+
+.btn{
+  display: inline-block;
+  font-family: var(--data);
+  font-size: var(--step--1);
+  padding: .42rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--text-mid);
+  background: transparent;
+  cursor: pointer;
+  transition: color .16s ease, border-color .16s ease;
+}
+.btn:hover{ color: var(--gold); border-color: var(--gold-dim); }
+.btn[aria-pressed="true"]{ color: var(--ink); background: var(--gold); border-color: var(--gold); }
+
+:focus-visible{ outline: 2px solid var(--gold); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition: none !important; }
+}
 

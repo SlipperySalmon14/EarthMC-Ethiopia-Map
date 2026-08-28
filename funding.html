@@ -1,1 +1,458 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Funding · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.6rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.3rem; margin-bottom:1.6rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+.masthead p{ color:var(--text-mid); margin:.9rem 0 0; max-width:38rem; }
 
+.periodbar{ display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1.2rem; }
+.periodbar select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--data); font-size:.78rem; }
+
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin-bottom:1.6rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; letter-spacing:-.02em; }
+.stat .k{ font-family:var(--data); font-size:.66rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.alloc{ --accent:var(--gold); }
+.stat.paid{ --accent:var(--green); } .stat.paid .n{ color:var(--green); }
+.stat.left{ --accent:var(--red); }
+.short{ display:flex; gap:.6rem; align-items:center; padding:.8rem 1rem; margin-bottom:1.4rem;
+  background:rgba(207,32,41,.07); border:1px solid var(--red-dim); border-left:3px solid var(--red);
+  border-radius:3px; font-family:var(--data); font-size:var(--step--1); color:var(--red); }
+
+.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+.rlist{ display:flex; flex-direction:column; gap:.5rem; }
+.r{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px; padding:.8rem .95rem; }
+.r.done{ opacity:.62; }
+.r.paused{ border-style:dashed; }
+.r-top{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin-bottom:.55rem; }
+.r-name{ font-family:var(--display); font-weight:600; font-size:var(--step-0); }
+.r-kind{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); border:1px solid var(--rule); border-radius:2px; padding:.1rem .35rem; }
+.r-fig{ margin-left:auto; font-family:var(--data); font-size:var(--step--1);
+  font-variant-numeric:tabular-nums; color:var(--text-mid); }
+.r-fig b{ color:var(--text); }
+.bar{ height:.42rem; background:var(--ink); border:1px solid var(--rule);
+  border-radius:999px; overflow:hidden; }
+.bar span{ display:block; height:100%; background:var(--green); border-radius:999px; }
+.r.done .bar span{ background:var(--green); }
+.r-acts{ display:flex; gap:.4rem; align-items:center; margin-top:.6rem; flex-wrap:wrap; }
+.r-note{ font-family:var(--data); font-size:.66rem; color:var(--text-low); }
+.r .warn{ color:var(--red); font-family:var(--data); font-size:.66rem; }
+
+table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
+th{ font-family:var(--data); font-size:.66rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); text-align:left; font-weight:400; padding:.5rem .6rem;
+  border-bottom:1px solid var(--rule); }
+td{ padding:.6rem; border-bottom:1px solid var(--rule-soft); }
+td.amt{ font-family:var(--data); font-variant-numeric:tabular-nums; text-align:right;
+  white-space:nowrap; font-weight:600; color:var(--red); }
+td.when{ font-family:var(--data); font-size:.66rem; color:var(--text-low); white-space:nowrap; }
+td.who{ font-family:var(--data); font-size:.7rem; }
+.pager{ display:flex; align-items:center; gap:.6rem; margin-top:1rem; }
+.pager .where{ font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+.admin{ margin-top:2.4rem; border:1px dashed var(--rule); border-radius:3px;
+  padding:1.1rem 1.2rem; background:var(--ink-raised); }
+.admin h2{ font-size:var(--step-1); margin-bottom:.2rem; }
+.admin .hint{ color:var(--text-low); font-size:var(--step--1); margin:0 0 1rem; }
+.fields{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.66rem; color:var(--text-low); letter-spacing:.05em; }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--data); font-size:.78rem; min-width:9rem; }
+.f input:focus, .f select:focus{ border-color:var(--gold); }
+.msg{ font-family:var(--data); font-size:var(--step--1); margin-top:.7rem; min-height:1.2em; }
+.msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.3rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; <span data-en="Ecosystem" data-am="ሥርዓት">Ecosystem</span></a>
+    <span class="spacer"></span>
+    <div class="lang" role="group" aria-label="Language">
+      <button class="btn" type="button" data-set-lang="en" aria-pressed="true">EN</button>
+      <button class="btn" type="button" data-set-lang="am" aria-pressed="false" lang="am">አማርኛ</button>
+    </div>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-en="Funding" data-am="የገንዘብ ድጋፍ">Funding</h1>
+    <p class="sub" data-en="Monthly allowances" data-am="ወርሃዊ ድልድል">Monthly allowances</p>
+    <p data-en="What each person and town may draw from the treasury each month, how much they have taken, and every payment on the record."
+       data-am="እያንዳንዱ ሰውና ከተማ በየወሩ ከግምጃ ቤት ሊወስድ የሚችለው መጠን፣ የወሰዱት፣ እና ሁሉም ክፍያዎች።">
+      What each person and town may draw from the treasury each month, how much
+      they have taken, and every payment on the record.
+    </p>
+  </header>
+
+  <div id="body">
+    <div class="periodbar">
+      <label class="r-note" for="period">Period</label>
+      <select id="period"></select>
+      <span class="r-note" id="periodNote"></span>
+    </div>
+
+    <div class="stats">
+      <div class="stat alloc"><span class="n" id="sAlloc">&mdash;</span><span class="k">Allocated</span></div>
+      <div class="stat paid"><span class="n" id="sPaid">&mdash;</span><span class="k">Paid out</span></div>
+      <div class="stat left"><span class="n" id="sLeft">&mdash;</span><span class="k">Still to draw</span></div>
+      <div class="stat"><span class="n" id="sBal">&mdash;</span><span class="k">Treasury</span></div>
+    </div>
+
+    <div class="short" id="shortfall" hidden></div>
+
+    <div class="section-head">
+      <h2 data-en="Recipients" data-am="ተቀባዮች">Recipients</h2>
+      <span class="meta" id="rMeta">&mdash;</span>
+    </div>
+    <div id="recipients"><p class="empty">Loading…</p></div>
+
+    <div class="section-head">
+      <h2 data-en="Payment archive" data-am="የክፍያ መዝገብ">Payment archive</h2>
+      <span class="meta" id="hMeta">&mdash;</span>
+    </div>
+    <div id="history"><p class="empty">Loading…</p></div>
+
+    <section class="admin" id="adminPanel" hidden>
+      <h2>Allocations</h2>
+      <p class="hint">
+        An allocation is a monthly cap, not an automatic payment. Setting one here
+        lets a treasurer pay it; nothing leaves the treasury until they do.
+      </p>
+      <div class="fields">
+        <div class="f">
+          <label for="aKind">Recipient type</label>
+          <select id="aKind">
+            <option value="person">Person</option>
+            <option value="town">Town</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="aId"><span id="aIdLabel">Discord user ID</span></label>
+          <input id="aId" placeholder="1234567890...">
+        </div>
+        <div class="f">
+          <label for="aLabel">Display name</label>
+          <input id="aLabel" placeholder="BugsBunny8907" maxlength="80">
+        </div>
+        <div class="f">
+          <label for="aAmount">Gold per month</label>
+          <input id="aAmount" inputmode="numeric" placeholder="200" style="min-width:6rem">
+        </div>
+        <button class="btn" type="button" id="saveAlloc">Save</button>
+      </div>
+      <p class="msg" id="adminMsg"></p>
+    </section>
+  </div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var gold = function(n){ return (n < 0 ? '-' : '') + Math.abs(n).toLocaleString('en-US') + 'g'; };
+
+var me = null, state = null, period = null, hPage = 1;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((data && data.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return data;
+}
+
+function applyLang(lang){
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang === 'am' ? 'am' : 'en');
+  document.querySelectorAll('[data-en]').forEach(function(el){
+    var t = el.getAttribute(lang === 'am' ? 'data-am' : 'data-en'); if (t) el.textContent = t; });
+  document.querySelectorAll('[data-set-lang]').forEach(function(b){
+    b.setAttribute('aria-pressed', String(b.getAttribute('data-set-lang') === lang)); });
+  try { localStorage.setItem('ethiopia-lang', lang); } catch (e) {}
+}
+document.querySelectorAll('[data-set-lang]').forEach(function(b){
+  b.addEventListener('click', function(){ applyLang(b.getAttribute('data-set-lang')); }); });
+try { if (localStorage.getItem('ethiopia-lang') === 'am') applyLang('am'); } catch (e) {}
+
+/* --- recipients ----------------------------------------------------------- */
+
+function renderRecipients(){
+  var host = $('recipients');
+  if (!state.recipients.length){
+    host.innerHTML = '<p class="empty">No allocations set for this period.</p>';
+    $('rMeta').textContent = '0 recipients';
+    return;
+  }
+
+  // Whoever still has money waiting comes first — that is the actionable list.
+  var order = state.recipients.slice().sort(function(a, b){
+    return (b.remaining > 0) - (a.remaining > 0) || b.remaining - a.remaining ||
+           a.label.localeCompare(b.label);
+  });
+
+  $('rMeta').textContent = order.length + (order.length === 1 ? ' recipient' : ' recipients');
+
+  host.innerHTML = '<div class="rlist">' + order.map(function(r){
+    var pct = r.allocated > 0 ? Math.min(100, Math.round((r.paid / r.allocated) * 100)) : 100;
+    var cls = 'r' + (r.remaining <= 0 ? ' done' : '') + (r.active ? '' : ' paused');
+    var acts = '';
+    if (state.canPay && r.active && r.remaining > 0){
+      acts += '<button class="btn" type="button" data-pay="' + esc(r.kind + '|' + r.recipientId) +
+        '" data-label="' + esc(r.label) + '" data-remaining="' + r.remaining + '">Pay ' +
+        gold(r.remaining) + '</button>';
+    }
+    if (state.canAllocate && r.id){
+      acts += '<button class="btn" type="button" data-edit="' + r.id + '">Edit</button>';
+      acts += '<button class="btn" type="button" data-toggle="' + r.id + '">' +
+        (r.active ? 'Pause' : 'Resume') + '</button>';
+    }
+    if (r.orphaned) acts += '<span class="warn">paid, but the allocation was removed</span>';
+    else if (!r.active) acts += '<span class="r-note">paused</span>';
+
+    return '<div class="' + cls + '">' +
+      '<div class="r-top"><span class="r-name">' + esc(r.label) + '</span>' +
+      '<span class="r-kind">' + esc(r.kind) + '</span>' +
+      '<span class="r-fig"><b>' + gold(r.paid) + '</b> of ' + gold(r.allocated) +
+      (r.remaining > 0 ? ' · ' + gold(r.remaining) + ' left' : '') + '</span></div>' +
+      '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+      (acts ? '<div class="r-acts">' + acts + '</div>' : '') +
+      (r.note ? '<div class="r-note" style="margin-top:.4rem">' + esc(r.note) + '</div>' : '') +
+      '</div>';
+  }).join('') + '</div>';
+
+  host.querySelectorAll('[data-pay]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var parts = b.dataset.pay.split('|');
+      var amt = prompt('Pay how much to ' + b.dataset.label + '?\n\n' +
+        'Leave as-is to pay the full remaining ' + gold(Number(b.dataset.remaining)) + '.',
+        b.dataset.remaining);
+      if (amt === null) return;
+      var n = parseInt(amt, 10);
+      if (!Number.isFinite(n) || n <= 0){ alert('That is not an amount of gold.'); return; }
+      try {
+        await api('/api/funding/pay', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ kind: parts[0], recipientId: parts[1], amount: n, period: period })
+        });
+        load();
+      } catch (e) { alert('Could not pay: ' + e.message); }
+    });
+  });
+
+  host.querySelectorAll('[data-edit]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var r = state.recipients.filter(function(x){ return String(x.id) === b.dataset.edit; })[0];
+      if (!r) return;
+      $('aKind').value = r.kind;
+      $('aId').value = r.recipientId;
+      $('aLabel').value = r.label;
+      $('aAmount').value = r.allocated;
+      syncKindLabel();
+      $('aId').focus();
+    });
+  });
+
+  host.querySelectorAll('[data-toggle]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var r = state.recipients.filter(function(x){ return String(x.id) === b.dataset.toggle; })[0];
+      if (!r) return;
+      try {
+        await api('/api/admin/funding/allocation', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ kind:r.kind, recipientId:r.recipientId, label:r.label,
+                                 amount:r.allocated, active: !r.active })
+        });
+        load();
+      } catch (e) { alert(e.message); }
+    });
+  });
+}
+
+/* --- archive -------------------------------------------------------------- */
+
+function renderHistory(h){
+  var host = $('history');
+  if (!h.payments.length){
+    host.innerHTML = '<p class="empty">No funding has been paid yet.</p>';
+    $('hMeta').textContent = '0 payments';
+    return;
+  }
+  $('hMeta').textContent = h.totalPayments + (h.totalPayments === 1 ? ' payment' : ' payments');
+
+  host.innerHTML = '<table><thead><tr><th>When</th><th>Period</th><th>Recipient</th>' +
+    '<th>Reason</th><th>Paid by</th><th style="text-align:right">Amount</th></tr></thead><tbody>' +
+    h.payments.map(function(p){
+      var d = new Date(p.at + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(p.at) ? '' : 'Z'));
+      var when = isNaN(d) ? esc(p.at)
+        : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + ' ' +
+          d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+      return '<tr><td class="when">' + when + '</td>' +
+        '<td class="when">' + esc(p.period) + '</td>' +
+        '<td>' + esc(p.label) + ' <span class="r-kind">' + esc(p.kind) + '</span></td>' +
+        '<td>' + esc(p.note || '') + '</td>' +
+        '<td class="who">' + esc(p.paidBy) + '</td>' +
+        '<td class="amt">-' + gold(p.amount) + '</td></tr>';
+    }).join('') + '</tbody></table>' +
+    '<div class="pager">' +
+      '<button class="btn" type="button" id="hPrev"' + (h.page <= 1 ? ' disabled' : '') + '>Previous</button>' +
+      '<button class="btn" type="button" id="hNext"' + (h.page >= h.totalPages ? ' disabled' : '') + '>Next</button>' +
+      '<span class="where">Page ' + h.page + ' of ' + h.totalPages + '</span></div>';
+
+  var p = $('hPrev'), n = $('hNext');
+  if (p) p.addEventListener('click', function(){ if (hPage > 1){ hPage--; loadHistory(); } });
+  if (n) n.addEventListener('click', function(){ if (hPage < h.totalPages){ hPage++; loadHistory(); } });
+}
+
+async function loadHistory(){
+  try { renderHistory(await api('/api/funding/history?page=' + hPage +
+    (period ? '&period=' + encodeURIComponent(period) : ''))); }
+  catch (e) { $('history').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }
+}
+
+/* --- admin ---------------------------------------------------------------- */
+
+function syncKindLabel(){
+  var person = $('aKind').value === 'person';
+  $('aIdLabel').textContent = person ? 'Discord user ID' : 'Town name';
+  $('aId').placeholder = person ? '1234567890...' : 'Addis';
+}
+
+function wireAdmin(){
+  $('adminPanel').hidden = false;
+  $('aKind').addEventListener('change', syncKindLabel);
+  syncKindLabel();
+
+  $('saveAlloc').addEventListener('click', async function(){
+    var msg = $('adminMsg');
+    try {
+      await api('/api/admin/funding/allocation', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          kind: $('aKind').value,
+          recipientId: $('aId').value.trim(),
+          label: $('aLabel').value.trim() || $('aId').value.trim(),
+          amount: Number($('aAmount').value)
+        })
+      });
+      msg.textContent = 'Allocation saved.'; msg.className = 'msg ok';
+      $('aId').value = ''; $('aLabel').value = ''; $('aAmount').value = '';
+      load();
+    } catch (e) { msg.textContent = e.message; msg.className = 'msg err'; }
+  });
+}
+
+/* --- auth ----------------------------------------------------------------- */
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/funding.html') + '">Sign in with Discord</a>';
+  }
+}
+
+/* --- load ----------------------------------------------------------------- */
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  renderAuth();
+
+  try {
+    state = await api('/api/funding' + (period ? '?period=' + encodeURIComponent(period) : ''));
+    period = state.period;
+
+    $('sAlloc').textContent = gold(state.totals.allocated);
+    $('sPaid').textContent = gold(state.totals.paid);
+    $('sLeft').textContent = gold(state.totals.remaining);
+    $('sBal').textContent = gold(state.balance);
+
+    // Knowing the month cannot be covered is more useful before the payments
+    // start than after they run the treasury dry.
+    var short = $('shortfall');
+    if (state.totals.remaining > state.balance){
+      short.hidden = false;
+      short.textContent = 'Paying every remaining allowance needs ' +
+        gold(state.totals.remaining) + ', but the treasury holds ' + gold(state.balance) +
+        ' — short by ' + gold(state.totals.remaining - state.balance) + '.';
+    } else { short.hidden = true; }
+
+    renderRecipients();
+    if (state.canAllocate && $('adminPanel').hidden) wireAdmin();
+    $('stamp').textContent = 'Live from the ledger';
+
+    await loadHistory();
+    await fillPeriods();
+  } catch (err) {
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 401 ? 'Sign in with Discord to view funding.'
+      : err.status === 503 ? 'Migration 007 has not been applied to the database yet.'
+      : 'Funding unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = err.status === 401 ? 'Not signed in' : 'Unavailable';
+  }
+}
+
+async function fillPeriods(){
+  var sel = $('period');
+  if (document.activeElement === sel) return;
+  var known = [];
+  try { known = (await api('/api/funding/history')).periods || []; } catch (e) {}
+  if (known.indexOf(period) === -1) known.unshift(period);
+  sel.innerHTML = known.map(function(p){
+    return '<option value="' + esc(p) + '"' + (p === period ? ' selected' : '') + '>' + esc(p) + '</option>';
+  }).join('');
+  $('periodNote').textContent = known.length > 1
+    ? 'Allowances reset at the start of each month.' : '';
+}
+
+$('period').addEventListener('change', function(){
+  period = $('period').value; hPage = 1; load();
+});
+
+load();
+</script>
+</body>
+</html>

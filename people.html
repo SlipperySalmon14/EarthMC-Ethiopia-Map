@@ -1,1 +1,365 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>People · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.6rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.2rem; margin-bottom:1.2rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+
+.counts{ display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1.1rem; }
+.count{ font-family:var(--data); font-size:.68rem; padding:.3rem .6rem;
+  background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:2px; color:var(--text-mid); }
+.count b{ color:var(--text); font-variant-numeric:tabular-nums; }
+.count.v{ --accent:var(--green); } .count.e{ --accent:var(--gold); }
+.count.u{ --accent:var(--red); } .count.b{ --accent:var(--red); }
+
+.tools{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; align-items:center; }
+.tools input, .tools select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.45rem .6rem; font-family:var(--data); font-size:.78rem; }
+.tools input{ flex:1 1 12rem; min-width:0; }
+.tools input:focus, .tools select:focus{ border-color:var(--gold); }
+
+.plist{ display:flex; flex-direction:column; gap:.4rem; }
+.p{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--state,var(--rule)); border-radius:3px; padding:.7rem .85rem; }
+.p.verified{ --state:var(--green); }
+.p.entered{ --state:var(--gold); }
+.p.unknown{ --state:var(--red-dim); }
+.p.open{ border-color:var(--gold); }
+.p-head{ display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; cursor:pointer; }
+.p-face{ width:24px; height:24px; border-radius:2px; image-rendering:pixelated;
+  background:var(--ink-high); flex:none; }
+.p-name{ font-family:var(--display); font-weight:600; font-size:var(--step-0); }
+.p-name.unnamed{ color:var(--text-low); font-style:italic; }
+.p-tag{ font-family:var(--data); font-size:.6rem; letter-spacing:.05em; text-transform:uppercase;
+  padding:.1rem .35rem; border:1px solid var(--rule); border-radius:2px; color:var(--text-low); }
+.p-tag.tier-manager{ color:var(--gold); border-color:var(--gold-dim); }
+.p-tag.tier-treasurer{ color:var(--green); border-color:var(--green-dim); }
+.p-tag.party{ color:var(--pc,var(--text-mid)); border-color:var(--pc,var(--rule)); }
+.p-tag.indep{ color:var(--text-mid); border-style:dashed; }
+.p-tag.ban{ color:var(--red); border-color:var(--red-dim); }
+.p-right{ margin-left:auto; font-family:var(--data); font-size:.68rem;
+  color:var(--text-low); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.p-body{ margin-top:.8rem; padding-top:.8rem; border-top:1px solid var(--rule); }
+.grid2{ display:grid; grid-template-columns:repeat(auto-fit,minmax(11rem,1fr)); gap:.7rem; margin-bottom:.9rem; }
+.kv{ font-family:var(--data); font-size:.7rem; }
+.kv dt{ color:var(--text-low); font-size:.62rem; letter-spacing:.05em; text-transform:uppercase; }
+.kv dd{ margin:.15rem 0 0; color:var(--text); }
+.fund{ display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem; margin-bottom:.9rem; }
+.fund div{ background:var(--ink); border:1px solid var(--rule-soft); border-radius:2px; padding:.45rem .55rem; }
+.fund .n{ font-family:var(--data); font-weight:600; font-size:.85rem; display:block;
+  font-variant-numeric:tabular-nums; }
+.fund .k{ font-family:var(--data); font-size:.58rem; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-low); }
+.fund .paid .n{ color:var(--green); } .fund .comm .n{ color:var(--gold); }
+.fields{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.4rem .5rem; font-family:var(--data); font-size:.75rem; min-width:8rem; }
+.f input:focus, .f select:focus{ border-color:var(--gold); }
+.f.wide{ flex:1 1 16rem; }
+.f.wide input{ width:100%; }
+.msg{ font-family:var(--data); font-size:.68rem; margin-top:.6rem; min-height:1em; }
+.msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1>People</h1>
+    <p class="sub">The register</p>
+  </header>
+
+  <div id="body">
+    <div class="counts" id="counts"></div>
+    <div class="tools">
+      <input id="q" placeholder="Search by name, Minecraft name or Discord ID" autocomplete="off">
+      <select id="fState">
+        <option value="">Everyone</option>
+        <option value="verified">Verified</option>
+        <option value="entered">Entered by an admin</option>
+        <option value="unknown">Never signed in</option>
+      </select>
+      <select id="fExtra">
+        <option value="">Any status</option>
+        <option value="nomc">No Minecraft name</option>
+        <option value="office">Holds an office</option>
+        <option value="rep">Representative</option>
+        <option value="party">In a party</option>
+        <option value="indep">Independent</option>
+        <option value="nopol">No politics recorded</option>
+        <option value="funded">Has an allowance</option>
+        <option value="ban">Blacklisted</option>
+      </select>
+    </div>
+    <div id="list"><p class="empty">Loading…</p></div>
+  </div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var gold = function(n){ return (Number(n) || 0).toLocaleString('en-US') + 'g'; };
+
+var me = null, data = null, parties = [], openId = null;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function matches(p){
+  var q = $('q').value.trim().toLowerCase();
+  if (q){
+    var hay = (p.discordName + ' ' + (p.mcName || '') + ' ' + p.discordId).toLowerCase();
+    if (hay.indexOf(q) === -1) return false;
+  }
+  var s = $('fState').value;
+  if (s && p.state !== s) return false;
+
+  switch ($('fExtra').value){
+    case 'nomc':   return !p.mcName;
+    case 'office': return p.offices.length > 0;
+    case 'rep':    return p.isRepresentative;
+    case 'party':  return !!p.party;
+    case 'indep':  return p.independent;
+    // The people nobody has recorded a politics for at all — distinct from
+    // those who have deliberately stood independent.
+    case 'nopol':  return !p.party && !p.independent;
+    case 'funded': return p.funding.allocated > 0;
+    case 'ban':    return !!p.blacklisted;
+    default:       return true;
+  }
+}
+
+function politicsTag(p){
+  if (p.party){
+    var c = p.party.colour ? ' style="--pc:' + esc(p.party.colour) + '"' : '';
+    return '<span class="p-tag party"' + c + '>' + esc(p.party.abbrev || p.party.name) + '</span>';
+  }
+  if (p.independent) return '<span class="p-tag indep">Independent</span>';
+  return '';
+}
+
+function row(p){
+  var face = p.mcName
+    ? '<img class="p-face" src="https://minotar.net/helm/' + encodeURIComponent(p.mcName) +
+      '/24.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+    : '<span class="p-face" aria-hidden="true"></span>';
+
+  var name = p.mcName
+    ? '<span class="p-name">' + esc(p.mcName) + '</span>'
+    : '<span class="p-name unnamed">' + esc(p.discordName) + '</span>';
+
+  var tags = '';
+  if (p.tier !== 'unverified' && p.tier !== 'citizen')
+    tags += '<span class="p-tag tier-' + esc(p.tier) + '">' + esc(p.tier) + '</span>';
+  p.offices.slice(0, 2).forEach(function(o){ tags += '<span class="p-tag">' + esc(o) + '</span>'; });
+  if (p.isRepresentative)
+    tags += '<span class="p-tag">Rep' + (p.region ? ' · ' + esc(p.region) : '') + '</span>';
+  tags += politicsTag(p);
+  if (p.blacklisted) tags += '<span class="p-tag ban">blacklisted</span>';
+
+  var right = p.state === 'unknown' ? 'never signed in'
+    : p.state === 'entered' ? 'entered by an admin'
+    : (p.funding.allocated ? gold(p.funding.paid) + ' of ' + gold(p.funding.allocated) : 'verified');
+
+  var open = openId === p.discordId;
+  var body = open ? detail(p) : '';
+
+  return '<div class="p ' + p.state + (open ? ' open' : '') + '" data-id="' + esc(p.discordId) + '">' +
+    '<div class="p-head" data-toggle="' + esc(p.discordId) + '">' + face + name + tags +
+    '<span class="p-right">' + esc(right) + '</span></div>' + body + '</div>';
+}
+
+function detail(p){
+  var f = p.funding;
+  var opts = '<option value="">— not recorded —</option>' +
+    '<option value="independent"' + (p.independent ? ' selected' : '') + '>Independent</option>' +
+    parties.map(function(x){
+      return '<option value="' + x.id + '"' +
+        (p.party && p.party.id === x.id ? ' selected' : '') + '>' + esc(x.name) + '</option>';
+    }).join('');
+
+  return '<div class="p-body">' +
+    '<div class="grid2">' +
+      '<dl class="kv"><dt>Discord</dt><dd>' + esc(p.discordName) + '</dd></dl>' +
+      '<dl class="kv"><dt>Discord ID</dt><dd>' + esc(p.discordId) + '</dd></dl>' +
+      '<dl class="kv"><dt>Tier</dt><dd>' + esc(p.tier) + '</dd></dl>' +
+      '<dl class="kv"><dt>Offices</dt><dd>' + (p.offices.length ? esc(p.offices.join(', ')) : '—') + '</dd></dl>' +
+      '<dl class="kv"><dt>Region</dt><dd>' + esc(p.region || '—') + '</dd></dl>' +
+      '<dl class="kv"><dt>Name set by</dt><dd>' + esc(p.mcNameSource || '—') + '</dd></dl>' +
+    '</div>' +
+    '<div class="fund">' +
+      '<div><span class="n">' + gold(f.allocated) + '</span><span class="k">Allowance</span></div>' +
+      '<div class="paid"><span class="n">' + gold(f.paid) + '</span><span class="k">Paid this month</span></div>' +
+      '<div class="comm"><span class="n">' + gold(f.committed) + '</span><span class="k">Approved, unpaid</span></div>' +
+      '<div><span class="n">' + gold(f.paidEver) + '</span><span class="k">Lifetime</span></div>' +
+    '</div>' +
+    (p.blacklisted
+      ? '<p class="msg err" style="margin:0 0 .8rem">Blacklisted: ' + esc(p.blacklisted) + '</p>' : '') +
+    '<div class="fields">' +
+      '<div class="f"><label>Minecraft name</label>' +
+        '<input data-mc="' + esc(p.discordId) + '" value="' + esc(p.mcName || '') + '" maxlength="16"></div>' +
+      '<div class="f"><label>Politics</label><select data-pol="' + esc(p.discordId) + '">' + opts + '</select></div>' +
+      '<div class="f wide"><label>Admin note</label>' +
+        '<input data-note="' + esc(p.discordId) + '" value="' + esc(p.note || '') + '" ' +
+        'placeholder="Anything worth remembering about this person" maxlength="1000"></div>' +
+      '<button class="btn" type="button" data-save="' + esc(p.discordId) + '">Save</button>' +
+    '</div>' +
+    '<p class="msg" data-msg="' + esc(p.discordId) + '"></p>' +
+  '</div>';
+}
+
+function render(){
+  var host = $('list');
+  var shown = data.people.filter(matches);
+
+  if (!shown.length){
+    host.innerHTML = '<p class="empty">Nobody matches those filters.</p>';
+    return;
+  }
+
+  // Anyone still missing a Minecraft name floats up — those are the rows that
+  // actually need someone to do something.
+  shown.sort(function(a, b){
+    return (!!a.mcName) - (!!b.mcName) ||
+           b.offices.length - a.offices.length ||
+           (a.mcName || a.discordName).localeCompare(b.mcName || b.discordName);
+  });
+
+  host.innerHTML = '<div class="plist">' + shown.map(row).join('') + '</div>';
+
+  host.querySelectorAll('[data-toggle]').forEach(function(el){
+    el.addEventListener('click', function(){
+      openId = openId === el.dataset.toggle ? null : el.dataset.toggle;
+      render();
+    });
+  });
+
+  host.querySelectorAll('[data-save]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var id = b.dataset.save;
+      var msg = host.querySelector('[data-msg="' + id + '"]');
+      var mc = host.querySelector('[data-mc="' + id + '"]').value.trim();
+      var pol = host.querySelector('[data-pol="' + id + '"]').value;
+      var note = host.querySelector('[data-note="' + id + '"]').value.trim();
+
+      try {
+        await api('/api/admin/member', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            discordId: id,
+            mcName: mc,
+            // Independent and a party are mutually exclusive, so exactly one of
+            // these is sent as set and the other as cleared.
+            independent: pol === 'independent',
+            partyId: pol === 'independent' || pol === '' ? null : Number(pol)
+          })
+        });
+        await api('/api/admin/people/note', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ discordId: id, note: note })
+        });
+        msg.textContent = 'Saved.'; msg.className = 'msg ok';
+        await load(true);
+      } catch (e){ msg.textContent = e.message; msg.className = 'msg err'; }
+    });
+  });
+}
+
+function renderCounts(){
+  var s = data.summary;
+  $('counts').innerHTML =
+    '<span class="count"><b>' + s.total + '</b> in the server</span>' +
+    '<span class="count v"><b>' + s.verified + '</b> verified</span>' +
+    '<span class="count e"><b>' + s.entered + '</b> entered by an admin</span>' +
+    '<span class="count u"><b>' + s.unknown + '</b> never signed in</span>' +
+    '<span class="count"><b>' + s.withMcName + '</b> with a Minecraft name</span>' +
+    '<span class="count"><b>' + s.inParty + '</b> in a party</span>' +
+    '<span class="count"><b>' + s.independents + '</b> independent</span>' +
+    '<span class="count"><b>' + s.funded + '</b> funded</span>' +
+    (s.blacklisted ? '<span class="count b"><b>' + s.blacklisted + '</b> blacklisted</span>' : '');
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/people.html') + '">Sign in with Discord</a>';
+  }
+}
+
+['q','fState','fExtra'].forEach(function(id){
+  $(id).addEventListener('input', function(){ if (data) render(); });
+  $(id).addEventListener('change', function(){ if (data) render(); });
+});
+
+async function load(quiet){
+  if (!quiet){
+    try { me = await api('/api/me'); } catch (e) { me = null; }
+    renderAuth();
+  }
+  try {
+    try { parties = (await api('/api/parties')).parties || []; } catch (e) { parties = []; }
+    data = await api('/api/admin/people');
+    renderCounts();
+    render();
+    $('stamp').textContent = 'Live from Discord roles';
+  } catch (err) {
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 401 ? 'Only Managers can view the register. Sign in with a Manager account.'
+      : err.status === 503 ? 'The bot token is not set on the Worker, so the roster cannot be read.'
+      : 'Register unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = 'Unavailable';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
 

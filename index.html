@@ -1,1 +1,438 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ethiopia · EarthMC</title>
+<meta name="description" content="The live map, the treasury, open work, and the record of who holds which office.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+
+<style>
+/* --- masthead ------------------------------------------------------------ */
+.masthead{ position: relative; padding: .5rem 0 1.4rem; }
+
+.topbar{
+  display: flex; align-items: center; gap: 1rem;
+  margin-bottom: 2.2rem; flex-wrap: wrap;
+}
+.provenance{
+  font-family: var(--data); font-size: var(--step--1);
+  letter-spacing: .09em; text-transform: uppercase; color: var(--text-low);
+}
+.provenance b{ color: var(--red); font-weight: 400; }
+.lang{ margin-left: auto; display: flex; gap: .3rem; }
+
+/* The rayed star from the flag's blue disc, as a watermark behind the title. */
+.emblem{
+  position: absolute; right: -1rem; top: -1.5rem;
+  width: clamp(150px, 25vw, 265px); height: auto;
+  opacity: .13; pointer-events: none; z-index: 0;
+}
+@media (max-width: 700px){ .emblem{ opacity: .08; right: -3rem; } }
+.masthead > *:not(.emblem){ position: relative; z-index: 1; }
+
+.title{
+  font-size: var(--step-3); font-weight: 600;
+  line-height: .95; margin: 0; letter-spacing: -.03em;
+}
+.title .am{ display: none; }
+html[data-lang="am"] .title .latin{ display: none; }
+html[data-lang="am"] .title .am{ display: inline; }
+
+.sub{
+  font-family: var(--data); font-size: var(--step--1);
+  letter-spacing: .15em; text-transform: uppercase;
+  color: var(--gold); margin: .6rem 0 0;
+}
+.standfirst{ max-width: 33rem; color: var(--text-mid); margin: 1rem 0 0; }
+
+/* --- open sections ------------------------------------------------------- */
+.grid{
+  display: grid; grid-template-columns: 1.45fr 1fr;
+  gap: .8rem; align-items: start; margin-top: 2.4rem;
+}
+@media (max-width: 840px){ .grid{ grid-template-columns: 1fr; } }
+.col{ display: grid; gap: .8rem; }
+
+.card{
+  display: block; text-decoration: none; color: inherit;
+  background: var(--ink-raised);
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--accent, var(--rule));
+  border-radius: 3px;
+  padding: 1.15rem 1.25rem 1.2rem;
+  transition: background .16s ease;
+}
+.card:hover{ background: var(--ink-high); }
+.card h2{ font-size: var(--step-1); margin: 0 0 .45rem; }
+.card--lead h2{ font-size: var(--step-2); }
+.card p{ color: var(--text-mid); margin: 0; }
+.card .go{
+  display: inline-block; margin-top: .95rem;
+  font-family: var(--data); font-size: var(--step--1); color: var(--accent);
+}
+.card .go::after{ content: ' \2192'; }
+
+/* The live figures sit INSIDE the map card, because that is where they come
+   from. The previous version had this card span two grid rows with nothing to
+   put in them, which is what made it read as a large empty box. */
+.figures{
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: .85rem 1.6rem;
+  margin-top: 1.2rem; padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+}
+.figure .n{
+  font-family: var(--data); font-size: var(--step-1); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text); display: block;
+  letter-spacing: -.02em;
+}
+.figure .n[data-pending]{ color: var(--text-low); font-weight: 400; }
+.figure .field{ display: block; margin-top: .15rem; }
+
+.status{
+  display: inline-flex; align-items: center; gap: .45rem;
+  margin-top: 1.1rem;
+  font-family: var(--data); font-size: var(--step--1);
+  letter-spacing: .07em; text-transform: uppercase; color: var(--text-low);
+}
+.status::before{
+  content: ''; width: .4rem; height: .4rem; border-radius: 50%;
+  background: var(--text-low);
+}
+.status[data-state="live"]{ color: var(--green); }
+.status[data-state="live"]::before{ background: var(--green); }
+
+/* --- pending ------------------------------------------------------------- */
+.band{
+  display: flex; align-items: baseline; gap: .6rem;
+  margin: 2.8rem 0 .2rem;
+}
+.band h2{ font-size: var(--step-1); }
+.band .note{
+  margin-left: auto; font-family: var(--data);
+  font-size: var(--step--1); color: var(--text-low);
+}
+.row{
+  display: flex; align-items: baseline; gap: .9rem;
+  padding: .8rem .1rem; border-bottom: 1px solid var(--rule-soft);
+  flex-wrap: wrap;
+}
+.row:first-of-type{ border-top: 1px solid var(--rule); }
+.row .name{
+  font-family: var(--display); font-weight: 600;
+  color: var(--text-mid); min-width: 8rem;
+}
+.row .desc{ color: var(--text-low); font-size: var(--step--1); flex: 1 1 12rem; }
+.row .blocked{
+  margin-left: auto; font-family: var(--data);
+  font-size: var(--step--1); color: var(--text-low); white-space: nowrap;
+}
+.row .blocked b{ color: var(--gold-dim); font-weight: 400; }
+
+footer{
+  margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  font-family: var(--data); font-size: var(--step--1); color: var(--text-low);
+}
+</style>
+</head>
+<body>
+
+<div class="flag-edge" aria-hidden="true"></div>
+
+<div class="shell">
+
+  <header class="masthead">
+
+    <svg class="emblem" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+      <circle cx="50" cy="50" r="46" fill="#17539e"/>
+      <g fill="#edb912">
+        <polygon points="50.00,20.00 56.74,40.73 78.53,40.73 60.90,53.54 67.63,74.27 50.00,61.46 32.37,74.27 39.10,53.54 21.47,40.73 43.26,40.73"/>
+        <path d="M48.50,17.03 L51.50,17.03 L51.04,4.01 L48.96,4.01 Z
+                 M80.89,38.39 L81.82,41.24 L94.06,36.78 L93.41,34.80 Z
+                 M70.59,75.79 L68.17,77.55 L76.19,87.82 L77.88,86.59 Z
+                 M31.83,77.55 L29.41,75.79 L22.12,86.59 L23.81,87.82 Z
+                 M18.18,41.24 L19.11,38.39 L6.59,34.80 L5.94,36.78 Z"/>
+      </g>
+    </svg>
+
+    <div class="topbar">
+      <span class="provenance">EarthMC &middot; <b>Terra Nostra</b></span>
+      <div class="lang" role="group" aria-label="Language">
+        <button class="btn" type="button" data-set-lang="en" aria-pressed="true">EN</button>
+        <button class="btn" type="button" data-set-lang="am" aria-pressed="false" lang="am">አማርኛ</button>
+      </div>
+      <span id="authSlot"></span>
+    </div>
+
+    <h1 class="title">
+      <span class="latin">Ethiopia</span><span class="am" lang="am">ኢትዮጵያ</span>
+    </h1>
+    <p class="sub" data-en="Republic and Empire" data-am="ሪፐብሊክና ንጉሠ ነገሥት">Republic and Empire</p>
+    <p class="standfirst"
+       data-en="The live map, the treasury, open work, and the record of who holds which office."
+       data-am="የቀጥታ ካርታ፣ ግምጃ ቤት፣ ክፍት ሥራ፣ እና ማን የትኛውን ሹመት እንደያዘ የሚያሳይ መዝገብ።">
+      The live map, the treasury, open work, and the record of who holds which office.
+    </p>
+  </header>
+
+  <div class="grid">
+
+    <a class="card card--lead" href="map.html" style="--accent: var(--gold)">
+      <h2 data-en="The map" data-am="ካርታ">The map</h2>
+      <p data-en="Every town and nation on the server, Ethiopia's regions and national claims, and the ice highway network with route planning."
+         data-am="በአገልጋዩ ላይ ያሉ ሁሉም ከተሞችና አገሮች፣ የኢትዮጵያ ክልሎችና ብሔራዊ ይዞታዎች፣ እንዲሁም የበረዶ አውራ ጎዳና መረብ።">
+        Every town and nation on the server, Ethiopia's regions and national
+        claims, and the ice highway network with route planning.
+      </p>
+
+      <div class="figures">
+        <div class="figure">
+          <span class="n" id="f-towns" data-pending>&mdash;</span>
+          <span class="field" data-en="Towns" data-am="ከተሞች">Towns</span>
+        </div>
+        <div class="figure">
+          <span class="n" id="f-residents" data-pending>&mdash;</span>
+          <span class="field" data-en="Residents" data-am="ነዋሪዎች">Residents</span>
+        </div>
+        <div class="figure">
+          <span class="n" id="f-chunks" data-pending>&mdash;</span>
+          <span class="field" data-en="Claimed chunks" data-am="የተያዙ ክፍሎች">Claimed chunks</span>
+        </div>
+        <div class="figure">
+          <span class="n" id="f-balance" data-pending>&mdash;</span>
+          <span class="field" data-en="National treasury" data-am="ብሔራዊ ግምጃ ቤት">National treasury</span>
+        </div>
+      </div>
+
+      <span class="status" id="status" data-state="loading">Loading</span>
+    </a>
+
+    <div class="col">
+      <a class="card" href="government.html" style="--accent: var(--red)">
+        <h2 data-en="Government" data-am="መንግሥት">Government</h2>
+        <p data-en="Both branches side by side — the Republic's elected offices and the Monarchy's crown and council — plus the House of Representatives and every election on the record."
+           data-am="ሁለቱም ቅርንጫፎች ጎን ለጎን — የሪፐብሊኩ የተመረጡ ሹመቶችና የንጉሠ ነገሥቱ ዘውድና ምክር ቤት — እንዲሁም የተወካዮች ምክር ቤት።">
+        Both branches side by side — the Republic's elected offices and the
+        Monarchy's crown and council — plus the House of Representatives and
+        every election on the record.
+        </p>
+        <span class="go" data-en="Open the record" data-am="መዝገቡን ክፈት">Open the record</span>
+      </a>
+
+      <a class="card" href="treasury.html" style="--accent: var(--green)">
+        <h2 data-en="Treasury" data-am="ግምጃ ቤት">Treasury</h2>
+        <p data-en="The national balance, where the gold came from and where it went, and every entry on the record."
+           data-am="ብሔራዊ ቀሪ ሂሳብ፣ ገንዘቡ ከየት እንደመጣና ወዴት እንደሄደ፣ እንዲሁም ሁሉም መዝገቦች።">
+        The national balance, where the gold came from and where it went, and
+        every entry on the record.
+        </p>
+        <span class="go" data-en="Open the ledger" data-am="መዝገቡን ክፈት">Open the ledger</span>
+      </a>
+
+      <a class="card" href="funding.html" style="--accent: var(--blue)">
+        <h2 data-en="Funding" data-am="የገንዘብ ድጋፍ">Funding</h2>
+        <p data-en="What each person and town may draw each month, and every payment on the record."
+           data-am="እያንዳንዱ ሰውና ከተማ በየወሩ የሚወስደው መጠን፣ እና ሁሉም ክፍያዎች።">
+        What each person and town may draw each month, and every payment on the record.
+        </p>
+        <span class="go" data-en="Open funding" data-am="ክፈት">Open funding</span>
+      </a>
+
+      <a class="card" href="donations.html" style="--accent: var(--gold)">
+        <h2 data-en="Donations" data-am="ልገሳዎች">Donations</h2>
+        <p data-en="Everyone who has given gold to the national treasury, and what they gave."
+           data-am="ለብሔራዊ ግምጃ ቤት ወርቅ የሰጡ ሁሉ።">
+        Everyone who has given gold to the national treasury, and what they gave.
+        </p>
+        <span class="go" data-en="See the leaderboard" data-am="ደረጃውን ተመልከት">See the leaderboard</span>
+      </a>
+
+      <a class="card" href="map.html" style="--accent: var(--text-low)">
+        <h2 data-en="Nation information" data-am="የሀገር መረጃ">Nation information</h2>
+        <p data-en="Population, claimed land, town banks and the national economy, straight from the server."
+           data-am="የሕዝብ ብዛት፣ የተያዘ መሬት፣ የከተማ ባንኮችና ብሔራዊ ኢኮኖሚ።">
+        Population, claimed land, town banks and the national economy, straight
+        from the server.
+        </p>
+        <span class="go" data-en="See the figures" data-am="አኃዞቹን ተመልከት">See the figures</span>
+      </a>
+    </div>
+  </div>
+
+  <div id="adminStrip" hidden>
+    <div class="band">
+      <h2>Admin</h2>
+      <span class="note">Managers only</span>
+    </div>
+    <div class="row">
+      <span class="name">People</span>
+      <span class="desc">Everyone in the server — verify, name, party, notes, funding</span>
+      <a class="blocked" href="people.html" style="color:var(--gold)">open &#8594;</a>
+    </div>
+    <div class="row">
+      <span class="name">Government</span>
+      <span class="desc">Offices, parties, regions and House seats</span>
+      <a class="blocked" href="government.html" style="color:var(--gold)">open &#8594;</a>
+    </div>
+    <div class="row">
+      <span class="name">Funding</span>
+      <span class="desc">Allowances, requests and the payment archive</span>
+      <a class="blocked" href="funding.html" style="color:var(--gold)">open &#8594;</a>
+    </div>
+  </div>
+
+  <div class="band">
+    <h2 data-en="Not open yet" data-am="ገና አልተከፈተም">Not open yet</h2>
+    <span class="note" data-en="3 sections" data-am="3 ክፍሎች">3 sections</span>
+  </div>
+
+  <div class="row">
+    <span class="name" data-en="Job board" data-am="ሥራ">Job board</span>
+    <span class="desc" data-en="Open EMC Services work — what each job pays"
+          data-am="ክፍት ሥራዎችና ክፍያቸው">Open EMC Services work — what each job pays</span>
+    <span class="blocked">needs <b>the ledger</b></span>
+  </div>
+  <div class="row">
+    <span class="name" data-en="Account" data-am="ሒሳብ">Account</span>
+    <span class="desc" data-en="Link your Discord and Minecraft names once"
+          data-am="ዲስኮርድና ማይንክራፍት ስምህን አገናኝ">Link your Discord and Minecraft names once</span>
+    <span class="blocked">needs <b>Discord sign-in</b></span>
+  </div>
+  <div class="row">
+    <span class="name" data-en="Shop" data-am="ሱቅ">Shop</span>
+    <span class="desc" data-en="Stock by row, best sellers, low-stock alerts"
+          data-am="የሱቅ ክምችትና ሽያጭ">Stock by row, best sellers, low-stock alerts</span>
+    <span class="blocked">needs <b>the shop API key</b></span>
+  </div>
+
+  <footer>
+    <span>Ethiopia</span>
+    <span id="stamp">&nbsp;</span>
+  </footer>
+</div>
+
+<script>
+'use strict';
+
+/* --- language ------------------------------------------------------------
+   English is the default, because that is what the nation actually speaks.
+   Amharic is there for anyone who wants it, and the choice is remembered. */
+
+function applyLang(lang){
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang === 'am' ? 'am' : 'en');
+
+  document.querySelectorAll('[data-en]').forEach(function(el){
+    var t = el.getAttribute(lang === 'am' ? 'data-am' : 'data-en');
+    if (t) el.textContent = t;
+  });
+  document.querySelectorAll('[data-set-lang]').forEach(function(b){
+    b.setAttribute('aria-pressed', String(b.getAttribute('data-set-lang') === lang));
+  });
+  try { localStorage.setItem('ethiopia-lang', lang); } catch (e) { /* private mode */ }
+}
+
+document.querySelectorAll('[data-set-lang]').forEach(function(b){
+  b.addEventListener('click', function(){ applyLang(b.getAttribute('data-set-lang')); });
+});
+
+try {
+  if (localStorage.getItem('ethiopia-lang') === 'am') applyLang('am');
+} catch (e) { /* no stored preference available */ }
+
+/* --- sign in -------------------------------------------------------------
+   Signing in is how the site learns your Discord roles, which is what decides
+   what you can see. There is nothing to fill in: the roles you already hold in
+   the server are the whole of it. */
+
+function renderAuth(me){
+  // The admin strip is a convenience, not a security boundary — every page it
+  // links to checks the caller's tier server-side. Hiding it just keeps the
+  // hub uncluttered for everyone else.
+  var strip = document.getElementById('adminStrip');
+  if (strip) strip.hidden = !(me && me.signedIn && me.tier === 'manager');
+
+  var slot = document.getElementById('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      (me.discordName || 'Signed in') + ' \u00b7 ' + me.tier + '</button>';
+    document.getElementById('signout').addEventListener('click', async function(){
+      try {
+        await fetch(PROXY + '/api/auth/logout', { method:'POST', credentials:'include' });
+      } catch (e) { /* signing out locally regardless */ }
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + PROXY +
+      '/api/auth/login?redirect=' + encodeURIComponent('/index.html') +
+      '" data-en="Sign in with Discord" data-am="በዲስኮርድ ግባ">Sign in with Discord</a>';
+  }
+}
+
+async function loadAuth(){
+  try {
+    var res = await fetch(PROXY + '/api/me', { credentials:'include' });
+    renderAuth(res.ok ? await res.json() : null);
+  } catch (e) { renderAuth(null); }
+}
+
+/* --- live figures --------------------------------------------------------
+   v4 is served from api.earthmc.net/v4 with no map name in the path. An
+   earlier version of this file requested /v4/aurora/nations and got a 404.
+
+   The template limits the response to name and stats. Without it the server
+   also returns every resident and every town in the nation — a large payload
+   to move in order to show four numbers. */
+
+var PROXY = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+
+function put(id, value, suffix){
+  var el = document.getElementById(id);
+  if (!el || typeof value !== 'number') return;
+  el.textContent = value.toLocaleString('en-US') + (suffix || '');
+  el.removeAttribute('data-pending');
+}
+
+async function loadFigures(){
+  var status = document.getElementById('status');
+  try{
+    var res = await fetch(PROXY + '/?url=' + encodeURIComponent('https://api.earthmc.net/v4/nations'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: ['Ethiopia'], template: { name: true, stats: true } })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    var data = await res.json();
+    var nation = Array.isArray(data) ? data[0] : null;
+    if (!nation || !nation.stats) throw new Error('no nation data');
+
+    var s = nation.stats;
+    put('f-towns', s.numTowns);
+    put('f-residents', s.numResidents);
+    put('f-chunks', s.numTownBlocks);
+    put('f-balance', s.balance, 'g');
+
+    status.textContent = 'Live from the server';
+    status.setAttribute('data-state', 'live');
+    document.getElementById('stamp').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  } catch (err){
+    status.textContent = 'Server figures unavailable';
+    status.setAttribute('data-state', 'offline');
+    document.getElementById('stamp').textContent = 'Live figures offline (' + err.message + ')';
+  }
+}
+
+loadFigures();
+loadAuth();
+</script>
+</body>
+</html>
 

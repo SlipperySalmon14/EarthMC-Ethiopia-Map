@@ -1,1 +1,395 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Donations · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.6rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.2rem; margin-bottom:1.4rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+.masthead p{ color:var(--text-mid); margin:.9rem 0 0; max-width:36rem; }
+
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin-bottom:1.6rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; letter-spacing:-.02em; }
+.stat .k{ font-family:var(--data); font-size:.66rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.g{ --accent:var(--green); } .stat.g .n{ color:var(--green); }
+.stat.w{ --accent:var(--red); } .stat.w .n{ color:var(--red); }
+
+.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+.board{ display:flex; flex-direction:column; gap:.45rem; }
+.d{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px;
+  padding:.75rem .9rem; }
+.d.top1{ border-color:var(--gold); border-left:3px solid var(--gold); }
+.d.top2{ border-left:3px solid #c7ccd1; }
+.d.top3{ border-left:3px solid #b0762f; }
+.d.open{ border-color:var(--gold); }
+.d-head{ display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; cursor:pointer; }
+.rank{ font-family:var(--data); font-weight:600; font-size:.95rem; color:var(--text-low);
+  min-width:1.9rem; font-variant-numeric:tabular-nums; }
+.d.top1 .rank{ color:var(--gold); }
+.face{ width:30px; height:30px; border-radius:2px; image-rendering:pixelated;
+  background:var(--ink-high); flex:none; }
+.who{ font-family:var(--display); font-weight:600; font-size:var(--step-0); }
+.who.unnamed{ color:var(--text-low); font-style:italic; }
+.gifts{ font-family:var(--data); font-size:.62rem; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--text-low); border:1px solid var(--rule); border-radius:2px; padding:.1rem .35rem; }
+.amount{ margin-left:auto; font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; color:var(--green); white-space:nowrap; }
+.d-body{ margin-top:.8rem; padding-top:.8rem; border-top:1px solid var(--rule); }
+.hrow{ display:flex; align-items:baseline; gap:.7rem; padding:.45rem .1rem;
+  border-bottom:1px solid var(--rule-soft); font-family:var(--data); font-size:.72rem; flex-wrap:wrap; }
+.hrow:last-child{ border-bottom:none; }
+.hrow .hnote{ color:var(--text-mid); flex:1 1 10rem; }
+.hrow .hwhen{ color:var(--text-low); font-size:.66rem; white-space:nowrap; }
+.hrow .hamt{ margin-left:auto; color:var(--green); font-variant-numeric:tabular-nums; font-weight:600; }
+.hrow .hacts{ display:flex; gap:.3rem; }
+.hrow .btn{ padding:.2rem .45rem; font-size:.62rem; }
+
+.loose{ display:flex; align-items:center; gap:.7rem; padding:.6rem .8rem; flex-wrap:wrap;
+  background:var(--ink-raised); border:1px solid var(--rule); border-left:3px solid var(--gold);
+  border-radius:3px; margin-bottom:.4rem; }
+.loose .lamt{ font-family:var(--data); font-weight:600; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.loose .lnote{ font-family:var(--data); font-size:.7rem; color:var(--text-mid); flex:1 1 8rem; }
+.loose .lwhen{ font-family:var(--data); font-size:.64rem; color:var(--text-low); }
+
+.admin{ margin-top:2.2rem; border:1px dashed var(--rule); border-radius:3px;
+  padding:1.1rem 1.2rem; background:var(--ink-raised); }
+.admin h2{ font-size:var(--step-1); margin-bottom:.2rem; }
+.admin .hint{ color:var(--text-low); font-size:var(--step--1); margin:0 0 1rem; }
+.fields{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.64rem; color:var(--text-low); letter-spacing:.05em; }
+.f input{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--data); font-size:.78rem; min-width:9rem; }
+.f input:focus{ border-color:var(--gold); }
+.msg{ font-family:var(--data); font-size:var(--step--1); margin-top:.7rem; min-height:1.2em; }
+.msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; <span data-en="Ecosystem" data-am="ሥርዓት">Ecosystem</span></a>
+    <span class="spacer"></span>
+    <div class="lang" role="group" aria-label="Language">
+      <button class="btn" type="button" data-set-lang="en" aria-pressed="true">EN</button>
+      <button class="btn" type="button" data-set-lang="am" aria-pressed="false" lang="am">አማርኛ</button>
+    </div>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-en="Donations" data-am="ልገሳዎች">Donations</h1>
+    <p class="sub" data-en="With thanks" data-am="ምስጋና">With thanks</p>
+    <p data-en="Everyone who has given gold to the national treasury, and what they gave."
+       data-am="ለብሔራዊ ግምጃ ቤት ወርቅ የሰጡ ሁሉ።">
+      Everyone who has given gold to the national treasury, and what they gave.
+    </p>
+  </header>
+
+  <div id="body">
+    <div class="stats">
+      <div class="stat g"><span class="n" id="sTotal">&mdash;</span><span class="k">Given in total</span></div>
+      <div class="stat"><span class="n" id="sDonors">&mdash;</span><span class="k">Donors</span></div>
+      <div class="stat"><span class="n" id="sGifts">&mdash;</span><span class="k">Separate gifts</span></div>
+      <div class="stat w" id="sLooseWrap" hidden>
+        <span class="n" id="sLoose">&mdash;</span><span class="k">Not yet credited</span></div>
+    </div>
+
+    <div class="section-head">
+      <h2 data-en="Leaderboard" data-am="ደረጃ">Leaderboard</h2>
+      <span class="meta" id="bMeta">&mdash;</span>
+    </div>
+    <div id="board"><p class="empty">Loading…</p></div>
+
+    <div id="looseWrap" hidden>
+      <div class="section-head">
+        <h2>Deposits with no donor</h2>
+        <span class="meta" id="lMeta"></span>
+      </div>
+      <p class="empty" style="text-align:left;margin-bottom:.7rem">
+        Gold that arrived in the treasury without anyone recorded as having given it.
+        A treasurer can credit each one to whoever it came from.
+      </p>
+      <div id="looseList"></div>
+    </div>
+
+    <section class="admin" id="adminPanel" hidden>
+      <h2>Record a donation</h2>
+      <p class="hint">
+        This adds the gold to the ledger as well, so use it for a donation that has
+        not been booked yet. If it is already in the treasury, credit it from the
+        list above instead — that way the amount comes from the ledger and cannot
+        be wrong.
+      </p>
+      <div class="fields">
+        <div class="f"><label for="aId">Donor's Discord user ID</label>
+          <input id="aId" placeholder="1234567890..."></div>
+        <div class="f"><label for="aLabel">Name to show</label>
+          <input id="aLabel" placeholder="BugsBunny8907" maxlength="80"></div>
+        <div class="f"><label for="aAmount">Gold</label>
+          <input id="aAmount" inputmode="numeric" placeholder="1000" style="min-width:6rem"></div>
+        <div class="f" style="flex:1 1 14rem"><label for="aNote">What it was for</label>
+          <input id="aNote" placeholder="optional" maxlength="300" style="width:100%"></div>
+        <button class="btn" type="button" id="saveDon">Record</button>
+      </div>
+      <p class="msg" id="adminMsg"></p>
+    </section>
+  </div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var gold = function(n){ return (Number(n) || 0).toLocaleString('en-US') + 'g'; };
+var when = function(s){
+  if (!s) return '';
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? s : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
+};
+
+var me = null, data = null, openDonor = null, history = {};
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function applyLang(lang){
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang === 'am' ? 'am' : 'en');
+  document.querySelectorAll('[data-en]').forEach(function(el){
+    var t = el.getAttribute(lang === 'am' ? 'data-am' : 'data-en'); if (t) el.textContent = t; });
+  document.querySelectorAll('[data-set-lang]').forEach(function(b){
+    b.setAttribute('aria-pressed', String(b.getAttribute('data-set-lang') === lang)); });
+  try { localStorage.setItem('ethiopia-lang', lang); } catch (e) {}
+}
+document.querySelectorAll('[data-set-lang]').forEach(function(b){
+  b.addEventListener('click', function(){ applyLang(b.getAttribute('data-set-lang')); }); });
+try { if (localStorage.getItem('ethiopia-lang') === 'am') applyLang('am'); } catch (e) {}
+
+/* --- leaderboard ---------------------------------------------------------- */
+
+function donorRow(r){
+  var face = r.mcName
+    ? '<img class="face" src="https://minotar.net/helm/' + encodeURIComponent(r.mcName) +
+      '/30.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+    : '<span class="face" aria-hidden="true"></span>';
+
+  // Falls back to the Discord name so a donor is never a bare ID on screen.
+  var name = r.mcName
+    ? '<span class="who">' + esc(r.mcName) + '</span>'
+    : '<span class="who unnamed">' + esc(r.discordName || r.label) + '</span>';
+
+  var open = openDonor === r.donorId;
+  var medal = r.rank <= 3 ? ' top' + r.rank : '';
+
+  return '<div class="d' + medal + (open ? ' open' : '') + '">' +
+    '<div class="d-head" data-donor="' + esc(r.donorId) + '">' +
+      '<span class="rank">' + r.rank + '</span>' + face + name +
+      '<span class="gifts">' + r.gifts + (r.gifts === 1 ? ' gift' : ' gifts') + '</span>' +
+      '<span class="amount">' + gold(r.total) + '</span>' +
+    '</div>' +
+    (open ? '<div class="d-body" id="hist-' + esc(r.donorId) + '">Loading…</div>' : '') +
+  '</div>';
+}
+
+function renderBoard(){
+  var host = $('board');
+  if (!data.leaderboard.length){
+    host.innerHTML = '<p class="empty">No donations recorded yet.</p>';
+    $('bMeta').textContent = '';
+    return;
+  }
+  $('bMeta').textContent = data.leaderboard.length +
+    (data.leaderboard.length === 1 ? ' donor' : ' donors');
+  host.innerHTML = '<div class="board">' + data.leaderboard.map(donorRow).join('') + '</div>';
+
+  host.querySelectorAll('[data-donor]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var id = el.dataset.donor;
+      openDonor = openDonor === id ? null : id;
+      renderBoard();
+      if (openDonor) loadHistory(openDonor);
+    });
+  });
+}
+
+async function loadHistory(donorId){
+  var host = $('hist-' + donorId);
+  if (!host) return;
+  try {
+    var h = await api('/api/donations/history?donor=' + encodeURIComponent(donorId));
+    history[donorId] = h;
+    host.innerHTML = h.donations.map(function(d){
+      var acts = h.canEdit
+        ? '<span class="hacts">' +
+          '<button class="btn" type="button" data-del="' + d.id + '">Remove</button></span>'
+        : '';
+      return '<div class="hrow">' +
+        '<span class="hwhen">' + esc(when(d.at)) + '</span>' +
+        '<span class="hnote">' + esc(d.note || '—') + '</span>' +
+        '<span class="hamt">' + gold(d.amount) + '</span>' + acts + '</div>';
+    }).join('') || '<p class="empty">No gifts on record.</p>';
+
+    host.querySelectorAll('[data-del]').forEach(function(b){
+      b.addEventListener('click', async function(e){
+        e.stopPropagation();
+        if (!confirm('Remove this donation from the record?\n\n' +
+          'The gold stays in the treasury — this only removes who it was credited to, ' +
+          'and the deposit returns to the uncredited list.')) return;
+        try {
+          await api('/api/admin/donations?id=' + b.dataset.del, { method:'DELETE' });
+          load();
+        } catch (err){ alert(err.message); }
+      });
+    });
+  } catch (e){ host.innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }
+}
+
+/* --- uncredited deposits -------------------------------------------------- */
+
+function renderLoose(){
+  var wrap = $('looseWrap');
+  if (!data.unattributed.length){ wrap.hidden = true; return; }
+  wrap.hidden = false;
+  $('lMeta').textContent = gold(data.totals.unattributed) + ' across ' +
+    data.unattributed.length + (data.unattributed.length === 1 ? ' deposit' : ' deposits');
+
+  $('looseList').innerHTML = data.unattributed.map(function(u){
+    var act = data.canEdit
+      ? '<button class="btn" type="button" data-claim="' + u.ledgerId +
+        '" data-amount="' + u.amount + '">Credit someone</button>'
+      : '';
+    return '<div class="loose">' +
+      '<span class="lamt">' + gold(u.amount) + '</span>' +
+      '<span class="lnote">' + esc(u.note || 'no reason given') + '</span>' +
+      '<span class="lwhen">' + esc(when(u.at)) + ' · by ' + esc(u.recordedBy) + '</span>' +
+      act + '</div>';
+  }).join('');
+
+  $('looseList').querySelectorAll('[data-claim]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var id = prompt('Who gave this ' + gold(Number(b.dataset.amount)) + '?\n\n' +
+        "Enter their Discord user ID. The amount is taken from the ledger, so it cannot be wrong.");
+      if (!id) return;
+      var label = prompt('Name to show on the leaderboard (optional)') || '';
+      try {
+        await api('/api/admin/donations', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ discordId: id.trim(), label: label.trim(),
+                                 ledgerId: Number(b.dataset.claim) })
+        });
+        load();
+      } catch (e){ alert('Could not credit that: ' + e.message); }
+    });
+  });
+}
+
+/* --- admin ---------------------------------------------------------------- */
+
+function wireAdmin(){
+  $('adminPanel').hidden = false;
+  $('saveDon').addEventListener('click', async function(){
+    var msg = $('adminMsg');
+    try {
+      await api('/api/admin/donations', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          discordId: $('aId').value.trim(),
+          label: $('aLabel').value.trim() || $('aId').value.trim(),
+          amount: Number($('aAmount').value),
+          note: $('aNote').value.trim() || null
+        })
+      });
+      msg.textContent = 'Recorded, and added to the treasury.'; msg.className = 'msg ok';
+      $('aId').value = ''; $('aLabel').value = ''; $('aAmount').value = ''; $('aNote').value = '';
+      load();
+    } catch (e){ msg.textContent = e.message; msg.className = 'msg err'; }
+  });
+}
+
+/* --- auth ----------------------------------------------------------------- */
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/donations.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  renderAuth();
+  try {
+    data = await api('/api/donations');
+    $('sTotal').textContent = gold(data.totals.donated);
+    $('sDonors').textContent = data.totals.donors;
+    $('sGifts').textContent = data.totals.gifts;
+    if (data.totals.unattributed){
+      $('sLooseWrap').hidden = false;
+      $('sLoose').textContent = gold(data.totals.unattributed);
+    } else { $('sLooseWrap').hidden = true; }
+
+    renderBoard();
+    renderLoose();
+    if (openDonor) loadHistory(openDonor);
+    if (data.canEdit && $('adminPanel').hidden) wireAdmin();
+    $('stamp').textContent = 'Every total backed by the ledger';
+  } catch (err){
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 401 ? 'Sign in with Discord to see the donation record.'
+      : err.status === 503 ? 'Migration 010 has not been applied to the database yet.'
+      : 'Donations unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = err.status === 401 ? 'Not signed in' : 'Unavailable';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
 

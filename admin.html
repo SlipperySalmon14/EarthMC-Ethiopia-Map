@@ -1,1 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.4rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+
+.tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); gap:.7rem; margin-bottom:1.6rem; }
+.tile{ display:block; text-decoration:none; color:inherit; background:var(--ink-raised);
+  border:1px solid var(--rule); border-top:2px solid var(--accent,var(--gold));
+  border-radius:3px; padding:.95rem 1.05rem; transition:background .16s ease; }
+.tile:hover{ background:var(--ink-high); }
+.tile h3{ font-family:var(--display); font-weight:600; font-size:var(--step-0); margin:0 0 .3rem; }
+.tile p{ color:var(--text-mid); font-size:var(--step--1); margin:0; }
+.tile .go{ display:block; margin-top:.6rem; font-family:var(--data); font-size:.66rem;
+  color:var(--accent,var(--gold)); }
+.tile.people{ --accent:var(--green); } .tile.gov{ --accent:var(--red); }
+.tile.money{ --accent:var(--gold); } .tile.jobs{ --accent:var(--green); }
+.tile.don{ --accent:var(--gold); } .tile.map{ --accent:var(--blue); }
+
+.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+.pagepick{ display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:1rem; }
+.pp{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem; background:var(--ink-raised);
+  border:1px solid var(--rule); border-radius:2px; color:var(--text-mid); cursor:pointer; }
+.pp:hover{ border-color:var(--gold-dim); color:var(--text); }
+.pp.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+
+.slot{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px;
+  padding:.8rem .95rem; margin-bottom:.5rem; }
+.slot-name{ font-family:var(--data); font-size:.64rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); margin-bottom:.5rem; display:flex; gap:.5rem; align-items:baseline; }
+.slot-name .orig{ color:var(--text-mid); text-transform:none; letter-spacing:0; font-size:.68rem; }
+.slot .fields{ display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; flex:1 1 14rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
+.f input{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--body); font-size:.82rem; width:100%; }
+.f input:focus{ border-color:var(--gold); }
+.slot .acts{ display:flex; gap:.35rem; }
+.slot .btn{ padding:.34rem .6rem; font-size:.7rem; }
+.msg{ font-family:var(--data); font-size:.68rem; margin-top:.5rem; min-height:1em; }
+.msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title">Admin</h1>
+    <p class="sub" data-slot="subtitle">Everything in one place</p>
+  </header>
+
+  <div id="body">
+    <div class="tiles">
+      <a class="tile people" href="people.html">
+        <h3>People</h3>
+        <p>Everyone in the server and in the nation. Names, parties, notes, funding.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile gov" href="government.html">
+        <h3>Government</h3>
+        <p>Offices, parties, regions and House seats.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile money" href="treasury.html">
+        <h3>Treasury</h3>
+        <p>The ledger, reconciliation against the nation bank.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile money" href="funding.html">
+        <h3>Funding</h3>
+        <p>Allowances, requests and the payment archive.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile don" href="donations.html">
+        <h3>Donations</h3>
+        <p>Credit deposits to donors and edit the leaderboard.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile jobs" href="jobs.html">
+        <h3>Job board</h3>
+        <p>Post work, set rates, and the EMC Services bank.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile people" href="account.html">
+        <h3>Accounts</h3>
+        <p>One person's full record — look anyone up by Discord ID.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile map" href="map.html">
+        <h3>Map</h3>
+        <p>Regions, ice highways and nation borders.</p>
+        <span class="go">Open &#8594;</span></a>
+    </div>
+
+    <div class="section-head">
+      <h2>Page wording</h2>
+      <span class="meta">Blank a field to restore the original</span>
+    </div>
+    <div class="pagepick" id="pagepick"></div>
+    <div id="slots"><p class="empty">Pick a page.</p></div>
+  </div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+
+// What each page ships with, so the editor can show the original beside the
+// override and an admin knows what "blank to restore" restores to.
+var PAGES = {
+  index:      { label:'Home',       slots:{ title:'Ethiopia', subtitle:'Republic and Empire',
+                intro:'The live map, the treasury, open work, and the record of who holds which office.' } },
+  government: { label:'Government', slots:{ title:'Government', subtitle:'Offices of State' } },
+  treasury:   { label:'Treasury',   slots:{ title:'Treasury', subtitle:'The national ledger' } },
+  funding:    { label:'Funding',    slots:{ title:'Funding', subtitle:'Monthly allowances' } },
+  donations:  { label:'Donations',  slots:{ title:'Donations', subtitle:'With thanks' } },
+  jobs:       { label:'Job board',  slots:{ title:'Job board', subtitle:'EMC Services' } },
+  people:     { label:'People',     slots:{ title:'People', subtitle:'The register' } },
+  admin:      { label:'Admin',      slots:{ title:'Admin', subtitle:'Everything in one place' } },
+  account:    { label:'Account',    slots:{ title:'Account', subtitle:'Your record' } },
+};
+
+var me = null, current = 'index', text = {};
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function renderPicker(){
+  $('pagepick').innerHTML = Object.keys(PAGES).map(function(p){
+    var edited = text[p] && Object.keys(text[p]).length;
+    return '<span class="pp' + (current === p ? ' on' : '') + '" data-p="' + p + '">' +
+      esc(PAGES[p].label) + (edited ? ' \u00b7 edited' : '') + '</span>';
+  }).join('');
+  $('pagepick').querySelectorAll('[data-p]').forEach(function(el){
+    el.addEventListener('click', function(){ current = el.dataset.p; renderPicker(); renderSlots(); });
+  });
+}
+
+function renderSlots(){
+  var page = PAGES[current];
+  var saved = text[current] || {};
+  $('slots').innerHTML = Object.keys(page.slots).map(function(slot){
+    var o = saved[slot] || {};
+    return '<div class="slot" data-slot="' + esc(slot) + '">' +
+      '<div class="slot-name">' + esc(slot) +
+        '<span class="orig">originally: ' + esc(page.slots[slot]) + '</span></div>' +
+      '<div class="fields">' +
+        '<div class="f"><label>English</label>' +
+          '<input data-en value="' + esc(o.en || '') + '" placeholder="' +
+          esc(page.slots[slot]) + '" maxlength="2000"></div>' +
+        '<div class="f"><label>Amharic</label>' +
+          '<input data-am value="' + esc(o.am || '') + '" placeholder="leave blank to use English" ' +
+          'lang="am" maxlength="2000"></div>' +
+        '<span class="acts"><button class="btn" type="button" data-save>Save</button>' +
+        (o.en || o.am ? '<button class="btn" type="button" data-clear>Restore</button>' : '') +
+        '</span>' +
+      '</div><p class="msg"></p></div>';
+  }).join('');
+
+  $('slots').querySelectorAll('.slot').forEach(function(box){
+    var slot = box.dataset.slot;
+    var msg = box.querySelector('.msg');
+
+    box.querySelector('[data-save]').addEventListener('click', async function(){
+      try {
+        await api('/api/admin/page-text', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ page: current, slot: slot,
+            en: box.querySelector('[data-en]').value.trim(),
+            am: box.querySelector('[data-am]').value.trim() })
+        });
+        msg.textContent = 'Saved. The page shows it on next load.';
+        msg.className = 'msg ok';
+        load(true);
+      } catch (e){ msg.textContent = e.message; msg.className = 'msg err'; }
+    });
+
+    var clear = box.querySelector('[data-clear]');
+    if (clear) clear.addEventListener('click', async function(){
+      try {
+        await api('/api/admin/page-text', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ page: current, slot: slot, en: '', am: '' })
+        });
+        msg.textContent = 'Restored to the original wording.'; msg.className = 'msg ok';
+        load(true);
+      } catch (e){ msg.textContent = e.message; msg.className = 'msg err'; }
+    });
+  });
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/admin.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function load(quiet){
+  if (!quiet){
+    try { me = await api('/api/me'); } catch (e) { me = null; }
+    renderAuth();
+    if (!me || !me.signedIn || me.tier !== 'manager'){
+      $('body').innerHTML = '<p class="empty">' +
+        (me && me.signedIn
+          ? 'Only Managers can use the admin panel. You are signed in as ' + esc(me.tier) + '.'
+          : 'Sign in with a Manager account to use the admin panel.') + '</p>';
+      $('stamp').textContent = 'Not permitted';
+      return;
+    }
+  }
+  try {
+    var d = await api('/api/page-text');
+    text = (d && d.text) || {};
+  } catch (e) { text = {}; }
+  renderPicker();
+  renderSlots();
+  $('stamp').textContent = 'Manager';
+}
+
+load();
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

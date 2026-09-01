@@ -1,1 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Account · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+
+.hero{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:1.2rem; margin-bottom:1.4rem; }
+.hero .face{ width:72px; height:72px; border-radius:3px; image-rendering:pixelated;
+  background:var(--ink-high); flex:none; }
+.hero h1{ font-size:var(--step-2); letter-spacing:-.02em; margin:0; }
+.hero .sub{ font-family:var(--data); font-size:var(--step--1); color:var(--text-low); margin:.3rem 0 0; }
+.hero .tags{ display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.5rem; }
+.tag{ font-family:var(--data); font-size:.62rem; letter-spacing:.05em; text-transform:uppercase;
+  padding:.12rem .4rem; border:1px solid var(--rule); border-radius:2px; color:var(--text-low); }
+.tag.tier-manager{ color:var(--gold); border-color:var(--gold-dim); }
+.tag.tier-treasurer{ color:var(--green); border-color:var(--green-dim); }
+.tag.party{ color:var(--pc,var(--text-mid)); border-color:var(--pc,var(--rule)); }
+.tag.indep{ border-style:dashed; color:var(--text-mid); }
+.tag.ban{ color:var(--red); border-color:var(--red-dim); }
+.tag.on{ color:var(--green); border-color:var(--green-dim); }
+.hero .lookup{ margin-left:auto; display:flex; gap:.4rem; align-items:flex-end; }
+
+.cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.7rem; }
+.card{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-top:2px solid var(--accent,var(--rule)); border-radius:3px; padding:.95rem 1.05rem; }
+.card h2{ font-size:var(--step-0); margin:0 0 .7rem; }
+.card.g{ --accent:var(--green); } .card.gold{ --accent:var(--gold); }
+.card.r{ --accent:var(--red); } .card.b{ --accent:var(--blue); }
+.kv{ display:flex; justify-content:space-between; gap:.6rem; font-family:var(--data);
+  font-size:.72rem; padding:.3rem 0; border-bottom:1px solid var(--rule-soft); }
+.kv:last-child{ border-bottom:none; }
+.kv dt{ color:var(--text-low); margin:0; }
+.kv dd{ margin:0; color:var(--text); font-variant-numeric:tabular-nums; text-align:right; }
+.kv dd.g{ color:var(--green); } .kv dd.gold{ color:var(--gold); }
+.list{ margin-top:.6rem; max-height:13rem; overflow-y:auto; }
+.li{ display:flex; gap:.5rem; align-items:baseline; font-family:var(--data); font-size:.68rem;
+  padding:.3rem 0; border-bottom:1px solid var(--rule-soft); }
+.li:last-child{ border-bottom:none; }
+.li .n{ color:var(--text-mid); flex:1 1 6rem; overflow:hidden; text-overflow:ellipsis; }
+.li .a{ margin-left:auto; font-variant-numeric:tabular-nums; color:var(--green); }
+.li .w{ color:var(--text-low); font-size:.62rem; white-space:nowrap; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); }
+.f input{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.4rem .5rem; font-family:var(--data); font-size:.76rem; min-width:11rem; }
+.note{ font-family:var(--body); font-size:var(--step--1); color:var(--text-mid);
+  background:var(--ink); border:1px solid var(--rule-soft); border-radius:2px;
+  padding:.55rem .7rem; margin-top:.5rem; }
+.warn{ color:var(--red); font-family:var(--data); font-size:.68rem; }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <div id="body"><p class="empty">Loading…</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var gold = function(n){ return (Number(n) || 0).toLocaleString('en-US') + 'g'; };
+var when = function(s){
+  if (!s) return '—';
+  var d = new Date(typeof s === 'number' ? s : s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? String(s) : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
+};
+
+var me = null;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function kv(label, value, cls){
+  return '<div class="kv"><dt>' + esc(label) + '</dt><dd' +
+    (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>';
+}
+
+function render(a){
+  var face = a.mcName
+    ? '<img class="face" src="https://minotar.net/helm/' + encodeURIComponent(a.mcName) +
+      '/72.png" alt="" onerror="this.style.visibility=\'hidden\'">'
+    : '<span class="face" aria-hidden="true"></span>';
+
+  var tags = '';
+  if (a.tier && a.tier !== 'unverified')
+    tags += '<span class="tag tier-' + esc(a.tier) + '">' + esc(a.tier) + '</span>';
+  (a.offices || []).forEach(function(o){ tags += '<span class="tag">' + esc(o) + '</span>'; });
+  if (a.isRepresentative) tags += '<span class="tag">Rep' + (a.region ? ' · ' + esc(a.region) : '') + '</span>';
+  if (a.party) tags += '<span class="tag party" style="--pc:' + esc(a.party.colour || '') + '">' +
+    esc(a.party.abbrev || a.party.name) + '</span>';
+  else if (a.independent) tags += '<span class="tag indep">Independent</span>';
+  if (a.blacklisted) tags += '<span class="tag ban">blacklisted</span>';
+  if (a.inGame && a.inGame.isOnline) tags += '<span class="tag on">online</span>';
+
+  // Three states, not two: verified, entered by an admin, or unknown to us.
+  var standing = !a.inServer ? 'not in the Discord server'
+    : a.verified ? 'verified' : 'entered by an admin, never signed in';
+
+  var lookup = a.canEdit
+    ? '<span class="lookup"><span class="f"><label for="who">Look up someone else</label>' +
+      '<input id="who" placeholder="Discord user ID" value="' + esc(a.discordId) + '"></span>' +
+      '<button class="btn" type="button" id="go">Open</button></span>'
+    : '';
+
+  var out = '<div class="hero">' + face +
+    '<div><h1>' + esc(a.mcName || a.discordName || a.discordId) + '</h1>' +
+    '<p class="sub">' + esc(a.discordName || 'unknown') + ' · ' + esc(a.discordId) +
+    ' · ' + esc(standing) + '</p>' +
+    '<div class="tags">' + tags + '</div></div>' + lookup + '</div>';
+
+  out += '<div class="cards">';
+
+  /* --- in game --- */
+  out += '<div class="card b"><h2>In game</h2>';
+  if (a.inGame){
+    out += kv('Town', esc(a.inGame.town || '—')) +
+           kv('Nation', esc(a.inGame.nation || '—')) +
+           kv('Mayor', a.inGame.isMayor ? 'yes' : 'no') +
+           (a.inGame.isKing ? kv('Leader of a nation', 'yes') : '') +
+           kv('Balance', a.inGame.balance === null ? '—' : gold(a.inGame.balance)) +
+           kv('Last online', when(a.inGame.lastOnline));
+  } else if (a.mcName){
+    out += '<p class="warn">' + esc(a.inGameError || 'could not reach EarthMC') + '</p>';
+  } else {
+    out += '<p class="empty" style="padding:.8rem">No Minecraft name set, so nothing can be looked up.</p>';
+  }
+  out += '</div>';
+
+  /* --- donations --- */
+  out += '<div class="card gold"><h2>Donations</h2>' +
+    kv('Given in total', gold(a.donations.total), 'gold') +
+    kv('Separate gifts', a.donations.gifts);
+  if (a.donations.list.length){
+    out += '<div class="list">' + a.donations.list.map(function(d){
+      return '<div class="li"><span class="w">' + esc(when(d.at)) + '</span>' +
+        '<span class="n">' + esc(d.note || '—') + '</span>' +
+        '<span class="a">' + gold(d.amount) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  out += '</div>';
+
+  /* --- funding --- */
+  out += '<div class="card g"><h2>Funding</h2>';
+  if (a.funding){
+    out += kv('Monthly allowance', gold(a.funding.allocated)) +
+           kv('Drawn this month', gold(a.funding.paid), 'g') +
+           kv('Approved, unpaid', gold(a.funding.committed), 'gold') +
+           kv('Still available', gold(a.funding.available)) +
+           kv('Received all time', gold(a.fundingEver || 0));
+    if (!a.funding.active) out += '<p class="warn">Allocation is paused.</p>';
+  } else {
+    out += '<p class="empty" style="padding:.8rem">No allowance set.</p>' +
+           (a.fundingEver ? kv('Received all time', gold(a.fundingEver)) : '');
+  }
+  if (a.blacklisted) out += '<p class="warn">Blacklisted: ' + esc(a.blacklisted) + '</p>';
+  out += '</div>';
+
+  /* --- work --- */
+  out += '<div class="card"><h2>Work</h2>' +
+    kv('Jobs taken', a.jobs.claimed) +
+    kv('Completed', a.jobs.completed) +
+    kv('Earned', gold(a.jobs.earned), 'g');
+  if (a.jobs.list.length){
+    out += '<div class="list">' + a.jobs.list.map(function(j){
+      return '<div class="li"><span class="w">#' + j.id + '</span>' +
+        '<span class="n">' + esc(j.title || j.service) + '</span>' +
+        '<span class="w">' + esc(j.status) + '</span>' +
+        '<span class="a">' + gold(j.pay) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  out += '</div>';
+
+  /* --- record --- */
+  out += '<div class="card"><h2>Record</h2>' +
+    kv('Standing', esc(standing)) +
+    kv('Name set by', esc(a.mcNameSource || '—')) +
+    kv('First seen', when(a.firstSeen)) +
+    kv('Last seen', when(a.lastSeen));
+  if (a.note) out += '<div class="note">' + esc(a.note) + '</div>';
+  if (a.canEdit) out += '<p style="margin:.7rem 0 0"><a href="people.html" ' +
+    'style="font-family:var(--data);font-size:.68rem;color:var(--gold)">Edit in the register &#8594;</a></p>';
+  out += '</div>';
+
+  out += '</div>';
+  $('body').innerHTML = out;
+
+  var go = $('go');
+  if (go) go.addEventListener('click', function(){
+    var id = $('who').value.trim();
+    if (id) location.search = '?discord=' + encodeURIComponent(id);
+  });
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/account.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  renderAuth();
+
+  var who = new URLSearchParams(location.search).get('discord');
+  try {
+    render(await api('/api/account' + (who ? '?discord=' + encodeURIComponent(who) : '')));
+    $('stamp').textContent = 'Live';
+  } catch (err){
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 401 ? 'Sign in with Discord to see your record.'
+      : err.status === 403 ? 'Only a Manager can view somebody else\u2019s record.'
+      : 'Unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = 'Unavailable';
+  }
+}
+
+load();
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

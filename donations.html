@@ -180,7 +180,7 @@ var when = function(s){
   return isNaN(d) ? s : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
 };
 
-var me = null, data = null, openDonor = null, history = {};
+var me = null, data = null, openDonor = null, donorHistory = {};
 
 async function api(path, opts){
   var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
@@ -255,7 +255,7 @@ async function loadHistory(donorId){
   if (!host) return;
   try {
     var h = await api('/api/donations/history?donor=' + encodeURIComponent(donorId));
-    history[donorId] = h;
+    donorHistory[donorId] = h;
     host.innerHTML = h.donations.map(function(d){
       var acts = h.canEdit
         ? '<span class="hacts">' +

@@ -361,9 +361,27 @@ function renderAuth(){
   }
 }
 
+
+/* A missing element must never take the page down.
+   A page stuck on "Loading…" with no error is the worst failure mode there is:
+   nothing to read, nothing to search for, no clue what went wrong. If anything
+   in load() throws, say so on the page. */
+function fatal(err){
+  var msg = (err && err.message) ? err.message : String(err);
+  var host = document.getElementById('body') || document.body;
+  var box = document.createElement('p');
+  box.className = 'empty';
+  box.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  box.textContent = 'This page failed to load: ' + msg +
+    '. If it mentions a missing element, the deployed copy of this page is out of date.';
+  host.innerHTML = '';
+  host.appendChild(box);
+  try { console.error('[page]', err); } catch (e) {}
+}
+
 async function load(){
   try { me = await api('/api/me'); } catch (e) { me = null; }
-  renderAuth();
+  try { renderAuth(); } catch (e) { /* header only */ }
   try {
     data = await api('/api/donations');
     $('sTotal').textContent = gold(data.totals.donated);
@@ -393,9 +411,8 @@ async function load(){
   }
 }
 
-load();
+load().catch(fatal);
 </script>
 <script src="assets/pagetext.js?v=1"></script>
 </body>
 </html>
-

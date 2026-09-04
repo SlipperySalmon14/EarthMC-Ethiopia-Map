@@ -1,1 +1,780 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Government · Ethiopia</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+
+<style>
+.back{
+  display:inline-block; margin-bottom:1rem;
+  font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low);
+  text-decoration:none;
+}
+.back:hover{ color:var(--gold); }
+
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.6rem; }
+.topbar .spacer{ margin-left:auto; }
+
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.3rem; margin-bottom:2rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{
+  font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0;
+}
+.masthead p{ color:var(--text-mid); margin:.9rem 0 0; max-width:38rem; }
+
+/* --- branches ------------------------------------------------------------ */
+.branches{ display:grid; grid-template-columns:1fr 1fr; gap:.9rem; }
+@media (max-width:880px){ .branches{ grid-template-columns:1fr; } }
+
+.branch{
+  background:var(--ink-raised); border:1px solid var(--rule);
+  border-top:2px solid var(--accent); border-radius:3px; padding:1.1rem 1.2rem 1.3rem;
+}
+.branch.rep{ --accent:var(--green); }
+.branch.mon{ --accent:var(--gold); }
+.branch h2{ font-size:var(--step-1); }
+.branch .kind{
+  font-family:var(--data); font-size:var(--step--1); letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text-low); margin:.2rem 0 1.1rem;
+}
+
+.office{ padding:.6rem 0; border-bottom:1px solid var(--rule-soft); }
+.office:last-child{ border-bottom:none; }
+.office-name{
+  font-family:var(--data); font-size:var(--step--1); letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); margin-bottom:.4rem;
+  display:flex; justify-content:space-between; gap:.6rem;
+}
+.people{ display:flex; flex-wrap:wrap; gap:.4rem; }
+
+/* --- a person ------------------------------------------------------------ */
+.person{
+  display:inline-flex; align-items:center; gap:.45rem;
+  padding:.25rem .6rem .25rem .3rem;
+  background:var(--ink); border:1px solid var(--rule);
+  border-left:3px solid var(--party, transparent);
+  border-radius:2px; font-family:var(--data); font-size:.78rem;
+}
+.person .face{
+  width:22px; height:22px; border-radius:2px;
+  image-rendering:pixelated; background:var(--ink-high); flex:none;
+}
+.person .who{ color:var(--text); }
+.person .who.unnamed{ color:var(--text-low); font-style:italic; }
+.person .tag{
+  font-size:.66rem; color:var(--party, var(--text-low));
+  padding-left:.4rem; border-left:1px solid var(--rule);
+}
+.person .plogo{ width:14px; height:14px; border-radius:2px; object-fit:cover; }
+.person.head{ border-color:var(--gold); }
+.person.vacant{ color:var(--text-low); font-style:italic; border-style:dashed; padding:.25rem .6rem; }
+
+/* --- house --------------------------------------------------------------- */
+.section{ margin-top:2.6rem; }
+.section-head{
+  display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin-bottom:1rem;
+}
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{
+  margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low);
+}
+
+.regions{ display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.7rem; }
+.region{
+  background:var(--ink-raised); border:1px solid var(--rule);
+  border-radius:3px; padding:.8rem .9rem;
+}
+.region-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:.5rem;
+  margin-bottom:.6rem;
+}
+.region-head .rn{ font-family:var(--display); font-weight:600; font-size:var(--step-0); }
+.region-head .seats{
+  font-family:var(--data); font-size:.66rem; color:var(--text-low);
+  letter-spacing:.05em; text-transform:uppercase;
+}
+.region .people{ flex-direction:column; align-items:flex-start; }
+.region.short{ border-color:var(--red-dim); }
+.region.short .seats{ color:var(--red); }
+
+/* --- parties ------------------------------------------------------------- */
+.party-list{ display:flex; flex-wrap:wrap; gap:.5rem; }
+.party-chip{
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.4rem .7rem; background:var(--ink-raised);
+  border:1px solid var(--rule); border-left:3px solid var(--party,var(--rule));
+  border-radius:2px;
+}
+.party-chip img{ width:22px; height:22px; border-radius:2px; object-fit:cover; }
+.party-chip .pn{ font-family:var(--display); font-weight:600; font-size:.9rem; }
+.party-chip .pc{ font-family:var(--data); font-size:.66rem; color:var(--text-low); }
+
+/* --- admin --------------------------------------------------------------- */
+.admin{
+  margin-top:2.6rem; border:1px dashed var(--rule);
+  border-radius:3px; padding:1.1rem 1.2rem; background:var(--ink-raised);
+}
+.admin h2{ font-size:var(--step-1); margin-bottom:.2rem; }
+.admin .hint{ color:var(--text-low); font-size:var(--step--1); margin:0 0 1.1rem; }
+.admin fieldset{ border:none; padding:0; margin:0 0 1.4rem; }
+.admin legend{
+  font-family:var(--data); font-size:var(--step--1); letter-spacing:.08em;
+  text-transform:uppercase; color:var(--gold); padding:0; margin-bottom:.6rem;
+}
+.fields{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.66rem; color:var(--text-low); letter-spacing:.05em; }
+.f input, .f select{
+  background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--data); font-size:.78rem;
+  min-width:9rem;
+}
+.f input:focus, .f select:focus{ border-color:var(--gold); }
+.msg{ font-family:var(--data); font-size:var(--step--1); margin-top:.7rem; min-height:1.2em; }
+.msg.ok{ color:var(--green); }
+.msg.err{ color:var(--red); }
+
+.mlist{ display:flex; flex-direction:column; gap:.35rem; margin-bottom:.8rem; }
+.mrow{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  padding:.45rem .6rem; background:var(--ink); border:1px solid var(--rule);
+  border-left:3px solid var(--party,var(--rule)); border-radius:2px;
+}
+.mrow .mname{ font-family:var(--display); font-weight:600; font-size:.92rem; }
+.mrow .mmeta{ font-family:var(--data); font-size:.66rem; color:var(--text-low); }
+.mrow .macts{ margin-left:auto; display:flex; gap:.3rem; }
+.mrow .btn{ padding:.24rem .5rem; font-size:.66rem; }
+.mrow.arch{ opacity:.62; border-left-style:dashed; }
+.mrow .warn{ color:var(--red); font-family:var(--data); font-size:.66rem; }
+.danger:hover{ color:var(--red) !important; border-color:var(--red-dim) !important; }
+
+.empty{
+  border:1px dashed var(--rule); border-radius:3px; padding:1.3rem;
+  text-align:center; color:var(--text-mid); font-size:var(--step--1);
+}
+footer{
+  margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low);
+}
+</style>
+</head>
+<body>
+
+<div class="flag-edge" aria-hidden="true"></div>
+
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; <span data-en="Ecosystem" data-am="ሥርዓት">Ecosystem</span></a>
+    <span class="spacer"></span>
+    <div class="lang" role="group" aria-label="Language">
+      <button class="btn" type="button" data-set-lang="en" aria-pressed="true">EN</button>
+      <button class="btn" type="button" data-set-lang="am" aria-pressed="false" lang="am">አማርኛ</button>
+    </div>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title" data-en="Government" data-am="መንግሥት">Government</h1>
+    <p data-slot="subtitle" class="sub" data-en="Offices of State" data-am="የመንግሥት ሹመቶች">Offices of State</p>
+    <p data-en="Who holds each office in both branches, taken live from Discord roles."
+       data-am="በሁለቱም ቅርንጫፎች ያሉ ሹመቶችን ማን እንደያዘ፣ በቀጥታ ከዲስኮርድ ሚናዎች።">
+      Who holds each office in both branches, taken live from Discord roles.
+    </p>
+  </header>
+
+  <div class="branches">
+    <section class="branch rep">
+      <h2 data-en="Republic" data-am="ሪፐብሊክ">Republic</h2>
+      <p class="kind" data-en="Elected offices" data-am="የተመረጡ ሹመቶች">Elected offices</p>
+      <div id="republic"><p class="empty">Loading…</p></div>
+    </section>
+
+    <section class="branch mon">
+      <h2 data-en="Monarchy" data-am="ንጉሠ ነገሥት">Monarchy</h2>
+      <p class="kind" data-en="Crown and council" data-am="ዘውድና ምክር ቤት">Crown and council</p>
+      <div id="monarchy"><p class="empty">Loading…</p></div>
+    </section>
+  </div>
+
+  <p style="margin:1.2rem 0 0;font-family:var(--data);font-size:var(--step--1)">
+    <a href="history.html" style="color:var(--gold);text-decoration:none">
+      Past governments and how the nation grew under each &#8594;</a>
+  </p>
+
+  <section class="section">
+    <div class="section-head">
+      <h2 data-en="House of Representatives" data-am="የተወካዮች ምክር ቤት">House of Representatives</h2>
+      <span class="meta" id="houseMeta">&mdash;</span>
+    </div>
+    <div id="house"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="section" id="partiesSection" hidden>
+    <div class="section-head">
+      <h2 data-en="Parties" data-am="ፓርቲዎች">Parties</h2>
+      <span class="meta" id="partyMeta">&mdash;</span>
+    </div>
+    <div class="party-list" id="parties"></div>
+  </section>
+
+  <section class="admin" id="adminPanel" hidden>
+    <h2 data-en="Admin" data-am="አስተዳዳሪ">Admin</h2>
+    <p class="hint">Only Managers see this panel. Changes appear on the page within five minutes.</p>
+
+    <fieldset>
+      <legend>Set a player's Minecraft name and party</legend>
+      <div class="fields">
+        <div class="f">
+          <label for="mDiscord">Discord user ID</label>
+          <input id="mDiscord" inputmode="numeric" placeholder="1234567890...">
+        </div>
+        <div class="f">
+          <label for="mName">Minecraft name</label>
+          <input id="mName" placeholder="SlipperySalmon14" maxlength="16">
+        </div>
+        <div class="f">
+          <label for="mParty">Party</label>
+          <select id="mParty"><option value="">None</option></select>
+        </div>
+        <button class="btn" type="button" id="saveMember">Save</button>
+      </div>
+      <p class="msg" id="memberMsg"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Parties</legend>
+      <div class="mlist" id="partyManage"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Archived parties</legend>
+      <p class="hint" style="margin-bottom:.6rem">
+        Hidden from the public page. Members keep their party, so restoring brings
+        back exactly who was in it.
+      </p>
+      <div class="mlist" id="archiveManage"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend id="partyFormLegend">Add a party</legend>
+      <div class="fields">
+        <div class="f">
+          <label for="pName">Name</label>
+          <input id="pName" placeholder="Unity Front" maxlength="80">
+        </div>
+        <div class="f">
+          <label for="pAbbrev">Short code</label>
+          <input id="pAbbrev" placeholder="UF" maxlength="8" style="min-width:5rem">
+        </div>
+        <div class="f">
+          <label for="pColour">Colour</label>
+          <input id="pColour" type="color" value="#189d4d" style="min-width:4rem; padding:.2rem">
+        </div>
+        <div class="f">
+          <label for="pImage">Logo URL (https)</label>
+          <input id="pImage" placeholder="https://i.imgur.com/....png">
+        </div>
+        <button class="btn" type="button" id="saveParty">Save party</button>
+        <button class="btn" type="button" id="cancelEdit" hidden>Cancel</button>
+      </div>
+      <p class="msg" id="partyMsg"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Regions</legend>
+      <p class="hint" style="margin-bottom:.6rem">
+        Regions are checked against the map. One listed here but not drawn on the
+        map will never receive representatives.
+      </p>
+      <div class="mlist" id="regionManage"></div>
+      <div class="fields">
+        <div class="f">
+          <label for="rName">Region name</label>
+          <input id="rName" placeholder="Tigray" maxlength="60">
+        </div>
+        <div class="f">
+          <label for="rRole">Discord role ID</label>
+          <input id="rRole" inputmode="numeric" placeholder="1531343...">
+        </div>
+        <button class="btn" type="button" id="saveRegion">Add region</button>
+      </div>
+      <p class="msg" id="regionMsg"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>House size</legend>
+      <div class="fields">
+        <div class="f">
+          <label for="sTotal">Total seats</label>
+          <input id="sTotal" inputmode="numeric" style="min-width:6rem">
+        </div>
+        <div class="f">
+          <label for="sGuaranteed">Guaranteed per region</label>
+          <input id="sGuaranteed" inputmode="numeric" style="min-width:6rem">
+        </div>
+        <button class="btn" type="button" id="saveSettings">Save</button>
+      </div>
+      <p class="msg" id="settingsMsg"></p>
+    </fieldset>
+
+    <fieldset style="margin-bottom:0">
+      <legend>Recalculate House seats</legend>
+      <p class="hint" style="margin-bottom:.7rem">
+        Enter each region's population, then recalculate. 20 seats total: every region
+        keeps one, and the remaining ten are shared out by largest remainder — the
+        method a citizen can check by hand after a close result.
+      </p>
+      <div class="fields" id="popFields"></div>
+      <p style="margin:.8rem 0 0"><button class="btn" type="button" id="recalc">Recalculate</button></p>
+      <p class="msg" id="seatMsg"></p>
+    </fieldset>
+  </section>
+
+  <footer>
+    <span>Ethiopia</span>
+    <span id="stamp">&nbsp;</span>
+  </footer>
+</div>
+
+<script>
+'use strict';
+
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var REGIONS = ['Addis Ababa','Amhara','Oromiya','Afar','Somali','Somalia',
+               'Eritrea','Keffa','Borena','Gambela'];
+
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+};
+
+var me = null, parties = [];
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var data = null;
+  try { data = await res.json(); } catch (e) { /* non-JSON error body */ }
+  if (!res.ok) {
+    var err = new Error((data && data.error) || ('HTTP ' + res.status));
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+/* --- language ------------------------------------------------------------ */
+function applyLang(lang){
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang === 'am' ? 'am' : 'en');
+  document.querySelectorAll('[data-en]').forEach(function(el){
+    var t = el.getAttribute(lang === 'am' ? 'data-am' : 'data-en');
+    if (t) el.textContent = t;
+  });
+  document.querySelectorAll('[data-set-lang]').forEach(function(b){
+    b.setAttribute('aria-pressed', String(b.getAttribute('data-set-lang') === lang));
+  });
+  try { localStorage.setItem('ethiopia-lang', lang); } catch (e) {}
+}
+document.querySelectorAll('[data-set-lang]').forEach(function(b){
+  b.addEventListener('click', function(){ applyLang(b.getAttribute('data-set-lang')); });
+});
+try { if (localStorage.getItem('ethiopia-lang') === 'am') applyLang('am'); } catch (e) {}
+
+/* --- rendering ------------------------------------------------------------ */
+
+/* Faces come from a player's Minecraft name. Until a name is set there is no
+   face to show, so the chip shows the Discord name in italics instead of a
+   broken image — an unset name should look unset, not broken. */
+function personChip(p, isHead){
+  if (!p) return '<span class="person vacant" data-en="vacant" data-am="ክፍት">vacant</span>';
+
+  var face = p.mcName
+    ? '<img class="face" src="https://minotar.net/helm/' + encodeURIComponent(p.mcName) +
+      '/22.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+    : '<span class="face" aria-hidden="true"></span>';
+
+  var name = p.mcName
+    ? '<span class="who">' + esc(p.mcName) + '</span>'
+    : '<span class="who unnamed">' + esc(p.discordName) + '</span>';
+
+  var tag = '';
+  if (p.party) {
+    tag = '<span class="tag">' +
+      (p.party.imageUrl ? '<img class="plogo" src="' + esc(p.party.imageUrl) +
+        '" alt="" onerror="this.remove()"> ' : '') +
+      esc(p.party.abbrev || p.party.name) + '</span>';
+  }
+
+  var style = p.party && p.party.colour ? ' style="--party:' + esc(p.party.colour) + '"' : '';
+  return '<span class="person' + (isHead ? ' head' : '') + '"' + style + '>' +
+         face + name + tag + '</span>';
+}
+
+function renderBranch(host, offices){
+  if (!offices || !offices.length){ host.innerHTML = '<p class="empty">No offices recorded.</p>'; return; }
+  host.innerHTML = offices.map(function(o){
+    var chips = (o.holders && o.holders.length)
+      ? o.holders.map(function(h){ return personChip(h, o.isHead); }).join('')
+      : personChip(null);
+    var count = (o.holders && o.holders.length > 1)
+      ? '<span>' + o.holders.length + '</span>' : '';
+    return '<div class="office"><div class="office-name"><span>' + esc(o.title) + '</span>' +
+           count + '</div><div class="people">' + chips + '</div></div>';
+  }).join('');
+}
+
+function renderHouse(house, totalSeats, filled){
+  var host = $('house');
+  if (!house || !house.length){ host.innerHTML = '<p class="empty">No seats recorded.</p>'; return; }
+  $('houseMeta').textContent = filled + ' of ' + totalSeats + ' seats filled';
+
+  host.innerHTML = '<div class="regions">' + house.map(function(r){
+    var held = r.holders ? r.holders.length : 0;
+    var seats = typeof r.seats === 'number' ? r.seats : 1;
+    // A region holding fewer members than it has seats is flagged, because an
+    // empty seat is a thing someone needs to act on, not a display detail.
+    var short = (r.region !== 'Unassigned' && held < seats) ? ' short' : '';
+    var chips = held
+      ? r.holders.map(function(h){ return personChip(h); }).join('')
+      : personChip(null);
+    return '<div class="region' + short + '">' +
+      '<div class="region-head"><span class="rn">' + esc(r.region) + '</span>' +
+      '<span class="seats">' + held + ' / ' + seats + '</span></div>' +
+      '<div class="people">' + chips + '</div></div>';
+  }).join('') + '</div>';
+}
+
+function renderParties(){
+  if (!parties.length){ $('partiesSection').hidden = true; return; }
+  $('partiesSection').hidden = false;
+  $('partyMeta').textContent = parties.length + (parties.length === 1 ? ' party' : ' parties');
+  $('parties').innerHTML = parties.map(function(p){
+    var style = p.colour ? ' style="--party:' + esc(p.colour) + '"' : '';
+    return '<span class="party-chip"' + style + '>' +
+      (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" onerror="this.remove()">' : '') +
+      '<span class="pn">' + esc(p.name) + '</span>' +
+      '<span class="pc">' + esc(p.abbrev || '') + ' &middot; ' + p.members +
+      (p.members === 1 ? ' member' : ' members') + '</span></span>';
+  }).join('');
+
+  var sel = $('mParty');
+  if (sel) {
+    sel.innerHTML = '<option value="">None</option>' + parties.map(function(p){
+      return '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+    }).join('');
+  }
+}
+
+/* --- admin ---------------------------------------------------------------- */
+function say(el, text, ok){
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
+}
+
+function wireAdmin(){
+  $('adminPanel').hidden = false;
+
+  $('popFields').innerHTML = REGIONS.map(function(r){
+    return '<div class="f"><label for="pop-' + r.replace(/\s/g,'') + '">' + esc(r) + '</label>' +
+           '<input id="pop-' + r.replace(/\s/g,'') + '" inputmode="numeric" ' +
+           'style="min-width:6rem" placeholder="0"></div>';
+  }).join('');
+
+  $('saveMember').addEventListener('click', async function(){
+    var msg = $('memberMsg');
+    try {
+      await api('/api/admin/member', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          discordId: $('mDiscord').value.trim(),
+          mcName: $('mName').value.trim(),
+          partyId: $('mParty').value ? Number($('mParty').value) : null
+        })
+      });
+      say(msg, 'Saved. The page updates within five minutes.', true);
+      load();
+    } catch (e) { say(msg, e.message, false); }
+  });
+
+  $('saveParty').addEventListener('click', async function(){
+    var msg = $('partyMsg');
+    try {
+      await api('/api/admin/parties', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          id: editingPartyId || undefined,
+          name: $('pName').value.trim(),
+          abbrev: $('pAbbrev').value.trim(),
+          colour: $('pColour').value,
+          imageUrl: $('pImage').value.trim() || null
+        })
+      });
+      say(msg, editingPartyId ? 'Party updated.' : 'Party saved.', true);
+      resetPartyForm();
+      loadParties(); loadAdminLists(); load();
+    } catch (e) { say(msg, e.message, false); }
+  });
+
+  $('recalc').addEventListener('click', async function(){
+    var msg = $('seatMsg');
+    var pops = {};
+    REGIONS.forEach(function(r){
+      var v = parseInt(($('pop-' + r.replace(/\s/g,'')) || {}).value, 10);
+      pops[r] = Number.isFinite(v) ? v : 0;
+    });
+    try {
+      var res = await api('/api/admin/house-seats', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ populations: pops, totalSeats: 20, guaranteed: 1 })
+      });
+      say(msg, 'Seats recalculated by ' + res.method + '.', true);
+      load();
+    } catch (e) { say(msg, e.message, false); }
+  });
+}
+
+
+/* --- admin: parties, archive, regions, seats ------------------------------ */
+
+var editingPartyId = null;
+
+function partyRow(p, archived){
+  var style = p.colour ? ' style="--party:' + esc(p.colour) + '"' : '';
+  var acts = archived
+    ? '<button class="btn" type="button" data-restore="' + p.id + '">Restore</button>' +
+      '<button class="btn danger" type="button" data-del="' + p.id + '" ' +
+      'data-name="' + esc(p.name) + '" data-members="' + p.members + '">Delete</button>'
+    : '<button class="btn" type="button" data-edit="' + p.id + '">Edit</button>' +
+      '<button class="btn" type="button" data-arch="' + p.id + '">Archive</button>' +
+      '<button class="btn danger" type="button" data-del="' + p.id + '" ' +
+      'data-name="' + esc(p.name) + '" data-members="' + p.members + '">Delete</button>';
+
+  return '<div class="mrow' + (archived ? ' arch' : '') + '"' + style + '>' +
+    (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" ' +
+      'style="width:20px;height:20px;border-radius:2px;object-fit:cover" onerror="this.remove()">' : '') +
+    '<span class="mname">' + esc(p.name) + '</span>' +
+    '<span class="mmeta">' + esc(p.abbrev || '') + ' &middot; ' + p.members +
+    (p.members === 1 ? ' member' : ' members') + '</span>' +
+    '<span class="macts">' + acts + '</span></div>';
+}
+
+function bindPartyRows(host, list, archived){
+  host.innerHTML = list.length
+    ? list.map(function(p){ return partyRow(p, archived); }).join('')
+    : '<p class="hint" style="margin:0">None.</p>';
+
+  host.querySelectorAll('[data-edit]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var p = list.filter(function(x){ return String(x.id) === b.dataset.edit; })[0];
+      if (!p) return;
+      editingPartyId = p.id;
+      $('pName').value = p.name || '';
+      $('pAbbrev').value = p.abbrev || '';
+      if (p.colour) $('pColour').value = p.colour;
+      $('pImage').value = p.image_url || '';
+      $('partyFormLegend').textContent = 'Editing ' + p.name;
+      $('saveParty').textContent = 'Update party';
+      $('cancelEdit').hidden = false;
+      $('pName').focus();
+    });
+  });
+
+  host.querySelectorAll('[data-arch]').forEach(function(b){
+    b.addEventListener('click', function(){ setArchived(b.dataset.arch, true); });
+  });
+  host.querySelectorAll('[data-restore]').forEach(function(b){
+    b.addEventListener('click', function(){ setArchived(b.dataset.restore, false); });
+  });
+
+  host.querySelectorAll('[data-del]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var n = Number(b.dataset.members);
+      // Deleting is unrecoverable, so the count goes in the prompt: losing a
+      // party with members should never be a surprise.
+      var warn = 'Delete "' + b.dataset.name + '" permanently?' +
+        (n > 0 ? '\n\n' + n + (n === 1 ? ' member' : ' members') +
+          ' will lose their party. Archive instead to keep them.' : '');
+      if (!confirm(warn)) return;
+      try {
+        await api('/api/admin/parties?id=' + encodeURIComponent(b.dataset.del), { method:'DELETE' });
+        say($('partyMsg'), 'Party deleted.', true);
+        resetPartyForm(); loadAdminLists(); load();
+      } catch (e) { say($('partyMsg'), e.message, false); }
+    });
+  });
+}
+
+async function setArchived(id, archived){
+  try {
+    await api('/api/admin/parties/archive', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: Number(id), archived: archived })
+    });
+    say($('partyMsg'), archived ? 'Party archived.' : 'Party restored.', true);
+    loadAdminLists(); load();
+  } catch (e) { say($('partyMsg'), e.message, false); }
+}
+
+function resetPartyForm(){
+  editingPartyId = null;
+  $('pName').value = ''; $('pAbbrev').value = ''; $('pImage').value = '';
+  $('partyFormLegend').textContent = 'Add a party';
+  $('saveParty').textContent = 'Save party';
+  $('cancelEdit').hidden = true;
+}
+
+function regionRow(r){
+  return '<div class="mrow">' +
+    '<span class="mname">' + esc(r.name) + '</span>' +
+    (r.onMap
+      ? '<span class="mmeta">on the map</span>'
+      : '<span class="warn">not on the map</span>') +
+    (r.roleId ? '' : '<span class="warn">no role</span>') +
+    '<span class="macts">' +
+    '<button class="btn danger" type="button" data-rdel="' + esc(r.name) + '">Remove</button>' +
+    '</span></div>';
+}
+
+async function loadAdminLists(){
+  try {
+    var live = await api('/api/parties');
+    bindPartyRows($('partyManage'), live.parties || [], false);
+  } catch (e) { /* listed on the public section already */ }
+
+  try {
+    var arch = await api('/api/admin/parties/archived');
+    bindPartyRows($('archiveManage'), arch.parties || [], true);
+  } catch (e) { $('archiveManage').innerHTML = '<p class="hint" style="margin:0">None.</p>'; }
+
+  try {
+    var reg = await api('/api/admin/regions');
+    var host = $('regionManage');
+    host.innerHTML = (reg.regions || []).map(regionRow).join('') +
+      ((reg.missingFromList || []).length
+        ? '<p class="warn" style="margin:.4rem 0 0">On the map but not listed: ' +
+          esc(reg.missingFromList.join(', ')) + '</p>'
+        : '');
+
+    host.querySelectorAll('[data-rdel]').forEach(function(b){
+      b.addEventListener('click', async function(){
+        if (!confirm('Remove the region "' + b.dataset.rdel + '"?\n\n' +
+          'Its seats are released. Any representative holding its Discord role ' +
+          'moves to Unassigned rather than disappearing.')) return;
+        try {
+          await api('/api/admin/regions?name=' + encodeURIComponent(b.dataset.rdel), { method:'DELETE' });
+          say($('regionMsg'), 'Region removed.', true);
+          loadAdminLists(); load();
+        } catch (e) { say($('regionMsg'), e.message, false); }
+      });
+    });
+
+    $('sTotal').value = reg.totalSeats;
+    $('sGuaranteed').value = reg.guaranteedSeats;
+  } catch (e) { /* migration 005 not applied yet */ }
+}
+
+function wireAdminExtras(){
+  $('cancelEdit').addEventListener('click', resetPartyForm);
+
+  $('saveRegion').addEventListener('click', async function(){
+    try {
+      await api('/api/admin/regions', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name: $('rName').value.trim(), roleId: $('rRole').value.trim() })
+      });
+      say($('regionMsg'), 'Region saved.', true);
+      $('rName').value = ''; $('rRole').value = '';
+      loadAdminLists(); load();
+    } catch (e) { say($('regionMsg'), e.message, false); }
+  });
+
+  $('saveSettings').addEventListener('click', async function(){
+    try {
+      var res = await api('/api/admin/settings', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          totalSeats: Number($('sTotal').value),
+          guaranteedSeats: Number($('sGuaranteed').value)
+        })
+      });
+      say($('settingsMsg'), 'House set to ' + res.totalSeats + ' seats, ' +
+        res.guaranteedSeats + ' guaranteed per region.', true);
+      loadAdminLists();
+    } catch (e) { say($('settingsMsg'), e.message, false); }
+  });
+
+  loadAdminLists();
+}
+
+/* --- auth ----------------------------------------------------------------- */
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn) {
+    slot.innerHTML = '<button class="btn" type="button" id="logout">' +
+      esc(me.discordName || 'Signed in') + ' &middot; ' + esc(me.tier) + '</button>';
+    $('logout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API +
+      '/api/auth/login?redirect=' + encodeURIComponent('/government.html') +
+      '">Sign in with Discord</a>';
+  }
+}
+
+/* --- load ----------------------------------------------------------------- */
+async function loadParties(){
+  try { parties = (await api('/api/parties')).parties || []; renderParties(); }
+  catch (e) { /* not signed in, or migration 003 not applied yet */ }
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  renderAuth();
+
+  var signedIn = !!(me && me.signedIn &&
+    ['citizen','treasurer','manager'].indexOf(me.tier) !== -1);
+
+  if (me && me.tier === 'manager') { wireAdmin(); wireAdminExtras(); }
+
+  try {
+    var gov = await api('/api/government');
+    renderBranch($('republic'), gov.republic);
+    renderBranch($('monarchy'), gov.monarchy);
+    renderHouse(gov.house, gov.houseSeats, gov.houseFilled);
+    $('stamp').textContent = 'Live from Discord roles';
+  } catch (err) {
+    var msg = signedIn
+      ? (err.status === 503
+          ? 'The bot token is not set on the Worker yet, so the roster cannot be read.'
+          : 'Government records unavailable: ' + err.message)
+      : 'Sign in with Discord to view the government record.';
+    $('republic').innerHTML = '<p class="empty">' + esc(msg) + '</p>';
+    $('monarchy').innerHTML = '<p class="empty">' + esc(msg) + '</p>';
+    $('house').innerHTML = '<p class="empty">' + esc(msg) + '</p>';
+    $('stamp').textContent = signedIn ? 'Roster unavailable' : 'Not signed in';
+  }
+
+  await loadParties();
+}
+
+load();
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

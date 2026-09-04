@@ -1,1 +1,418 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The record · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.2rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+
+.charts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(17rem,1fr)); gap:.7rem; }
+.chart{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-top:2px solid var(--accent); border-radius:3px; padding:.9rem 1rem; }
+.chart h2{ font-size:var(--step-0); margin:0; }
+.chart .now{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; margin:.2rem 0 .1rem; }
+.chart .delta{ font-family:var(--data); font-size:.68rem; }
+.chart .delta.up{ color:var(--green); } .chart .delta.down{ color:var(--red); }
+.chart .delta.flat{ color:var(--text-low); }
+.chart canvas{ width:100%; height:120px; display:block; margin-top:.6rem; }
+.chart.towns{ --accent:var(--green); } .chart.towns .now{ color:var(--green); }
+.chart.res{ --accent:var(--blue); } .chart.res .now{ color:var(--blue); }
+.chart.chunks{ --accent:var(--gold); } .chart.chunks .now{ color:var(--gold); }
+.chart.bank{ --accent:var(--red); } .chart.bank .now{ color:var(--text); }
+
+.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
+th{ font-family:var(--data); font-size:.64rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); text-align:left; font-weight:400; padding:.5rem .55rem;
+  border-bottom:1px solid var(--rule); }
+td{ padding:.5rem .55rem; border-bottom:1px solid var(--rule-soft);
+  font-family:var(--data); font-size:.72rem; font-variant-numeric:tabular-nums; }
+td.n{ text-align:right; } .up{ color:var(--green); } .down{ color:var(--red); }
+.flat{ color:var(--text-low); }
+
+.term{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px;
+  padding:.8rem .95rem; margin-bottom:.5rem; }
+.term.current{ --accent:var(--green); }
+.term.past{ --accent:var(--text-low); }
+.term-head{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+.term-name{ font-family:var(--display); font-weight:600; font-size:var(--step-0); }
+.tag{ font-family:var(--data); font-size:.6rem; letter-spacing:.05em; text-transform:uppercase;
+  padding:.1rem .35rem; border:1px solid var(--rule); border-radius:2px; color:var(--text-low); }
+.term-when{ margin-left:auto; font-family:var(--data); font-size:.66rem; color:var(--text-low); }
+.term-grow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(6.5rem,1fr));
+  gap:.45rem; margin-top:.6rem; }
+.term-grow div{ background:var(--ink); border:1px solid var(--rule-soft);
+  border-radius:2px; padding:.4rem .5rem; }
+.term-grow .v{ font-family:var(--data); font-weight:600; font-size:.85rem; display:block;
+  font-variant-numeric:tabular-nums; }
+.term-grow .k{ font-family:var(--data); font-size:.58rem; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-low); }
+.term-none{ font-family:var(--data); font-size:.68rem; color:var(--text-low); margin-top:.5rem; }
+
+.gov{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px;
+  padding:.75rem .9rem; margin-bottom:.45rem; }
+.gov-head{ display:flex; align-items:baseline; gap:.6rem; cursor:pointer; flex-wrap:wrap; }
+.gov-when{ font-family:var(--data); font-size:.72rem; color:var(--text); }
+.gov-sum{ font-family:var(--data); font-size:.66rem; color:var(--text-low); margin-left:auto; }
+.gov-body{ margin-top:.7rem; padding-top:.7rem; border-top:1px solid var(--rule); }
+.office{ display:flex; gap:.5rem; padding:.28rem 0; font-family:var(--data); font-size:.68rem;
+  border-bottom:1px solid var(--rule-soft); flex-wrap:wrap; }
+.office:last-child{ border-bottom:none; }
+.office .t{ color:var(--text-low); min-width:9rem; }
+.office .p{ color:var(--text); flex:1 1 8rem; }
+
+.admin{ margin-top:2rem; border:1px dashed var(--rule); border-radius:3px;
+  padding:1.1rem 1.2rem; background:var(--ink-raised); }
+.admin h2{ font-size:var(--step-1); margin-bottom:.2rem; }
+.admin .hint{ color:var(--text-low); font-size:var(--step--1); margin:0 0 1rem; }
+.fields{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.4rem .5rem; font-family:var(--data); font-size:.76rem; min-width:8rem; }
+.f input:focus{ border-color:var(--gold); }
+.msg{ font-family:var(--data); font-size:var(--step--1); margin-top:.6rem; min-height:1.1em; }
+.msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+.warn{ font-family:var(--data); font-size:.68rem; color:var(--gold); margin-bottom:.8rem; }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title">The record</h1>
+    <p class="sub" data-slot="subtitle">How Ethiopia has grown</p>
+  </header>
+
+  <div id="body"><p class="empty">Loading…</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+var gold = function(n){ return num(n) + 'g'; };
+var signed = function(n){ return (n > 0 ? '+' : '') + num(n); };
+
+var me = null, data = null, openGov = null;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function fatal(err){
+  var msg = (err && err.message) ? err.message : String(err);
+  var host = $('body') || document.body;
+  host.innerHTML = '';
+  var p = document.createElement('p');
+  p.className = 'empty';
+  p.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  p.textContent = 'This page failed to load: ' + msg;
+  host.appendChild(p);
+  try { console.error('[page]', err); } catch (e) {}
+}
+
+/* --- charts --------------------------------------------------------------
+   Drawn on canvas rather than pulling in a charting library: four small
+   sparklines do not justify the dependency, and this way the page loads no
+   third-party script at all. */
+
+function drawSpark(canvas, values, colour){
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var w = canvas.clientWidth || 260, h = 120;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  if (values.length < 2){
+    ctx.fillStyle = '#756c5d';
+    ctx.font = '11px "Martian Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(values.length ? 'one reading so far' : 'no readings yet', w / 2, h / 2);
+    return;
+  }
+
+  var pad = 8;
+  var min = Math.min.apply(null, values), max = Math.max.apply(null, values);
+  // Always include zero, so a small wobble at the top of a large number is not
+  // stretched into a dramatic-looking cliff.
+  if (min > 0) min = 0;
+  if (min === max){ min -= 1; max += 1; }
+
+  var x = function(i){ return pad + (i / (values.length - 1)) * (w - pad * 2); };
+  var y = function(v){ return pad + (1 - (v - min) / (max - min)) * (h - pad * 2); };
+
+  var grad = ctx.createLinearGradient(0, pad, 0, h - pad);
+  grad.addColorStop(0, colour + '44');
+  grad.addColorStop(1, colour + '00');
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(values[0]));
+  values.forEach(function(v, i){ ctx.lineTo(x(i), y(v)); });
+  ctx.lineTo(x(values.length - 1), h - pad);
+  ctx.lineTo(x(0), h - pad);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  ctx.beginPath();
+  values.forEach(function(v, i){ i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)); });
+  ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(x(values.length - 1), y(values[values.length - 1]), 3, 0, Math.PI * 2);
+  ctx.fillStyle = colour; ctx.fill();
+}
+
+var SERIES = [
+  { key:'towns',     cls:'towns',  label:'Towns',           colour:'#189d4d', fmt:num },
+  { key:'residents', cls:'res',    label:'Residents',       colour:'#17539e', fmt:num },
+  { key:'chunks',    cls:'chunks', label:'Claimed chunks',  colour:'#edb912', fmt:num },
+  { key:'balance',   cls:'bank',   label:'Nation treasury', colour:'#cf2029', fmt:gold },
+];
+
+function renderCharts(){
+  var months = data.monthly;
+  var last = months[months.length - 1] || {};
+
+  return '<div class="charts">' + SERIES.map(function(s){
+    var latest = last[s.key];
+    var change = last.change ? last.change[s.key] : null;
+    var cls = change === null || change === undefined ? 'flat'
+      : change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
+    return '<div class="chart ' + s.cls + '">' +
+      '<h2>' + esc(s.label) + '</h2>' +
+      '<span class="now">' + (latest === undefined || latest === null ? '—' : s.fmt(latest)) + '</span>' +
+      '<span class="delta ' + cls + '">' +
+        (change === null || change === undefined ? 'first month on record'
+          : (change === 0 ? 'no change this month' : signed(change) + ' this month')) +
+      '</span>' +
+      '<canvas data-series="' + s.key + '"></canvas></div>';
+  }).join('') + '</div>';
+}
+
+function renderMonths(){
+  if (!data.monthly.length) return '<p class="empty">Nothing recorded yet.</p>';
+  var rows = data.monthly.slice().reverse();
+  var cell = function(v){
+    if (v === undefined || v === null) return '<td class="n flat">—</td>';
+    return '<td class="n ' + (v > 0 ? 'up' : v < 0 ? 'down' : 'flat') + '">' + signed(v) + '</td>';
+  };
+  return '<table><thead><tr><th>Month</th>' +
+    '<th class="n">Towns</th><th class="n">±</th>' +
+    '<th class="n">Residents</th><th class="n">±</th>' +
+    '<th class="n">Chunks</th><th class="n">±</th>' +
+    '<th class="n">Treasury</th></tr></thead><tbody>' +
+    rows.map(function(m){
+      var c = m.change || {};
+      return '<tr><td>' + esc(m.month) + '</td>' +
+        '<td class="n">' + num(m.towns) + '</td>' + cell(c.towns) +
+        '<td class="n">' + num(m.residents) + '</td>' + cell(c.residents) +
+        '<td class="n">' + num(m.chunks) + '</td>' + cell(c.chunks) +
+        '<td class="n">' + gold(m.balance) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function renderTerms(){
+  if (!data.terms.length){
+    return '<p class="empty">No terms recorded. A manager can add them below, ' +
+           'and each one is then measured against the days inside it.</p>';
+  }
+  return data.terms.map(function(t){
+    var g = t.growth;
+    var box = function(label, v, fmt){
+      var cls = v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
+      return '<div><span class="v ' + cls + '">' + (v > 0 ? '+' : '') +
+        (fmt ? fmt(v) : num(v)) + '</span><span class="k">' + label + '</span></div>';
+    };
+    return '<div class="term ' + (t.current ? 'current' : 'past') + '">' +
+      '<div class="term-head"><span class="term-name">' + esc(t.name) + '</span>' +
+        (t.leader ? '<span class="tag">' + esc(t.leader) + '</span>' : '') +
+        (t.party ? '<span class="tag">' + esc(t.party) + '</span>' : '') +
+        (t.current ? '<span class="tag" style="color:var(--green)">current</span>' : '') +
+        '<span class="term-when">' + esc(t.startedOn) + ' → ' +
+          esc(t.endedOn || 'now') + ' · ' + t.days + ' days measured</span></div>' +
+      // Growth is null when there are no snapshots inside the term. Showing
+      // zeroes there would claim the term achieved nothing, which is a
+      // different statement from having no record of it.
+      (g ? '<div class="term-grow">' +
+          box('Towns', g.towns) + box('Residents', g.residents) +
+          box('Chunks', g.chunks) + box('Treasury', g.balance, gold) +
+        '</div>'
+        : '<p class="term-none">No snapshots fall inside these dates, so nothing can be measured.</p>') +
+      (t.note ? '<p class="term-none">' + esc(t.note) + '</p>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function renderGovs(){
+  if (!data.governments.length) return '<p class="empty">No government recorded yet.</p>';
+  return data.governments.map(function(g){
+    var open = openGov === g.id;
+    var when = new Date(g.at + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(g.at) ? '' : 'Z'));
+    var stamp = isNaN(when) ? g.at
+      : when.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+    var partyBits = Object.keys(g.parties || {}).map(function(p){
+      return esc(p) + ' ' + g.parties[p]; }).join(' · ');
+
+    return '<div class="gov">' +
+      '<div class="gov-head" data-gov="' + g.id + '">' +
+        '<span class="gov-when">' + esc(stamp) + '</span>' +
+        (partyBits ? '<span class="tag">' + partyBits + '</span>' : '') +
+        '<span class="gov-sum">' + Object.keys(g.offices || {}).length + ' offices held</span></div>' +
+      (open ? '<div class="gov-body">' +
+        Object.keys(g.offices).map(function(title){
+          return '<div class="office"><span class="t">' + esc(title) + '</span>' +
+            '<span class="p">' + esc(g.offices[title].join(', ')) + '</span></div>';
+        }).join('') +
+        Object.keys(g.house || {}).map(function(region){
+          return '<div class="office"><span class="t">House · ' + esc(region) + '</span>' +
+            '<span class="p">' + esc(g.house[region].join(', ')) + '</span></div>';
+        }).join('') +
+        '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function render(){
+  var admin = data.canManage ? '<section class="admin"><h2>Terms</h2>' +
+    '<p class="hint">A term is any period worth comparing. Each is measured against ' +
+    'the snapshots that fall inside its dates.</p>' +
+    '<div class="fields">' +
+      '<div class="f"><label for="tName">Name</label><input id="tName" placeholder="Second term"></div>' +
+      '<div class="f"><label for="tLeader">Leader</label><input id="tLeader" placeholder="SlipperySalmon14"></div>' +
+      '<div class="f"><label for="tParty">Party</label><input id="tParty" placeholder="IPE"></div>' +
+      '<div class="f"><label for="tStart">Started</label><input id="tStart" placeholder="2026-08-01"></div>' +
+      '<div class="f"><label for="tEnd">Ended (blank if current)</label><input id="tEnd" placeholder="2026-12-31"></div>' +
+      '<button class="btn" type="button" id="saveTerm">Add</button>' +
+    '</div><p class="msg" id="termMsg"></p></section>' : '';
+
+  $('body').innerHTML =
+    (data.captureError
+      ? '<p class="warn">Today could not be recorded: ' + esc(data.captureError) + '</p>' : '') +
+    renderCharts() +
+    '<div class="section-head"><h2>Month by month</h2>' +
+      '<span class="meta">' + data.monthly.length + ' months recorded</span></div>' +
+    renderMonths() +
+    '<div class="section-head"><h2>Terms</h2>' +
+      '<span class="meta">what changed while each was in office</span></div>' +
+    renderTerms() +
+    '<div class="section-head"><h2>Governments</h2>' +
+      '<span class="meta">recorded when the roster changes</span></div>' +
+    renderGovs() + admin;
+
+  // Draw after the markup is in the document, or the canvases have no width.
+  SERIES.forEach(function(s){
+    var c = document.querySelector('[data-series="' + s.key + '"]');
+    if (c) drawSpark(c, data.monthly.map(function(m){ return m[s.key] || 0; }), s.colour);
+  });
+
+  document.querySelectorAll('[data-gov]').forEach(function(el){
+    el.addEventListener('click', function(){
+      openGov = openGov === Number(el.dataset.gov) ? null : Number(el.dataset.gov);
+      render();
+    });
+  });
+
+  var save = $('saveTerm');
+  if (save) save.addEventListener('click', async function(){
+    var msg = $('termMsg');
+    try {
+      await api('/api/admin/terms', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name: $('tName').value.trim(), leader: $('tLeader').value.trim(),
+          party: $('tParty').value.trim(), startedOn: $('tStart').value.trim(),
+          endedOn: $('tEnd').value.trim() }) });
+      msg.textContent = 'Saved.'; msg.className = 'msg ok';
+      load();
+    } catch (e){ msg.textContent = e.message; msg.className = 'msg err'; }
+  });
+}
+
+var resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function(){
+    if (!data) return;
+    SERIES.forEach(function(s){
+      var c = document.querySelector('[data-series="' + s.key + '"]');
+      if (c) drawSpark(c, data.monthly.map(function(m){ return m[s.key] || 0; }), s.colour);
+    });
+  }, 150);
+});
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/history.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  try { renderAuth(); } catch (e) { /* header only */ }
+  try {
+    data = await api('/api/history');
+    render();
+    $('stamp').textContent = data.daily.length + ' days on record';
+  } catch (err){
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 401 ? 'Sign in with Discord to see the national record.'
+      : err.status === 503 ? 'Migration 014 has not been applied to the database yet.'
+      : 'Unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = 'Unavailable';
+  }
+}
+
+load().catch(fatal);
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

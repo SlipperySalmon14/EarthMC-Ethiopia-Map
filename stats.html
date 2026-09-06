@@ -1,1 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Usage · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.2rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+
+.range{ display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:1.1rem; }
+.rb{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem; background:var(--ink-raised);
+  border:1px solid var(--rule); border-radius:2px; color:var(--text-mid); cursor:pointer; }
+.rb.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin-bottom:1.6rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; }
+.stat .k{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.c{ --accent:var(--green); } .stat.p{ --accent:var(--blue); }
+.stat.l{ --accent:var(--gold); } .stat.f{ --accent:var(--red); } .stat.f .n{ color:var(--red); }
+
+.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:1.8rem 0 .9rem; }
+.section-head h2{ font-size:var(--step-1); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
+th{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); text-align:left; font-weight:400; padding:.45rem .5rem;
+  border-bottom:1px solid var(--rule); }
+td{ padding:.45rem .5rem; border-bottom:1px solid var(--rule-soft);
+  font-family:var(--data); font-size:.72rem; font-variant-numeric:tabular-nums; }
+td.n{ text-align:right; }
+td.name{ color:var(--text); font-weight:600; }
+.bar{ height:.35rem; background:var(--ink); border-radius:999px; overflow:hidden; margin-top:.25rem; }
+.bar span{ display:block; height:100%; background:var(--green); border-radius:999px; }
+.fail{ color:var(--red); }
+.zero{ color:var(--text-low); }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="admin.html">&#8592; Admin</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title">Usage</h1>
+    <p class="sub" data-slot="subtitle">What is actually being used</p>
+  </header>
+
+  <div id="body"><p class="empty">Loading…</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+var when = function(s){
+  if (!s) return '—';
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? String(s)
+    : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + ' ' +
+      d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+};
+
+var me = null, data = null, days = 30;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function fatal(err){
+  var host = $('body') || document.body;
+  host.innerHTML = '';
+  var p = document.createElement('p');
+  p.className = 'empty';
+  p.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  p.textContent = 'This page failed to load: ' + ((err && err.message) || err);
+  host.appendChild(p);
+}
+
+function table(rows, cols){
+  if (!rows.length) return '<p class="empty">Nothing recorded yet.</p>';
+  return '<table><thead><tr>' +
+    cols.map(function(c){ return '<th' + (c.n ? ' style="text-align:right"' : '') + '>' + esc(c.h) + '</th>'; }).join('') +
+    '</tr></thead><tbody>' +
+    rows.map(function(r){
+      return '<tr>' + cols.map(function(c){
+        return '<td class="' + (c.n ? 'n ' : '') + (c.cls || '') + '">' + c.get(r) + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function render(){
+  var maxUses = data.commands.length ? data.commands[0].uses : 1;
+
+  var out =
+    '<div class="range">' +
+      [7, 30, 90, 365].map(function(d){
+        return '<span class="rb' + (days === d ? ' on' : '') + '" data-days="' + d + '">' +
+          (d === 365 ? 'Year' : d + ' days') + '</span>';
+      }).join('') +
+    '</div>' +
+
+    '<div class="stats">' +
+      '<div class="stat c"><span class="n">' + num(data.totals.commands) + '</span>' +
+        '<span class="k">Commands run</span></div>' +
+      '<div class="stat p"><span class="n">' + num(data.totals.pageViews) + '</span>' +
+        '<span class="k">Page views</span></div>' +
+      '<div class="stat l"><span class="n">' + num(data.logins.total) + '</span>' +
+        '<span class="k">Logins · ' + num(data.logins.people) + ' people</span></div>' +
+      '<div class="stat f"><span class="n">' + num(data.totals.failures) + '</span>' +
+        '<span class="k">Command failures</span></div>' +
+    '</div>';
+
+  out += '<div class="section-head"><h2>Commands</h2>' +
+    '<span class="meta">' + data.commands.length + ' distinct</span></div>' +
+    table(data.commands, [
+      { h: 'Command', cls: 'name', get: function(r){
+          // A bar makes the gap between the top command and the rest legible
+          // at a glance, which a column of numbers does not.
+          var pct = Math.round((r.uses / maxUses) * 100);
+          return '/' + esc(r.name) + '<div class="bar"><span style="width:' + pct + '%"></span></div>';
+        } },
+      { h: 'Uses', n: true, get: function(r){ return num(r.uses); } },
+      { h: 'People', n: true, get: function(r){ return num(r.people); } },
+      { h: 'Failed', n: true, get: function(r){
+          return r.failures ? '<span class="fail">' + num(r.failures) + '</span>'
+                            : '<span class="zero">0</span>';
+        } },
+      { h: 'Last used', n: true, get: function(r){ return esc(when(r.last_used)); } },
+    ]);
+
+  out += '<div class="section-head"><h2>Pages</h2>' +
+    '<span class="meta">' + data.pages.length + ' distinct</span></div>' +
+    table(data.pages, [
+      { h: 'Page', cls: 'name', get: function(r){ return esc(r.name); } },
+      { h: 'Views', n: true, get: function(r){ return num(r.views); } },
+      { h: 'Signed-in people', n: true, get: function(r){ return num(r.people); } },
+    ]);
+
+  out += '<div class="section-head"><h2>People</h2>' +
+    '<span class="meta">most active first</span></div>' +
+    table(data.people, [
+      { h: 'Who', cls: 'name', get: function(r){ return esc(r.label || r.discord_id); } },
+      { h: 'Discord ID', get: function(r){ return esc(r.discord_id); } },
+      { h: 'Actions', n: true, get: function(r){ return num(r.actions); } },
+      { h: 'Commands', n: true, get: function(r){ return num(r.commands); } },
+      { h: 'Last seen', n: true, get: function(r){ return esc(when(r.last_seen)); } },
+    ]);
+
+  out += '<div class="section-head"><h2>Recent activity</h2>' +
+    '<span class="meta">newest first</span></div>' +
+    table(data.recent, [
+      { h: 'When', get: function(r){ return esc(when(r.created_at)); } },
+      { h: 'What', cls: 'name', get: function(r){
+          return (r.kind === 'command' ? '/' : '') + esc(r.name) +
+            (r.ok ? '' : ' <span class="fail">failed</span>');
+        } },
+      { h: 'Kind', get: function(r){ return esc(r.kind); } },
+      { h: 'Who', get: function(r){ return esc(r.actor_label || r.discord_id || '—'); } },
+    ]);
+
+  $('body').innerHTML = out;
+
+  document.querySelectorAll('[data-days]').forEach(function(el){
+    el.addEventListener('click', function(){
+      days = Number(el.dataset.days);
+      load(true);
+    });
+  });
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/stats.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function load(quiet){
+  if (!quiet){
+    try { me = await api('/api/me'); } catch (e) { me = null; }
+    try { renderAuth(); } catch (e) {}
+  }
+  try {
+    data = await api('/api/admin/stats?days=' + days);
+    render();
+    $('stamp').textContent = 'Last ' + days + ' days';
+  } catch (err){
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 403 ? 'Only a Manager can see usage statistics.'
+      : err.status === 503 ? 'Migration 017 has not been applied to the database yet.'
+      : 'Unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = 'Unavailable';
+  }
+}
+
+load().catch(fatal);
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

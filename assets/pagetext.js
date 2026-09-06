@@ -55,6 +55,23 @@
     }
   });
 
+  // A page-view beacon lives here because this script already loads on every
+  // page — adding it anywhere else would mean remembering to include a second
+  // file each time. Fire-and-forget: analytics must never delay or break a
+  // page render.
+  function beacon(){
+    try {
+      fetch(API + '/api/track', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: page }),
+        keepalive: true,
+      }).catch(function(){});
+    } catch (e) { /* never surface */ }
+  }
+
   window.ethiopiaPageText = { reapply: apply, page: page };
   load();
+  beacon();
 })();

@@ -638,7 +638,7 @@ async function uploadPlan(){
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ layout: parsed })
     });
-    msg.textContent = 'Saved ' + num(d.cells) + ' cells. Reloading…';
+    msg.textContent = 'Saved ' + num(d.barrels) + ' barrels. Reloading…';
     setTimeout(function(){ location.reload(); }, 900);
   } catch (e){ msg.textContent = 'Could not save it: ' + e.message; }
 }
@@ -700,4 +700,3 @@ load().catch(fatal);
 <script src="assets/pagetext.js?v=1"></script>
 </body>
 </html>
-

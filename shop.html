@@ -1,1 +1,703 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shop · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.2rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+
+/* ---------------------------------------------------------------------------
+   THE FLOOR
+   The plan is the point of this page, so it gets the space and everything else
+   sits under it. Drawn from the building's real block data, which is why the
+   aisles read as aisles: the green/gold/red down the spine is the carpet that
+   is actually there, in the palette the site already uses.
+   --------------------------------------------------------------------------- */
+.floorwrap{ position:relative; border:1px solid var(--rule); border-radius:3px;
+  background:#0b0a08; overflow:hidden; touch-action:none; }
+#floor{ display:block; width:100%; height:auto; cursor:grab; }
+#floor.dragging{ cursor:grabbing; }
+
+.floorbar{ display:flex; gap:.35rem; align-items:center; flex-wrap:wrap; margin-bottom:.6rem; }
+.lv{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem; background:var(--ink-raised);
+  border:1px solid var(--rule); border-radius:2px; color:var(--text-mid); cursor:pointer; }
+.lv:hover{ border-color:var(--gold-dim); color:var(--text); }
+.lv.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+.zoom{ margin-left:auto; display:flex; gap:.25rem; }
+.zoom button{ font-family:var(--data); font-size:.8rem; width:2rem; height:1.9rem; line-height:1;
+  background:var(--ink-raised); border:1px solid var(--rule); border-radius:2px;
+  color:var(--text-mid); cursor:pointer; }
+.zoom button:hover{ border-color:var(--gold-dim); color:var(--gold); }
+
+/* Barrel states carry meaning, so they are the only saturated things on the
+   plan. Everything structural stays near the ground colour. */
+.b-empty{ fill:#2a241c; stroke:#3a3229; stroke-width:.06; }
+.b-sell { fill:var(--green); stroke:#0a3f1e; stroke-width:.06; }
+.b-buy  { fill:var(--blue);  stroke:#0d2c53; stroke-width:.06; }
+.b-low  { fill:var(--red);   stroke:#5c0f13; stroke-width:.06; }
+.b-hit  { fill:transparent; cursor:pointer; }
+.b-sel  { fill:none; stroke:var(--gold); stroke-width:.28; }
+.itemtag{ font-family:var(--data); font-size:.42px; fill:var(--text); paint-order:stroke;
+  stroke:#0b0a08; stroke-width:.14px; text-anchor:middle; pointer-events:none; }
+
+.legend{ display:flex; gap:.9rem; flex-wrap:wrap; margin-top:.6rem;
+  font-family:var(--data); font-size:.64rem; color:var(--text-low); }
+.legend i{ display:inline-block; width:.62rem; height:.62rem; border-radius:1px;
+  margin-right:.3rem; vertical-align:-1px; }
+
+/* --- the detail card slides over the plan rather than pushing it down, so the
+       barrel you clicked stays where you clicked it --- */
+.detail{ position:absolute; left:.6rem; right:.6rem; bottom:.6rem; max-width:22rem;
+  background:rgba(16,14,11,.96); border:1px solid var(--rule); border-left:3px solid var(--gold);
+  border-radius:3px; padding:.8rem .9rem; }
+.detail h3{ font-size:var(--step-0); margin:0 0 .1rem; }
+.detail .coords{ font-family:var(--data); font-size:.62rem; color:var(--text-low); margin:0 0 .5rem; }
+.detail .close{ position:absolute; top:.5rem; right:.6rem; background:none; border:0;
+  color:var(--text-low); font-size:1rem; cursor:pointer; line-height:1; }
+.detail .close:hover{ color:var(--gold); }
+
+.kv{ display:flex; justify-content:space-between; gap:.6rem; font-family:var(--data);
+  font-size:.7rem; padding:.26rem 0; border-bottom:1px solid var(--rule-soft); }
+.kv:last-child{ border-bottom:none; }
+.kv dt{ color:var(--text-low); margin:0; }
+.kv dd{ margin:0; color:var(--text); font-variant-numeric:tabular-nums; text-align:right; }
+.kv dd.g{ color:var(--green); } .kv dd.gold{ color:var(--gold); } .kv dd.r{ color:var(--red); }
+
+.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 .9rem; }
+.section-head h2{ font-size:var(--step-1); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin-bottom:1.4rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; }
+.stat .k{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.in{ --accent:var(--green); } .stat.in .n{ color:var(--green); }
+.stat.out{ --accent:var(--blue); }
+.stat.net{ --accent:var(--gold); } .stat.net .n{ color:var(--gold); }
+.stat.warn{ --accent:var(--red); } .stat.warn .n{ color:var(--red); }
+
+.tools{ display:flex; gap:.4rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.8rem; }
+.f{ display:flex; flex-direction:column; gap:.25rem; flex:1 1 12rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--body); font-size:.84rem; width:100%; }
+.f input:focus, .f select:focus{ border-color:var(--gold); outline:none; }
+
+table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
+th{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); text-align:left; font-weight:400; padding:.45rem .5rem;
+  border-bottom:1px solid var(--rule); cursor:pointer; }
+th:hover{ color:var(--gold); }
+td{ padding:.45rem .5rem; border-bottom:1px solid var(--rule-soft);
+  font-family:var(--data); font-size:.72rem; font-variant-numeric:tabular-nums; }
+td.n{ text-align:right; }
+td.name{ color:var(--text); font-weight:600; font-family:var(--body); }
+tr.pick{ cursor:pointer; }
+tr.pick:hover td{ background:var(--ink-raised); }
+.pos{ color:var(--green); } .neg{ color:var(--red); } .zero{ color:var(--text-low); }
+.bar{ height:.3rem; background:var(--ink); border-radius:999px; overflow:hidden; margin-top:.22rem; }
+.bar span{ display:block; height:100%; background:var(--green); border-radius:999px; }
+
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+.note{ font-family:var(--data); font-size:.66rem; color:var(--text-low); margin:.5rem 0 0; }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+@media (max-width:640px){
+  .detail{ max-width:none; }
+  .floorbar{ gap:.25rem; }
+}
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title">Shop</h1>
+    <p class="sub" data-slot="subtitle">The floor, and what moves across it</p>
+  </header>
+
+  <div id="body"><p class="empty">Loading&#8230;</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+var gold = function(n){ return num(n) + 'g'; };
+var when = function(s){
+  if (!s) return '—';
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? String(s)
+    : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+};
+/* TOTEM_OF_UNDYING reads badly in a table. The API also sends item_name, but
+   only for shops it knows about, so this is the fallback for everything else. */
+var pretty = function(id){
+  return String(id || '').toLowerCase().split('_')
+    .map(function(w){ return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+};
+
+var me = null, layout = null, shops = [], stats = null;
+var level = 96, view = null, sel = null, canSeeStats = false;
+var search = '', sortKey = 'net_gold', sortDir = -1;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.detail) || (d && d.error) || ('HTTP ' + res.status));
+    err.status = res.status; throw err; }
+  return d;
+}
+
+/* A page stuck on "Loading…" with no error is the worst failure mode there is.
+   If anything in load() throws, say so on the page. */
+function fatal(err){
+  var host = $('body') || document.body;
+  host.innerHTML = '';
+  var p = document.createElement('p');
+  p.className = 'empty';
+  p.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  p.textContent = 'This page failed to load: ' + ((err && err.message) || err);
+  host.appendChild(p);
+  try { console.error('[shop]', err); } catch (e) {}
+}
+
+/* ---------------------------------------------------------------------------
+   FLOOR PLAN
+   Plain SVG, not Leaflet. Every cell is a real DOM node, so hit-testing is the
+   browser's job and none of the shared-canvas paint-order problems from the
+   map apply here.
+
+   Structural cells are merged into one <path> per category — roughly 4,600
+   rects per level collapse to a handful of nodes. Only barrels stay individual,
+   because only barrels are clickable.
+   --------------------------------------------------------------------------- */
+var CELL_STYLE = {
+  structure:    '#221d17',
+  path:         '#2c2721',
+  glass:        '#1d2530',
+  light:        '#3a3018',
+  door:         '#4a3a22',
+  shelf:        '#2a231b',
+  hopper:       '#1e1a16',
+  sign:         '#33291c',
+  carpet_green: '#14512a',
+  carpet_yellow:'#7a600c',
+  carpet_red:   '#6b1116',
+  carpet_blue:  '#123a6e',
+};
+var CELL_ORDER = ['structure','path','glass','hopper','shelf','light','sign','door',
+                  'carpet_green','carpet_yellow','carpet_red','carpet_blue'];
+
+/* QuickShop's numeric id means nothing to a schematic, so position is the only
+   key the floor plan and the shop list share. Indexed once per load rather
+   than scanned per barrel: 1,074 barrels against 49 shops is 52,000
+   comparisons on every repaint, and a repaint happens on every pan. */
+var shopIndex = {};
+function indexShops(){
+  shopIndex = {};
+  shops.forEach(function(s){
+    if (s.x != null && s.y != null && s.z != null){
+      shopIndex[s.x + ',' + s.y + ',' + s.z] = s;
+    }
+  });
+}
+function shopFor(x, y, z){ return shopIndex[x + ',' + y + ',' + z] || null; }
+
+function barrelClass(s){
+  if (!s) return 'b-empty';
+  if (s.shop_type === 'buy') return 'b-buy';
+  if (s.stock != null && s.stock <= (stats ? stats.restockThreshold : 64)) return 'b-low';
+  return 'b-sell';
+}
+
+function drawFloor(){
+  var b = layout.bounds;
+  var w = b.maxX - b.minX + 1, h = b.maxZ - b.minZ + 1;
+  if (!view) view = { x: b.minX, z: b.minZ, w: w, h: h };
+
+  var cells = layout.cells[String(level)] || {};
+  var parts = [];
+
+  parts.push('<svg id="floor" viewBox="' + view.x + ' ' + view.z + ' ' + view.w + ' ' + view.h +
+    '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Shop floor plan">');
+  parts.push('<rect x="' + b.minX + '" y="' + b.minZ + '" width="' + w + '" height="' + h +
+    '" fill="#0b0a08"/>');
+
+  CELL_ORDER.forEach(function(k){
+    var list = cells[k];
+    if (!list || !list.length) return;
+    var dd = '';
+    for (var i = 0; i < list.length; i++){
+      dd += 'M' + list[i][0] + ' ' + list[i][1] + 'h1v1h-1z';
+    }
+    parts.push('<path d="' + dd + '" fill="' + CELL_STYLE[k] + '"/>');
+  });
+
+  // Barrels last so they sit above the floor, and individually so each is a
+  // click target with its own title for keyboard and screen-reader users.
+  var bar = (layout.barrels || []).filter(function(p){ return p[1] === level; });
+  var zoomed = view.w < 34;
+  bar.forEach(function(p){
+    var s = shopFor(p[0], p[1], p[2]);
+    parts.push('<rect class="' + barrelClass(s) + '" x="' + p[0] + '" y="' + p[2] +
+      '" width="1" height="1" rx=".12"/>');
+    parts.push('<rect class="b-hit" data-x="' + p[0] + '" data-z="' + p[2] +
+      '" x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" tabindex="0"><title>' +
+      esc(s ? (pretty(s.item) + ' · ' + s.price + 'g') : 'Barrel, no shop sign') +
+      '</title></rect>');
+    if (zoomed && s){
+      parts.push('<text class="itemtag" x="' + (p[0] + .5) + '" y="' + (p[2] + .72) + '">' +
+        esc(pretty(s.item).split(' ')[0].slice(0, 7)) + '</text>');
+    }
+  });
+
+  if (sel){
+    parts.push('<rect class="b-sel" x="' + (sel.x - .12) + '" y="' + (sel.z - .12) +
+      '" width="1.24" height="1.24" rx=".2"/>');
+  }
+  parts.push('</svg>');
+  return parts.join('');
+}
+
+function detailCard(){
+  if (!sel) return '';
+  var s = shopFor(sel.x, level, sel.z);
+  var out = '<div class="detail"><button class="close" id="closeSel" ' +
+    'aria-label="Close">&#215;</button>';
+
+  if (!s){
+    out += '<h3>Barrel</h3><p class="coords">' + sel.x + ', ' + level + ', ' + sel.z + '</p>' +
+      '<p class="note">Built, but no shop sign yet. It will appear here once ' +
+      'a QuickShop is set on it.</p></div>';
+    return out;
+  }
+
+  out += '<h3>' + esc(pretty(s.item)) + '</h3>' +
+    '<p class="coords">' + sel.x + ', ' + level + ', ' + sel.z + ' · shop ' + esc(s.shop_id) +
+    (s.row_location ? ' · ' + esc(s.row_location) : '') + '</p>';
+
+  out += '<div class="kv"><dt>' + (s.shop_type === 'buy' ? 'Paying' : 'Price') +
+    '</dt><dd class="gold">' + gold(s.price) + '</dd></div>';
+
+  if (canSeeStats){
+    out += '<div class="kv"><dt>In stock</dt><dd' +
+      (s.stock != null && s.stock <= 64 ? ' class="r"' : '') + '>' +
+      (s.stock == null ? '—' : num(s.stock)) + '</dd></div>';
+    var row = stats && (stats.items || []).find(function(r){ return r.item === s.item; });
+    if (row){
+      out += '<div class="kv"><dt>Sold</dt><dd class="g">' + gold(row.sold_gold) +
+        ' · ' + num(row.sales) + '</dd></div>' +
+        '<div class="kv"><dt>Bought back</dt><dd>' + gold(row.bought_gold) +
+        ' · ' + num(row.buybacks) + '</dd></div>' +
+        '<div class="kv"><dt>Net</dt><dd class="' + (row.net_gold >= 0 ? 'g' : 'r') + '">' +
+        gold(row.net_gold) + '</dd></div>' +
+        '<div class="kv"><dt>Last traded</dt><dd>' + esc(when(row.last_traded)) + '</dd></div>';
+    } else {
+      out += '<p class="note">Nothing traded here in the last ' +
+        (stats ? stats.days : 30) + ' days.</p>';
+    }
+  }
+  if (s.first_seen){
+    out += '<div class="kv"><dt>First seen</dt><dd>' + esc(when(s.first_seen)) + '</dd></div>';
+  }
+  return out + '</div>';
+}
+
+/* --- zoom and pan ---------------------------------------------------------
+   The viewBox is the whole camera: no transforms, no layer panes, nothing that
+   can disagree with hit-testing. Clamped to the building so it cannot be lost
+   off the edge of the world. */
+function clampView(){
+  var b = layout.bounds;
+  var w = b.maxX - b.minX + 1, h = b.maxZ - b.minZ + 1;
+  view.w = Math.max(8, Math.min(view.w, w));
+  view.h = view.w * (h / w);
+  view.x = Math.max(b.minX, Math.min(view.x, b.maxX + 1 - view.w));
+  view.z = Math.max(b.minZ, Math.min(view.z, b.maxZ + 1 - view.h));
+}
+
+function zoomBy(f, cx, cz){
+  var b = layout.bounds;
+  var w = b.maxX - b.minX + 1;
+  if (cx == null){ cx = view.x + view.w / 2; cz = view.z + view.h / 2; }
+  var nw = Math.max(8, Math.min(view.w * f, w));
+  var k = nw / view.w;
+  view.x = cx - (cx - view.x) * k;
+  view.z = cz - (cz - view.z) * k;
+  view.w = nw;
+  clampView();
+  paintFloor();
+}
+
+function paintFloor(){
+  var host = $('floorwrap');
+  if (!host) return;
+  host.innerHTML = drawFloor() + detailCard();
+  wireFloor();
+}
+
+function wireFloor(){
+  var svg = $('floor');
+  if (!svg) return;
+
+  svg.querySelectorAll('.b-hit').forEach(function(el){
+    var pick = function(){
+      sel = { x: Number(el.dataset.x), z: Number(el.dataset.z) };
+      paintFloor();
+    };
+    el.addEventListener('click', pick);
+    el.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); pick(); }
+    });
+  });
+
+  var close = $('closeSel');
+  if (close) close.addEventListener('click', function(){ sel = null; paintFloor(); });
+
+  svg.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var r = svg.getBoundingClientRect();
+    var cx = view.x + ((e.clientX - r.left) / r.width) * view.w;
+    var cz = view.z + ((e.clientY - r.top) / r.height) * view.h;
+    zoomBy(e.deltaY > 0 ? 1.18 : 0.85, cx, cz);
+  }, { passive:false });
+
+  var drag = null;
+  svg.addEventListener('pointerdown', function(e){
+    drag = { px:e.clientX, pz:e.clientY, x:view.x, z:view.z };
+    svg.classList.add('dragging');
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', function(e){
+    if (!drag) return;
+    var r = svg.getBoundingClientRect();
+    view.x = drag.x - ((e.clientX - drag.px) / r.width) * view.w;
+    view.z = drag.z - ((e.clientY - drag.pz) / r.height) * view.h;
+    clampView();
+    svg.setAttribute('viewBox', view.x + ' ' + view.z + ' ' + view.w + ' ' + view.h);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(function(ev){
+    svg.addEventListener(ev, function(){
+      if (drag && $('floor')) $('floor').classList.remove('dragging');
+      // Repaint only on release: item labels appear by zoom level, and
+      // rebuilding 1,000 nodes on every pointermove would crawl on a phone.
+      if (drag) paintFloor();
+      drag = null;
+    });
+  });
+}
+
+/* --- item table ----------------------------------------------------------- */
+var COLS = [
+  { k:'item',        h:'Item',        get:function(r){ return esc(pretty(r.item)); }, cls:'name' },
+  { k:'sold_gold',   h:'Sold',        n:true, get:function(r){ return gold(r.sold_gold); } },
+  { k:'sold_qty',    h:'Units',       n:true, get:function(r){ return num(r.sold_qty); } },
+  { k:'bought_gold', h:'Bought back', n:true, get:function(r){ return gold(r.bought_gold); } },
+  { k:'net_gold',    h:'Net',         n:true, get:function(r){
+      return '<span class="' + (r.net_gold > 0 ? 'pos' : r.net_gold < 0 ? 'neg' : 'zero') + '">' +
+        gold(r.net_gold) + '</span>'; } },
+  { k:'last_traded', h:'Last',        n:true, get:function(r){ return esc(when(r.last_traded)); } },
+];
+
+function itemTable(){
+  if (!stats) return '';
+  var rows = (stats.items || []).filter(function(r){
+    return !search || pretty(r.item).toLowerCase().indexOf(search.toLowerCase()) >= 0;
+  });
+  rows.sort(function(a, b){
+    var x = a[sortKey], y = b[sortKey];
+    if (typeof x === 'string') return sortDir * String(x).localeCompare(String(y));
+    return sortDir * ((x || 0) - (y || 0));
+  });
+
+  if (!rows.length){
+    return '<p class="empty">' + (search
+      ? 'Nothing matches “' + esc(search) + '”.'
+      : 'No trades recorded yet. Figures start from the day the shop listener goes live.') +
+      '</p>';
+  }
+
+  var top = Math.max.apply(null, rows.map(function(r){ return r.sold_gold || 0; })) || 1;
+  return '<table><thead><tr>' + COLS.map(function(c){
+      return '<th data-k="' + c.k + '"' + (c.n ? ' style="text-align:right"' : '') + '>' +
+        esc(c.h) + (sortKey === c.k ? (sortDir < 0 ? ' ↓' : ' ↑') : '') + '</th>';
+    }).join('') + '</tr></thead><tbody>' +
+    rows.map(function(r){
+      return '<tr class="pick" data-item="' + esc(r.item) + '">' + COLS.map(function(c){
+        var v = c.get(r);
+        if (c.k === 'item'){
+          v += '<div class="bar"><span style="width:' +
+            Math.round(((r.sold_gold || 0) / top) * 100) + '%"></span></div>';
+        }
+        return '<td class="' + (c.n ? 'n ' : '') + (c.cls || '') + '">' + v + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function render(){
+  var out = '';
+
+  /* --- the floor, first, because it is what this page is for --- */
+  if (layout){
+    out += '<div class="floorbar">' +
+      (layout.levels || []).map(function(l){
+        return '<span class="lv' + (level === l.y ? ' on' : '') + '" data-y="' + l.y + '">' +
+          esc(l.label) + '</span>';
+      }).join('') +
+      '<span class="zoom">' +
+        '<button id="zin" title="Zoom in">+</button>' +
+        '<button id="zout" title="Zoom out">&#8722;</button>' +
+        '<button id="zfit" title="Fit the whole floor">&#9723;</button>' +
+      '</span></div>' +
+      '<div class="floorwrap" id="floorwrap"></div>' +
+      '<div class="legend">' +
+        '<span><i style="background:var(--green)"></i>Selling</span>' +
+        '<span><i style="background:var(--blue)"></i>Buying</span>' +
+        '<span><i style="background:var(--red)"></i>Low stock</span>' +
+        '<span><i style="background:#2a241c;border:1px solid #3a3229"></i>No sign yet</span>' +
+        '<span>' + num((layout.barrels || []).length) + ' barrels · ' +
+          num(shops.length) + ' with a shop</span>' +
+      '</div>';
+  } else {
+    out += '<p class="empty">The floor plan has not been loaded yet. ' +
+      'An Emperor can upload it below.</p>';
+  }
+
+  if (isEmperor){
+    out += '<div class="section-head"><h2>Floor plan</h2>' +
+      '<span class="meta">only needed when the building changes</span></div>' +
+      '<div class="tools"><div class="f"><label for="planfile">Upload shop-layout.json</label>' +
+      '<input type="file" id="planfile" accept="application/json"></div>' +
+      '<button class="btn" type="button" id="planup">Save floor plan</button></div>' +
+      '<p class="note" id="planmsg"></p>';
+  }
+
+  /* --- trading figures, treasurer and above --- */
+  if (!canSeeStats){
+    out += '<div class="section-head"><h2>Trading</h2></div>' +
+      '<p class="empty">' + (me && me.signedIn
+        ? 'Sales and stock figures are for the Treasurer and above. You are signed in as ' +
+          esc(me.tier) + '.'
+        : 'Sign in to see trading figures.') + '</p>';
+  } else {
+    var t = stats.totals;
+    out += '<div class="section-head"><h2>Trading</h2>' +
+      '<span class="meta">' + (stats.firstEvent
+        ? 'since ' + esc(when(stats.firstEvent))
+        : 'nothing recorded yet') + '</span></div>' +
+      '<div class="stats">' +
+        '<div class="stat in"><span class="n">' + gold(t.sold_gold) + '</span>' +
+          '<span class="k">Taken in · ' + num(t.sales) + ' sales</span></div>' +
+        '<div class="stat out"><span class="n">' + gold(t.bought_gold) + '</span>' +
+          '<span class="k">Paid out · ' + num(t.buybacks) + ' buy-backs</span></div>' +
+        '<div class="stat net"><span class="n">' + gold(t.net_gold) + '</span>' +
+          '<span class="k">Net</span></div>' +
+        '<div class="stat warn"><span class="n">' + num(stats.restock.length) + '</span>' +
+          '<span class="k">Need restocking</span></div>' +
+      '</div>';
+
+    out += '<div class="tools">' +
+      '<div class="f"><label for="q">Search items</label>' +
+        '<input id="q" placeholder="wheat, emerald, concrete…" value="' + esc(search) + '"></div>' +
+      '<div class="f" style="flex:0 0 8rem"><label for="days">Period</label>' +
+        '<select id="days">' + [7,30,90,365].map(function(d){
+          return '<option value="' + d + '"' + (stats.days === d ? ' selected' : '') + '>' +
+            (d === 365 ? 'Year' : d + ' days') + '</option>'; }).join('') +
+        '</select></div></div>';
+
+    out += '<div id="itemtable">' + itemTable() + '</div>';
+
+    if (stats.restock.length){
+      out += '<div class="section-head"><h2>Restock</h2>' +
+        '<span class="meta">at or under ' + stats.restockThreshold + ' in stock</span></div>' +
+        '<table><thead><tr><th>Item</th><th style="text-align:right">Stock</th>' +
+        '<th style="text-align:right">Price</th><th>Where</th></tr></thead><tbody>' +
+        stats.restock.map(function(r){
+          return '<tr><td class="name">' + esc(pretty(r.item)) + '</td>' +
+            '<td class="n neg">' + num(r.stock) + '</td>' +
+            '<td class="n">' + gold(r.price) + '</td>' +
+            '<td>' + esc(r.row_location || '—') + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+
+    if (stats.warnings.length){
+      out += '<div class="section-head"><h2>Warnings</h2>' +
+        '<span class="meta">from the shop itself</span></div>' +
+        '<table><thead><tr><th>What</th><th>Item</th>' +
+        '<th style="text-align:right">Times</th><th style="text-align:right">Last</th>' +
+        '</tr></thead><tbody>' +
+        stats.warnings.map(function(w){
+          return '<tr><td class="name">' + esc(pretty(w.kind)) + '</td>' +
+            '<td>' + esc(pretty(w.item)) + '</td>' +
+            '<td class="n">' + num(w.times) + '</td>' +
+            '<td class="n">' + esc(when(w.last_seen)) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+  }
+
+  $('body').innerHTML = out;
+  if (layout) paintFloor();
+  wirePage();
+
+  /* pagetext.js runs once, on load, over the [data-slot] elements that exist
+     at that moment. Everything above was rendered after an await, so any
+     override would have been missed. This is what reapply() is for. */
+  if (window.ethiopiaPageText) window.ethiopiaPageText.reapply();
+}
+
+function wirePage(){
+  document.querySelectorAll('[data-y]').forEach(function(el){
+    el.addEventListener('click', function(){
+      level = Number(el.dataset.y); sel = null; render();
+    });
+  });
+  var zi = $('zin'), zo = $('zout'), zf = $('zfit');
+  if (zi) zi.addEventListener('click', function(){ zoomBy(0.7); });
+  if (zo) zo.addEventListener('click', function(){ zoomBy(1.4); });
+  if (zf) zf.addEventListener('click', function(){ view = null; sel = null; paintFloor(); });
+
+  var q = $('q');
+  if (q) q.addEventListener('input', function(){
+    search = q.value;
+    $('itemtable').innerHTML = itemTable();
+    wireTable();
+  });
+
+  var days = $('days');
+  if (days) days.addEventListener('change', function(){ loadStats(Number(days.value)); });
+
+  wireTable();
+
+  var up = $('planup');
+  if (up) up.addEventListener('click', uploadPlan);
+}
+
+function wireTable(){
+  document.querySelectorAll('#itemtable th[data-k]').forEach(function(th){
+    th.addEventListener('click', function(){
+      var k = th.dataset.k;
+      if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = -1; }
+      $('itemtable').innerHTML = itemTable();
+      wireTable();
+    });
+  });
+  document.querySelectorAll('#itemtable tr[data-item]').forEach(function(tr){
+    tr.addEventListener('click', function(){
+      var s = shops.find(function(x){ return x.item === tr.dataset.item; });
+      if (!s || s.x == null) return;
+      level = s.y; sel = { x: s.x, z: s.z };
+      view = { x: s.x - 9, z: s.z - 6, w: 18, h: 12 };
+      render();
+      var fw = $('floorwrap');
+      if (fw) fw.scrollIntoView({ behavior:'smooth', block:'center' });
+    });
+  });
+}
+
+async function uploadPlan(){
+  var msg = $('planmsg'), file = $('planfile').files[0];
+  if (!file){ msg.textContent = 'Choose a shop-layout.json file first.'; return; }
+  msg.textContent = 'Saving…';
+  try {
+    var parsed = JSON.parse(await file.text());
+    var d = await api('/api/shop/layout', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ layout: parsed })
+    });
+    msg.textContent = 'Saved ' + num(d.cells) + ' cells. Reloading…';
+    setTimeout(function(){ location.reload(); }, 900);
+  } catch (e){ msg.textContent = 'Could not save it: ' + e.message; }
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/shop.html') + '">Sign in with Discord</a>';
+  }
+}
+
+var isEmperor = false;
+
+async function loadStats(days){
+  try {
+    stats = await api('/api/shop/stats?days=' + (days || 30));
+    canSeeStats = true;
+  } catch (e){
+    stats = null;
+    canSeeStats = false;
+    if (e.status !== 403 && e.status !== 401) console.warn('[shop] stats:', e.message);
+  }
+  render();
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  try { renderAuth(); } catch (e) { /* header only */ }
+  try {
+    var d = await api('/api/shop/layout');
+    layout = d.layout;
+    shops = d.shops || [];
+    isEmperor = !!d.canEdit;
+    indexShops();
+  } catch (e){
+    if (e.status === 401){
+      $('body').innerHTML = '<p class="empty">Sign in as a verified citizen of Ethiopia ' +
+        'to see the shop floor.</p>';
+      $('stamp').textContent = 'Not signed in';
+      return;
+    }
+    throw e;
+  }
+
+  await loadStats(30);
+  $('stamp').textContent = layout ? (layout.label || 'Megashop') : 'No floor plan';
+}
+
+load().catch(fatal);
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

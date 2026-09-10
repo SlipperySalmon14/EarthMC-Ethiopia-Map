@@ -136,6 +136,7 @@ var daysUntil = function(s){
 
 var me = null, towns = null, grants = null, canManage = false;
 var chunkCost = 16, filterStatus = '', page = 0;
+var settings = { weeklyRate: 128, weeksPerRequest: 2, amount: 256, chunks: 16 };
 var PAGE = 25;
 
 async function api(path, opts){
@@ -239,19 +240,22 @@ function townRow(t){
     : !t.active ? '<span class="tag t-denied">paused</span>'
     : '<span class="tag t-fulfilled">active</span>';
 
+  var draw = t.available
+    ? '<span style="color:var(--green)">available</span>'
+    : '<span style="color:var(--text-low)">' + when(t.nextAt) + '</span>';
+
   return '<tr>' +
     '<td class="name">' + esc(t.town_name) +
       (t.blacklist_reason ? '<div class="note">' + esc(t.blacklist_reason) + '</div>' : '') +
     '</td>' +
     '<td>' + flag + '</td>' +
-    '<td class="n">' + gold(t.weekly_rate) + '/wk' +
-      '<div class="note">' + Math.floor(t.weekly_rate / chunkCost) + ' chunks a week</div></td>' +
-    '<td class="n">' + num(t.max_weeks) + 'w max</td>' +
+    '<td class="n">' + draw +
+      '<div class="note">' + (t.lastPaid ? 'last ' + when(t.lastPaid) : 'never funded') +
+      '</div></td>' +
     '<td class="n">' + gold(t.paidTotal) + '<div class="note">' + record + '</div></td>' +
     '<td class="n">' + num(t.chunks) + '</td>' +
     (canManage
       ? '<td><div class="acts">' +
-        '<button data-edit="' + esc(t.town_name) + '">Edit</button>' +
         '<button class="' + (t.blacklisted ? 'go' : 'no') + '" data-black="' + esc(t.town_name) +
           '" data-on="' + (t.blacklisted ? '0' : '1') + '">' +
           (t.blacklisted ? 'Unblock' : 'Blacklist') + '</button>' +
@@ -264,28 +268,33 @@ function render(){
   var list = towns.towns || [];
   var pending = grants ? grants.grants.filter(function(g){ return g.status === 'pending'; }).length : 0;
   var owing = list.reduce(function(a, t){ return a + (t.missed || 0); }, 0);
-  var weekly = list.filter(function(t){ return t.active && !t.blacklisted; })
-    .reduce(function(a, t){ return a + t.weekly_rate; }, 0);
+  var eligible = list.filter(function(t){ return t.active && !t.blacklisted; }).length;
+  var ready = list.filter(function(t){
+    return t.active && !t.blacklisted && t.available; }).length;
 
   var out = '<div class="explain">' +
-    'The nation funds one thing: <b>town chunks</b>. Each town has a weekly allowance ' +
-    'set by a treasurer. A mayor asks for some number of weeks of it with ' +
-    '<code>/request</code>, and at <b>' + chunkCost + 'g a chunk</b> that converts to a ' +
-    'fixed number of chunks the town is expected to claim.' +
-    '<br><br>Whether they did is not taken on trust — the daily sweep records every ' +
-    'town\'s chunk count, so the check is a subtraction. A town that takes gold and ' +
-    'does not expand cannot ask again until a treasurer clears it.' +
+    'The nation funds one thing: <b>town chunks</b>. One rate and one cadence apply to ' +
+    'every town — currently <b>' + gold(settings.weeklyRate) + ' a week, drawn every ' +
+    settings.weeksPerRequest + ' week' + (settings.weeksPerRequest === 1 ? '' : 's') +
+    '</b>, so a grant is ' + gold(settings.amount) + ' and buys ' + settings.chunks +
+    ' chunks at ' + chunkCost + 'g each.' +
+    '<br><br>A mayor asks with <code>/request</code>. The same cadence is also the ' +
+    'wait — a town funded today may ask again in ' + settings.weeksPerRequest +
+    ' week' + (settings.weeksPerRequest === 1 ? '' : 's') + '.' +
+    '<br><br>Whether the chunks were actually claimed is not taken on trust: the daily ' +
+    'sweep records every town\'s chunk count, so the check is a subtraction. A town that ' +
+    'takes gold and does not expand cannot ask again until a treasurer clears it.' +
     '</div>';
 
   out += '<div class="stats">' +
       '<div class="stat wait"><span class="n">' + num(pending) + '</span>' +
         '<span class="k">Awaiting a decision</span></div>' +
-      '<div class="stat ok"><span class="n">' + gold(weekly) + '</span>' +
-        '<span class="k">Committed per week</span></div>' +
+      '<div class="stat ok"><span class="n">' + num(ready) + '</span>' +
+        '<span class="k">Towns able to draw now</span></div>' +
       '<div class="stat bad"><span class="n">' + num(owing) + '</span>' +
         '<span class="k">Grants not honoured</span></div>' +
-      '<div class="stat"><span class="n">' + num(list.length) + '</span>' +
-        '<span class="k">Towns with an allowance</span></div>' +
+      '<div class="stat"><span class="n">' + num(eligible) + '</span>' +
+        '<span class="k">Towns eligible</span></div>' +
     '</div>';
 
   out += '<div class="section-head"><h2>Requests</h2>' +
@@ -303,23 +312,23 @@ function render(){
 
   if (canManage){
     out += '<div class="tools">' +
-      '<div class="f"><label for="nt">Town</label><input id="nt" placeholder="Addis"></div>' +
-      '<div class="f" style="flex:0 0 8rem"><label for="nr">Gold per week</label>' +
-        '<input id="nr" type="number" min="0" step="16" value="128"></div>' +
-      '<div class="f" style="flex:0 0 8rem"><label for="nw">Max weeks</label>' +
-        '<input id="nw" type="number" min="1" max="52" value="4"></div>' +
-      '<button class="btn" type="button" id="save">Set allowance</button>' +
+      '<div class="f" style="flex:0 0 9rem"><label for="nr">Gold per week</label>' +
+        '<input id="nr" type="number" min="0" step="16" value="' + settings.weeklyRate + '"></div>' +
+      '<div class="f" style="flex:0 0 9rem"><label for="nw">Weeks per draw</label>' +
+        '<input id="nw" type="number" min="1" max="52" value="' + settings.weeksPerRequest + '"></div>' +
+      '<button class="btn" type="button" id="save">Save for every town</button>' +
+      '<span class="note" style="margin:0 0 .4rem .4rem" id="preview"></span>' +
       '</div><p class="note" id="msg"></p>';
   }
 
   out += list.length
     ? '<table><thead><tr><th>Town</th><th>Standing</th>' +
-      '<th style="text-align:right">Allowance</th><th style="text-align:right">Limit</th>' +
+      '<th style="text-align:right">Next draw</th>' +
       '<th style="text-align:right">Paid out</th><th style="text-align:right">Chunks now</th>' +
       (canManage ? '<th></th>' : '') +
       '</tr></thead><tbody>' + list.map(townRow).join('') + '</tbody></table>'
-    : '<p class="empty">No town has an allowance yet.' +
-      (canManage ? ' Set one above.' : '') + '</p>';
+    : '<p class="empty">No Ethiopian towns have been swept yet — this fills in ' +
+      'after the next town sweep.</p>';
 
   $('body').innerHTML = out;
   wire();
@@ -339,15 +348,18 @@ function wire(){
   document.querySelectorAll('[data-act]').forEach(function(b){
     b.addEventListener('click', function(){ decide(b); });
   });
-  document.querySelectorAll('[data-edit]').forEach(function(b){
-    b.addEventListener('click', function(){ editTown(b.dataset.edit); });
-  });
   document.querySelectorAll('[data-black]').forEach(function(b){
     b.addEventListener('click', function(){ blacklist(b); });
   });
 
   var save = $('save');
   if (save) save.addEventListener('click', saveAllowance);
+
+  ['nr', 'nw'].forEach(function(id){
+    var el = $(id);
+    if (el) el.addEventListener('input', updatePreview);
+  });
+  updatePreview();
 }
 
 async function decide(btn){
@@ -380,44 +392,33 @@ async function decide(btn){
 
 async function saveAllowance(){
   var msg = $('msg');
-  var town = ($('nt').value || '').trim();
-  if (!town){ msg.textContent = 'Name a town first.'; return; }
-
   msg.textContent = 'Saving…';
   try {
     var r = await api('/api/funding/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        town: town,
         weeklyRate: Number($('nr').value) || 0,
-        maxWeeks: Number($('nw').value) || 4,
+        weeksPerRequest: Number($('nw').value) || 1,
       }),
     });
-    msg.textContent = r.town + ': ' + gold(r.weeklyRate) + ' a week, ' +
-      r.chunksPerWeek + ' chunks.';
+    msg.textContent = 'Every town now draws ' + gold(r.amount) + ' every ' +
+      r.weeksPerRequest + ' week' + (r.weeksPerRequest === 1 ? '' : 's') +
+      ' — ' + r.chunks + ' chunks.';
     await load();
   } catch (e){ msg.textContent = 'Could not save it: ' + e.message; }
 }
 
-async function editTown(name){
-  var t = (towns.towns || []).find(function(x){ return x.town_name === name; });
-  if (!t) return;
-  var rate = window.prompt('Gold per week for ' + name + ':', t.weekly_rate);
-  if (rate === null) return;
-  var weeks = window.prompt('Most weeks it may request at once:', t.max_weeks);
-  if (weeks === null) return;
-
-  try {
-    await api('/api/funding/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        town: name, weeklyRate: Number(rate) || 0, maxWeeks: Number(weeks) || 4,
-      }),
-    });
-    await load();
-  } catch (e){ window.alert('Could not save it: ' + e.message); }
+/* Shows the consequence of the two numbers before they are saved — a rate and
+   a cadence do not obviously multiply into a chunk count in your head. */
+function updatePreview(){
+  var p = $('preview');
+  if (!p) return;
+  var rate = Number($('nr').value) || 0;
+  var weeks = Number($('nw').value) || 1;
+  p.textContent = '= ' + gold(rate * weeks) + ' a draw · ' +
+    Math.floor((rate * weeks) / chunkCost) + ' chunks · every ' + weeks +
+    ' week' + (weeks === 1 ? '' : 's');
 }
 
 async function blacklist(btn){
@@ -475,6 +476,7 @@ async function load(){
   try {
     towns = await api('/api/funding/towns');
     chunkCost = towns.chunkCost || 16;
+    settings = towns.settings || settings;
     canManage = !!towns.canManage;
   } catch (e){
     if (e.status === 401){

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Funding · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.2rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
+  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+
+.explain{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--gold); border-radius:3px; padding:.9rem 1.1rem;
+  margin-bottom:1.4rem; font-size:var(--step--1); color:var(--text-mid); }
+.explain b{ color:var(--text); }
+
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin-bottom:1.4rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; }
+.stat .k{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.wait{ --accent:var(--gold); } .stat.wait .n{ color:var(--gold); }
+.stat.ok{ --accent:var(--green); } .stat.ok .n{ color:var(--green); }
+.stat.bad{ --accent:var(--red); } .stat.bad .n{ color:var(--red); }
+
+.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 .9rem; }
+.section-head h2{ font-size:var(--step-1); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
+th{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); text-align:left; font-weight:400; padding:.45rem .5rem;
+  border-bottom:1px solid var(--rule); }
+td{ padding:.5rem .5rem; border-bottom:1px solid var(--rule-soft);
+  font-family:var(--data); font-size:.72rem; font-variant-numeric:tabular-nums;
+  vertical-align:top; }
+td.n{ text-align:right; }
+td.name{ color:var(--text); font-weight:600; font-family:var(--body); }
+
+.tag{ font-family:var(--data); font-size:.58rem; letter-spacing:.05em;
+  text-transform:uppercase; padding:.14rem .4rem; border-radius:2px;
+  border:1px solid currentColor; white-space:nowrap; }
+.t-pending{ color:var(--gold); } .t-approved{ color:var(--blue); }
+.t-paid{ color:var(--blue); } .t-fulfilled{ color:var(--green); }
+.t-missed{ color:var(--red); } .t-denied{ color:var(--text-low); }
+.t-cancelled{ color:var(--text-low); }
+
+.bar{ height:.32rem; background:var(--ink); border-radius:999px; overflow:hidden;
+  margin-top:.25rem; min-width:5rem; }
+.bar span{ display:block; height:100%; border-radius:999px; background:var(--green); }
+.bar span.short{ background:var(--red); }
+
+.acts{ display:flex; gap:.3rem; flex-wrap:wrap; }
+.acts button{ font-family:var(--data); font-size:.6rem; padding:.22rem .5rem;
+  background:var(--ink); color:var(--text-low); border:1px solid var(--rule);
+  border-radius:2px; cursor:pointer; }
+.acts button:hover{ border-color:var(--gold); color:var(--gold); }
+.acts button.go:hover{ border-color:var(--green); color:var(--green); }
+.acts button.no:hover{ border-color:var(--red); color:var(--red); }
+.acts button:disabled{ opacity:.4; cursor:default; }
+
+.tools{ display:flex; gap:.4rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.8rem; }
+.f{ display:flex; flex-direction:column; gap:.25rem; flex:1 1 8rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--body); font-size:.84rem; width:100%; }
+.f input:focus, .f select:focus{ border-color:var(--gold); outline:none; }
+
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+.note{ font-family:var(--data); font-size:.66rem; color:var(--text-low); margin:.5rem 0 0; }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="admin.html">&#8592; Admin</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title">Funding</h1>
+    <p class="sub" data-slot="subtitle">Gold for chunks, and whether they were claimed</p>
+  </header>
+
+  <div id="body"><p class="empty">Loading&#8230;</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+var gold = function(n){ return num(n) + 'g'; };
+var when = function(s){
+  if (!s) return '—';
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? esc(s)
+    : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+};
+/* Live and in the reader's own timezone, and it stays correct as time passes
+   rather than freezing at whatever it said when the page was drawn. */
+var rel = function(s){
+  if (!s) return '';
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? '' : '<t:' + Math.floor(d.getTime() / 1000) + ':R>';
+};
+var daysUntil = function(s){
+  if (!s) return null;
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? null : Math.ceil((d.getTime() - Date.now()) / 86400000);
+};
+
+var me = null, towns = null, grants = null, canManage = false;
+var chunkCost = 16, filterStatus = '', page = 0;
+var PAGE = 25;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.detail) || (d && d.error) || ('HTTP ' + res.status));
+    err.status = res.status; throw err; }
+  return d;
+}
+
+function fatal(err){
+  var host = $('body') || document.body;
+  host.innerHTML = '';
+  var p = document.createElement('p');
+  p.className = 'empty';
+  p.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  p.textContent = 'This page failed to load: ' + ((err && err.message) || err);
+  host.appendChild(p);
+  try { console.error('[funding]', err); } catch (e) {}
+}
+
+/* --- grants --------------------------------------------------------------- */
+function grantRow(g){
+  var status = '<span class="tag t-' + esc(g.status) + '">' + esc(g.status) + '</span>';
+
+  /* For anything paid, the honest question is how much of the promised
+     expansion actually happened — so the row shows progress against the
+     chunks, not just the gold. */
+  var progress = '';
+  if (g.status === 'fulfilled' || g.status === 'missed'){
+    var got = g.chunks_gained == null ? 0 : g.chunks_gained;
+    var pct = Math.max(0, Math.min(100, Math.round((got / g.expected_chunks) * 100)));
+    progress = '<div>' + num(got) + ' of ' + num(g.expected_chunks) + ' chunks' +
+      '<div class="bar"><span class="' + (got >= g.expected_chunks ? '' : 'short') +
+      '" style="width:' + pct + '%"></span></div></div>';
+  } else if (g.status === 'paid'){
+    var left = daysUntil(g.deadline);
+    progress = '<div>' + num(g.expected_chunks) + ' chunks due' +
+      (left == null ? '' : left < 0 ? ' · <span style="color:var(--red)">overdue</span>'
+        : ' · ' + left + 'd left') + '</div>';
+  } else {
+    progress = '<div>' + num(g.expected_chunks) + ' chunks</div>';
+  }
+
+  var acts = '';
+  if (canManage){
+    if (g.status === 'pending'){
+      acts = '<button class="go" data-act="approve" data-id="' + g.id + '">Approve</button>' +
+             '<button class="no" data-act="deny" data-id="' + g.id + '">Deny</button>';
+    } else if (g.status === 'approved'){
+      acts = '<button class="go" data-act="pay" data-id="' + g.id + '">Mark paid</button>';
+    } else if (g.status === 'missed'){
+      acts = '<button data-act="clear" data-id="' + g.id + '">Clear</button>';
+    }
+  }
+
+  return '<tr>' +
+    '<td class="name">' + esc(g.town_name) +
+      '<div class="note">' + esc(g.purpose || '') + '</div></td>' +
+    '<td>' + status + '</td>' +
+    '<td class="n">' + gold(g.amount) + '<div class="note">' + g.weeks + 'w × ' +
+      gold(g.weekly_rate) + '</div></td>' +
+    '<td>' + progress + '</td>' +
+    '<td class="n">' + when(g.requested_at) +
+      '<div class="note">' + esc(g.requested_by_name || '') + '</div></td>' +
+    (canManage ? '<td><div class="acts">' + acts + '</div></td>' : '') +
+  '</tr>';
+}
+
+function renderGrants(){
+  if (!grants || !grants.grants.length){
+    return '<p class="empty">' + (filterStatus
+      ? 'No ' + esc(filterStatus) + ' requests.'
+      : 'No funding has been requested yet. A mayor uses <code>/request</code> in Discord.') +
+      '</p>';
+  }
+  var pages = Math.max(1, Math.ceil(grants.total / PAGE));
+  return '<table><thead><tr>' +
+      '<th>Town</th><th>Status</th><th style="text-align:right">Amount</th>' +
+      '<th>Chunks</th><th style="text-align:right">Asked</th>' +
+      (canManage ? '<th></th>' : '') +
+    '</tr></thead><tbody>' +
+    grants.grants.map(grantRow).join('') +
+    '</tbody></table>' +
+    '<div class="tools" style="margin-top:.8rem">' +
+      '<button class="btn" type="button" id="gPrev"' + (page <= 0 ? ' disabled' : '') + '>Previous</button>' +
+      '<button class="btn" type="button" id="gNext"' + (page + 1 >= pages ? ' disabled' : '') + '>Next</button>' +
+      '<span class="note" style="margin:0 0 0 .4rem">Page ' + (page + 1) + ' of ' + pages +
+        ' · ' + num(grants.total) + ' requests</span>' +
+    '</div>';
+}
+
+/* --- towns ---------------------------------------------------------------- */
+function townRow(t){
+  var record = t.grants
+    ? num(t.fulfilled) + ' kept · ' + num(t.missed) + ' missed'
+    : 'no history';
+  var flag = t.blacklisted
+    ? '<span class="tag t-missed">blacklisted</span>'
+    : !t.active ? '<span class="tag t-denied">paused</span>'
+    : '<span class="tag t-fulfilled">active</span>';
+
+  return '<tr>' +
+    '<td class="name">' + esc(t.town_name) +
+      (t.blacklist_reason ? '<div class="note">' + esc(t.blacklist_reason) + '</div>' : '') +
+    '</td>' +
+    '<td>' + flag + '</td>' +
+    '<td class="n">' + gold(t.weekly_rate) + '/wk' +
+      '<div class="note">' + Math.floor(t.weekly_rate / chunkCost) + ' chunks a week</div></td>' +
+    '<td class="n">' + num(t.max_weeks) + 'w max</td>' +
+    '<td class="n">' + gold(t.paidTotal) + '<div class="note">' + record + '</div></td>' +
+    '<td class="n">' + num(t.chunks) + '</td>' +
+    (canManage
+      ? '<td><div class="acts">' +
+        '<button data-edit="' + esc(t.town_name) + '">Edit</button>' +
+        '<button class="' + (t.blacklisted ? 'go' : 'no') + '" data-black="' + esc(t.town_name) +
+          '" data-on="' + (t.blacklisted ? '0' : '1') + '">' +
+          (t.blacklisted ? 'Unblock' : 'Blacklist') + '</button>' +
+        '</div></td>'
+      : '') +
+  '</tr>';
+}
+
+function render(){
+  var list = towns.towns || [];
+  var pending = grants ? grants.grants.filter(function(g){ return g.status === 'pending'; }).length : 0;
+  var owing = list.reduce(function(a, t){ return a + (t.missed || 0); }, 0);
+  var weekly = list.filter(function(t){ return t.active && !t.blacklisted; })
+    .reduce(function(a, t){ return a + t.weekly_rate; }, 0);
+
+  var out = '<div class="explain">' +
+    'The nation funds one thing: <b>town chunks</b>. Each town has a weekly allowance ' +
+    'set by a treasurer. A mayor asks for some number of weeks of it with ' +
+    '<code>/request</code>, and at <b>' + chunkCost + 'g a chunk</b> that converts to a ' +
+    'fixed number of chunks the town is expected to claim.' +
+    '<br><br>Whether they did is not taken on trust — the daily sweep records every ' +
+    'town\'s chunk count, so the check is a subtraction. A town that takes gold and ' +
+    'does not expand cannot ask again until a treasurer clears it.' +
+    '</div>';
+
+  out += '<div class="stats">' +
+      '<div class="stat wait"><span class="n">' + num(pending) + '</span>' +
+        '<span class="k">Awaiting a decision</span></div>' +
+      '<div class="stat ok"><span class="n">' + gold(weekly) + '</span>' +
+        '<span class="k">Committed per week</span></div>' +
+      '<div class="stat bad"><span class="n">' + num(owing) + '</span>' +
+        '<span class="k">Grants not honoured</span></div>' +
+      '<div class="stat"><span class="n">' + num(list.length) + '</span>' +
+        '<span class="k">Towns with an allowance</span></div>' +
+    '</div>';
+
+  out += '<div class="section-head"><h2>Requests</h2>' +
+    '<span class="meta">' + (canManage ? 'approve, pay and clear here' : 'read only') + '</span></div>' +
+    '<div class="tools"><div class="f" style="flex:0 0 11rem">' +
+      '<label for="st">Show</label><select id="st">' +
+      ['', 'pending', 'approved', 'paid', 'fulfilled', 'missed', 'denied'].map(function(v){
+        return '<option value="' + v + '"' + (filterStatus === v ? ' selected' : '') + '>' +
+          (v === '' ? 'Everything' : v.charAt(0).toUpperCase() + v.slice(1)) + '</option>';
+      }).join('') + '</select></div></div>' +
+    '<div id="grants">' + renderGrants() + '</div>';
+
+  out += '<div class="section-head"><h2>Towns</h2>' +
+    '<span class="meta">' + chunkCost + 'g a chunk</span></div>';
+
+  if (canManage){
+    out += '<div class="tools">' +
+      '<div class="f"><label for="nt">Town</label><input id="nt" placeholder="Addis"></div>' +
+      '<div class="f" style="flex:0 0 8rem"><label for="nr">Gold per week</label>' +
+        '<input id="nr" type="number" min="0" step="16" value="128"></div>' +
+      '<div class="f" style="flex:0 0 8rem"><label for="nw">Max weeks</label>' +
+        '<input id="nw" type="number" min="1" max="52" value="4"></div>' +
+      '<button class="btn" type="button" id="save">Set allowance</button>' +
+      '</div><p class="note" id="msg"></p>';
+  }
+
+  out += list.length
+    ? '<table><thead><tr><th>Town</th><th>Standing</th>' +
+      '<th style="text-align:right">Allowance</th><th style="text-align:right">Limit</th>' +
+      '<th style="text-align:right">Paid out</th><th style="text-align:right">Chunks now</th>' +
+      (canManage ? '<th></th>' : '') +
+      '</tr></thead><tbody>' + list.map(townRow).join('') + '</tbody></table>'
+    : '<p class="empty">No town has an allowance yet.' +
+      (canManage ? ' Set one above.' : '') + '</p>';
+
+  $('body').innerHTML = out;
+  wire();
+  if (window.ethiopiaPageText) window.ethiopiaPageText.reapply();
+}
+
+function wire(){
+  var st = $('st');
+  if (st) st.addEventListener('change', function(){
+    filterStatus = st.value; page = 0; loadGrants();
+  });
+
+  var p = $('gPrev'), n = $('gNext');
+  if (p) p.addEventListener('click', function(){ if (page > 0){ page--; loadGrants(); } });
+  if (n) n.addEventListener('click', function(){ page++; loadGrants(); });
+
+  document.querySelectorAll('[data-act]').forEach(function(b){
+    b.addEventListener('click', function(){ decide(b); });
+  });
+  document.querySelectorAll('[data-edit]').forEach(function(b){
+    b.addEventListener('click', function(){ editTown(b.dataset.edit); });
+  });
+  document.querySelectorAll('[data-black]').forEach(function(b){
+    b.addEventListener('click', function(){ blacklist(b); });
+  });
+
+  var save = $('save');
+  if (save) save.addEventListener('click', saveAllowance);
+}
+
+async function decide(btn){
+  var act = btn.dataset.act, id = Number(btn.dataset.id);
+  var reason = '';
+
+  if (act === 'deny' || act === 'clear'){
+    reason = window.prompt(act === 'deny'
+      ? 'Why is request #' + id + ' being denied?'
+      : 'Why is the missed grant #' + id + ' being cleared?') || '';
+    if (!reason.trim()) return;
+  }
+  if (act === 'pay' && !window.confirm(
+      'Record that the gold for #' + id + ' has changed hands?\n\n' +
+      'This writes a withdrawal to the treasury ledger.')) return;
+
+  btn.disabled = true;
+  try {
+    await api('/api/funding/decide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: id, action: act, reason: reason }),
+    });
+    await load();
+  } catch (e){
+    btn.disabled = false;
+    window.alert('Could not do that: ' + e.message);
+  }
+}
+
+async function saveAllowance(){
+  var msg = $('msg');
+  var town = ($('nt').value || '').trim();
+  if (!town){ msg.textContent = 'Name a town first.'; return; }
+
+  msg.textContent = 'Saving…';
+  try {
+    var r = await api('/api/funding/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        town: town,
+        weeklyRate: Number($('nr').value) || 0,
+        maxWeeks: Number($('nw').value) || 4,
+      }),
+    });
+    msg.textContent = r.town + ': ' + gold(r.weeklyRate) + ' a week, ' +
+      r.chunksPerWeek + ' chunks.';
+    await load();
+  } catch (e){ msg.textContent = 'Could not save it: ' + e.message; }
+}
+
+async function editTown(name){
+  var t = (towns.towns || []).find(function(x){ return x.town_name === name; });
+  if (!t) return;
+  var rate = window.prompt('Gold per week for ' + name + ':', t.weekly_rate);
+  if (rate === null) return;
+  var weeks = window.prompt('Most weeks it may request at once:', t.max_weeks);
+  if (weeks === null) return;
+
+  try {
+    await api('/api/funding/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        town: name, weeklyRate: Number(rate) || 0, maxWeeks: Number(weeks) || 4,
+      }),
+    });
+    await load();
+  } catch (e){ window.alert('Could not save it: ' + e.message); }
+}
+
+async function blacklist(btn){
+  var name = btn.dataset.black, on = btn.dataset.on === '1';
+  var reason = '';
+  if (on){
+    reason = window.prompt('Why is ' + name + ' being blacklisted?\n\n' +
+      'This is shown to them when they try to request.') || '';
+    if (!reason.trim()) return;
+  }
+  btn.disabled = true;
+  try {
+    await api('/api/funding/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ town: name, blacklisted: on, reason: reason }),
+    });
+    await load();
+  } catch (e){
+    btn.disabled = false;
+    window.alert('Could not do that: ' + e.message);
+  }
+}
+
+async function loadGrants(){
+  try {
+    grants = await api('/api/funding/grants?limit=' + PAGE +
+      '&offset=' + (page * PAGE) + (filterStatus ? '&status=' + filterStatus : ''));
+    $('grants').innerHTML = renderGrants();
+    wire();
+  } catch (e){
+    $('grants').innerHTML = '<p class="empty">Could not load requests: ' + esc(e.message) + '</p>';
+  }
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/funding.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  try { renderAuth(); } catch (e) { /* header only */ }
+
+  try {
+    towns = await api('/api/funding/towns');
+    chunkCost = towns.chunkCost || 16;
+    canManage = !!towns.canManage;
+  } catch (e){
+    if (e.status === 401){
+      $('body').innerHTML = '<p class="empty">Sign in as a verified citizen of Ethiopia ' +
+        'to see funding.</p>';
+      $('stamp').textContent = 'Not signed in';
+      return;
+    }
+    throw e;
+  }
+
+  try {
+    grants = await api('/api/funding/grants?limit=' + PAGE +
+      '&offset=' + (page * PAGE) + (filterStatus ? '&status=' + filterStatus : ''));
+  } catch (_e) { grants = { grants: [], total: 0 }; }
+
+  render();
+  $('stamp').textContent = chunkCost + 'g a chunk';
+}
+
+load().catch(fatal);
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>

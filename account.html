@@ -1,1 +1,800 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Account · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=2">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+
+.hero{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:1.2rem; margin-bottom:1.4rem; }
+.hero .face{ width:72px; height:72px; border-radius:3px; image-rendering:pixelated;
+  background:var(--ink-high); flex:none; }
+.hero h1{ font-size:var(--step-2); letter-spacing:-.02em; margin:0; }
+.hero .sub{ font-family:var(--data); font-size:var(--step--1); color:var(--text-low); margin:.3rem 0 0; }
+.hero .tags{ display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.5rem; }
+.tag{ font-family:var(--data); font-size:.62rem; letter-spacing:.05em; text-transform:uppercase;
+  padding:.12rem .4rem; border:1px solid var(--rule); border-radius:2px; color:var(--text-low); }
+.tag.tier-manager{ color:var(--gold); border-color:var(--gold-dim); }
+.tag.tier-treasurer{ color:var(--green); border-color:var(--green-dim); }
+.tag.party{ color:var(--pc,var(--text-mid)); border-color:var(--pc,var(--rule)); }
+.tag.indep{ border-style:dashed; color:var(--text-mid); }
+.tag.ban{ color:var(--red); border-color:var(--red-dim); }
+.tag.on{ color:var(--green); border-color:var(--green-dim); }
+.hero .lookup{ margin-left:auto; display:flex; gap:.4rem; align-items:flex-end; }
+
+.cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.7rem; }
+.card{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-top:2px solid var(--accent,var(--rule)); border-radius:3px; padding:.95rem 1.05rem; }
+.card h2{ font-size:var(--step-0); margin:0 0 .7rem; }
+.card.g{ --accent:var(--green); } .card.gold{ --accent:var(--gold); }
+.card.r{ --accent:var(--red); } .card.b{ --accent:var(--blue); }
+.kv{ display:flex; justify-content:space-between; gap:.6rem; font-family:var(--data);
+  font-size:.72rem; padding:.3rem 0; border-bottom:1px solid var(--rule-soft); }
+.kv:last-child{ border-bottom:none; }
+.kv dt{ color:var(--text-low); margin:0; }
+.kv dd{ margin:0; color:var(--text); font-variant-numeric:tabular-nums; text-align:right; }
+.kv dd.g{ color:var(--green); } .kv dd.gold{ color:var(--gold); }
+.list{ margin-top:.6rem; max-height:13rem; overflow-y:auto; }
+.li{ display:flex; gap:.5rem; align-items:baseline; font-family:var(--data); font-size:.68rem;
+  padding:.3rem 0; border-bottom:1px solid var(--rule-soft); }
+.li:last-child{ border-bottom:none; }
+.li .n{ color:var(--text-mid); flex:1 1 6rem; overflow:hidden; text-overflow:ellipsis; }
+.li .a{ margin-left:auto; font-variant-numeric:tabular-nums; color:var(--green); }
+.li .w{ color:var(--text-low); font-size:.62rem; white-space:nowrap; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); }
+.f input{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.4rem .5rem; font-family:var(--data); font-size:.76rem; min-width:11rem; }
+.note{ font-family:var(--body); font-size:var(--step--1); color:var(--text-mid);
+  background:var(--ink); border:1px solid var(--rule-soft); border-radius:2px;
+  padding:.55rem .7rem; margin-top:.5rem; }
+.warn{ color:var(--red); font-family:var(--data); font-size:.68rem; }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+/* --- person picker -------------------------------------------------------
+   Replaces a raw Discord user ID field. A snowflake typed by hand does not
+   fail loudly when it is wrong — it just opens nobody. */
+.pick{ position:relative; }
+.picker{ position:absolute; top:100%; left:0; right:0; z-index:20; min-width:15rem;
+  background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px;
+  margin-top:.2rem; max-height:16rem; overflow-y:auto; display:none; }
+.picker.on{ display:block; }
+.picker .row{ padding:.45rem .6rem; cursor:pointer; border-bottom:1px solid var(--rule-soft); }
+.picker .row:last-child{ border-bottom:none; }
+.picker .row:hover, .picker .row.sel{ background:var(--ink); }
+.picker .nm{ color:var(--text); font-weight:600; font-size:.82rem; }
+.picker .sb{ font-family:var(--data); font-size:.6rem; color:var(--text-low); }
+.picker .sb.warn2{ color:var(--gold); }
+.picker .none{ padding:.6rem; color:var(--text-low); font-size:.78rem; text-align:center; }
+
+.towns{ margin-top:.6rem; }
+.tn{ background:var(--ink); border:1px solid var(--rule-soft); border-radius:2px;
+  padding:.5rem .6rem; margin-bottom:.4rem; }
+.tn:last-child{ margin-bottom:0; }
+.tn .h{ display:flex; align-items:baseline; gap:.4rem; }
+.tn .nm{ font-family:var(--body); font-weight:600; color:var(--text); font-size:.86rem; }
+.tn .fl{ font-family:var(--data); font-size:.58rem; color:var(--text-low); margin-left:auto; }
+.tn .st{ font-family:var(--data); font-size:.64rem; color:var(--text-mid); margin-top:.25rem; }
+.tn .ok{ color:var(--green); } .tn .bad{ color:var(--red); }
+
+/* --- the register, merged in from the old citizens page ------------------
+   Kept as its own block rather than folded into the record styles above:
+   a person's record and a list of people are different things and their
+   styles should not quietly start depending on each other. */
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin-bottom:1.2rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; }
+.stat .k{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.p{ --accent:var(--green); } .stat.p .n{ color:var(--green); }
+.stat.g{ --accent:var(--gold); } .stat.g .n{ color:var(--gold); }
+.stat.m{ --accent:var(--blue); }
+
+.tools{ display:flex; gap:.4rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.9rem; }
+.f{ display:flex; flex-direction:column; gap:.25rem; flex:1 1 12rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.42rem .55rem; font-family:var(--body); font-size:.84rem; width:100%; }
+.f input:focus, .f select:focus{ border-color:var(--gold); outline:none; }
+
+.rows{ display:flex; flex-direction:column; gap:.3rem; }
+.c{ display:flex; align-items:center; gap:.6rem; background:var(--ink-raised);
+  border:1px solid var(--rule); border-radius:3px; padding:.5rem .7rem; }
+.c.link{ cursor:pointer; }
+.c.link:hover{ border-color:var(--gold-dim); }
+.c .rank{ font-family:var(--data); font-size:.68rem; color:var(--text-low);
+  width:2.2rem; text-align:right; font-variant-numeric:tabular-nums; flex:none; }
+.c .rank.top{ color:var(--gold); font-weight:600; }
+.c .face{ width:26px; height:26px; border-radius:2px; image-rendering:pixelated;
+  background:var(--ink-high); flex:none; }
+.c .who{ min-width:0; flex:1 1 auto; }
+.c .nm{ font-family:var(--body); font-weight:600; color:var(--text); font-size:.9rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.c .sub{ font-family:var(--data); font-size:.6rem; color:var(--text-low);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.c .bal{ font-family:var(--data); font-size:.8rem; color:var(--gold);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.c .tag{ font-family:var(--data); font-size:.55rem; letter-spacing:.05em;
+  text-transform:uppercase; padding:.1rem .3rem; border:1px solid var(--rule);
+  border-radius:2px; color:var(--text-low); white-space:nowrap; }
+.c .tag.may{ color:var(--gold); border-color:var(--gold-dim); }
+.c .tag.on{ color:var(--green); border-color:var(--green-dim); }
+.c .tag.no{ color:var(--text-low); border-style:dashed; }
+
+/* --- boards ---------------------------------------------------------------
+   Several short lists rather than one long one. Each answers a different
+   question, and a question with eight answers is worth more than a ranking
+   with five hundred.
+   ------------------------------------------------------------------------- */
+.boards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));
+  gap:.7rem; margin-bottom:1.6rem; }
+.board{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-top:2px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
+.board h3{ font-size:var(--step-0); margin:0 0 .15rem; }
+.board .cap{ font-family:var(--data); font-size:.58rem; color:var(--text-low); margin:0 0 .6rem; }
+.board.rich{ --accent:var(--gold); }
+.board.act{ --accent:var(--green); }
+.board.quiet{ --accent:var(--red); }
+.board.old{ --accent:var(--blue); }
+.board.give{ --accent:var(--gold); }
+.board.twn{ --accent:var(--blue); }
+.brow{ display:flex; align-items:baseline; gap:.45rem; padding:.3rem 0;
+  border-bottom:1px solid var(--rule-soft); font-size:.78rem; }
+.brow:last-child{ border-bottom:none; }
+.brow.link{ cursor:pointer; }
+.brow.link:hover .bn{ color:var(--gold); }
+.brow .bi{ font-family:var(--data); font-size:.62rem; color:var(--text-low);
+  width:1.1rem; flex:none; }
+.brow .bn{ font-family:var(--body); font-weight:600; color:var(--text);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.brow .bs{ font-family:var(--data); font-size:.58rem; color:var(--text-low);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.brow .bv{ margin-left:auto; font-family:var(--data); font-size:.72rem;
+  font-variant-numeric:tabular-nums; color:var(--gold); white-space:nowrap; }
+.brow .bv.g{ color:var(--green); } .brow .bv.r{ color:var(--red); }
+.board .none{ font-family:var(--data); font-size:.66rem; color:var(--text-low);
+  padding:.4rem 0; }
+
+.pager{ display:flex; gap:.4rem; align-items:center; margin-top:.9rem; }
+.pager .where{ font-family:var(--data); font-size:.65rem; color:var(--text-low); margin-left:.4rem; }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <div id="body"><p class="empty">Loading…</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+var gold = function(n){ return num(n) + 'g'; };
+var when = function(s){
+  if (!s) return '—';
+  var d = new Date(typeof s === 'number' ? s : s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? String(s) : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
+};
+
+var me = null;
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function kv(label, value, cls){
+  return '<div class="kv"><dt>' + esc(label) + '</dt><dd' +
+    (cls ? ' class="' + cls + '"' : '') + '>' + value + '</dd></div>';
+}
+
+function render(a){
+  var face = a.mcName
+    ? '<img class="face" src="https://minotar.net/helm/' + encodeURIComponent(a.mcName) +
+      '/72.png" alt="" onerror="this.style.visibility=\'hidden\'">'
+    : '<span class="face" aria-hidden="true"></span>';
+
+  var tags = '';
+  if (a.tier && a.tier !== 'unverified')
+    tags += '<span class="tag tier-' + esc(a.tier) + '">' + esc(a.tier) + '</span>';
+  (a.offices || []).forEach(function(o){ tags += '<span class="tag">' + esc(o) + '</span>'; });
+  if (a.isRepresentative) tags += '<span class="tag">Rep' + (a.region ? ' · ' + esc(a.region) : '') + '</span>';
+  if (a.party) tags += '<span class="tag party" style="--pc:' + esc(a.party.colour || '') + '">' +
+    esc(a.party.abbrev || a.party.name) + '</span>';
+  else if (a.independent) tags += '<span class="tag indep">Independent</span>';
+  if (a.blacklisted) tags += '<span class="tag ban">blacklisted</span>';
+  if (a.inGame && a.inGame.isOnline) tags += '<span class="tag on">online</span>';
+
+  // Three states, not two: verified, entered by an admin, or unknown to us.
+  var standing = !a.inServer ? 'not in the Discord server'
+    : a.verified ? 'verified' : 'entered by an admin, never signed in';
+
+  var lookup = a.canEdit
+    ? '<span class="lookup"><span class="f pick"><label for="who">Look up someone else</label>' +
+      '<input id="who" placeholder="Search a name…" autocomplete="off">' +
+      '<div class="picker" id="whoResults"></div></span></span>'
+    : '';
+
+  var out = '<div class="hero">' + face +
+    '<div><h1>' + esc(a.mcName || a.discordName || a.discordId) + '</h1>' +
+    '<p class="sub">' + esc(a.discordName || 'unknown') + ' · ' + esc(a.discordId) +
+    ' · ' + esc(standing) + '</p>' +
+    '<div class="tags">' + tags + '</div></div>' + lookup + '</div>';
+
+  out += '<div class="cards">';
+
+  /* --- in game --- */
+  out += '<div class="card b"><h2>In game</h2>';
+  if (a.inGame){
+    out += kv('Town', esc(a.inGame.town || '—')) +
+           kv('Nation', esc(a.inGame.nation || '—')) +
+           kv('Mayor', a.inGame.isMayor ? 'yes' : 'no') +
+           (a.inGame.isKing ? kv('Leader of a nation', 'yes') : '') +
+           kv('Balance', a.inGame.balance === null ? '—' : gold(a.inGame.balance)) +
+           kv('Last online', when(a.inGame.lastOnline));
+  } else if (a.mcName){
+    out += '<p class="warn">' + esc(a.inGameError || 'could not reach EarthMC') + '</p>';
+  } else {
+    out += '<p class="empty" style="padding:.8rem">No Minecraft name set, so nothing can be looked up.</p>';
+  }
+  out += '</div>';
+
+  /* --- donations --- */
+  out += '<div class="card gold"><h2>Donations</h2>' +
+    kv('Given in total', gold(a.donations.total), 'gold') +
+    kv('Separate gifts', a.donations.gifts);
+  if (a.donations.list.length){
+    out += '<div class="list">' + a.donations.list.map(function(d){
+      return '<div class="li"><span class="w">' + esc(when(d.at)) + '</span>' +
+        '<span class="n">' + esc(d.note || '—') + '</span>' +
+        '<span class="a">' + gold(d.amount) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  out += '</div>';
+
+  /* --- towns and funding -------------------------------------------------
+     National money reaches a person through the town they lead, not through a
+     personal allowance — so this card is about towns. The old per-person
+     monthly figures are kept below as history, clearly labelled as such,
+     rather than shown as a live balance that will never move again. */
+  out += '<div class="card g"><h2>Towns led</h2>';
+  if ((a.towns || []).length){
+    out += '<div class="towns">' + a.towns.map(function(t){
+      var record = t.grants
+        ? '<span class="ok">' + t.fulfilled + ' kept</span>' +
+          (t.missed ? ' · <span class="bad">' + t.missed + ' missed</span>' : '') +
+          ' · ' + gold(t.fundedTotal) + ' funded'
+        : 'never funded';
+      var flags = [
+        t.isOpen ? 'open' : t.isOpen === 0 ? 'invite only' : null,
+        t.isOverclaimed ? 'overclaimed' : null,
+      ].filter(Boolean).join(' · ');
+      return '<div class="tn"><div class="h"><span class="nm">' + esc(t.name) + '</span>' +
+        '<span class="fl">' + esc(flags) + '</span></div>' +
+        '<div class="st">' + (t.residents || 0) + ' residents · ' +
+          (t.chunks || 0).toLocaleString('en-US') +
+          (t.maxChunks ? '/' + t.maxChunks : '') + ' chunks · ' + gold(t.balance) + '</div>' +
+        '<div class="st">' + record + '</div></div>';
+    }).join('') + '</div>';
+  } else {
+    out += '<p class="empty" style="padding:.8rem">Mayors no town, so nothing to fund.</p>';
+  }
+  if (a.blacklisted) out += '<p class="warn">Blacklisted: ' + esc(a.blacklisted) + '</p>';
+
+  /* Only shown when there is something in it. A row of zeroes from a system
+     nobody uses any more is worse than no row at all. */
+  if (a.fundingEver || (a.funding && a.funding.allocated)){
+    out += '<p class="note" style="margin-top:.7rem">Under the old monthly ' +
+      'allowances, before funding moved to town chunk grants: ' +
+      gold(a.fundingEver || 0) + ' received in total.</p>';
+  }
+  out += '</div>';
+
+  /* --- work --- */
+  out += '<div class="card"><h2>Work</h2>' +
+    kv('Jobs taken', a.jobs.claimed) +
+    kv('Completed', a.jobs.completed) +
+    kv('Earned', gold(a.jobs.earned), 'g');
+  if (a.jobs.list.length){
+    out += '<div class="list">' + a.jobs.list.map(function(j){
+      return '<div class="li"><span class="w">#' + j.id + '</span>' +
+        '<span class="n">' + esc(j.title || j.service) + '</span>' +
+        '<span class="w">' + esc(j.status) + '</span>' +
+        '<span class="a">' + gold(j.pay) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  out += '</div>';
+
+  /* --- record --- */
+  out += '<div class="card"><h2>Record</h2>' +
+    kv('Standing', esc(standing)) +
+    kv('Name set by', esc(a.mcNameSource || '—')) +
+    kv('First seen', when(a.firstSeen)) +
+    kv('Last seen', when(a.lastSeen));
+  if (a.note) out += '<div class="note">' + esc(a.note) + '</div>';
+  if (a.canEdit) out += '<p style="margin:.7rem 0 0"><a href="people.html" ' +
+    'style="font-family:var(--data);font-size:.68rem;color:var(--gold)">Edit in the register &#8594;</a></p>';
+  out += '</div>';
+
+  out += '</div>';
+
+  /* The register goes under the record, in its own container, so switching
+     person only repaints the top half and the list keeps its place. */
+  out += '<div id="register"></div>';
+
+  $('body').innerHTML = out;
+
+  wireLookup();
+  renderRegister();
+}
+
+/* --- the register ---------------------------------------------------------
+   Boards first, then everyone. Clicking a row swaps the record above without
+   a page load, so browsing the nation does not mean losing your place.
+   ------------------------------------------------------------------------- */
+function renderRegister(){
+  var host = $('register');
+  if (!host || !reg) return;
+
+  var pages = Math.max(1, Math.ceil(reg.total / REG_PAGE));
+
+  var out = '<div class="band"><h2>The register</h2>' +
+    '<span class="note">' + num(reg.population) + ' citizens</span></div>';
+
+  out += '<div class="stats">' +
+      '<div class="stat p"><span class="n">' + num(reg.population) + '</span>' +
+        '<span class="k">Citizens</span></div>' +
+      '<div class="stat g"><span class="n">' + gold(reg.totalGold) + '</span>' +
+        '<span class="k">Held between them</span></div>' +
+      '<div class="stat m"><span class="n">' + num(reg.mayors) + '</span>' +
+        '<span class="k">Mayors</span></div>' +
+      '<div class="stat"><span class="n">' +
+        (reg.population ? gold(Math.round(reg.totalGold / reg.population)) : '—') +
+        '</span><span class="k">Average holding</span></div>' +
+    '</div>';
+
+  if (regBoards) out += renderBoards();
+
+  out += '<div class="tools">' +
+    '<div class="f"><label for="rq">Search</label>' +
+      '<input id="rq" placeholder="A name…" value="' + esc(regQ) + '" autocomplete="off"></div>' +
+    '<div class="f" style="flex:0 0 11rem"><label for="rsort">Order by</label>' +
+      '<select id="rsort">' +
+      [['balance','Richest'],['active','Recently online'],['name','Name'],
+       ['town','Town'],['oldest','Longest here'],['newest','Newest']].map(function(o){
+        return '<option value="' + o[0] + '"' + (regSort === o[0] ? ' selected' : '') + '>' +
+          o[1] + '</option>'; }).join('') +
+      '</select></div>' +
+    '<div class="f" style="flex:0 0 11rem"><label for="rtown">Town</label>' +
+      '<input id="rtown" placeholder="Any" value="' + esc(regTown) + '" autocomplete="off"></div>' +
+    '</div>';
+
+  out += reg.citizens.length
+    ? '<div class="rows">' + reg.citizens.map(row).join('') + '</div>' +
+      '<div class="pager">' +
+        '<button class="btn" type="button" id="rprev"' + (regPage <= 0 ? ' disabled' : '') + '>Previous</button>' +
+        '<button class="btn" type="button" id="rnext"' + (regPage + 1 >= pages ? ' disabled' : '') + '>Next</button>' +
+        '<span class="where">Page ' + (regPage + 1) + ' of ' + pages + ' · ' +
+          num(reg.total) + ' shown of ' + num(reg.population) + '</span>' +
+      '</div>'
+    : '<p class="empty">' + (regQ || regTown
+        ? 'Nobody matches that.'
+        : 'No citizens recorded yet — the roster fills on the next sweep.') + '</p>';
+
+  host.innerHTML = out;
+  wireRegister();
+}
+
+function wireRegister(){
+  var q = $('rq');
+  if (q) q.addEventListener('input', function(){
+    clearTimeout(regTimer);
+    regTimer = setTimeout(function(){ regQ = q.value.trim(); regPage = 0; loadRegister(); }, 250);
+  });
+
+  var t = $('rtown');
+  if (t) t.addEventListener('input', function(){
+    clearTimeout(regTimer);
+    regTimer = setTimeout(function(){ regTown = t.value.trim(); regPage = 0; loadRegister(); }, 250);
+  });
+
+  var so = $('rsort');
+  if (so) so.addEventListener('change', function(){ regSort = so.value; regPage = 0; loadRegister(); });
+
+  var p = $('rprev'), nx = $('rnext');
+  if (p) p.addEventListener('click', function(){ if (regPage > 0){ regPage--; loadRegister(); } });
+  if (nx) nx.addEventListener('click', function(){ regPage++; loadRegister(); });
+
+  /* Swapping the record in place rather than navigating: the URL still
+     updates, so the back button and a copied link both behave. */
+  document.querySelectorAll('#register [data-discord]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var id = el.dataset.discord;
+      history.pushState({ discord: id }, '', '?discord=' + encodeURIComponent(id));
+      showPerson(id);
+    });
+  });
+}
+
+async function loadRegister(){
+  var params = new URLSearchParams({
+    sort: regSort, limit: String(REG_PAGE), offset: String(regPage * REG_PAGE),
+  });
+  if (regQ) params.set('q', regQ);
+  if (regTown) params.set('town', regTown);
+
+  try {
+    reg = await api('/api/nation/citizens?' + params);
+  } catch (e){
+    var host = $('register');
+    if (host) host.innerHTML = '<p class="empty">Could not load the register: ' + esc(e.message) + '</p>';
+    return;
+  }
+
+  /* Focus survives the repaint, so typing is not interrupted. */
+  var active = document.activeElement && document.activeElement.id;
+  var caret = document.activeElement && document.activeElement.selectionStart;
+  renderRegister();
+  if (active && $(active)){
+    $(active).focus();
+    try { $(active).setSelectionRange(caret, caret); } catch (_e) {}
+  }
+}
+
+async function showPerson(discordId){
+  try {
+    var a = await api('/api/account' + (discordId ? '?discord=' + encodeURIComponent(discordId) : ''));
+    render(a);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err){
+    window.alert('Could not open that record: ' + err.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE REGISTER
+ * Lifted from the old citizens page. A person's record and the list of every
+ * person were two pages showing the same data from two angles — your own row
+ * and everyone else's — so they are one page now: the record on top, the
+ * register under it, and clicking anyone swaps the record without a reload.
+ * ═════════════════════════════════════════════════════════════════════════ */
+var reg = null, regBoards = null;
+var regSort = 'balance', regQ = '', regTown = '', regPage = 0;
+var REG_PAGE = 25;
+var regTimer = null;
+
+function daysAgo(ms){
+  if (!ms) return null;
+  return Math.floor((Date.now() - ms) / 86400000);
+}
+
+
+function row(c){
+  var face = '<img class="face" loading="lazy" src="https://minotar.net/helm/' +
+    encodeURIComponent(c.name) + '/26.png" alt="" ' +
+    'onerror="this.style.visibility=\'hidden\'">';
+
+  var d = daysAgo(c.lastOnline);
+  var seen = d === null ? 'never seen'
+    : d === 0 ? 'today'
+    : d === 1 ? 'yesterday'
+    : d + 'd ago';
+
+  var tags = '';
+  if (c.isMayor) tags += '<span class="tag may">mayor</span>';
+  if (d !== null && d === 0) tags += '<span class="tag on">active</span>';
+  /* Said plainly rather than left blank: someone with no Discord account
+     cannot be opened, and a row that does nothing when clicked is worse than
+     one that explains why. */
+  if (!c.discordId) tags += '<span class="tag no">no account</span>';
+
+  var sub = [c.town, seen, c.discordName ? '@' + c.discordName : null]
+    .filter(Boolean).map(esc).join(' · ');
+
+  var rank = c.rank
+    ? '<span class="rank' + (c.rank <= 3 ? ' top' : '') + '">' +
+      (c.rank === 1 ? '🥇' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : c.rank) + '</span>'
+    : '<span class="rank"></span>';
+
+  return '<div class="c' + (c.discordId ? ' link' : '') + '"' +
+    (c.discordId ? ' data-discord="' + esc(c.discordId) + '"' : '') + '>' +
+    rank + face +
+    '<span class="who"><span class="nm">' + esc(c.name) + '</span>' +
+    '<span class="sub">' + (sub || '&nbsp;') + '</span></span>' +
+    tags +
+    '<span class="bal">' + (c.balance == null ? '—' : gold(c.balance)) + '</span>' +
+  '</div>';
+}
+
+/* Relative-day text, from a unix ms timestamp. */
+function ago(ms){
+  var d = daysAgo(ms);
+  return d === null ? 'never'
+    : d === 0 ? 'today'
+    : d === 1 ? 'yesterday'
+    : d + 'd ago';
+}
+
+function brow(r, i, value, sub, cls){
+  var clickable = r.discord_id || r.discordId;
+  return '<div class="brow' + (clickable ? ' link' : '') + '"' +
+    (clickable ? ' data-discord="' + esc(clickable) + '"' : '') + '>' +
+    '<span class="bi">' + (i + 1) + '</span>' +
+    '<span><span class="bn">' + esc(r.name || r.mc_name || r.discord_name || '—') + '</span>' +
+    (sub ? '<span class="bs"> · ' + esc(sub) + '</span>' : '') + '</span>' +
+    '<span class="bv' + (cls || '') + '">' + value + '</span></div>';
+}
+
+function boardCard(key, cls, title, cap, rows, fmt){
+  return '<div class="board ' + cls + '"><h3>' + esc(title) + '</h3>' +
+    '<p class="cap">' + esc(cap) + '</p>' +
+    (rows && rows.length
+      ? rows.map(fmt).join('')
+      : '<p class="none">Nothing recorded yet.</p>') + '</div>';
+}
+
+function renderBoards(){
+  if (!boards) return '';
+  var b = boards.boards;
+
+  return '<div class="boards">' +
+    boardCard('richest', 'rich', 'Richest', 'gold held right now', b.richest,
+      function(r, i){ return brow(r, i, gold(r.balance), r.town); }) +
+
+    /* The one worth acting on: these are the people whose 42-day clock is
+       closest to running out, and each one who goes takes their town's claim
+       headroom with them. */
+    boardCard('quiet', 'quiet', 'Going quiet', 'closest to the 42-day purge', b.quiet,
+      function(r, i){ return brow(r, i, ago(r.last_online), r.town, ' r'); }) +
+
+    boardCard('active', 'act', 'Most recently on', 'last seen', b.active,
+      function(r, i){ return brow(r, i, ago(r.last_online), r.town, ' g'); }) +
+
+    boardCard('donors', 'give', 'Most generous', 'given to the treasury', b.donors,
+      function(r, i){
+        return brow({ name: r.mc_name || r.discord_name, discord_id: r.discord_id },
+          i, gold(r.total), r.gifts + (r.gifts === 1 ? ' gift' : ' gifts')); }) +
+
+    boardCard('oldest', 'old', 'Longest here', 'first seen in the nation', b.oldest,
+      function(r, i){ return brow(r, i, ago(Date.parse(r.first_seen)), r.town); }) +
+
+    boardCard('towns', 'twn', 'Biggest towns', 'by residents', b.towns,
+      function(r, i){
+        return '<div class="brow"><span class="bi">' + (i + 1) + '</span>' +
+          '<span><span class="bn">' + esc(r.name) + '</span>' +
+          '<span class="bs"> · ' + num(r.chunks) +
+          (r.max_chunks ? '/' + r.max_chunks : '') + ' chunks</span></span>' +
+          '<span class="bv">' + num(r.residents) + '</span></div>'; }) +
+  '</div>';
+}
+
+
+function ago(ms){
+  var d = daysAgo(ms);
+  return d === null ? 'never'
+    : d === 0 ? 'today'
+    : d === 1 ? 'yesterday'
+    : d + 'd ago';
+}
+
+function brow(r, i, value, sub, cls){
+  var clickable = r.discord_id || r.discordId;
+  return '<div class="brow' + (clickable ? ' link' : '') + '"' +
+    (clickable ? ' data-discord="' + esc(clickable) + '"' : '') + '>' +
+    '<span class="bi">' + (i + 1) + '</span>' +
+    '<span><span class="bn">' + esc(r.name || r.mc_name || r.discord_name || '—') + '</span>' +
+    (sub ? '<span class="bs"> · ' + esc(sub) + '</span>' : '') + '</span>' +
+    '<span class="bv' + (cls || '') + '">' + value + '</span></div>';
+}
+
+function boardCard(key, cls, title, cap, rows, fmt){
+  return '<div class="board ' + cls + '"><h3>' + esc(title) + '</h3>' +
+    '<p class="cap">' + esc(cap) + '</p>' +
+    (rows && rows.length
+      ? rows.map(fmt).join('')
+      : '<p class="none">Nothing recorded yet.</p>') + '</div>';
+}
+
+function renderBoards(){
+  if (!boards) return '';
+  var b = boards.boards;
+
+  return '<div class="boards">' +
+    boardCard('richest', 'rich', 'Richest', 'gold held right now', b.richest,
+      function(r, i){ return brow(r, i, gold(r.balance), r.town); }) +
+
+    /* The one worth acting on: these are the people whose 42-day clock is
+       closest to running out, and each one who goes takes their town's claim
+       headroom with them. */
+    boardCard('quiet', 'quiet', 'Going quiet', 'closest to the 42-day purge', b.quiet,
+      function(r, i){ return brow(r, i, ago(r.last_online), r.town, ' r'); }) +
+
+    boardCard('active', 'act', 'Most recently on', 'last seen', b.active,
+      function(r, i){ return brow(r, i, ago(r.last_online), r.town, ' g'); }) +
+
+    boardCard('donors', 'give', 'Most generous', 'given to the treasury', b.donors,
+      function(r, i){
+        return brow({ name: r.mc_name || r.discord_name, discord_id: r.discord_id },
+          i, gold(r.total), r.gifts + (r.gifts === 1 ? ' gift' : ' gifts')); }) +
+
+    boardCard('oldest', 'old', 'Longest here', 'first seen in the nation', b.oldest,
+      function(r, i){ return brow(r, i, ago(Date.parse(r.first_seen)), r.town); }) +
+
+    boardCard('towns', 'twn', 'Biggest towns', 'by residents', b.towns,
+      function(r, i){
+        return '<div class="brow"><span class="bi">' + (i + 1) + '</span>' +
+          '<span><span class="bn">' + esc(r.name) + '</span>' +
+          '<span class="bs"> · ' + num(r.chunks) +
+          (r.max_chunks ? '/' + r.max_chunks : '') + ' chunks</span></span>' +
+          '<span class="bv">' + num(r.residents) + '</span></div>'; }) +
+  '</div>';
+}
+
+
+
+/* --- looking someone up ---------------------------------------------------
+   Searches across Discord accounts, the nation roster and who mayors what.
+   Only people with a Discord account can be opened — a record IS a Discord
+   account here — so anyone known only from the sweep is shown greyed with the
+   reason rather than silently omitted, which would look like a broken search.
+   ------------------------------------------------------------------------- */
+var lookTimer = null, lookRows = [], lookIndex = -1;
+
+function renderLookup(){
+  var box = $('whoResults');
+  if (!box) return;
+  if (!lookRows.length){
+    box.innerHTML = '<div class="none">Nobody found</div>';
+    box.classList.add('on');
+    return;
+  }
+  box.innerHTML = lookRows.map(function(p, i){
+    var where = [
+      p.mayorOf ? 'mayor of ' + esc(p.mayorOf) : (p.town ? esc(p.town) : null),
+      p.linked ? null : 'no account — cannot open',
+    ].filter(Boolean).join(' · ');
+    return '<div class="row' + (i === lookIndex ? ' sel' : '') + '" data-i="' + i + '">' +
+      '<div class="nm">' + esc(p.mcName || p.discordName || '—') + '</div>' +
+      '<div class="sb' + (p.linked ? '' : ' warn2') + '">' +
+        (p.discordName && p.mcName ? esc(p.discordName) + ' · ' : '') +
+        (where || '&nbsp;') + '</div></div>';
+  }).join('');
+  box.classList.add('on');
+
+  box.querySelectorAll('.row').forEach(function(el){
+    el.addEventListener('click', function(){ openPerson(Number(el.dataset.i)); });
+  });
+}
+
+function openPerson(i){
+  var p = lookRows[i];
+  if (!p || !p.linked) return;      // nothing to open
+  location.search = '?discord=' + encodeURIComponent(p.discordId);
+}
+
+function wireLookup(){
+  var input = $('who');
+  if (!input) return;
+
+  input.addEventListener('input', function(){
+    clearTimeout(lookTimer);
+    var q = input.value.trim();
+    if (!q){ $('whoResults').classList.remove('on'); return; }
+    lookTimer = setTimeout(async function(){
+      try {
+        var d = await api('/api/people/search?limit=12&q=' + encodeURIComponent(q));
+        lookRows = d.people || [];
+        lookIndex = -1;
+        renderLookup();
+      } catch (e){
+        $('whoResults').innerHTML = '<div class="none">' + esc(e.message) + '</div>';
+        $('whoResults').classList.add('on');
+      }
+    }, 200);
+  });
+
+  input.addEventListener('keydown', function(e){
+    var box = $('whoResults');
+    if (!box.classList.contains('on')) return;
+    if (e.key === 'ArrowDown'){ e.preventDefault(); lookIndex = Math.min(lookIndex + 1, lookRows.length - 1); renderLookup(); }
+    else if (e.key === 'ArrowUp'){ e.preventDefault(); lookIndex = Math.max(lookIndex - 1, 0); renderLookup(); }
+    else if (e.key === 'Enter' && lookIndex >= 0){ e.preventDefault(); openPerson(lookIndex); }
+    else if (e.key === 'Escape'){ box.classList.remove('on'); }
+  });
+
+  /* Closed on an outside click rather than on blur — blur fires before the
+     click reaches a result, so the list would vanish out from under it. */
+  document.addEventListener('click', function(e){
+    if (!e.target.closest || !e.target.closest('.pick')){
+      var b = $('whoResults');
+      if (b) b.classList.remove('on');
+    }
+  });
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/account.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  renderAuth();
+
+  /* Fetched before the record renders, because render() mounts the register
+     straight after the cards — having it in hand avoids a visible second
+     paint. Boards are separate and change only when the sweep runs. */
+  try {
+    var params = new URLSearchParams({ sort: regSort, limit: String(REG_PAGE), offset: '0' });
+    reg = await api('/api/nation/citizens?' + params);
+  } catch (e) { reg = null; }
+  try { regBoards = await api('/api/nation/boards'); } catch (e) { regBoards = null; }
+
+  var who = new URLSearchParams(location.search).get('discord');
+  try {
+    render(await api('/api/account' + (who ? '?discord=' + encodeURIComponent(who) : '')));
+    $('stamp').textContent = 'Live';
+  } catch (err){
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 401 ? 'Sign in with Discord to see your record.'
+      : err.status === 403 ? 'Only a Manager can view somebody else\u2019s record.'
+      : 'Unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = 'Unavailable';
+  }
+}
+
+/* Back and forward move between records rather than leaving the page, since
+   switching person no longer navigates. */
+window.addEventListener('popstate', function(){
+  showPerson(new URLSearchParams(location.search).get('discord'));
+});
+
+load();
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

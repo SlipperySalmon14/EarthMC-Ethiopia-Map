@@ -129,6 +129,37 @@
 .region.short{ border-color:var(--red-dim); }
 .region.short .seats{ color:var(--red); }
 
+/* --- the chamber ---------------------------------------------------------
+   The House drawn as seats. It answers a question the region cards below do
+   not: what the balance of the chamber actually is, and how many seats are
+   empty. The cards answer the other half — which region is short — so both
+   earn their place.
+   --------------------------------------------------------------------------- */
+.chamber{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-radius:var(--r-lg); padding:1.2rem 1.3rem 1rem; margin-bottom:1rem; }
+.chamber-top{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;
+  margin-bottom:.2rem; }
+.chamber h3{ font-family:var(--display); font-size:var(--step-1); margin:0; }
+.chamber .cap{ font-family:var(--data); font-size:.62rem; color:var(--text-low);
+  margin:0 0 .9rem; }
+.chamber .views{ margin-left:auto; display:flex; gap:.3rem; }
+.chamber .views .btn{ padding:.28rem .7rem; font-size:.66rem; }
+.chamber svg{ display:block; width:100%; height:auto; }
+
+.seat{ cursor:pointer; transition:opacity .12s ease; }
+.seat:hover{ opacity:.7; }
+.seat.vacant{ cursor:default; }
+
+.chamber .legend{ display:flex; flex-wrap:wrap; gap:.85rem; margin-top:.9rem;
+  padding-top:.85rem; border-top:1px solid var(--rule-soft); }
+.chamber .leg{ display:flex; align-items:center; gap:.4rem; font-size:.8rem; }
+.chamber .leg i{ width:.75rem; height:.75rem; border-radius:999px; display:inline-block; }
+.chamber .leg b{ font-family:var(--data); font-variant-numeric:tabular-nums; }
+.chamber .leg .nm{ color:var(--text-mid); }
+.chamber .readout{ min-height:2.2rem; margin-top:.5rem; font-family:var(--data);
+  font-size:.7rem; color:var(--text-low); }
+.chamber .readout b{ color:var(--text); font-family:var(--body); font-size:.88rem; }
+
 /* --- parties ------------------------------------------------------------- */
 .party-list{ display:flex; flex-wrap:wrap; gap:.5rem; }
 .party-chip{
@@ -247,6 +278,7 @@ footer{
       <h2 data-en="House of Representatives" data-am="የተወካዮች ምክር ቤት">House of Representatives</h2>
       <span class="meta" id="houseMeta">&mdash;</span>
     </div>
+    <div id="chamber"></div>
     <div id="house"><p class="empty">Loading…</p></div>
   </section>
 
@@ -472,10 +504,209 @@ function renderBranch(host, offices){
   }).join('');
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE CHAMBER
+ *
+ * Rows and seat size are DERIVED from the seat count rather than fixed, so
+ * changing the House size in the admin panel below reshapes this without
+ * anyone touching the drawing code. Twenty seats wants two generous rows;
+ * sixty wants four smaller ones.
+ *
+ * Two groupings, because the House is organised by region but contested by
+ * party, and a single arc can only order by one of them:
+ *   by party   — contiguous blocs, which is what a hemicycle is FOR
+ *   by region  — seats in regional order, still coloured by party, so you can
+ *                see which regions are solidly one way
+ * ═════════════════════════════════════════════════════════════════════════ */
+var chamberView = 'party';
+var chamberSeats = [];
+
+function rowsFor(count){
+  if (count <= 12) return 1;
+  if (count <= 30) return 2;
+  if (count <= 70) return 3;
+  if (count <= 140) return 4;
+  return 5;
+}
+
+/* Seats spread across rows in proportion to each row's arc length, so spacing
+   between neighbours stays even instead of the inner row bunching up. */
+function seatLayout(count, opts){
+  var rows = opts.rows, rInner = opts.rInner, rOuter = opts.rOuter;
+  var cx = opts.cx, cy = opts.cy;
+
+  var radii = [];
+  for (var r = 0; r < rows; r++){
+    radii.push(rows === 1 ? rOuter : rInner + (rOuter - rInner) * (r / (rows - 1)));
+  }
+
+  var total = radii.reduce(function(a, b){ return a + b; }, 0);
+  var perRow = radii.map(function(rad){ return Math.max(1, Math.round(count * rad / total)); });
+
+  /* Rounding rarely lands on the exact total, so the difference is settled on
+     the outermost row where one seat either way is least noticeable. */
+  var sum = perRow.reduce(function(a, b){ return a + b; }, 0);
+  perRow[rows - 1] += count - sum;
+  if (perRow[rows - 1] < 1) perRow[rows - 1] = 1;
+
+  var out = [];
+  for (var ri = 0; ri < rows; ri++){
+    var nSeats = perRow[ri], rad = radii[ri];
+    for (var i = 0; i < nSeats; i++){
+      /* Half-step inset at each end so the outermost seats sit inside the arc
+         rather than exactly on the horizontal, which reads as falling off. */
+      var t = nSeats === 1 ? 0.5 : (i + 0.5) / nSeats;
+      var ang = Math.PI - t * Math.PI;
+      out.push({ x: cx + Math.cos(ang) * rad, y: cy - Math.sin(ang) * rad });
+    }
+  }
+  return out.sort(function(a, b){ return a.x - b.x || a.y - b.y; });
+}
+
+/* Flattens the region-shaped API response into one seat per element, with the
+   unfilled ones included — a vacant seat is a seat, and it is the thing most
+   worth seeing. */
+function seatsFromHouse(house){
+  var seats = [];
+  (house || []).forEach(function(r){
+    var holders = r.holders || [];
+    var count = typeof r.seats === 'number' ? r.seats : holders.length;
+    // Unassigned is a holding pen, not a constituency: its members are real
+    // and get seats, but it is never short of them.
+    if (r.region === 'Unassigned') count = holders.length;
+    for (var i = 0; i < Math.max(count, holders.length); i++){
+      var h = holders[i] || null;
+      seats.push({
+        region: r.region,
+        who: h ? (h.mcName || h.discordName) : null,
+        party: h && h.party ? h.party : null,
+        independent: h ? !!h.independent : false,
+      });
+    }
+  });
+  return seats;
+}
+
+function renderChamber(){
+  var host = $('chamber');
+  if (!host) return;
+  if (!chamberSeats.length){ host.innerHTML = ''; return; }
+
+  var count = chamberSeats.length;
+  var rows = rowsFor(count);
+
+  /* Geometry scales with the count so a bigger House does not overflow and a
+     small one does not look lost in the middle of an empty canvas. */
+  var cx = 320, cy = 300, rOuter = 250;
+  var rInner = rows === 1 ? rOuter : rOuter - (rows * 40);
+  var pts = seatLayout(count, { rows: rows, rInner: rInner, rOuter: rOuter, cx: cx, cy: cy });
+
+  /* Radius from the gap between the two closest seats, so they never touch and
+     never float apart — and floored at 6px so a large House stays tappable. */
+  var minGap = Infinity;
+  for (var i = 1; i < pts.length; i++){
+    var d = Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+    if (d > 0 && d < minGap) minGap = d;
+  }
+  var rad = Math.max(6, Math.min(16, (minGap || 30) * 0.42));
+
+  var ordered = chamberSeats.slice();
+  if (chamberView === 'party'){
+    /* Blocs: same party together, vacant last. Independents sit between the
+       parties and the vacancies rather than being lumped with either. */
+    ordered.sort(function(a, b){
+      var ak = a.party ? a.party.name : (a.who ? 'zz-independent' : 'zzz-vacant');
+      var bk = b.party ? b.party.name : (b.who ? 'zz-independent' : 'zzz-vacant');
+      return ak.localeCompare(bk);
+    });
+  } else {
+    ordered.sort(function(a, b){
+      return String(a.region).localeCompare(String(b.region));
+    });
+  }
+
+  var svgH = Math.round(cy + rad + 12);
+  var html = '<svg viewBox="0 0 640 ' + svgH + '" role="img" ' +
+    'aria-label="House seating">';
+
+  ordered.forEach(function(s, i){
+    var p = pts[i];
+    if (!p) return;
+    var vacant = !s.who;
+    var col = s.party && s.party.colour ? s.party.colour
+      : (s.who ? '#837866' : 'none');
+    html += '<circle class="seat' + (vacant ? ' vacant' : '') + '" ' +
+      'cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + rad.toFixed(1) + '" ' +
+      'fill="' + (vacant ? 'none' : col) + '" ' +
+      (vacant ? 'stroke="#4a4238" stroke-width="2" stroke-dasharray="3 3" ' : '') +
+      'data-who="' + esc(s.who || '') + '" ' +
+      'data-region="' + esc(s.region) + '" ' +
+      'data-party="' + esc(s.party ? (s.party.name || s.party.abbrev || '') : '') + '">' +
+      '<title>' + esc(s.who ? s.who + ' · ' + s.region : 'Vacant · ' + s.region) + '</title>' +
+      '</circle>';
+  });
+  html += '</svg>';
+
+  /* --- legend, counted from the real seats --- */
+  var byParty = {}, vacant = 0, indep = 0;
+  chamberSeats.forEach(function(s){
+    if (!s.who){ vacant++; return; }
+    if (!s.party){ indep++; return; }
+    var k = s.party.name || s.party.abbrev;
+    if (!byParty[k]) byParty[k] = { n: 0, colour: s.party.colour };
+    byParty[k].n++;
+  });
+
+  var legend = Object.keys(byParty).sort().map(function(k){
+    return '<span class="leg"><i style="background:' + esc(byParty[k].colour || '#837866') +
+      '"></i><span class="nm">' + esc(k) + '</span> <b>' + byParty[k].n + '</b></span>';
+  }).join('');
+  if (indep) legend += '<span class="leg"><i style="background:#837866"></i>' +
+    '<span class="nm">Independent</span> <b>' + indep + '</b></span>';
+  if (vacant) legend += '<span class="leg"><i style="border:2px dashed #4a4238"></i>' +
+    '<span class="nm">Vacant</span> <b>' + vacant + '</b></span>';
+
+  host.innerHTML =
+    '<div class="chamber"><div class="chamber-top"><h3>The chamber</h3>' +
+      '<span class="views">' +
+        '<button class="btn" type="button" data-view="party"' +
+          (chamberView === 'party' ? ' aria-pressed="true"' : '') + '>By party</button>' +
+        '<button class="btn" type="button" data-view="region"' +
+          (chamberView === 'region' ? ' aria-pressed="true"' : '') + '>By region</button>' +
+      '</span></div>' +
+    '<p class="cap">' + (count - vacant) + ' of ' + count + ' seats filled' +
+      (vacant ? ' · ' + vacant + ' vacant' : '') + '</p>' +
+    html +
+    '<div class="legend">' + legend + '</div>' +
+    '<div class="readout" id="seatReadout">Hover or tap a seat.</div></div>';
+
+  host.querySelectorAll('[data-view]').forEach(function(b){
+    b.addEventListener('click', function(){
+      chamberView = b.dataset.view;
+      renderChamber();
+    });
+  });
+
+  var out = $('seatReadout');
+  host.querySelectorAll('.seat').forEach(function(el){
+    var show = function(){
+      out.innerHTML = el.dataset.who
+        ? '<b>' + esc(el.dataset.who) + '</b> · ' + esc(el.dataset.region) +
+          (el.dataset.party ? ' · ' + esc(el.dataset.party) : ' · Independent')
+        : 'Vacant seat · ' + esc(el.dataset.region);
+    };
+    el.addEventListener('mouseenter', show);
+    el.addEventListener('click', show);
+  });
+}
+
 function renderHouse(house, totalSeats, filled){
   var host = $('house');
   if (!house || !house.length){ host.innerHTML = '<p class="empty">No seats recorded.</p>'; return; }
   $('houseMeta').textContent = filled + ' of ' + totalSeats + ' seats filled';
+
+  chamberSeats = seatsFromHouse(house);
+  renderChamber();
 
   host.innerHTML = '<div class="regions">' + house.map(function(r){
     var held = r.holders ? r.holders.length : 0;
@@ -814,4 +1045,3 @@ load();
 <script src="assets/pagetext.js?v=1"></script>
 </body>
 </html>
-

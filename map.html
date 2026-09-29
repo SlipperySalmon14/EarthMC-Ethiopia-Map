@@ -1413,6 +1413,19 @@ input[type="range"]{
         </div>
       </section>
 
+      <section class="panel view-ethiopia view-global" id="panel-plan">
+        <div class="panel-head">
+          <span class="eyebrow">TOWN.PLANNER</span>
+          <h2>Expansion planner</h2>
+        </div>
+        <p class="hint" style="margin-top:0">
+          Click a chunk to add it, click again to take it back. Shift-click two
+          corners to fill an area. Nothing is saved or sent anywhere &mdash; this
+          only answers whether the land could be held.
+        </p>
+        <div id="planPanel"><p class="empty-hint">Open a town on the map and choose &ldquo;Plan expansion&rdquo;.</p></div>
+      </section>
+
       <section class="panel view-anydata" id="panel-nation-claims">
         <div class="panel-head">
           <span class="eyebrow">NATION.CLAIMS</span>
@@ -1780,6 +1793,18 @@ const IS_SMALL_SCREEN = window.matchMedia('(max-width: 820px)').matches;
 let showRegions = true;      // region polygons layer (Ethiopia view only)
 let showHighways = true;     // ice highway lines + stations
 let showNationClaims = true; // admin-drawn nation border areas
+/* Which world the map shows. Not a layer toggle — the two worlds share a
+   coordinate plane, so they can never both be drawn without one lying on top
+   of the other. */
+let mapWorld = 'earth';   // 'earth' | 'moon'
+const MOON_TILE_BASE = 'https://map.earthmc.net/tiles/earthmc_moon';
+/* Terra Luna is far smaller than earth, so squaremap renders fewer folders
+   for it. This is the ONE number here not confirmed against a live tile —
+   capture a real moon tile URL and correct it. Too high and the closest zooms
+   404; too low and they merely upscale, which is only blurry. Erring low. */
+const MOON_MAX_NATIVE_ZOOM = 3;
+let showNationRange = false;
+
 let showChunkGrid = false;   // 16x16 chunk boundaries, aligned to the real grid
 let showPlayers = false;     // live player positions from squaremap
 let showAllClaims = false;   // ignore MAX_CLAIM_TOWNS and draw every border
@@ -1815,7 +1840,7 @@ function drawModeArmed(){
   try{
     return !!(nationClaimState.drawArmed || nationClaimState.editing || nationClaimState.proposal ||
               highwayState.drawTarget || highwayState.stationTarget || highwayState.editing ||
-              state.splitArmed);
+              state.splitArmed || planState.on);
   } catch(_notReadyYet){
     return false;   // called before those exist — nothing can be armed yet
   }
@@ -2150,6 +2175,187 @@ function terrainSafeMaxZoom(nativeZoom){
 
 const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
 
+/* =========================================================================
+   NATION RANGE, AND THE EXPANSION PLANNER
+
+   Every figure here is from earthmc.net's own current docs, not assumed. The
+   numbers in circulation are mostly wrong: nation range was raised from
+   3,500/1,000 in the March 2026 Nostra pass, and the per-chunk town upkeep
+   figures people quote are from CCNet and Manacube, different servers
+   entirely. EarthMC has NO per-chunk upkeep — it considered claim upkeep and
+   rejected it outright.
+
+   So the only thing size costs you here is exposure: past the claim limit,
+   anyone may take your land, and the sole defence is a shield at 1g per 4
+   chunks over, daily. That is what the planner reports, and it is the more
+   useful number anyway. The question when expanding is not what it costs to
+   hold, it is whether you can hold it at all.
+   ========================================================================= */
+const RANGE_FROM_CAPITAL = 5000;   // blocks from the capital's HOME PLOT
+const RANGE_FROM_TOWN    = 1500;   // blocks from every member town's, chaining
+const PLAN_BASE_CLAIMS   = 12;     // a town's own floor
+const PLAN_PER_RESIDENT  = 12;     // each resident adds this
+const PLAN_CLAIM_COST    = 16;     // gold per chunk, one-off
+const PLAN_SHIELD_PER    = 4;      // 1g/day per this many chunks over
+
+function rangeDist(a, b){ return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+
+/* Every town of this nation with a usable home plot. One without is skipped
+   rather than guessed at — a circle in the wrong place is worse than none. */
+function rangeAnchors(nation){
+  const wanted = String(nation || '').toLowerCase();
+  const out = [];
+  ncAllTowns().forEach(t => {
+    if ((t.nationName || '').toLowerCase() !== wanted) return;
+    if (t.isMoon || typeof t.homeX !== 'number') return;
+    out.push({ name: t.name, xz: [t.homeX, t.homeZ], isCapital: !!t.isCapital });
+  });
+  return out;
+}
+
+/* Inside the capital's 5,000, OR within 1,500 of any member. Both, not one —
+   the second is what makes a nation a chain rather than a blob. */
+function rangeCovers(xz, anchors){
+  for (const a of anchors){
+    const limit = a.isCapital ? RANGE_FROM_CAPITAL : RANGE_FROM_TOWN;
+    if (rangeDist(xz, a.xz) <= limit) return a;
+  }
+  return null;
+}
+
+/* Which towns the nation could actually absorb.
+   Iterated, not one pass: a town that joins extends the frontier by its own
+   1,500, which can bring a further town into range that was not before. One
+   pass would understate the reach of any nation that sprawls, which is most. */
+function rangeReachableTowns(nation){
+  const anchors = rangeAnchors(nation).slice();
+  if (!anchors.length) return [];
+  const wanted = String(nation || '').toLowerCase();
+  const candidates = ncAllTowns().filter(t =>
+    !t.isMoon && typeof t.homeX === 'number' &&
+    (t.nationName || '').toLowerCase() !== wanted);
+  const taken = new Set(), order = [];
+  let grew = true, guard = 0;
+  while (grew && guard++ < 60){
+    grew = false;
+    for (const t of candidates){
+      if (taken.has(t.name)) continue;
+      const via = rangeCovers([t.homeX, t.homeZ], anchors);
+      if (!via) continue;
+      taken.add(t.name);
+      order.push({ town: t, via: via.name });
+      anchors.push({ name: t.name, xz: [t.homeX, t.homeZ], isCapital: false });
+      grew = true;
+    }
+  }
+  return order;
+}
+
+/* --- the planner --------------------------------------------------------- */
+const planState = {
+  on: false, town: null,
+  added: new Set(), removed: new Set(),
+  dragFrom: null, extraResidents: 0,
+};
+function planKey(cx, cz){ return cx + ',' + cz; }
+
+/* The nation bonus, read from the town's OWN numbers rather than recomputed.
+   EarthMC publishes only the ends of this curve — 10 for being in a nation,
+   100 at 200 nation residents — and the wiki's table is Aurora-era and now
+   wrong. So this takes the gap between the real claim limit and what
+   residents alone explain. That IS the bonus, whatever the curve is. */
+function nationBonusFor(town){
+  const fromResidents = PLAN_BASE_CLAIMS + (town.population || 0) * PLAN_PER_RESIDENT;
+  if (typeof town.maxTownBlocks === 'number' && town.maxTownBlocks > 0){
+    return Math.max(0, town.maxTownBlocks - fromResidents);
+  }
+  if (!town.nationName) return 0;
+  const nation = nationStatsFor(town.nationName);
+  const residents = nation ? (nation.numResidents || 0) : 0;
+  return Math.round(Math.max(10, Math.min(100, 10 + (residents / 200) * 90)));
+}
+
+function planFigures(){
+  const t = planState.town;
+  if (!t) return null;
+  const now = t.townBlocks || 0;
+  const next = Math.max(1, now + planState.added.size - planState.removed.size);
+  const bonus = nationBonusFor(t);
+  const rNow = t.population || 0, rNext = rNow + planState.extraResidents;
+  const limitNow  = PLAN_BASE_CLAIMS + rNow  * PLAN_PER_RESIDENT + bonus;
+  const limitNext = PLAN_BASE_CLAIMS + rNext * PLAN_PER_RESIDENT + bonus;
+  const overNow = Math.max(0, now - limitNow), overNext = Math.max(0, next - limitNext);
+  return {
+    now, next, bonus, bonusEstimated: typeof t.maxTownBlocks !== 'number',
+    residentsNow: rNow, residentsNext: rNext, limitNow, limitNext,
+    overNow, overNext,
+    residentsNeeded: overNext > 0 ? Math.ceil(overNext / PLAN_PER_RESIDENT) : 0,
+    added: planState.added.size, removed: planState.removed.size,
+    goldCost: planState.added.size * PLAN_CLAIM_COST,   // unclaiming refunds nothing
+    shieldNow: Math.ceil(overNow / PLAN_SHIELD_PER),
+    shieldNext: Math.ceil(overNext / PLAN_SHIELD_PER),
+  };
+}
+
+/* One gesture, and what it means is decided by what is already there rather
+   than by a mode the user has to remember. */
+function planToggleChunk(cx, cz){
+  const k = planKey(cx, cz);
+  const owned = (planState.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
+  const set = owned ? planState.removed : planState.added;
+  if (set.has(k)) set.delete(k); else set.add(k);
+  renderPlanOverlay(); renderPlanPanel();
+}
+
+const PLAN_RECT_CAP = 2000;
+function planFillRect(a, b){
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]);
+  const z0 = Math.min(a[1], b[1]), z1 = Math.max(a[1], b[1]);
+  const count = (x1 - x0 + 1) * (z1 - z0 + 1);
+  if (count > PLAN_RECT_CAP){
+    auditLog.log(`That area is ${CoordUtils.fmt(count)} chunks — too many to plan at ` +
+      `once (cap ${CoordUtils.fmt(PLAN_RECT_CAP)}). Zoom in and take it in pieces.`, 'warn');
+    return;
+  }
+  const owned = new Set((planState.town.claimChunks || []).map(([x, z]) => planKey(x, z)));
+  for (let cx = x0; cx <= x1; cx++){
+    for (let cz = z0; cz <= z1; cz++){
+      const k = planKey(cx, cz);
+      if (!owned.has(k)) planState.added.add(k);
+    }
+  }
+  auditLog.log(`Added ${CoordUtils.fmt(count)} chunk(s) to the plan`, 'info');
+  renderPlanOverlay(); renderPlanPanel();
+}
+
+function planStart(town){
+  planState.on = true; planState.town = town;
+  planState.added.clear(); planState.removed.clear();
+  planState.dragFrom = null; planState.extraResidents = 0;
+  if (!showChunkGrid) setChunkGrid(true);   // nothing to aim at otherwise
+  auditLog.log(`Planning ${town.name} — click a chunk to toggle it, ` +
+    `shift-click two corners for an area`, 'info');
+  renderPlanOverlay(); renderPlanPanel(); refreshInteractivity();
+}
+
+function planStop(){
+  planState.on = false; planState.town = null;
+  planState.added.clear(); planState.removed.clear();
+  planState.dragFrom = null;
+  renderPlanOverlay(); renderPlanPanel(); refreshInteractivity();
+}
+
+/* Resolved by NAME, not by holding the town object: the sync loop replaces
+   every town object every 90 seconds, so a captured reference would go stale
+   and plan against numbers that have since moved. */
+window.planFromPopup = function(name){
+  const town = (state.towns || []).concat(worldCache.towns || [])
+    .find(t => t.name === name);
+  if (!town){ auditLog.log(`Town "${name}" is no longer loaded`, 'warn'); return; }
+  mapController.map.closePopup();
+  planStart(town);
+};
+
 function buildTerrainLayer(){
   return L.tileLayer(TERRAIN_URL_TEMPLATE, {
     tileSize: TERRAIN_TILE_SIZE,
@@ -2356,9 +2562,32 @@ class EarthMCClient{
     } else{
       return null;
     }
+    /* Which world the town is in. Moon coordinates overlap earth coordinates
+       exactly — Terra Luna is ~35,000 x 17,500 around its own origin, which
+       lands on top of Africa on this plane — so this field is the ONLY thing
+       separating them. Nothing about the numbers says which world they are in.
+
+       Defaults to earth when absent: every town predates the moon, and a
+       missing field must not banish a town to a world it isn't in. */
+    const world = (raw.coordinates.spawn && raw.coordinates.spawn.world)
+      ? String(raw.coordinates.spawn.world).toLowerCase() : 'earth';
+
+    /* Kept SEPARATELY from mcX/mcZ, which prefer the spawn. Nation range is
+       measured from the home plot specifically, and /n set spawn can move the
+       spawn anywhere inside the town — so using the marker position would put
+       the range circle wrong by however far the mayor moved it. */
+    let homeX = null, homeZ = null;
+    if (Array.isArray(raw.coordinates.homeBlock) && raw.coordinates.homeBlock.length === 2){
+      homeX = raw.coordinates.homeBlock[0] * 16 + 8;
+      homeZ = raw.coordinates.homeBlock[1] * 16 + 8;
+    }
+
     return {
       name: raw.name || 'Unnamed',
       uuid: raw.uuid || raw.name,
+      world,
+      isMoon: world.indexOf('moon') >= 0,
+      homeX, homeZ,
       // Normalised once, here, so every consumer keys off one spelling.
       nationName: raw.nation && raw.nation.name ? String(raw.nation.name).trim() : null,
       mayor: raw.mayor && raw.mayor.name ? raw.mayor.name : null,
@@ -3182,6 +3411,10 @@ class MapController{
     this.highwayStationsLayerGroup = L.layerGroup().addTo(this.map);
     // Capital stars sit above the region fills so they stay readable.
     this.regionCapitalsLayerGroup = L.layerGroup().addTo(this.map);
+    // Range is context, so it sits under the claims. The plan is what the
+    // user is actively working on, so it sits over everything.
+    this.rangeLayerGroup = L.layerGroup().addTo(this.map);
+    this.planLayerGroup = L.layerGroup().addTo(this.map);
 
     this._setupCoordReadout();
     this._setupLayerToggles();
@@ -3212,6 +3445,11 @@ class MapController{
     // sidebar) can push its state back into these checkboxes.
     this._layerCheckboxes = [];
     const rows = [
+      { label: 'Terra Luna (moon)', get: () => mapWorld === 'moon',
+        set: (v) => setMapWorld(v ? 'moon' : 'earth') },
+      { label: 'Nation range', get: () => showNationRange,
+        set: (v) => { showNationRange = v; renderNationRange(); },
+        when: () => mapWorld !== 'moon' },
       // This one traces each TOWN's claimed chunks — it is the town layer, and
       // calling it "Nation claims" was wrong. Nation claims are the separate,
       // admin-drawn borders below.
@@ -3559,6 +3797,7 @@ function refreshMapLayers(){
     // were swallowing the clicks too — which is why the lines were both hard
     // to see and hard to click. Re-drawing them here puts them back on top.
     renderHighways();
+    renderNationRange();
   }, 0);
 }
 
@@ -3620,6 +3859,11 @@ function buildTownPopupHtml(t){
       <tr><td>Coordinates</td><td>X ${Math.round(t.mcX).toLocaleString()}, Z ${Math.round(t.mcZ).toLocaleString()}</td></tr>
     </table>
     ${residentHtml}
+    <div style="margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--line)">
+      <button type="button" class="btn btn-ghost btn-small"
+        onclick="window.planFromPopup('${escapeHtml(t.name).replace(/'/g, "\\'")}')">
+        Plan expansion</button>
+    </div>
   </div>`;
 }
 
@@ -3800,7 +4044,11 @@ const worldCache = {
 };
 
 function townsForActiveView(towns){
-  const list = towns || [];
+  /* Filtered FIRST, before any view scoping. The worlds overlap on the plane,
+     so a moon town left in the list does not land somewhere obviously wrong —
+     it lands somewhere plausible inside Ethiopia and gets counted in whatever
+     that view totals up. */
+  const list = (towns || []).filter(t => (mapWorld === 'moon' ? t.isMoon : !t.isMoon));
   // Admin edits Ethiopia's regions, so it shows the same towns Ethiopia does.
   // Settings inherits the last data view — see currentScope().
   if (currentScope() !== 'global'){
@@ -3878,6 +4126,167 @@ function renderNationClaims(allTowns){
       polygon.addTo(mapController.claimsLayerGroup);
     });
   });
+}
+
+function setMapWorld(world){
+  if (mapWorld === world) return;
+  mapWorld = world;
+  const layer = mapController.terrainLayer;
+  if (layer){
+    layer.options.maxNativeZoom = world === 'moon'
+      ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM;
+    layer.setUrl(world === 'moon'
+      ? `${MOON_TILE_BASE}/{z}/{x}_{y}.png` : TERRAIN_URL_TEMPLATE);
+  }
+  auditLog.log(world === 'moon'
+    ? 'Showing Terra Luna — earth towns are hidden'
+    : 'Showing earth', 'info');
+  refreshMapLayers();
+  renderNationClaimAreas();
+  if (mapController.syncLayerToggles) mapController.syncLayerToggles();
+}
+
+function renderNationRange(){
+  const group = mapController.rangeLayerGroup;
+  if (!group) return;
+  group.clearLayers();
+  if (!showNationRange || mapWorld === 'moon') return;
+
+  const nation = nationClaimState.activeNation || HOME_NATION;
+  const anchors = rangeAnchors(nation);
+  if (!anchors.length) return;
+  const tint = nationColors(nation).fill;
+
+  /* Rings, not filled discs. Forty overlapping translucent circles stack into
+     an unreadable gradient exactly where a nation is densest; outlines show
+     the real frontier and which town holds each part of it. The capital's is
+     heavier because it is a different RULE, not just a bigger number. */
+  anchors.forEach(a => {
+    const cap = a.isCapital;
+    L.circle(CoordUtils.mcToLatLng(a.xz[0], a.xz[1]), {
+      radius: cap ? RANGE_FROM_CAPITAL : RANGE_FROM_TOWN,
+      color: cap ? COLORS.brassHi : tint,
+      weight: cap ? 2 : 1,
+      opacity: cap ? .85 : .40,
+      fill: cap, fillColor: tint, fillOpacity: cap ? .05 : 0,
+      dashArray: cap ? null : '4 4',
+      interactive: false, pmIgnore: true,
+    }).addTo(group);
+  });
+
+  /* The payoff: towns inside the frontier that are not yours yet, each
+     labelled with which of your towns puts them in range. The rings are
+     interesting; this is the answer to the actual question. */
+  rangeReachableTowns(nation).forEach(({ town, via }) => {
+    L.circleMarker(CoordUtils.mcToLatLng(town.homeX, town.homeZ), {
+      radius: 5, color: COLORS.sageHi, weight: 2,
+      fillColor: COLORS.ink, fillOpacity: .9,
+      interactive: true, pmIgnore: true, bubblingMouseEvents: false,
+    }).bindTooltip(escapeHtml(`${town.name} — in range via ${via}` +
+      (town.nationName ? ` · currently ${town.nationName}` : ' · nationless')),
+      { direction: 'top', className: 'claim-tooltip' }).addTo(group);
+  });
+}
+
+function renderPlanOverlay(){
+  const group = mapController.planLayerGroup;
+  if (!group) return;
+  group.clearLayers();
+  if (!planState.on || !planState.town) return;
+
+  const draw = (k, style) => {
+    const [cx, cz] = k.split(',').map(Number);
+    L.polygon([
+      CoordUtils.mcToLatLng(cx * 16,      cz * 16),
+      CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16),
+      CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16 + 16),
+      CoordUtils.mcToLatLng(cx * 16,      cz * 16 + 16),
+    ], Object.assign({ interactive: false, pmIgnore: true }, style)).addTo(group);
+  };
+
+  /* Two colours, not two opacities of one. They are opposite decisions and
+     must never be mistaken for each other at a glance. */
+  planState.added.forEach(k => draw(k, {
+    color: COLORS.sage, weight: 1, opacity: .9,
+    fillColor: COLORS.sage, fillOpacity: .30 }));
+  planState.removed.forEach(k => draw(k, {
+    color: COLORS.danger, weight: 1, opacity: .9,
+    fillColor: COLORS.danger, fillOpacity: .22, dashArray: '3 3' }));
+
+  if (planState.dragFrom){
+    const [cx, cz] = planState.dragFrom;
+    L.circleMarker(CoordUtils.mcToLatLng(cx * 16 + 8, cz * 16 + 8), {
+      radius: 5, color: COLORS.brassHi, weight: 2,
+      fillColor: COLORS.ink, fillOpacity: 1,
+      interactive: false, pmIgnore: true,
+    }).addTo(group);
+  }
+}
+
+function renderPlanPanel(){
+  const host = document.getElementById('planPanel');
+  if (!host) return;
+  if (!planState.on || !planState.town){
+    host.innerHTML = '<p class="empty-hint">Open a town on the map and choose ' +
+      '&ldquo;Plan expansion&rdquo;.</p>';
+    return;
+  }
+  const f = planFigures(), t = planState.town, n = CoordUtils.fmt;
+
+  /* Over the limit is the headline, because it is the only consequence size
+     actually has. EarthMC has no per-chunk upkeep; what it has is that past
+     the limit, anyone can take your land. */
+  const verdict = f.overNext > 0
+    ? `<div class="eth-alert" style="margin-bottom:.6rem">${n(f.overNext)} chunks over ` +
+      `the limit — overclaimable. Needs ${n(f.residentsNeeded)} more ` +
+      `resident${f.residentsNeeded === 1 ? '' : 's'}, or a shield at ${n(f.shieldNext)}g a day.</div>`
+    : `<div style="padding:.35rem .55rem;border-radius:var(--radius-sm);margin-bottom:.6rem;` +
+      `background:rgba(24,157,77,.14);border:1px solid var(--sage);color:var(--sage-hi);` +
+      `font-family:var(--font-mono);font-size:.7rem">Within the limit — ` +
+      `${n(f.limitNext - f.next)} chunks of headroom.</div>`;
+
+  const row = (label, before, after) => {
+    const changed = String(before) !== String(after);
+    return `<div class="econ-row"><span>${escapeHtml(label)}</span>` +
+      `<span class="econ-num">${escapeHtml(String(before))}` +
+      (changed ? ` <span style="color:var(--brass-hi)">&#8594; ${escapeHtml(String(after))}</span>` : '') +
+      `</span></div>`;
+  };
+
+  host.innerHTML =
+    `<div style="font-family:var(--font-display);font-size:1rem;color:var(--brass-hi);` +
+      `margin-bottom:.5rem">${escapeHtml(t.name)}</div>` + verdict +
+    `<div class="econ-breakdown">` +
+      row('Chunks', n(f.now), n(f.next)) +
+      row('Claim limit', n(f.limitNow), n(f.limitNext)) +
+      row('Residents', n(f.residentsNow), n(f.residentsNext)) +
+      row('Over the limit', n(f.overNow), n(f.overNext)) +
+      row('Shield, per day', f.shieldNow + 'g', f.shieldNext + 'g') +
+    `</div>` +
+    `<div class="econ-row" style="border:none;margin-top:.4rem"><span>Cost to claim</span>` +
+      `<span class="econ-num" style="color:var(--brass-hi)">${n(f.goldCost)}g</span></div>` +
+    `<p class="hint" style="margin-top:.3rem">${n(f.added)} added, ${n(f.removed)} removed · ` +
+      `limit is ${PLAN_BASE_CLAIMS} + ${PLAN_PER_RESIDENT}/resident + ${n(f.bonus)} ` +
+      `nation bonus${f.bonusEstimated ? ' (estimated)' : ''}</p>` +
+    `<div class="hw-route-controls" style="margin-top:.6rem">` +
+      `<button type="button" class="btn btn-primary btn-small" id="planMinus">&minus; resident</button>` +
+      `<button type="button" class="btn btn-primary btn-small" id="planPlus">+ resident</button>` +
+      `<button type="button" class="btn btn-primary btn-small" id="planClear">Clear</button>` +
+      `<button type="button" class="btn btn-ghost btn-small" id="planExit">Done</button></div>`;
+
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', fn);
+  };
+  bind('planPlus',  () => { planState.extraResidents++; renderPlanPanel(); });
+  // Never below the real roster: you cannot plan away people who live there.
+  bind('planMinus', () => { planState.extraResidents = Math.max(0, planState.extraResidents - 1); renderPlanPanel(); });
+  bind('planClear', () => {
+    planState.added.clear(); planState.removed.clear();
+    planState.extraResidents = 0; planState.dragFrom = null;
+    renderPlanOverlay(); renderPlanPanel();
+  });
+  bind('planExit', planStop);
 }
 
 function renderTownMarkers(allTowns){
@@ -8225,7 +8634,32 @@ function hwMapClick(latlng){
   return false;
 }
 
-mapController.map.on('click', (e) => { hwMapClick(e.latlng); });
+mapController.map.on('click', (e) => {
+  /* The planner owns the click while open. Checked BEFORE the highway
+     handler, not after: both want raw map clicks and whichever is asked
+     first wins. */
+  if (planState.on && planState.town){
+    const mc = CoordUtils.latLngToMc(e.latlng);
+    const cx = Math.floor(mc.x / 16), cz = Math.floor(mc.z / 16);
+    if (e.originalEvent && e.originalEvent.shiftKey){
+      /* Two corners rather than a drag: dragging already means panning on
+         this map, and stealing it would break the thing people do most. */
+      if (!planState.dragFrom){
+        planState.dragFrom = [cx, cz];
+        renderPlanOverlay();
+        auditLog.log('Corner set — shift-click the opposite corner', 'info');
+      } else {
+        planFillRect(planState.dragFrom, [cx, cz]);
+        planState.dragFrom = null;
+      }
+      return;
+    }
+    planState.dragFrom = null;
+    planToggleChunk(cx, cz);
+    return;
+  }
+  hwMapClick(e.latlng);
+});
 
 // Live preview of where the next point would land. Coalesced to one repaint
 // per frame — mousemove fires far faster than the map can usefully redraw.

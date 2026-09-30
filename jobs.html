@@ -1,1 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Job board · EMC Services</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=3">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.2rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+/* Was tracked-out mono caps, like every other heading on the site. A subtitle
+   is a phrase, so it is set like one. */
+.masthead .sub{ font-family:var(--display); font-weight:400; font-style:italic;
+  font-size:var(--step-1); letter-spacing:-.01em; color:var(--gold); margin:.35rem 0 0; }
+
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr)); gap:.6rem; margin-bottom:1.2rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.75rem .9rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; letter-spacing:-.02em; }
+.stat .k{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat .d{ font-family:var(--data); font-size:.6rem; color:var(--text-low); display:block; margin-top:.25rem; }
+.stat.o{ --accent:var(--gold); } .stat.o .n{ color:var(--gold); }
+.stat.m{ --accent:var(--green); } .stat.m .n{ color:var(--green); }
+.stat.b{ --accent:var(--blue); }
+
+.depts{ display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:.7rem; }
+.dept{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem;
+  background:var(--ink-raised); border:1px solid var(--rule); border-radius:2px;
+  color:var(--text-mid); cursor:pointer; }
+.dept:hover{ border-color:var(--gold-dim); color:var(--text); }
+.dept.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+
+/* Sorting is its own row, not squeezed in with the department chips — it
+   applies across whatever the chips have filtered to. */
+.sortbar{ display:flex; gap:.5rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1rem; }
+.sortbar .f{ display:flex; flex-direction:column; gap:.25rem; }
+.sortbar label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
+.sortbar select, .sortbar input{ background:var(--ink); color:var(--text);
+  border:1px solid var(--rule); border-radius:2px; padding:.4rem .5rem;
+  font-family:var(--data); font-size:.74rem; }
+.sortbar select:focus, .sortbar input:focus{ border-color:var(--gold); outline:none; }
+.sortbar .flip{ font-family:var(--data); font-size:.72rem; padding:.42rem .7rem;
+  background:var(--ink-raised); border:1px solid var(--rule); border-radius:2px;
+  color:var(--text-mid); cursor:pointer; }
+.sortbar .flip:hover{ border-color:var(--gold-dim); color:var(--gold); }
+.sortbar .note{ font-family:var(--data); font-size:.64rem; color:var(--text-low);
+  margin:0 0 .5rem auto; max-width:20rem; text-align:right; }
+
+.boardwrap{ max-height:34rem; overflow-y:auto; padding-right:.2rem;
+  border:1px solid var(--rule); border-radius:3px; background:var(--ink); }
+.board{ display:flex; flex-direction:column; }
+.j{ padding:.85rem 1rem; border-bottom:1px solid var(--rule-soft);
+  border-left:3px solid var(--sv,var(--rule)); }
+.j:last-child{ border-bottom:none; }
+.j.prio{ background:rgba(237,185,18,.05); }
+.j.mine{ background:rgba(24,157,77,.06); }
+.j.svc-recruiting{ --sv:var(--green); }
+.j.svc-mapart{ --sv:var(--gold); }
+.j.svc-media{ --sv:var(--red); }
+.j.svc-claimmap{ --sv:var(--blue); }
+.j.svc-bulk{ --sv:var(--text-low); }
+.j-head{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+.j-title{ font-family:var(--display); font-weight:600; font-size:var(--step-0); }
+.tag{ font-family:var(--data); font-size:.6rem; letter-spacing:.05em; text-transform:uppercase;
+  padding:.1rem .35rem; border:1px solid var(--rule); border-radius:2px; color:var(--text-low); }
+.tag.svc{ color:var(--sv); border-color:var(--sv); }
+.tag.p{ color:var(--gold); border-color:var(--gold-dim); }
+.tag.st-active{ color:var(--green); border-color:var(--green-dim); }
+.tag.st-done{ color:var(--blue); border-color:var(--blue); }
+.tag.st-cancelled{ color:var(--text-low); border-style:dashed; }
+.j-pay{ margin-left:auto; font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  color:var(--green); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.j-meta{ font-family:var(--data); font-size:.68rem; color:var(--text-low); margin-top:.35rem; }
+.j-details{ color:var(--text-mid); font-size:var(--step--1); margin-top:.4rem; }
+
+/* The standing score, and what it is made of. A number alone invites the
+   suspicion that the board is rigged; the breakdown answers it in place. */
+.score{ display:inline-flex; align-items:baseline; gap:.4rem; font-family:var(--data);
+  font-size:.62rem; color:var(--text-low); margin-top:.35rem;
+  padding:.18rem .45rem; border:1px solid var(--rule); border-radius:999px; }
+.score b{ color:var(--gold); font-variant-numeric:tabular-nums; }
+.score .parts{ color:var(--text-low); }
+
+/* Who ordered it and who to ask about it. A face makes an order feel owned by
+   a person rather than by the board. */
+.rep{ display:inline-flex; align-items:center; gap:.35rem; font-family:var(--data);
+  font-size:.66rem; color:var(--text-mid); }
+.rep img{ width:18px; height:18px; border-radius:50%; object-fit:cover; flex:none;
+  background:var(--ink-raised); }
+.rep .who{ color:var(--text); }
+
+.prog{ margin-top:.55rem; }
+.prog-top{ display:flex; align-items:baseline; gap:.5rem; font-family:var(--data);
+  font-size:.68rem; color:var(--text-low); margin-bottom:.3rem; }
+.prog-top b{ color:var(--green); font-variant-numeric:tabular-nums; }
+.prog-top .warn{ color:var(--red); margin-left:auto; }
+.prog-track{ height:.5rem; background:var(--ink); border:1px solid var(--rule);
+  border-radius:999px; overflow:hidden; }
+.prog-fill{ height:100%; background:var(--green); border-radius:999px; transition:width .3s ease; }
+.prog-fill.done{ background:var(--gold); }
+.prog-names{ font-family:var(--data); font-size:.62rem; color:var(--text-low); margin-top:.35rem; }
+.j-acts{ display:flex; gap:.35rem; margin-top:.6rem; flex-wrap:wrap; align-items:center; }
+.j-acts .btn{ padding:.28rem .6rem; font-size:.68rem; }
+.split{ font-family:var(--data); font-size:.64rem; color:var(--text-low); }
+
+.section-head{ position:relative; display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
+.section-head::after{ content:''; position:absolute; left:0; bottom:-1px;
+  width:3.2rem; height:2px; background:linear-gradient(90deg,
+    var(--green) 0 33.33%, var(--gold) 33.33% 66.66%, var(--red) 66.66% 100%); }
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+/* The three pots, kept visually apart because conflating them is the
+   accounting accident this whole change exists to prevent. */
+.pots{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.6rem;
+  margin-bottom:1rem; }
+.pot{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.7rem .85rem; }
+.pot .n{ font-family:var(--data); font-weight:600; font-size:var(--step-0);
+  font-variant-numeric:tabular-nums; display:block; }
+.pot .k{ font-family:var(--data); font-size:.6rem; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.15rem; }
+.pot .d{ font-family:var(--data); font-size:.6rem; color:var(--text-low);
+  display:block; margin-top:.3rem; line-height:1.4; }
+.pot.banked{ --accent:var(--green); } .pot.banked .n{ color:var(--green); }
+.pot.earned{ --accent:var(--gold); } .pot.earned .n{ color:var(--gold); }
+.pot.expected{ --accent:var(--text-low); } .pot.expected .n{ color:var(--text-mid); }
+
+.brow{ display:flex; align-items:baseline; gap:.7rem; padding:.5rem .1rem;
+  border-bottom:1px solid var(--rule-soft); font-family:var(--data); font-size:.72rem; flex-wrap:wrap; }
+.brow .bnote{ color:var(--text-mid); flex:1 1 10rem; }
+.brow .bwhen{ color:var(--text-low); font-size:.64rem; white-space:nowrap; }
+.brow .bamt{ margin-left:auto; font-variant-numeric:tabular-nums; font-weight:600; }
+.brow .bamt.pos{ color:var(--green); } .brow .bamt.neg{ color:var(--red); }
+
+.admin{ margin-top:2rem; border:1px dashed var(--rule); border-radius:3px;
+  padding:1.1rem 1.2rem; background:var(--ink-raised); }
+.admin h2{ font-size:var(--step-1); margin-bottom:.2rem; }
+.admin .hint{ color:var(--text-low); font-size:var(--step--1); margin:0 0 1rem; }
+.admin fieldset{ border:none; padding:0; margin:0 0 1.3rem; }
+.admin legend{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.08em;
+  text-transform:uppercase; color:var(--gold); padding:0; margin-bottom:.6rem; }
+.fields{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:2px; padding:.4rem .5rem; font-family:var(--data); font-size:.76rem; min-width:8rem; }
+.f input:focus, .f select:focus{ border-color:var(--gold); }
+.f.wide{ flex:1 1 14rem; } .f.wide input{ width:100%; }
+.preview{ font-family:var(--data); font-size:.7rem; color:var(--gold); margin-top:.5rem; }
+.msg{ font-family:var(--data); font-size:var(--step--1); margin-top:.6rem; min-height:1.1em; }
+.msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
+.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="index.html">&#8592; <span data-en="Ecosystem" data-am="ሥርዓት">Ecosystem</span></a>
+    <span class="spacer"></span>
+    <div class="lang" role="group" aria-label="Language">
+      <button class="btn" type="button" data-set-lang="en" aria-pressed="true">EN</button>
+      <button class="btn" type="button" data-set-lang="am" aria-pressed="false" lang="am">አማርኛ</button>
+    </div>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title" data-en="Job board" data-am="የሥራ ሰሌዳ">Job board</h1>
+    <p data-slot="subtitle" class="sub">EMC Services</p>
+  </header>
+
+  <div id="body">
+    <div class="stats">
+      <div class="stat o"><span class="n" id="sOpen">&mdash;</span><span class="k" data-en="Open jobs" data-am="ክፍት ሥራዎች">Open jobs</span></div>
+      <div class="stat"><span class="n" id="sValue">&mdash;</span><span class="k" data-en="Up for grabs" data-am="የሚገኝ ክፍያ">Up for grabs</span></div>
+      <div class="stat m"><span class="n" id="sMine">&mdash;</span><span class="k" data-en="Yours" data-am="ያንተ">Yours</span></div>
+      <div class="stat b"><span class="n" id="sBank">&mdash;</span><span class="k" data-en="In the bank" data-am="የኩባንያ ባንክ">In the bank</span>
+        <span class="d" id="sBankNote"></span></div>
+    </div>
+
+    <div class="depts" id="depts"></div>
+
+    <div class="sortbar">
+      <div class="f"><label for="sortBy">Order by</label>
+        <select id="sortBy"></select></div>
+      <button class="flip" type="button" id="sortDir" title="Reverse the order">&#8595; High to low</button>
+      <div class="f"><label for="qFilter">Search</label>
+        <input id="qFilter" placeholder="title, customer, town…" autocomplete="off" style="min-width:11rem"></div>
+      <p class="note" id="sortNote"></p>
+    </div>
+
+    <div class="boardwrap"><div id="board"><p class="empty">Loading…</p></div></div>
+
+    <div class="section-head">
+      <h2 data-en="Company bank" data-am="የኩባንያ ባንክ">Company bank</h2>
+      <span class="meta" id="bankMeta">&mdash;</span>
+    </div>
+    <div class="pots" id="pots"></div>
+    <div id="bank"><p class="empty">Loading…</p></div>
+
+    <div class="section-head">
+      <h2>Bank history</h2>
+      <span class="meta" id="logMeta">&mdash;</span>
+    </div>
+    <div id="bankLog"><p class="empty">Loading…</p></div>
+
+    <section class="admin" id="adminPanel" hidden>
+      <h2 data-en="Manage" data-am="አስተዳደር">Manage</h2>
+      <p class="hint">Treasurers and managers only.</p>
+
+      <fieldset>
+        <legend>Post a job</legend>
+        <div class="fields">
+          <div class="f"><label for="nSvc">Department</label>
+            <select id="nSvc">
+              <option value="recruiting">Recruiting</option>
+              <option value="mapart">Mapart</option>
+              <option value="media">Media</option>
+              <option value="claimmap">Claim map</option>
+              <option value="bulk">Bulk</option>
+            </select></div>
+          <div class="f"><label for="nPrio">Priority</label>
+            <select id="nPrio"><option value="0">Regular</option><option value="1">Priority</option></select></div>
+          <div class="f"><label for="nQty">How many</label>
+            <input id="nQty" inputmode="numeric" value="1" style="min-width:5rem"></div>
+          <div class="f"><label for="nPrice">Gold each</label>
+            <input id="nPrice" inputmode="numeric" placeholder="from rate card" style="min-width:7rem"></div>
+          <div class="f"><label for="nCut">Company keeps each</label>
+            <input id="nCut" inputmode="numeric" placeholder="from rate card" style="min-width:7rem"></div>
+        </div>
+        <div class="fields" style="margin-top:.5rem">
+          <div class="f"><label for="nCustomer">Customer</label>
+            <input id="nCustomer" placeholder="who ordered it" maxlength="80"></div>
+          <div class="f"><label for="nTown">Town (recruiting)</label>
+            <input id="nTown" placeholder="Capital" maxlength="60"></div>
+          <div class="f"><label for="nRep">Representative (Discord ID)</label>
+            <input id="nRep" inputmode="numeric" placeholder="defaults to you" style="min-width:11rem"></div>
+        </div>
+        <div class="fields" style="margin-top:.5rem">
+          <div class="f wide"><label for="nTitle">Title</label>
+            <input id="nTitle" placeholder="Recruit 10 for Addis" maxlength="120"></div>
+        </div>
+        <div class="fields" style="margin-top:.5rem">
+          <div class="f wide" style="flex:1 1 100%"><label for="nDetails">Details</label>
+            <input id="nDetails" placeholder="anything the worker needs to know" maxlength="1000"></div>
+          <button class="btn" type="button" id="postJob">Post</button>
+        </div>
+        <p class="preview" id="preview"></p>
+        <p class="msg" id="jobMsg"></p>
+      </fieldset>
+
+      <fieldset style="margin-bottom:0" id="bankFieldset" hidden>
+        <legend>Adjust the company bank</legend>
+        <p class="hint">
+          Emperor only. Adding or removing gold here is a manual correction, and
+          it is logged as one — separately from commission the system books
+          itself when an order is paid.
+        </p>
+        <div class="fields">
+          <div class="f"><label for="cDir">Direction</label>
+            <select id="cDir">
+              <option value="1">Add gold</option>
+              <option value="-1">Remove gold</option>
+            </select></div>
+          <div class="f"><label for="cAmount">Gold</label>
+            <input id="cAmount" inputmode="numeric" placeholder="50" style="min-width:6rem"></div>
+          <div class="f wide"><label for="cNote">Reason</label>
+            <input id="cNote" placeholder="why this correction is being made" maxlength="300"></div>
+          <button class="btn" type="button" id="postEntry">Record</button>
+        </div>
+        <p class="msg" id="bankMsg"></p>
+      </fieldset>
+    </section>
+  </div>
+
+  <footer><span>EMC Services</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var gold = function(n){ return (Number(n) || 0).toLocaleString('en-US') + 'g'; };
+var when = function(s){
+  if (!s) return '';
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? s : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+};
+/* How long a job has been sitting there, which is half of its standing. */
+var ageOf = function(s){
+  if (!s) return 0;
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? 0 : (Date.now() - d.getTime()) / 86400000;
+};
+var ageText = function(days){
+  if (days < 1) return Math.max(1, Math.round(days * 24)) + 'h old';
+  return Math.round(days) + 'd old';
+};
+
+var me = null, data = null, bank = null, dept = '';
+
+/* Finished work is kept out of the board entirely rather than sorted to the
+   bottom. Cancelled and paid orders are the majority on any board that has
+   been running a while, and they are never the thing someone is scrolling to
+   find — they are what they are scrolling PAST. */
+var showArchive = false;
+function isArchived(j){ return j.status === 'cancelled' || !!j.paidAt; }
+var editing = null;   // order id open in the edit form
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  return d;
+}
+
+function applyLang(lang){
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang === 'am' ? 'am' : 'en');
+  document.querySelectorAll('[data-en]').forEach(function(el){
+    var t = el.getAttribute(lang === 'am' ? 'data-am' : 'data-en'); if (t) el.textContent = t; });
+  document.querySelectorAll('[data-set-lang]').forEach(function(b){
+    b.setAttribute('aria-pressed', String(b.getAttribute('data-set-lang') === lang)); });
+  try { localStorage.setItem('ethiopia-lang', lang); } catch (e) {}
+}
+document.querySelectorAll('[data-set-lang]').forEach(function(b){
+  b.addEventListener('click', function(){ applyLang(b.getAttribute('data-set-lang')); }); });
+try { if (localStorage.getItem('ethiopia-lang') === 'am') applyLang('am'); } catch (e) {}
+
+/* --- sorting --------------------------------------------------------------
+   Every ordering the board can be read in, each with the question it answers.
+   The default is standing — the Worker's own rate-plus-age score, which is the
+   order the queue is actually meant to be worked in. The rest exist because
+   "what pays best" and "what has been waiting longest" are different questions
+   and the answer to one is routinely not the answer to the other.
+   --------------------------------------------------------------------------- */
+var SORTS = [
+  { k:'standing', label:'Standing (rate + waiting)', desc:'the order the board intends',
+    get:function(j){ return j.priorityScore ? j.priorityScore.score : (j.unitPrice || 0); } },
+  { k:'perUnit',  label:'Gold per unit', desc:'what the work pays, independent of size',
+    get:function(j){ return j.unitPrice || 0; } },
+  { k:'workerPay',label:'Total take-home', desc:'the biggest cheque, size included',
+    get:function(j){ return j.workerPay || 0; } },
+  { k:'age',      label:'Time waiting', desc:'longest on the board first',
+    get:function(j){ return ageOf(j.createdAt); } },
+  { k:'newest',   label:'Newly posted', desc:'most recent first',
+    get:function(j){ return -ageOf(j.createdAt); } },
+  { k:'priority', label:'Priority flag', desc:'flagged jobs first',
+    get:function(j){ return (j.priority ? 1e6 : 0) + (j.priorityScore ? j.priorityScore.score : 0); } },
+  { k:'quantity', label:'How many', desc:'largest orders first',
+    get:function(j){ return j.quantity || 1; } },
+  { k:'cut',      label:'Company cut', desc:'what the company earns from it',
+    get:function(j){ return j.companyCut || 0; } },
+  { k:'progress', label:'Closest to finished', desc:'nearly-done work first',
+    get:function(j){
+      if (!j.progress || !j.quantity) return -1;
+      return j.progress.recruited / j.quantity; } },
+];
+
+var sortBy = 'standing';
+var sortDesc = true;      // high to low; the flip button reverses it
+var search = '';
+
+function sortDef(){ return SORTS.filter(function(s){ return s.k === sortBy; })[0] || SORTS[0]; }
+
+function renderSortBar(){
+  var sel = $('sortBy');
+  if (sel && document.activeElement !== sel){
+    sel.innerHTML = SORTS.map(function(s){
+      return '<option value="' + s.k + '"' + (sortBy === s.k ? ' selected' : '') + '>' +
+        esc(s.label) + '</option>';
+    }).join('');
+  }
+  var flip = $('sortDir');
+  if (flip) flip.innerHTML = sortDesc ? '&#8595; High to low' : '&#8593; Low to high';
+  var note = $('sortNote');
+  if (note) note.textContent = sortDef().desc;
+}
+
+/* --- board ---------------------------------------------------------------- */
+
+var LABEL = { recruiting:'Recruiting', mapart:'Mapart', media:'Media',
+              claimmap:'Claim map', bulk:'Bulk' };
+
+function renderDepts(){
+  /* Counted over the tab you are actually looking at. A department chip
+     reading "Recruiting · 18" while the board below shows three is the kind
+     of small lie that makes people stop trusting the numbers. */
+  var pool = data.jobs.filter(function(j){ return showArchive ? isArchived(j) : !isArchived(j); });
+  var counts = {};
+  pool.forEach(function(j){ counts[j.service] = (counts[j.service] || 0) + 1; });
+  var archived = data.jobs.filter(isArchived).length;
+  var live = data.jobs.length - archived;
+  var all = Object.keys(LABEL);
+
+  $('depts').innerHTML =
+    '<span class="dept' + (!showArchive ? ' on' : '') + '" data-tab="live">On the board · ' + live + '</span>' +
+    '<span class="dept' + (showArchive ? ' on' : '') + '" data-tab="archive">Finished &amp; cancelled · ' +
+      archived + '</span>' +
+    '<span style="flex-basis:100%;height:0"></span>' +
+    '<span class="dept' + (dept === '' ? ' on' : '') + '" data-d="">All · ' + pool.length + '</span>' +
+    all.map(function(s){
+      return '<span class="dept' + (dept === s ? ' on' : '') + '" data-d="' + s + '">' +
+        LABEL[s] + ' · ' + (counts[s] || 0) + '</span>';
+    }).join('');
+
+  $('depts').querySelectorAll('[data-tab]').forEach(function(el){
+    el.addEventListener('click', function(){
+      showArchive = el.dataset.tab === 'archive';
+      dept = '';                       // a department filter rarely carries over
+      renderDepts(); renderBoard();
+    });
+  });
+  $('depts').querySelectorAll('[data-d]').forEach(function(el){
+    el.addEventListener('click', function(){ dept = el.dataset.d; renderDepts(); renderBoard(); });
+  });
+}
+
+/* The representative: who placed the order and who to ask about it. */
+function repChip(rep){
+  if (!rep) return '';
+  var name = rep.name || ('ID ' + rep.discordId);
+  var face = rep.avatar
+    ? '<img src="' + esc(rep.avatar) + '" alt="" loading="lazy" ' +
+      'onerror="this.style.visibility=\'hidden\'">'
+    : '';
+  return '<span class="rep" title="Representative — ask them about this order">' +
+    face + '<span class="who">' + esc(name) + '</span></span>';
+}
+
+function scoreChip(j){
+  var p = j.priorityScore;
+  if (!p) return '';
+  var parts = [];
+  parts.push(p.rate + ' rate');
+  if (p.age) parts.push('+' + p.age + ' waiting');
+  if (p.flagged) parts.push('+' + p.flagged + ' flagged');
+  return '<span class="score" title="Rate per unit plus standing earned by waiting. ' +
+    'Higher sits nearer the top.">standing <b>' + p.score + '</b>' +
+    '<span class="parts">' + esc(parts.join(' · ')) + '</span></span>';
+}
+
+function jobRow(j){
+  var cls = 'j svc-' + j.service + (j.priority ? ' prio' : '') + (j.isMine ? ' mine' : '');
+  var tags = '<span class="tag svc">' + esc(LABEL[j.service] || j.service) + '</span>' +
+    (j.priority ? '<span class="tag p">priority</span>' : '') +
+    (j.status !== 'queued' ? '<span class="tag st-' + esc(j.status) + '">' + esc(j.status) + '</span>' : '') +
+    (j.paidAt ? '<span class="tag st-done">paid</span>' : '');
+
+  var acts = '';
+  if (j.status === 'queued'){
+    acts += '<button class="btn" type="button" data-claim="' + j.id + '">Claim</button>';
+  } else if (j.isMine && j.status === 'active'){
+    acts += '<button class="btn" type="button" data-act="complete" data-id="' + j.id + '">Mark done</button>' +
+            '<button class="btn" type="button" data-act="release" data-id="' + j.id + '">Give back</button>';
+  }
+  if (data.canManage){
+    if (j.status === 'done' && !j.paidAt)
+      acts += '<button class="btn" type="button" data-act="paid" data-id="' + j.id + '">Worker paid</button>';
+    if (j.status !== 'cancelled' && !j.paidAt)
+      acts += '<button class="btn" type="button" data-act="cancel" data-id="' + j.id + '">Cancel</button>';
+  }
+  if (j.progress && j.status !== 'done' && (j.isMine || data.canManage)){
+    acts += '<button class="btn" type="button" data-refresh="' + j.id + '">Check now</button>';
+  }
+  /* A manager can edit ANY order — cancelled, finished, or held by someone
+     else. Those are exactly the ones that need correcting, and they were the
+     only ones with no way to do it. */
+  if (data.canManage){
+    acts += '<button class="btn" type="button" data-edit="' + j.id + '">' +
+      (editing === j.id ? 'Close' : 'Edit') + '</button>';
+    if (j.status === 'cancelled' && !j.paidAt){
+      acts += '<button class="btn" type="button" data-restore="' + j.id + '">Reopen</button>';
+    }
+  }
+  /* The two pots, spelled out on every row. The worker's pay and the
+     company's cut come from the same customer payment but go to different
+     places, and showing one total invites them being confused for each other. */
+  if (acts) acts += '<span class="split">customer ' + gold(j.total) +
+    ' · worker ' + gold(j.workerPay) + ' · company ' + gold(j.companyCut) + '</span>';
+
+  var prog = '';
+  if (j.progress){
+    var pct = j.quantity ? Math.min(100, Math.round((j.progress.recruited / j.quantity) * 100)) : 0;
+    var done = j.progress.recruited >= j.quantity;
+    prog = '<div class="prog">' +
+      '<div class="prog-top"><b>' + j.progress.recruited + '</b> of ' + j.quantity +
+        ' recruited to ' + esc(j.progress.town) +
+        (j.progress.lastError
+          ? '<span class="warn">last check failed</span>'
+          : '<span style="margin-left:auto">' + pct + '%</span>') + '</div>' +
+      '<div class="prog-track"><div class="prog-fill' + (done ? ' done' : '') +
+        '" style="width:' + pct + '%"></div></div>' +
+      (j.progress.recruitedNames && j.progress.recruitedNames.length
+        ? '<div class="prog-names">' +
+          esc(j.progress.recruitedNames.slice(0, 12).join(', ')) +
+          (j.progress.recruitedNames.length > 12
+            ? ' and ' + (j.progress.recruitedNames.length - 12) + ' more' : '') + '</div>'
+        : '') +
+      '<div class="prog-names" style="margin-top:.45rem">' +
+        '<button class="btn" type="button" data-detail="' + j.id + '" ' +
+        'style="padding:.2rem .5rem;font-size:.62rem">' +
+        (openDetail === j.id ? 'Hide detail' : 'Who joined and left') + '</button>' +
+      '</div>' +
+      (openDetail === j.id ? renderDetailPanel(j.id) : '') +
+      '</div>';
+  } else if (j.service === 'recruiting' && j.status === 'active' && (j.isMine || data.canManage)) {
+    prog = '<div class="prog"><button class="btn" type="button" data-track="' + j.id +
+      '" data-town="' + esc(j.town || '') + '">Track progress</button></div>';
+  }
+
+  var age = ageOf(j.createdAt);
+
+  return '<div class="' + cls + '">' +
+    '<div class="j-head"><span class="j-title">' +
+      esc(j.title || (LABEL[j.service] || j.service) +
+        (j.quantity > 1 ? ' \u00d7 ' + j.quantity : '')) + '</span>' + tags +
+    '<span class="j-pay">' + gold(j.workerPay) + '</span></div>' +
+    '<div class="j-meta">#' + j.id +
+      (j.quantity > 1 ? ' · ' + j.quantity + ' \u00d7 ' + gold(j.unitPrice) : ' · ' + gold(j.unitPrice)) +
+      (j.customer ? ' · for ' + esc(j.customer) : '') +
+      (j.assignee ? ' · taken by ' + esc(j.assignee) : '') +
+      ' · ' + esc(when(j.createdAt)) + ' · ' + ageText(age) + '</div>' +
+    (j.representative ? '<div style="margin-top:.35rem">' + repChip(j.representative) + '</div>' : '') +
+    (j.status === 'queued' ? scoreChip(j) : '') +
+    (j.details ? '<div class="j-details">' + esc(j.details) + '</div>' : '') +
+    prog +
+    (acts ? '<div class="j-acts">' + acts + '</div>' : '') +
+    (editing === j.id ? editForm(j) : '') +
+  '</div>';
+}
+
+/* The edit form, inline under the order it edits. A modal would hide the
+   thing being changed at the moment of changing it. */
+function editForm(j){
+  var locked = !!j.paidAt;
+  var f = function(id, label, value, extra){
+    return '<div class="f"><label for="e' + id + j.id + '">' + esc(label) + '</label>' +
+      '<input id="e' + id + j.id + '" value="' + esc(value == null ? '' : value) + '" ' +
+      (extra || '') + '></div>';
+  };
+  return '<div style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--rule)">' +
+    '<div class="fields">' +
+      f('Title', 'Title', j.title, 'maxlength="120" style="min-width:12rem"') +
+      f('Cust', 'Customer', j.customer, 'maxlength="80"') +
+      f('Town', 'Town', j.town, 'maxlength="60"') +
+      f('Qty', 'How many', j.quantity, 'inputmode="numeric" style="min-width:5rem"') +
+      f('Price', 'Gold each', j.unitPrice, 'inputmode="numeric" style="min-width:6rem"' +
+        (locked ? ' disabled' : '')) +
+      f('Cut', 'Company each', j.companyCut && j.quantity ? Math.round(j.companyCut / j.quantity) : '',
+        'inputmode="numeric" style="min-width:6rem"' + (locked ? ' disabled' : '')) +
+      f('Rep', 'Representative ID', j.representative ? j.representative.discordId : '',
+        'inputmode="numeric" style="min-width:10rem"') +
+    '</div>' +
+    '<div class="fields" style="margin-top:.5rem">' +
+      f('Det', 'Details', j.details, 'maxlength="1000" style="min-width:18rem"') +
+      '<div class="f"><label for="ePrio' + j.id + '">Priority</label>' +
+        '<select id="ePrio' + j.id + '"><option value="0"' + (j.priority ? '' : ' selected') +
+        '>Regular</option><option value="1"' + (j.priority ? ' selected' : '') +
+        '>Priority</option></select></div>' +
+      '<button class="btn" type="button" data-savejob="' + j.id + '">Save changes</button>' +
+    '</div>' +
+    (locked
+      ? '<p class="note" style="color:var(--gold)">This order is paid, so its commission ' +
+        'is already booked. The per-unit rates are frozen — changing them would leave the ' +
+        'bank ledger disagreeing with the order.</p>'
+      : '') +
+    '<p class="msg" id="eMsg' + j.id + '"></p></div>';
+}
+
+function visibleJobs(){
+  var pool = data.jobs.filter(function(j){ return showArchive ? isArchived(j) : !isArchived(j); });
+  var shown = dept ? pool.filter(function(j){ return j.service === dept; }) : pool.slice();
+  if (search){
+    var q = search.toLowerCase();
+    shown = shown.filter(function(j){
+      return [j.title, j.customer, j.town, j.details, j.assignee]
+        .some(function(v){ return v && String(v).toLowerCase().indexOf(q) >= 0; });
+    });
+  }
+  var def = sortDef();
+  /* Queued work first regardless of the chosen order. Something already taken
+     or finished is not a thing anyone is scanning the board to pick up, so it
+     should never outrank an open job whatever the sort says. Ties fall back to
+     id, so the board never reshuffles under someone reading it. */
+  shown.sort(function(a, b){
+    var openA = a.status === 'queued' ? 1 : 0, openB = b.status === 'queued' ? 1 : 0;
+    if (openA !== openB) return openB - openA;
+    var va = def.get(a), vb = def.get(b);
+    if (va !== vb) return sortDesc ? vb - va : va - vb;
+    return a.id - b.id;
+  });
+  return shown;
+}
+
+function renderBoard(){
+  var host = $('board');
+  var shown = visibleJobs();
+  if (!shown.length){
+    host.innerHTML = '<p class="empty">' + (search || dept
+      ? 'Nothing matches that.' : 'Nothing here yet.') + '</p>';
+    return;
+  }
+  host.innerHTML = '<div class="board">' + shown.map(jobRow).join('') + '</div>';
+
+  host.querySelectorAll('[data-claim]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      try { await api('/api/jobs/claim', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: Number(b.dataset.claim) }) });
+        load();
+      } catch (e){ alert(e.message); load(); }
+    });
+  });
+
+  host.querySelectorAll('[data-track]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var town = b.dataset.town || prompt('Which town are they being recruited to?');
+      if (!town) return;
+      try {
+        await api('/api/jobs/progress', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ id: Number(b.dataset.track), action:'start', town: town.trim() }) });
+        load();
+      } catch (e){ alert('Could not start tracking: ' + e.message); }
+    });
+  });
+
+  host.querySelectorAll('[data-detail]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = Number(b.dataset.detail);
+      if (openDetail === id) { openDetail = null; renderBoard(); return; }
+      openDetail = id;
+      renderBoard();                 // show "Loading…" immediately
+      if (!detailCache[id]) loadDetail(id);
+    });
+  });
+
+  host.querySelectorAll('[data-baseline]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var id = Number(b.dataset.baseline);
+      var d = detailCache[id] || {};
+      var current = (d.baseline || []).join(', ');
+      var input = prompt(
+        'Who was ALREADY in the town when this recruiting started?\n\n' +
+        'Comma-separated Minecraft names. Anyone not listed who is in the town ' +
+        'now counts as recruited by this job.',
+        current);
+      if (input === null) return;
+      var names = input.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+      if (!names.length) { alert('Give at least one name.'); return; }
+      try {
+        await api('/api/jobs/baseline', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ orderId: id, names: names }) });
+        delete detailCache[id];
+        await loadDetail(id);
+        load();
+      } catch (e){ alert('Could not set the starting point: ' + e.message); }
+    });
+  });
+
+  host.querySelectorAll('[data-refresh]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      try {
+        await api('/api/jobs/progress', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ id: Number(b.dataset.refresh), action:'refresh' }) });
+        load();
+      } catch (e){ alert('Could not check: ' + e.message); }
+    });
+  });
+
+  host.querySelectorAll('[data-edit]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = Number(b.dataset.edit);
+      editing = editing === id ? null : id;
+      renderBoard();
+    });
+  });
+
+  host.querySelectorAll('[data-restore]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      if (!confirm('Reopen this order?\n\nIt goes back on the board unclaimed — ' +
+        'whoever held it before will not get it back automatically.')) return;
+      try {
+        await api('/api/jobs/edit', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ id: Number(b.dataset.restore), restore: true }) });
+        load();
+      } catch (e){ alert('Could not reopen: ' + e.message); }
+    });
+  });
+
+  host.querySelectorAll('[data-savejob]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var id = Number(b.dataset.savejob);
+      var v = function(p){ var el = $(p + id); return el ? el.value.trim() : undefined; };
+      var msg = $('eMsg' + id);
+      var body = { id: id,
+        title: v('eTitle'), customer: v('eCust'), town: v('eTown'),
+        details: v('eDet'), representative: v('eRep'),
+        quantity: v('eQty'), priority: v('ePrio') === '1' };
+      /* Only sent when the field is enabled — a disabled input reads as empty,
+         and sending 0 would silently zero the rate on a paid order. */
+      var price = $('ePrice' + id), cut = $('eCut' + id);
+      if (price && !price.disabled) body.unitPrice = price.value.trim();
+      if (cut && !cut.disabled) body.unitCut = cut.value.trim();
+      try {
+        await api('/api/jobs/edit', { method:'POST',
+          headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        editing = null;
+        load();
+      } catch (e){
+        if (msg){ msg.textContent = e.message; msg.className = 'msg err'; }
+      }
+    });
+  });
+
+  host.querySelectorAll('[data-act]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var act = b.dataset.act;
+      if (act === 'cancel' && !confirm('Cancel this job?')) return;
+      if (act === 'paid' && !confirm(
+        'Record that the worker has been paid?\n\n' +
+        "This books the company's cut into the bank. The worker's own pay goes " +
+        'from the customer to them directly and is not recorded here.')) return;
+      try {
+        await api('/api/jobs/update', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ id: Number(b.dataset.id), action: act }) });
+        load();
+      } catch (e){ alert(e.message); load(); }
+    });
+  });
+}
+
+/* --- the three pots -------------------------------------------------------
+   Banked, earned and expected are three different claims on the same company,
+   and adding them together is exactly how someone comes to spend money that
+   has not arrived. They get three boxes for that reason.
+   --------------------------------------------------------------------------- */
+function renderPots(){
+  var host = $('pots');
+  if (!host) return;
+  var banked = data ? (data.companyBalance || 0) : 0;
+  var p = (data && data.companyPending) || { earned: 0, expected: 0 };
+  host.innerHTML =
+    '<div class="pot banked"><span class="n">' + gold(banked) + '</span>' +
+      '<span class="k">In the bank</span>' +
+      '<span class="d">Booked and safe to spend.</span></div>' +
+    '<div class="pot earned"><span class="n">' + gold(p.earned) + '</span>' +
+      '<span class="k">Earned, not settled</span>' +
+      '<span class="d">Work is finished; the customer has not paid yet. Books itself ' +
+        'when the order is marked paid.</span></div>' +
+    '<div class="pot expected"><span class="n">' + gold(p.expected) + '</span>' +
+      '<span class="k">Expected</span>' +
+      '<span class="d">Still being worked. Nobody owes this yet, and it does not ' +
+        'all arrive.</span></div>';
+
+  var note = $('sBankNote');
+  if (note){
+    note.textContent = (p.earned || p.expected)
+      ? gold(p.earned) + ' earned · ' + gold(p.expected) + ' expected'
+      : '';
+  }
+}
+
+function renderBank(){
+  if (!bank){ $('bank').innerHTML = '<p class="empty">Unavailable.</p>'; return; }
+  $('bankMeta').textContent = gold(bank.balance) + ' · ' + gold(bank.earned) +
+    ' earned, ' + gold(bank.spent) + ' spent';
+  if (!bank.entries.length){
+    $('bank').innerHTML = '<p class="empty">Nothing recorded yet.</p>';
+    return;
+  }
+  $('bank').innerHTML = bank.entries.map(function(e){
+    return '<div class="brow">' +
+      '<span class="bwhen">' + esc(when(e.at)) + '</span>' +
+      '<span class="tag">' + esc(e.kind) + '</span>' +
+      '<span class="bnote">' + esc(e.note || '') + '</span>' +
+      '<span class="bwhen">' + esc(e.actor) + '</span>' +
+      '<span class="bamt ' + (e.amount < 0 ? 'neg' : 'pos') + '">' +
+        (e.amount < 0 ? '' : '+') + gold(e.amount) + '</span></div>';
+  }).join('');
+}
+
+/* --- admin ---------------------------------------------------------------- */
+
+function rateFor(service, priority){
+  if (!data || !data.rates) return null;
+  return data.rates.filter(function(r){
+    return r.service === service && r.priority === priority; })[0] ||
+    data.rates.filter(function(r){ return r.service === service && !r.priority; })[0] || null;
+}
+
+function updatePreview(){
+  var svc = $('nSvc').value, prio = $('nPrio').value === '1';
+  var rate = rateFor(svc, prio);
+  var qty = Math.max(1, parseInt($('nQty').value, 10) || 1);
+  var price = $('nPrice').value !== '' ? Number($('nPrice').value)
+    : (rate ? rate.unitPrice : 0);
+  var cut = $('nCut').value !== '' ? Number($('nCut').value) : (rate ? rate.unitCut : 0);
+
+  $('nPrice').placeholder = rate ? String(rate.unitPrice) : 'gold';
+  $('nCut').placeholder = rate ? String(rate.unitCut) : 'gold';
+
+  if (!price){ $('preview').textContent = 'Set a price — this department has no rate on the card.'; return; }
+  /* Spelling the split out before posting means nobody has to trust the
+     maths. The per-unit figures are what get stored; the totals below are
+     derived from them and the count, so adding units later changes the
+     totals without touching the agreed economics. */
+  $('preview').textContent =
+    'Customer pays ' + gold(price * qty) + ' · worker takes ' + gold((price - cut) * qty) +
+    ' · company keeps ' + gold(cut * qty) +
+    ' · locked at ' + gold(price) + '/' + gold(cut) + ' per unit' +
+    (rate && rate.unitName ? ' (' + qty + ' \u00d7 ' + rate.unitName + ')' : '');
+}
+
+function wireAdmin(){
+  $('adminPanel').hidden = false;
+  ['nSvc','nPrio','nQty','nPrice','nCut'].forEach(function(id){
+    $(id).addEventListener('input', updatePreview);
+    $(id).addEventListener('change', updatePreview);
+  });
+  updatePreview();
+
+  $('postJob').addEventListener('click', async function(){
+    var msg = $('jobMsg');
+    try {
+      var body = {
+        service: $('nSvc').value,
+        priority: $('nPrio').value === '1',
+        quantity: Math.max(1, parseInt($('nQty').value, 10) || 1),
+        customer: $('nCustomer').value.trim(),
+        town: $('nTown').value.trim(),
+        title: $('nTitle').value.trim(),
+        details: $('nDetails').value.trim()
+      };
+      // Left blank, the Worker records whoever posted it.
+      if ($('nRep').value.trim()) body.representative = $('nRep').value.trim();
+      if ($('nPrice').value !== '') body.unitPrice = Number($('nPrice').value);
+      if ($('nCut').value !== '') body.unitCut = Number($('nCut').value);
+      var r = await api('/api/jobs', { method:'POST',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      msg.textContent = 'Posted. Worker takes ' + gold(r.workerPay) +
+        ', company keeps ' + gold(r.companyCut) + '.';
+      msg.className = 'msg ok';
+      ['nCustomer','nTown','nTitle','nDetails','nPrice','nCut','nRep'].forEach(function(id){ $(id).value = ''; });
+      $('nQty').value = '1';
+      load();
+    } catch (e){ msg.textContent = e.message; msg.className = 'msg err'; }
+  });
+
+  $('postEntry').addEventListener('click', async function(){
+    var msg = $('bankMsg');
+    var raw = Math.abs(Number($('cAmount').value));
+    if (!raw || !Number.isFinite(raw)) {
+      msg.textContent = 'Enter an amount of gold.'; msg.className = 'msg err';
+      return;
+    }
+    var signed = raw * Number($('cDir').value);
+    try {
+      var r = await api('/api/company/entry', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ amount: signed, reason: $('cNote').value.trim() }) });
+      msg.textContent = 'Recorded. Bank now holds ' + gold(r.balance) + '.';
+      msg.className = 'msg ok';
+      $('cAmount').value = ''; $('cNote').value = '';
+      load();
+    } catch (e){ msg.textContent = e.message; msg.className = 'msg err'; }
+  });
+}
+
+/* --- recruiting detail ---------------------------------------------------- */
+
+var openDetail = null;
+var detailCache = {};
+
+function renderDetailPanel(orderId){
+  var d = detailCache[orderId];
+  if (!d) return '<div class="prog-names">Loading…</div>';
+  if (d.error) return '<div class="warn">' + esc(d.error) + '</div>';
+
+  var list = function(label, names, colour){
+    if (!names || !names.length) {
+      return '<div style="margin-top:.4rem"><span class="k">' + label +
+        '</span> <span class="prog-names">none</span></div>';
+    }
+    return '<div style="margin-top:.4rem"><span class="k">' + label + ' · ' + names.length +
+      '</span><div class="prog-names" style="color:' + colour + '">' +
+      esc(names.join(', ')) + '</div></div>';
+  };
+
+  return '<div style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--rule)">' +
+    list('Joined and still here', d.stillPresent, 'var(--green)') +
+    list('Joined but since left', d.left, 'var(--red)') +
+    '<div style="margin-top:.5rem"><span class="k">Already in the town when this started · ' +
+      d.baselineCount + '</span>' +
+      '<div class="prog-names">' + esc((d.baseline || []).slice(0, 20).join(', ')) +
+      ((d.baseline || []).length > 20 ? ' and ' + (d.baseline.length - 20) + ' more' : '') +
+      '</div></div>' +
+    (d.baselineOverridden
+      ? '<div class="prog-names" style="margin-top:.4rem;color:var(--gold)">' +
+        'Starting point was set by hand' +
+        (d.baselineOverriddenAt ? ' on ' + esc(when(d.baselineOverriddenAt)) : '') + '</div>'
+      : '') +
+    (d.canSetBaseline
+      ? '<div style="margin-top:.6rem">' +
+        '<button class="btn" type="button" data-baseline="' + orderId + '" ' +
+        'style="padding:.24rem .55rem;font-size:.64rem">Set who was already here</button>' +
+        '<span class="prog-names" style="margin-left:.5rem">' +
+        'Use this if recruiting started before the ticket existed.</span></div>'
+      : '') +
+  '</div>';
+}
+
+async function loadDetail(orderId){
+  try {
+    var d = await api('/api/jobs/detail?orderId=' + orderId);
+    d.canSetBaseline = !!(bank && bank.canAdjustBank);
+    detailCache[orderId] = d;
+  } catch (e) {
+    detailCache[orderId] = { error: e.message };
+  }
+  renderBoard();
+}
+
+/* --- company bank history ------------------------------------------------- */
+
+var bankLog = null;
+
+function renderBankLog(){
+  var host = $('bankLog');
+  if (!bankLog) { host.innerHTML = '<p class="empty">Could not load the history.</p>'; return; }
+  if (!bankLog.entries.length) {
+    host.innerHTML = '<p class="empty">Nothing recorded yet.</p>';
+    $('logMeta').textContent = '';
+    return;
+  }
+
+  $('logMeta').textContent = bankLog.entries.length + ' entries';
+
+  var KIND = {
+    order_commission: 'from an order',
+    manual_credit: 'added by hand',
+    manual_debit: 'removed by hand',
+    reversal: 'reversal',
+  };
+
+  host.innerHTML = bankLog.entries.map(function(e){
+    var reverted = !!e.reverted_at;
+    var amt = Number(e.amount);
+    return '<div class="brow"' + (reverted ? ' style="opacity:.55"' : '') + '>' +
+      '<span class="bwhen">' + esc(when(e.created_at)) + '</span>' +
+      '<span class="tag">' + esc(KIND[e.kind] || e.kind) + '</span>' +
+      '<span class="bnote"' + (reverted ? ' style="text-decoration:line-through"' : '') + '>' +
+        esc(e.reason || '—') +
+        (e.order_id ? ' <span class="tag">#' + e.order_id + '</span>' : '') +
+      '</span>' +
+      (reverted ? '<span class="tag">reverted</span>' : '') +
+      '<span class="bamt ' + (amt < 0 ? 'neg' : 'pos') + '">' +
+        (amt < 0 ? '' : '+') + gold(amt) + '</span>' +
+      (!reverted && bankLog.canRevert
+        ? '<button class="btn" type="button" data-revert="' + e.id + '">Revert</button>'
+        : '') +
+    '</div>';
+  }).join('');
+
+  host.querySelectorAll('[data-revert]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      if (!confirm('Revert this entry?\n\nThe original stays in the log, marked ' +
+                   'reverted, and a matching opposite entry is added. Nothing is deleted.')) return;
+      try {
+        await api('/api/company/log/revert', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ logId: Number(b.dataset.revert) }) });
+        load();
+      } catch (e){ alert('Could not revert: ' + e.message); }
+    });
+  });
+}
+
+/* --- auth ----------------------------------------------------------------- */
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/jobs.html') + '">Sign in with Discord</a>';
+  }
+}
+
+function fatal(err){
+  var msg = (err && err.message) ? err.message : String(err);
+  var host = document.getElementById('body') || document.body;
+  var box = document.createElement('p');
+  box.className = 'empty';
+  box.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  box.textContent = 'This page failed to load: ' + msg +
+    '. If it mentions a missing element, the deployed copy of this page is out of date.';
+  host.innerHTML = '';
+  host.appendChild(box);
+  try { console.error('[page]', err); } catch (e) {}
+}
+
+/* Sort controls are wired once, against elements that live in the static
+   markup — unlike the board, they are never replaced, so re-binding on every
+   render would stack duplicate listeners. */
+function wireSortBar(){
+  var sel = $('sortBy');
+  if (sel) sel.addEventListener('change', function(){
+    sortBy = sel.value; renderSortBar(); renderBoard();
+  });
+  var flip = $('sortDir');
+  if (flip) flip.addEventListener('click', function(){
+    sortDesc = !sortDesc; renderSortBar(); renderBoard();
+  });
+  var q = $('qFilter');
+  if (q) q.addEventListener('input', function(){ search = q.value.trim(); renderBoard(); });
+  renderSortBar();
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  try { renderAuth(); } catch (e) { /* header only */ }
+  try {
+    data = await api('/api/jobs');
+    try { bank = await api('/api/company'); } catch (e) { bank = null; }
+    try { bankLog = await api('/api/company/log'); } catch (e) { bankLog = null; }
+
+    $('sOpen').textContent = data.summary.open;
+    $('sValue').textContent = gold(data.summary.openValue);
+    $('sMine').textContent = data.summary.mine;
+    $('sBank').textContent = gold(data.companyBalance);
+
+    renderDepts();
+    renderBoard();
+    renderPots();
+    renderBank();
+    renderBankLog();
+
+    var bankFs = $('bankFieldset');
+    if (bankFs) bankFs.hidden = !(bank && bank.canAdjustBank);
+    if (data.canManage && $('adminPanel').hidden) wireAdmin();
+    $('stamp').textContent = data.summary.awaitingPay
+      ? data.summary.awaitingPay + ' done, awaiting payment'
+      : 'Up to date';
+  } catch (err){
+    $('body').innerHTML = '<p class="empty">' + esc(
+      err.status === 401 ? 'Sign in with Discord to see the job board.'
+      : err.status === 503 ? 'Migration 011 has not been applied to the database yet.'
+      : 'Job board unavailable: ' + err.message) + '</p>';
+    $('stamp').textContent = err.status === 401 ? 'Not signed in' : 'Unavailable';
+  }
+}
+
+wireSortBar();
+load().catch(fatal);
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+</body>
+</html>
 

@@ -2430,11 +2430,28 @@ function expFillRect(a, b){
  * would pan instead. Zoom, scroll and the +/- buttons are untouched, and the
  * Pan button in the panel hands dragging back when you need to move about.
  */
+/* Four modes, decided by what the FIRST chunk of the stroke already is.
+ *
+ * Painting could only ever add before, so a chunk put down by mistake was
+ * permanent until Clear threw the whole plan away. The fix is the standard
+ * paint/erase rule: start on something you have already selected and the
+ * whole stroke erases; start on empty ground and it draws.
+ *
+ * Fixed per STROKE rather than per chunk on purpose. Deciding per chunk makes
+ * one drag across a boundary both add and erase, which is unusable — you
+ * cannot predict what a stroke will do before you make it. */
 function expBeginPaint(cx, cz){
   const plan = expPlanFor(expansionState.editing);
   if (!plan) return;
+  const k = expKey(cx, cz);
   const owned = (plan.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
-  expansionState.paintMode = owned ? 'remove' : 'add';
+
+  expansionState.paintMode =
+      plan.added.has(k)   ? 'unadd'       // take back an addition
+    : plan.removed.has(k) ? 'unremove'    // take back a removal
+    : owned               ? 'remove'      // mark the town's own land to drop
+    :                       'add';        // claim new ground
+
   expansionState.painting = true;
   expPaintAt(cx, cz);
 }
@@ -2443,8 +2460,13 @@ function expPaintAt(cx, cz){
   const plan = expPlanFor(expansionState.editing);
   if (!plan) return;
   const k = expKey(cx, cz);
+  const mode = expansionState.paintMode;
   const owned = (plan.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
-  if (expansionState.paintMode === 'add'){
+
+  if (mode === 'unadd'){ plan.added.delete(k); }
+  else if (mode === 'unremove'){ plan.removed.delete(k); }
+  else if (mode === 'remove'){ if (owned) plan.removed.add(k); }
+  else {
     if (owned) return;                       // cannot add what is already held
     /* Another town's land cannot be planned onto. Silently skipped rather
        than refused, because during a drag a warning per chunk is noise. */
@@ -2453,8 +2475,6 @@ function expPaintAt(cx, cz){
       if ((t.claimChunks || []).some(([x, z]) => x === cx && z === cz)) return;
     }
     plan.added.add(k);
-  } else {
-    if (owned) plan.removed.add(k);
   }
   renderExpansionOverlay();
 }
@@ -2541,6 +2561,9 @@ function expToggleTownInNation(town){
   const isMember = (town.nationName || '') === target;
   const set = isMember ? expansionState.leaving : expansionState.joining;
   if (set.has(town.name)) set.delete(town.name); else set.add(town.name);
+  /* The claim layer holds the colour now, so it has to be redrawn — the
+     overlay alone would leave the town its old colour underneath. */
+  refreshMapLayers();
   renderExpansionOverlay(); renderExpansionPanel();
 }
 
@@ -4227,6 +4250,17 @@ function activityColors(town){
 // One place decides a town's colour, so markers and claim outlines can never
 // disagree about it.
 function townColors(town){
+  /* Nation mode overrides here rather than painting a second polygon on top.
+     This function is the ONE place that decides a town's colour, so both the
+     claim outlines and the markers pick the override up for free — and a town
+     joining Ethiopia comes out in Ethiopia's actual colour instead of its old
+     one showing through a translucent wash. */
+  if (expansionState.mode === 'nation' && expansionState.nation){
+    if (expansionState.joining.has(town.name)) return nationColors(expansionState.nation);
+    if (expansionState.leaving.has(town.name)){
+      return { fill: COLORS.muted, outline: COLORS.danger };
+    }
+  }
   return colorByActivity ? activityColors(town) : nationColors(town.nationName);
 }
 
@@ -4471,14 +4505,43 @@ function renderExpansionOverlay(){
   if (!group) return;
   group.clearLayers();
 
-  const chunk = (k, style) => {
-    const [cx, cz] = k.split(',').map(Number);
-    L.polygon([
-      CoordUtils.mcToLatLng(cx * 16,      cz * 16),
-      CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16),
-      CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16 + 16),
-      CoordUtils.mcToLatLng(cx * 16,      cz * 16 + 16),
-    ], Object.assign({ interactive: false, pmIgnore: true }, style)).addTo(group);
+  /* Traced as ONE outline around the whole set, using the same edge-walk the
+     real town claims use — not a box per chunk. A 300-chunk selection drawn
+     as 300 squares is a grid of borders where the shape should be, and the
+     interior lines are exactly the thing that stops it reading as territory.
+     traceChunkOutlines handles holes and diagonal touches already. */
+  const shape = (keys, style) => {
+    if (!keys || !keys.size) return;
+    const list = [...keys].map(k => k.split(',').map(Number));
+    let rings = null;
+    try { rings = traceChunkOutlines(list); } catch (_e) { rings = null; }
+    if (!rings || !rings.length){
+      /* Falls back to squares only if the trace cannot close the loops —
+         better a grid than nothing at all. */
+      list.forEach(([cx, cz]) => {
+        L.polygon([
+          CoordUtils.mcToLatLng(cx * 16,      cz * 16),
+          CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16),
+          CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16 + 16),
+          CoordUtils.mcToLatLng(cx * 16,      cz * 16 + 16),
+        ], Object.assign({ interactive: false, pmIgnore: true }, style)).addTo(group);
+      });
+      return;
+    }
+    rings.forEach(ring => {
+      L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)),
+        Object.assign({ interactive: false, pmIgnore: true }, style)).addTo(group);
+    });
+  };
+
+  /* A finished plan is the town's real chunks PLUS the additions, traced as
+     one shape — which is what makes the new land indistinguishable from the
+     old rather than a patch sitting beside it. */
+  const finishedShape = (plan, style) => {
+    const keys = new Set((plan.town.claimChunks || []).map(([x, z]) => expKey(x, z)));
+    plan.removed.forEach(k => keys.delete(k));
+    plan.added.forEach(k => keys.add(k));
+    shape(keys, style);
   };
 
   /* ---- town mode ---- */
@@ -4489,13 +4552,14 @@ function renderExpansionOverlay(){
       if (editing){
         /* Being painted: two colours, not two opacities of one. Added and
            removed are opposite decisions and must never be mistaken for each
-           other at a glance. */
-        plan.added.forEach(k => chunk(k, {
-          color: COLORS.sage, weight: 1, opacity: .9,
-          fillColor: COLORS.sage, fillOpacity: .30 }));
-        plan.removed.forEach(k => chunk(k, {
-          color: COLORS.danger, weight: 1, opacity: .9,
-          fillColor: COLORS.danger, fillOpacity: .22, dashArray: '3 3' }));
+           other at a glance. Each traced as one shape so the selection reads
+           as an area rather than a grid. */
+        shape(plan.added, {
+          color: COLORS.sage, weight: 2, opacity: 1,
+          fillColor: COLORS.sage, fillOpacity: .30 });
+        shape(plan.removed, {
+          color: COLORS.danger, weight: 2, opacity: 1,
+          fillColor: COLORS.danger, fillOpacity: .22, dashArray: '4 3' });
         return;
       }
 
@@ -4505,15 +4569,15 @@ function renderExpansionOverlay(){
          judge the resulting shape, not admire a selection sitting on top of
          it. Which chunks are planned is answered by the panel, not by making
          the map worse at its job. */
-      const cols = nationColors(plan.town.nationName);
-      plan.added.forEach(k => chunk(k, {
+      const cols = townColors(plan.town);
+      finishedShape(plan, {
         color: cols.outline, weight: 2.4, opacity: 1,
-        fillColor: cols.fill, fillOpacity: .30 }));
+        fillColor: cols.fill, fillOpacity: .30 });
       /* Removals are the exception: land that would GO cannot be drawn as
          though it were still there. Hollowed out rather than hidden. */
-      plan.removed.forEach(k => chunk(k, {
-        color: COLORS.danger, weight: 1.4, opacity: .8,
-        fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' }));
+      shape(plan.removed, {
+        color: COLORS.danger, weight: 1.6, opacity: .85,
+        fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' });
     });
 
     /* Saved groups that are switched on, drawn the same finished way. */
@@ -4521,13 +4585,19 @@ function renderExpansionOverlay(){
       if (!expansionState.showing.has(g.id)) return;
       g.towns.forEach(entry => {
         const t = ncAllTowns().find(x => x.name === entry.name);
-        const cols = nationColors(t ? t.nationName : null);
-        entry.added.forEach(k => chunk(k, {
-          color: cols.outline, weight: 2.4, opacity: 1,
-          fillColor: cols.fill, fillOpacity: .30 }));
-        entry.removed.forEach(k => chunk(k, {
-          color: COLORS.danger, weight: 1.4, opacity: .8,
-          fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' }));
+        const cols = t ? townColors(t) : nationColors(null);
+        if (t){
+          finishedShape({ town: t, added: new Set(entry.added), removed: new Set(entry.removed) }, {
+            color: cols.outline, weight: 2.4, opacity: 1,
+            fillColor: cols.fill, fillOpacity: .30 });
+        } else {
+          shape(new Set(entry.added), {
+            color: cols.outline, weight: 2.4, opacity: 1,
+            fillColor: cols.fill, fillOpacity: .30 });
+        }
+        shape(new Set(entry.removed), {
+          color: COLORS.danger, weight: 1.6, opacity: .85,
+          fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' });
       });
     });
 
@@ -4558,24 +4628,15 @@ function renderExpansionOverlay(){
     if (!joining && !leaving) return;
     const rings = tracedOutlinesFor(t);
     if (!rings) return;
+    /* ONLY the halo. The town's colour is handled by townColors above, which
+       means the claim layer itself now draws it in the target nation's colour
+       — a real recolour, not a translucent wash letting the old one through.
+       All this adds is a white glow saying "this one is the change". */
     rings.forEach(ring => {
-      const pts = ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z));
-      /* A white halo UNDER the town, then the nation's real colour on top.
-         A joining town has to read as that nation's colour to answer "what
-         would this look like" — but recolouring alone leaves it identical to
-         a town that is already a member, so the halo is what says "this one
-         is the change". Drawn first so it sits behind, like a glow. */
-      L.polygon(pts, {
-        color: '#ffffff', weight: 6, opacity: joining ? .55 : .35,
-        fill: false, interactive: false, pmIgnore: true,
-      }).addTo(group);
-      L.polygon(pts, {
-        color: joining ? tint : COLORS.danger,
-        weight: 2.4, opacity: 1,
+      L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
+        color: '#ffffff', weight: 5, opacity: joining ? .6 : .4,
         dashArray: joining ? null : '5 4',
-        fillColor: joining ? tint : COLORS.ink,
-        fillOpacity: joining ? .38 : .55,
-        interactive: false, pmIgnore: true,
+        fill: false, interactive: false, pmIgnore: true,
       }).addTo(group);
     });
   });
@@ -4648,8 +4709,10 @@ function renderExpansionPanel(){
             'btn-small" id="expPan">' + (expansionState.panMode ? 'Panning' : 'Pan') + '</button>' +
           '<button type="button" class="btn btn-accent btn-small" id="expLock">Finish</button>' +
         '</div>' +
-        '<p class="hint" style="margin-top:.4rem">Drag to paint. Starting on empty ' +
-          'ground adds for the whole stroke; starting on the town\'s own land removes. ' +
+        '<p class="hint" style="margin-top:.4rem">Drag to paint, drag again over what ' +
+          'you drew to erase it. The first chunk of a stroke decides what the whole ' +
+          'stroke does &mdash; empty ground adds, your own land marks it to drop, ' +
+          'anything already marked takes it back. ' +
           'Shift-click two corners still fills a rectangle. Finishing draws it as part ' +
           'of the town, colours and all, so you can judge the shape.<br>' +
           'Dragging paints rather than pans while a town is open &mdash; scroll still ' +

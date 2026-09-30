@@ -2290,12 +2290,45 @@ const expansionState = {
   openGroup: null,       // which one is expanded in the list
   nextSavedId: 1,
 
+  /* Hides everything that MARKS a change — the white halos in nation mode,
+     the green and red while painting — leaving only the result. A plan is
+     made with the markers on and judged with them off, because the markers
+     are the one thing guaranteed not to be there in reality. */
+  finished: false,
+
   painting: false,       // a drag is in progress
   paintMode: 'add',      // what the drag is doing, fixed at pointerdown
   panMode: false,        // dragging pans instead of painting
 };
 
 function expKey(cx, cz){ return cx + ',' + cz; }
+
+/* Which town owns any given chunk, indexed once instead of searched.
+ *
+ * Both the painter and the nation-mode click used to scan every town on the
+ * server and then every chunk of every town — per chunk painted, and during a
+ * drag that is per pointer move. With a world scan loaded that is roughly
+ * 5,700 towns and a quarter of a million comparisons for one chunk, which is
+ * what made a phone stop responding. This is the same index-once approach the
+ * shop floor already uses for its barrels.
+ *
+ * Rebuilt only when the town data actually changes, keyed on a cheap
+ * signature rather than a deep compare. */
+let chunkOwner = null, chunkOwnerSig = '';
+
+function chunkOwnerIndex(){
+  const sig = `${(state.towns || []).length}:${(worldCache.towns || []).length}:${state.lastSync || 0}`;
+  if (chunkOwner && chunkOwnerSig === sig) return chunkOwner;
+  chunkOwner = new Map();
+  ncAllTowns().forEach(t => {
+    if (t.isMoon) return;
+    (t.claimChunks || []).forEach(([x, z]) => chunkOwner.set(expKey(x, z), t));
+  });
+  chunkOwnerSig = sig;
+  return chunkOwner;
+}
+
+function chunkOwnerAt(cx, cz){ return chunkOwnerIndex().get(expKey(cx, cz)) || null; }
 function expActive(){ return !!(expansionState.editing || expansionState.mode === 'nation'); }
 
 /* The nation bonus, read from the town's OWN numbers rather than recomputed.
@@ -2349,6 +2382,10 @@ function expOpenTown(town){
   if (!showChunkGrid) setChunkGrid(true);   // nothing to aim at otherwise
   auditLog.log(`Planning ${town.name} — click a chunk to toggle, shift-click two ` +
     `corners for an area, then lock it in`, 'info');
+  /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
@@ -2366,12 +2403,20 @@ function expLockIn(){
   auditLog.log(plan && plan.locked
     ? `${name} locked in — ${plan.added.size} chunk(s) added`
     : `${name} had nothing planned`, plan && plan.locked ? 'success' : 'info');
+  /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
 function expDropPlan(name){
   expansionState.plans.delete(name);
   if (expansionState.editing === name) expansionState.editing = null;
+  /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
@@ -2468,12 +2513,11 @@ function expPaintAt(cx, cz){
   else if (mode === 'remove'){ if (owned) plan.removed.add(k); }
   else {
     if (owned) return;                       // cannot add what is already held
-    /* Another town's land cannot be planned onto. Silently skipped rather
-       than refused, because during a drag a warning per chunk is noise. */
-    for (const t of ncAllTowns()){
-      if (t.name === plan.town.name || t.isMoon) continue;
-      if ((t.claimChunks || []).some(([x, z]) => x === cx && z === cz)) return;
-    }
+    /* Another town's land cannot be planned onto. One index lookup rather
+       than a scan of every town — this runs per chunk during a drag. Silently
+       skipped rather than refused, because a warning per chunk is noise. */
+    const other = chunkOwnerAt(cx, cz);
+    if (other && other.name !== plan.town.name) return;
     plan.added.add(k);
   }
   renderExpansionOverlay();
@@ -2569,11 +2613,7 @@ function expToggleTownInNation(town){
 
 /* Which town owns the clicked chunk. Exact rather than nearest-marker: a town
    marker sits at its spawn, which can be nowhere near the edge of its land. */
-function expTownAtChunk(cx, cz){
-  const k = expKey(cx, cz);
-  return ncAllTowns().find(t =>
-    !t.isMoon && (t.claimChunks || []).some(([x, z]) => expKey(x, z) === k)) || null;
-}
+function expTownAtChunk(cx, cz){ return chunkOwnerAt(cx, cz); }
 
 /* Snapshots the working plans under a name. Sets are copied to arrays here,
    not referenced: continuing to edit a town after saving must not reach back
@@ -2618,12 +2658,20 @@ function expLoadGroup(id){
   } else {
     auditLog.log(`Loaded "${g.name}" for editing`, 'info');
   }
+  /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
 function expStop(){
   expansionState.editing = null;
   expansionState.dragFrom = null;
+  /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
@@ -2922,6 +2970,32 @@ class EarthMCClient{
 // re-tracing. Claim shapes change rarely; sync runs every 15 seconds.
 const outlineCache = new Map(); // townName -> { key, rings }
 
+/* What a finished plan would do to this town's chunks, from a locked plan or
+   any saved group currently switched on. Returns null when there is nothing
+   planned, which is the overwhelmingly common case. */
+function expPlannedChunksFor(name){
+  /* Called for every town on every claim repaint, so the common case — no
+     plans at all — has to cost nothing. */
+  if (!expansionState.plans.size && !expansionState.saved.length) return null;
+  let added = null, removed = null;
+  const take = (a, r) => {
+    if (!added){ added = new Set(); removed = new Set(); }
+    a.forEach(k => added.add(k));
+    r.forEach(k => removed.add(k));
+  };
+  const plan = expansionState.plans.get(name);
+  // The one being painted is drawn by the overlay instead, in green and red —
+  // fusing it early would hide which chunks you just put down.
+  if (plan && plan.locked) take(plan.added, plan.removed);
+  expansionState.saved.forEach(g => {
+    if (!expansionState.showing.has(g.id)) return;
+    const entry = g.towns.find(t => t.name === name);
+    if (entry) take(entry.added, entry.removed);
+  });
+  if (!added || (!added.size && !removed.size)) return null;
+  return { added, removed };
+}
+
 function tracedOutlinesFor(town){
   const chunks = town.claimChunks || [];
   if (!chunks.length) return null;
@@ -2929,10 +3003,27 @@ function tracedOutlinesFor(town){
   // have to swap claims while keeping all three identical to collide, which
   // self-corrects on the next real change.
   const first = chunks[0], last = chunks[chunks.length - 1];
-  const key = `${chunks.length}:${first[0]},${first[1]}:${last[0]},${last[1]}`;
+  let key = `${chunks.length}:${first[0]},${first[1]}:${last[0]},${last[1]}`;
+
+  /* A finished plan is traced INTO the town rather than drawn over it. That
+     is what makes the new land flush: one outline around the whole thing, no
+     seam where the old border used to be — and because this is the shape the
+     claim layer draws, the planned chunks carry the town's popup and answer
+     a click exactly as the rest of the town does. Drawing a second polygon on
+     top could never do either. */
+  const plan = expPlannedChunksFor(town.name);
+  let source = chunks;
+  if (plan){
+    key += `|p${plan.added.size},${plan.removed.size}`;
+    const set = new Set(chunks.map(([x, z]) => x + ',' + z));
+    plan.removed.forEach(k => set.delete(k));
+    plan.added.forEach(k => set.add(k));
+    source = [...set].map(k => k.split(',').map(Number));
+  }
+
   const hit = outlineCache.get(town.name);
   if (hit && hit.key === key) return hit.rings;
-  const rings = traceChunkOutlines(chunks);
+  const rings = traceChunkOutlines(source);
   outlineCache.set(town.name, { key, rings });
   // Bounded, like activityMemo. A world scan touches thousands of towns and
   // each entry holds full traced geometry, so without a ceiling this grows
@@ -4389,7 +4480,17 @@ function renderNationClaims(allTowns){
   let towns = townsForActiveView(allTowns);
   mapController.claimsLayerGroup.clearLayers();
   if (!showClaims) return;
-  if (lowQuality) return; // outlines are the single most expensive layer
+
+  /* Low quality drops claim outlines entirely — they are the most expensive
+     layer, and on a phone that is the right trade. But a finished plan is now
+     traced INTO the town's own claim, so skipping the layer would make the
+     planner invisible on exactly the device that most needs a light map.
+     Planned towns are drawn regardless; there are never many of them. */
+  if (lowQuality){
+    const planned = towns.filter(t => expPlannedChunksFor(t.name));
+    if (!planned.length) return;
+    towns = planned;
+  }
 
   // The cap is what keeps a world scan from drawing thousands of polygons.
   // "Show every town border" in Settings lifts it for anyone who wants the
@@ -4397,7 +4498,19 @@ function renderNationClaims(allTowns){
   if (!showAllClaims && towns.length > MAX_CLAIM_TOWNS){
     // Keep the biggest towns — they're the ones whose borders actually read
     // at a glance, and it's a stable choice across syncs.
+    const inView = towns;
     towns = towns.slice().sort((a, b) => (b.townBlocks || 0) - (a.townBlocks || 0)).slice(0, MAX_CLAIM_TOWNS);
+    /* A town with a plan on it is never culled, whatever its size. The cap
+       exists to stop a world scan drawing thousands of borders; a town the
+       user is actively planning is the one border they are looking at.
+       Reuses the already-filtered list rather than running the whole view
+       filter a second time — this is the hot path on every repaint. */
+    if (expansionState.plans.size || expansionState.saved.length){
+      const shown = new Set(towns.map(t => t.name));
+      inView.forEach(t => {
+        if (!shown.has(t.name) && expPlannedChunksFor(t.name)) towns.push(t);
+      });
+    }
   }
 
   auditNationColours(allTowns);
@@ -4569,35 +4682,24 @@ function renderExpansionOverlay(){
          judge the resulting shape, not admire a selection sitting on top of
          it. Which chunks are planned is answered by the panel, not by making
          the map worse at its job. */
-      const cols = townColors(plan.town);
-      finishedShape(plan, {
-        color: cols.outline, weight: 2.4, opacity: 1,
-        fillColor: cols.fill, fillOpacity: .30 });
-      /* Removals are the exception: land that would GO cannot be drawn as
-         though it were still there. Hollowed out rather than hidden. */
-      shape(plan.removed, {
-        color: COLORS.danger, weight: 1.6, opacity: .85,
-        fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' });
+      /* Nothing drawn here. A locked plan is traced into the town's own claim
+         by tracedOutlinesFor, so the claim layer draws it — one shape, flush
+         borders, and the town's popup on every chunk of it. Drawing anything
+         here would put a second outline over the first, which is exactly the
+         seam that made a finished plan look like a separate town. */
     });
 
     /* Saved groups that are switched on, drawn the same finished way. */
     expansionState.saved.forEach(g => {
       if (!expansionState.showing.has(g.id)) return;
+      /* Same reasoning: a shown group is fused into each town's own claim.
+         Only a town that has since left the map needs drawing here, since
+         there is no claim left to fuse it into. */
       g.towns.forEach(entry => {
-        const t = ncAllTowns().find(x => x.name === entry.name);
-        const cols = t ? townColors(t) : nationColors(null);
-        if (t){
-          finishedShape({ town: t, added: new Set(entry.added), removed: new Set(entry.removed) }, {
-            color: cols.outline, weight: 2.4, opacity: 1,
-            fillColor: cols.fill, fillOpacity: .30 });
-        } else {
-          shape(new Set(entry.added), {
-            color: cols.outline, weight: 2.4, opacity: 1,
-            fillColor: cols.fill, fillOpacity: .30 });
-        }
-        shape(new Set(entry.removed), {
-          color: COLORS.danger, weight: 1.6, opacity: .85,
-          fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' });
+        if (ncAllTowns().some(x => x.name === entry.name)) return;
+        shape(new Set(entry.added), {
+          color: COLORS.muted, weight: 2, opacity: .8, dashArray: '4 3',
+          fillColor: COLORS.muted, fillOpacity: .18 });
       });
     });
 
@@ -4632,6 +4734,7 @@ function renderExpansionOverlay(){
        means the claim layer itself now draws it in the target nation's colour
        — a real recolour, not a translucent wash letting the old one through.
        All this adds is a white glow saying "this one is the change". */
+    if (expansionState.finished) return;   // the result, with nothing marking it
     rings.forEach(ring => {
       L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
         color: '#ffffff', weight: 5, opacity: joining ? .6 : .4,
@@ -4849,8 +4952,13 @@ function renderExpansionPanel(){
 
       if (f.joining.length || f.leaving.length){
         out += '<div class="hw-route-controls" style="margin-top:.6rem">' +
-          '<button type="button" class="btn btn-primary btn-small" id="expNationClear" ' +
-          'style="flex:1 1 auto">Clear</button></div>';
+          `<button type="button" class="btn ${expansionState.finished ? 'btn-accent' : 'btn-primary'} ` +
+            'btn-small" id="expFinished" style="flex:1 1 auto">' +
+            (expansionState.finished ? 'Showing the result' : 'Show finished') + '</button>' +
+          '<button type="button" class="btn btn-primary btn-small" id="expNationClear">Clear</button>' +
+        '</div>' +
+        '<p class="hint" style="margin-top:.3rem">Finished drops the white outlines so ' +
+          'you see the nation as it would actually look.</p>';
       }
       out += '<p class="hint" style="margin-top:.4rem">The bonus figure is modelled from ' +
         'resident count. EarthMC publishes only the ends of that curve, so treat it as ' +
@@ -4865,7 +4973,11 @@ function renderExpansionPanel(){
   host.querySelectorAll('[data-expmode]').forEach(b => b.addEventListener('click', () => {
     expansionState.mode = b.dataset.expmode;
     expansionState.editing = null;
-    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
+    /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
   }));
 
   const plan = expPlanFor(expansionState.editing);
@@ -4882,7 +4994,15 @@ function renderExpansionPanel(){
   bind('expLock', expLockIn);
   bind('expClearAll', () => {
     expansionState.plans.clear(); expansionState.editing = null;
-    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
+    /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
+  });
+  bind('expFinished', () => {
+    expansionState.finished = !expansionState.finished;
+    renderExpansionOverlay(); renderExpansionPanel();
   });
   bind('expNationClear', () => {
     expansionState.joining.clear(); expansionState.leaving.clear();
@@ -4906,7 +5026,11 @@ function renderExpansionPanel(){
         setWorldMode('all');
       }
     }
-    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
+    /* The claim layer holds the fused shape now, so a plan change has to
+     repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
+     it from every one of these costs a single repaint. */
+  refreshMapLayers();
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
   });
 
   bind('expPan', () => {
@@ -4918,13 +5042,14 @@ function renderExpansionPanel(){
     const name = (window.prompt('Name this expansion plan',
       'Expansion ' + (expansionState.saved.length + 1)) || '').trim();
     if (!name) return;
-    if (expSaveGroup(name)) renderExpansionPanel();
+    if (expSaveGroup(name)){ refreshMapLayers(); renderExpansionPanel(); }
   });
 
   on('[data-expshow]', (e) => {
     const id = Number(e.currentTarget.dataset.expshow);
     if (expansionState.showing.has(id)) expansionState.showing.delete(id);
     else expansionState.showing.add(id);
+    refreshMapLayers();
     renderExpansionOverlay(); renderExpansionPanel();
   });
   on('[data-expopen]', (e) => {
@@ -4940,6 +5065,7 @@ function renderExpansionPanel(){
     expansionState.saved = expansionState.saved.filter(x => x.id !== id);
     expansionState.showing.delete(id);
     if (expansionState.openGroup === id) expansionState.openGroup = null;
+    refreshMapLayers();
     renderExpansionOverlay(); renderExpansionPanel();
   });
 

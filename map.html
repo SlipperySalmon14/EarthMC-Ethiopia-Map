@@ -2281,6 +2281,18 @@ const expansionState = {
   nation: '',
   joining: new Set(),    // town names being added to it
   leaving: new Set(),    // town names taken out of it
+
+  /* SAVED GROUPS. A mass expansion is argued about as one thing — "the Afar
+     push" — not as six unrelated town plans, so plans are saved together
+     under a name and shown or hidden as a set. */
+  saved: [],             // [{ id, name, towns:[{name, added:[], removed:[], extra}] }]
+  showing: new Set(),    // ids of saved groups currently drawn
+  openGroup: null,       // which one is expanded in the list
+  nextSavedId: 1,
+
+  painting: false,       // a drag is in progress
+  paintMode: 'add',      // what the drag is doing, fixed at pointerdown
+  panMode: false,        // dragging pans instead of painting
 };
 
 function expKey(cx, cz){ return cx + ',' + cz; }
@@ -2337,7 +2349,7 @@ function expOpenTown(town){
   if (!showChunkGrid) setChunkGrid(true);   // nothing to aim at otherwise
   auditLog.log(`Planning ${town.name} — click a chunk to toggle, shift-click two ` +
     `corners for an area, then lock it in`, 'info');
-  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity();
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
 function expLockIn(){
@@ -2354,13 +2366,13 @@ function expLockIn(){
   auditLog.log(plan && plan.locked
     ? `${name} locked in — ${plan.added.size} chunk(s) added`
     : `${name} had nothing planned`, plan && plan.locked ? 'success' : 'info');
-  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity();
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
 function expDropPlan(name){
   expansionState.plans.delete(name);
   if (expansionState.editing === name) expansionState.editing = null;
-  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity();
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
 function expToggleChunk(cx, cz){
@@ -2405,6 +2417,59 @@ function expFillRect(a, b){
   auditLog.log(`Added ${CoordUtils.fmt(count - skipped)} chunk(s)` +
     (skipped ? `, skipped ${CoordUtils.fmt(skipped)} already claimed by another town` : ''), 'info');
   renderExpansionOverlay(); renderExpansionPanel();
+}
+
+/* Click-and-drag painting.
+ *
+ * The mode is fixed at pointerdown from whatever the FIRST chunk does — start
+ * on wilderness and the whole drag adds, start on your own claim and the whole
+ * drag removes. Deciding per chunk would make one stroke across a border both
+ * add and remove, which is unusable.
+ *
+ * Map dragging is turned off while a town is being edited, or every stroke
+ * would pan instead. Zoom, scroll and the +/- buttons are untouched, and the
+ * Pan button in the panel hands dragging back when you need to move about.
+ */
+function expBeginPaint(cx, cz){
+  const plan = expPlanFor(expansionState.editing);
+  if (!plan) return;
+  const owned = (plan.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
+  expansionState.paintMode = owned ? 'remove' : 'add';
+  expansionState.painting = true;
+  expPaintAt(cx, cz);
+}
+
+function expPaintAt(cx, cz){
+  const plan = expPlanFor(expansionState.editing);
+  if (!plan) return;
+  const k = expKey(cx, cz);
+  const owned = (plan.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
+  if (expansionState.paintMode === 'add'){
+    if (owned) return;                       // cannot add what is already held
+    /* Another town's land cannot be planned onto. Silently skipped rather
+       than refused, because during a drag a warning per chunk is noise. */
+    for (const t of ncAllTowns()){
+      if (t.name === plan.town.name || t.isMoon) continue;
+      if ((t.claimChunks || []).some(([x, z]) => x === cx && z === cz)) return;
+    }
+    plan.added.add(k);
+  } else {
+    if (owned) plan.removed.add(k);
+  }
+  renderExpansionOverlay();
+}
+
+function expEndPaint(){
+  if (!expansionState.painting) return;
+  expansionState.painting = false;
+  renderExpansionPanel();
+}
+
+function expSetDragging(){
+  const map = mapController && mapController.map;
+  if (!map || !map.dragging) return;
+  const paint = !!expansionState.editing && !expansionState.panMode;
+  if (paint) map.dragging.disable(); else map.dragging.enable();
 }
 
 function expTownFigures(plan){
@@ -2487,10 +2552,56 @@ function expTownAtChunk(cx, cz){
     !t.isMoon && (t.claimChunks || []).some(([x, z]) => expKey(x, z) === k)) || null;
 }
 
+/* Snapshots the working plans under a name. Sets are copied to arrays here,
+   not referenced: continuing to edit a town after saving must not reach back
+   and change what was saved. */
+function expSaveGroup(name){
+  const towns = [...expansionState.plans.values()]
+    .filter(p => p.added.size || p.removed.size)
+    .map(p => ({
+      name: p.town.name,
+      added: [...p.added], removed: [...p.removed], extra: p.extra,
+    }));
+  if (!towns.length){ auditLog.log('Nothing planned to save', 'warn'); return null; }
+  const g = { id: expansionState.nextSavedId++, name, towns };
+  expansionState.saved.push(g);
+  expansionState.showing.add(g.id);
+  const chunks = towns.reduce((s, t) => s + t.added.length, 0);
+  auditLog.log(`Saved "${name}" — ${towns.length} town(s), ${CoordUtils.fmt(chunks)} chunk(s)`, 'success');
+  return g;
+}
+
+/* Loads a saved group back into the working set so it can be edited again.
+   Towns that have since left the map are dropped and named, rather than
+   silently restoring a plan for somewhere that no longer exists. */
+function expLoadGroup(id){
+  const g = expansionState.saved.find(x => x.id === id);
+  if (!g) return;
+  const missing = [];
+  expansionState.plans.clear();
+  g.towns.forEach(entry => {
+    const town = ncAllTowns().find(t => t.name === entry.name);
+    if (!town){ missing.push(entry.name); return; }
+    expansionState.plans.set(town.name, {
+      town, added: new Set(entry.added), removed: new Set(entry.removed),
+      extra: entry.extra || 0, locked: true,
+    });
+  });
+  expansionState.editing = null;
+  expansionState.mode = 'town';
+  if (missing.length){
+    auditLog.log(`Loaded "${g.name}" — ${missing.length} town(s) no longer on the map: ` +
+      missing.join(', '), 'warn');
+  } else {
+    auditLog.log(`Loaded "${g.name}" for editing`, 'info');
+  }
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
+}
+
 function expStop(){
   expansionState.editing = null;
   expansionState.dragFrom = null;
-  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity();
+  renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
 /* Resolved by NAME, not by holding the town object: the sync loop replaces
@@ -4197,7 +4308,21 @@ function townsForActiveView(towns){
      so a moon town left in the list does not land somewhere obviously wrong —
      it lands somewhere plausible inside Ethiopia and gets counted in whatever
      that view totals up. */
-  const list = (towns || []).filter(t => (mapWorld === 'moon' ? t.isMoon : !t.isMoon));
+  let list = (towns || []).filter(t => (mapWorld === 'moon' ? t.isMoon : !t.isMoon));
+
+  /* Nation mode is about moving towns BETWEEN nations, so it needs to see
+     towns that are not ours — which the Ethiopia view otherwise filters out
+     entirely, leaving nothing to click. The scoping below is skipped while it
+     is open, and restored the moment it closes. */
+  if (expansionState.mode === 'nation' && expansionState.nation){
+    const extra = worldCache.towns || [];
+    if (extra.length){
+      const seen = new Set(list.map(t => t.name));
+      list = list.concat(extra.filter(t =>
+        !seen.has(t.name) && (mapWorld === 'moon' ? t.isMoon : !t.isMoon)));
+    }
+    return list;
+  }
   // Admin edits Ethiopia's regions, so it shows the same towns Ethiopia does.
   // Settings inherits the last data view — see currentScope().
   if (currentScope() !== 'global'){
@@ -4259,8 +4384,12 @@ function renderNationClaims(allTowns){
       const polygon = L.polygon(latlngs, {
         // Border uses the nation's dynmap outline colour, fill uses its
         // dynmap colour — matching how EarthMC's own map renders claims.
-        color: outline, weight: 1.6, opacity: 0.85,
-        fillColor: color, fillOpacity: 0.16,
+        /* Heavier and more saturated than before. Terrain renders at 0.6
+           opacity over a near-black ground, and a 1.6px border at 0.16 fill
+           simply lost to it — the colours were technically correct and
+           practically unreadable. */
+        color: outline, weight: 2.4, opacity: 1,
+        fillColor: color, fillOpacity: 0.30,
         interactive: !drawModeArmed(),
         // Same reasoning as town markers above — this is live derived data,
         // never an admin-editable "region", and must stay inert to Geoman's
@@ -4370,18 +4499,36 @@ function renderExpansionOverlay(){
         return;
       }
 
-      /* Locked in: drawn as though the town already held it, in that town's
-         own nation colour, so the shape reads as the town's future outline
-         rather than as a selection sitting on top of it. The dashed edge is
-         the only thing saying it has not happened yet — deliberately subtle,
-         because the point of locking in is to SEE the result. */
-      const tint = nationColors(plan.town.nationName).fill;
+      /* Locked in: drawn EXACTLY as the town's real claim is drawn — same
+         colour, same weight, same fill, no dash. That is the point of locking
+         in: the new land should be indistinguishable from the old so you can
+         judge the resulting shape, not admire a selection sitting on top of
+         it. Which chunks are planned is answered by the panel, not by making
+         the map worse at its job. */
+      const cols = nationColors(plan.town.nationName);
       plan.added.forEach(k => chunk(k, {
-        color: tint, weight: 1.4, opacity: .95, dashArray: '5 3',
-        fillColor: tint, fillOpacity: .22 }));
+        color: cols.outline, weight: 2.4, opacity: 1,
+        fillColor: cols.fill, fillOpacity: .30 }));
+      /* Removals are the exception: land that would GO cannot be drawn as
+         though it were still there. Hollowed out rather than hidden. */
       plan.removed.forEach(k => chunk(k, {
-        color: COLORS.danger, weight: 1, opacity: .6,
-        fillColor: COLORS.ink, fillOpacity: .45, dashArray: '2 3' }));
+        color: COLORS.danger, weight: 1.4, opacity: .8,
+        fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' }));
+    });
+
+    /* Saved groups that are switched on, drawn the same finished way. */
+    expansionState.saved.forEach(g => {
+      if (!expansionState.showing.has(g.id)) return;
+      g.towns.forEach(entry => {
+        const t = ncAllTowns().find(x => x.name === entry.name);
+        const cols = nationColors(t ? t.nationName : null);
+        entry.added.forEach(k => chunk(k, {
+          color: cols.outline, weight: 2.4, opacity: 1,
+          fillColor: cols.fill, fillOpacity: .30 }));
+        entry.removed.forEach(k => chunk(k, {
+          color: COLORS.danger, weight: 1.4, opacity: .8,
+          fillColor: COLORS.ink, fillOpacity: .55, dashArray: '3 3' }));
+      });
     });
 
     if (expansionState.dragFrom){
@@ -4412,12 +4559,22 @@ function renderExpansionOverlay(){
     const rings = tracedOutlinesFor(t);
     if (!rings) return;
     rings.forEach(ring => {
-      L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
+      const pts = ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z));
+      /* A white halo UNDER the town, then the nation's real colour on top.
+         A joining town has to read as that nation's colour to answer "what
+         would this look like" — but recolouring alone leaves it identical to
+         a town that is already a member, so the halo is what says "this one
+         is the change". Drawn first so it sits behind, like a glow. */
+      L.polygon(pts, {
+        color: '#ffffff', weight: 6, opacity: joining ? .55 : .35,
+        fill: false, interactive: false, pmIgnore: true,
+      }).addTo(group);
+      L.polygon(pts, {
         color: joining ? tint : COLORS.danger,
-        weight: 2.2, opacity: .95,
+        weight: 2.4, opacity: 1,
         dashArray: joining ? null : '5 4',
         fillColor: joining ? tint : COLORS.ink,
-        fillOpacity: joining ? .34 : .5,
+        fillOpacity: joining ? .38 : .55,
         interactive: false, pmIgnore: true,
       }).addTo(group);
     });
@@ -4487,11 +4644,16 @@ function renderExpansionPanel(){
           '<button type="button" class="btn btn-primary btn-small" id="expMinus">&minus; res</button>' +
           '<button type="button" class="btn btn-primary btn-small" id="expPlus">+ res</button>' +
           '<button type="button" class="btn btn-primary btn-small" id="expClearOne">Clear</button>' +
-          '<button type="button" class="btn btn-accent btn-small" id="expLock">Lock in</button>' +
+          `<button type="button" class="btn ${expansionState.panMode ? 'btn-accent' : 'btn-primary'} ` +
+            'btn-small" id="expPan">' + (expansionState.panMode ? 'Panning' : 'Pan') + '</button>' +
+          '<button type="button" class="btn btn-accent btn-small" id="expLock">Finish</button>' +
         '</div>' +
-        '<p class="hint" style="margin-top:.4rem">Click a chunk to toggle it. ' +
-          'Shift-click two corners to fill an area. Locking in fuses it with the ' +
-          'town so you can see the shape, and keeps it while you plan the next one.</p>';
+        '<p class="hint" style="margin-top:.4rem">Drag to paint. Starting on empty ' +
+          'ground adds for the whole stroke; starting on the town\'s own land removes. ' +
+          'Shift-click two corners still fills a rectangle. Finishing draws it as part ' +
+          'of the town, colours and all, so you can judge the shape.<br>' +
+          'Dragging paints rather than pans while a town is open &mdash; scroll still ' +
+          'zooms, and <b>Pan</b> hands dragging back.</p>';
     }
 
     const locked = plans.filter(p => p.locked);
@@ -4518,8 +4680,44 @@ function renderExpansionPanel(){
           '</div>';
         }).join('') +
         '<div class="hw-route-controls" style="margin-top:.5rem">' +
-          '<button type="button" class="btn btn-primary btn-small" id="expClearAll" ' +
-          'style="flex:1 1 auto">Clear every plan</button></div></div>';
+          '<button type="button" class="btn btn-accent btn-small" id="expSave" ' +
+            'style="flex:1 1 auto">Save as a plan</button>' +
+          '<button type="button" class="btn btn-primary btn-small" id="expClearAll">Clear</button>' +
+        '</div></div>';
+    }
+
+    /* Saved plans, as a folder bar. A mass expansion is argued about as one
+       thing, so each group shows or hides as a set rather than a town at a
+       time. Open one to see what is inside it. */
+    if (expansionState.saved.length){
+      out += '<div style="margin-top:1rem;padding-top:.7rem;border-top:1px solid var(--line)">' +
+        '<div class="nc-officer-label">Saved plans</div>' +
+        expansionState.saved.map(g => {
+          const open = expansionState.openGroup === g.id;
+          const on = expansionState.showing.has(g.id);
+          const chunks = g.towns.reduce((a, t) => a + t.added.length, 0);
+          let block = '<div class="hw-admin-row">' +
+            `<button type="button" class="hw-mini" data-expshow="${g.id}" ` +
+              `style="${on ? 'border-color:var(--sage);color:var(--sage-hi)' : ''}" ` +
+              `title="Show or hide this plan on the map">${on ? 'shown' : 'hidden'}</button>` +
+            `<span class="hw-name" style="flex:1 1 auto">${escapeHtml(g.name)}` +
+              `<span class="hw-meta" style="margin-left:.4rem">${g.towns.length} town` +
+              `${g.towns.length === 1 ? '' : 's'} · ${CoordUtils.fmt(chunks)} chunks · ` +
+              `${CoordUtils.fmt(chunks * PLAN_CLAIM_COST)}g</span></span>` +
+            `<button type="button" class="hw-mini" data-expopen="${g.id}">` +
+              (open ? '\u25b4' : '\u25be') + '</button>' +
+            `<button type="button" class="hw-mini" data-exploadg="${g.id}">edit</button>` +
+            `<button type="button" class="hw-mini danger" data-expdelg="${g.id}">&times;</button>` +
+          '</div>';
+          if (open){
+            block += g.towns.map(t =>
+              '<div class="hw-admin-row nc-part-row">' +
+              `<span class="hw-name" style="flex:1 1 auto">${escapeHtml(t.name)}` +
+                `<span class="hw-meta" style="margin-left:.4rem">+${t.added.length}` +
+                (t.removed.length ? ` &minus;${t.removed.length}` : '') + '</span></span></div>').join('');
+          }
+          return block;
+        }).join('') + '</div>';
     }
 
   } else {
@@ -4530,9 +4728,20 @@ function renderExpansionPanel(){
       `value="${escapeHtml(expansionState.nation)}" style="flex:1 1 auto">` +
       '<button type="button" class="btn btn-accent btn-small" id="expSetNation">Model</button></div>';
 
+    /* Said plainly, because the scan takes about a minute and a map that has
+       not finished loading looks exactly like one with nothing on it. */
+    if (worldCache.inFlight){
+      out += '<p class="hint" style="color:var(--brass-hi);margin:0 0 .6rem">' +
+        'Loading every town on the server&hellip; other nations appear as it finishes.</p>';
+    } else if (expansionState.nation && !worldCache.towns.length){
+      out += '<p class="hint" style="margin:0 0 .6rem">Only tracked nations are loaded. ' +
+        '<b>Load every town</b> in the Global tab brings the rest in.</p>';
+    }
+
     if (!f){
       out += '<p class="empty-hint">Name a nation, then click towns on the map to move ' +
-        'them in or out of it. Towns already in it come out; any other town goes in.</p>';
+        'them in or out of it. Towns already in it come out; any other town goes in. ' +
+        'Every town loads automatically so other nations can be reached.</p>';
     } else {
       const delta = (a, b, suffix) => {
         const d = b - a;
@@ -4593,7 +4802,7 @@ function renderExpansionPanel(){
   host.querySelectorAll('[data-expmode]').forEach(b => b.addEventListener('click', () => {
     expansionState.mode = b.dataset.expmode;
     expansionState.editing = null;
-    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity();
+    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
   }));
 
   const plan = expPlanFor(expansionState.editing);
@@ -4610,7 +4819,7 @@ function renderExpansionPanel(){
   bind('expLock', expLockIn);
   bind('expClearAll', () => {
     expansionState.plans.clear(); expansionState.editing = null;
-    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity();
+    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
   });
   bind('expNationClear', () => {
     expansionState.joining.clear(); expansionState.leaving.clear();
@@ -4620,8 +4829,55 @@ function renderExpansionPanel(){
     const el = document.getElementById('expNation');
     expansionState.nation = el ? el.value.trim() : '';
     expansionState.joining.clear(); expansionState.leaving.clear();
-    if (expansionState.nation) ncEnsureNationDetails();
-    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity();
+    if (expansionState.nation){
+      ncEnsureNationDetails();
+      /* Moving a town between nations needs every town on the map, in its own
+         nation's colour — which is exactly what the world scan already
+         produces. Reusing it rather than adding a second way to load towns
+         means nation mode inherits the real dynmap colours, the caching and
+         the refresh cadence for free. */
+      if (!worldCache.enabled || !worldCache.towns.length){
+        if (!worldCache.inFlight){
+          auditLog.log('Loading every town so other nations can be moved — about a minute', 'info');
+        }
+        setWorldMode('all');
+      }
+    }
+    renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
+  });
+
+  bind('expPan', () => {
+    expansionState.panMode = !expansionState.panMode;
+    expSetDragging();
+    renderExpansionPanel();
+  });
+  bind('expSave', () => {
+    const name = (window.prompt('Name this expansion plan',
+      'Expansion ' + (expansionState.saved.length + 1)) || '').trim();
+    if (!name) return;
+    if (expSaveGroup(name)) renderExpansionPanel();
+  });
+
+  on('[data-expshow]', (e) => {
+    const id = Number(e.currentTarget.dataset.expshow);
+    if (expansionState.showing.has(id)) expansionState.showing.delete(id);
+    else expansionState.showing.add(id);
+    renderExpansionOverlay(); renderExpansionPanel();
+  });
+  on('[data-expopen]', (e) => {
+    const id = Number(e.currentTarget.dataset.expopen);
+    expansionState.openGroup = expansionState.openGroup === id ? null : id;
+    renderExpansionPanel();
+  });
+  on('[data-exploadg]', (e) => expLoadGroup(Number(e.currentTarget.dataset.exploadg)));
+  on('[data-expdelg]', (e) => {
+    const id = Number(e.currentTarget.dataset.expdelg);
+    const g = expansionState.saved.find(x => x.id === id);
+    if (g && !window.confirm(`Delete the plan "${g.name}"?`)) return;
+    expansionState.saved = expansionState.saved.filter(x => x.id !== id);
+    expansionState.showing.delete(id);
+    if (expansionState.openGroup === id) expansionState.openGroup = null;
+    renderExpansionOverlay(); renderExpansionPanel();
   });
 
   on('[data-expedit]', (e) => {
@@ -5282,6 +5538,13 @@ async function refreshWorldSnapshot(force){
     worldCache.inFlight = false;
     refreshMapLayers();
     renderNationPanel(state.towns);
+    /* The expansion panel reads worldCache directly, so it has to be told the
+       scan finished — otherwise it sits on "loading every town" forever and
+       the towns that just arrived are unclickable in nation mode. */
+    if (typeof renderExpansionPanel === 'function'){
+      renderExpansionOverlay();
+      renderExpansionPanel();
+    }
     // The missing piece: clearNationColorCache() above purges any generated
     // fallback colour once a nation's real dynmapColour has loaded, but a
     // polygon already drawn keeps whatever fillColor it was given at creation
@@ -5844,7 +6107,12 @@ function renderHighways(){
     const hit = L.polyline(latlngs, {
       color: line.color, weight: 22, opacity: 0,
       lineJoin: 'round', lineCap: 'round',
-      interactive: true, pmIgnore: true, bubblingMouseEvents: false,
+      /* Stands down while any tool owns the click. This strip is 22px wide and
+         swallows events (bubblingMouseEvents:false), so with it always live a
+         click meant for the expansion planner dropped a route pin instead —
+         the stray black circle. Every other informational layer already
+         checked drawModeArmed; this one did not. */
+      interactive: !drawModeArmed(), pmIgnore: true, bubblingMouseEvents: false,
     });
 
     const poly = L.polyline(latlngs, {
@@ -5900,7 +6168,7 @@ function renderHighways(){
       fillColor: lines.length ? COLORS.ink : COLORS.danger,
       fillOpacity: 1,
       className: 'hw-station-marker',
-      interactive: true,
+      interactive: !drawModeArmed(),
       pmIgnore: true,
       bubblingMouseEvents: false,
     });
@@ -8988,6 +9256,25 @@ function hwMapClick(latlng){
   return false;
 }
 
+/* Painting runs on mousedown/move/up rather than click, because a drag never
+   produces a click at all — Leaflet treats it as a pan gesture. These sit
+   alongside the click handler below, which still covers a single tap. */
+mapController.map.on('mousedown', (e) => {
+  if (!expansionState.editing || expansionState.panMode) return;
+  const mc = CoordUtils.latLngToMc(e.latlng);
+  expBeginPaint(Math.floor(mc.x / 16), Math.floor(mc.z / 16));
+});
+mapController.map.on('mousemove', (e) => {
+  if (!expansionState.painting) return;
+  const mc = CoordUtils.latLngToMc(e.latlng);
+  expPaintAt(Math.floor(mc.x / 16), Math.floor(mc.z / 16));
+});
+/* On the document, not the map: releasing outside the map still has to end
+   the stroke, or the next mousemove over the map keeps painting with no
+   button held. */
+document.addEventListener('mouseup', expEndPaint);
+document.addEventListener('pointercancel', expEndPaint);
+
 mapController.map.on('click', (e) => {
   /* The planner owns the click while open. Checked BEFORE the highway
      handler, not after: both want raw map clicks and whichever is asked
@@ -9020,8 +9307,12 @@ mapController.map.on('click', (e) => {
       }
       return;
     }
+    /* A plain tap has already been handled by the mousedown painter above.
+       Toggling again here would undo it instantly — which is exactly what a
+       single click looked like it was doing. Only the panning case, where
+       the painter stood down, still needs the toggle. */
     expansionState.dragFrom = null;
-    expToggleChunk(cx, cz);
+    if (expansionState.panMode) expToggleChunk(cx, cz);
     return;
   }
   hwMapClick(e.latlng);
@@ -10168,6 +10459,5 @@ setInterval(() => { if (state.lastSync) dom.statLastSync.textContent = relTime(s
 </script>
 </body>
 </html>
-
 
 

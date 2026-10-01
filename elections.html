@@ -1,1 +1,978 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elections · Ethiopia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=3">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule-soft); padding-bottom:1.2rem; margin-bottom:1.6rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--display); font-weight:400; font-style:italic;
+  font-size:var(--step-1); letter-spacing:-.01em; color:var(--gold); margin:.35rem 0 0; }
+
+/* The status of an election is the single most load-bearing thing on this
+   page — what you may do depends entirely on it — so it gets a banner rather
+   than a tag lost among others. */
+.phase{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;
+  padding:.85rem 1.1rem; border-radius:var(--r-md); margin-bottom:1.4rem;
+  background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--text-low)); }
+.phase .ph{ font-family:var(--data); font-size:var(--step-0); color:var(--accent,var(--text)); }
+.phase .det{ font-family:var(--data); font-size:.7rem; color:var(--text-mid); }
+.phase .acts{ margin-left:auto; display:flex; gap:.35rem; flex-wrap:wrap; }
+.phase.draft{ --accent:var(--text-low); }
+.phase.nominations{ --accent:var(--gold); }
+.phase.voting{ --accent:var(--green); }
+.phase.closed{ --accent:var(--blue); }
+
+.section-head{ position:relative; display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
+.section-head::after{ content:''; position:absolute; left:0; bottom:-1px;
+  width:3.2rem; height:2px; background:linear-gradient(90deg,
+    var(--green) 0 33.33%, var(--gold) 33.33% 66.66%, var(--red) 66.66% 100%); }
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+/* --- the ballot ---------------------------------------------------------- */
+.contest{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:var(--r-md);
+  padding:.9rem 1rem; margin-bottom:.7rem; }
+.contest.office{ --accent:var(--gold); }
+.contest.house{ --accent:var(--green); }
+.contest.done{ --accent:var(--blue); }
+.contest-head{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin-bottom:.55rem; }
+.contest-head h3{ font-family:var(--display); font-weight:600; font-size:var(--step-0); margin:0; }
+.contest-head .seats{ font-family:var(--data); font-size:.64rem; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-low); }
+.contest-head .picked{ margin-left:auto; font-family:var(--data); font-size:.66rem; color:var(--green); }
+.contest-head .picked.over{ color:var(--red); }
+
+.cands{ display:flex; flex-direction:column; gap:.3rem; }
+.cand{ display:flex; align-items:center; gap:.55rem; padding:.45rem .6rem;
+  background:var(--ink); border:1px solid var(--rule); border-radius:var(--r-sm);
+  cursor:pointer; transition:border-color .12s ease, background .12s ease; }
+.cand:hover{ border-color:var(--gold-dim); }
+.cand.on{ border-color:var(--green); background:rgba(24,157,77,.10); }
+.cand.locked{ cursor:default; opacity:.85; }
+.cand .face{ width:22px; height:22px; border-radius:2px; image-rendering:pixelated;
+  background:var(--ink-raised); flex:none; }
+.cand .nm{ font-family:var(--data); font-size:.78rem; color:var(--text); }
+.cand .party{ font-family:var(--data); font-size:.62rem; color:var(--text-low);
+  padding-left:.4rem; border-left:1px solid var(--rule); }
+.cand .st{ font-size:var(--step--1); color:var(--text-mid); flex:1 1 8rem; min-width:0; }
+.cand .votes{ margin-left:auto; font-family:var(--data); font-weight:600;
+  font-variant-numeric:tabular-nums; color:var(--gold); }
+.cand .win{ font-family:var(--data); font-size:.6rem; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--green); border:1px solid var(--green-dim);
+  border-radius:2px; padding:.08rem .3rem; }
+.cand-none{ font-family:var(--data); font-size:.7rem; color:var(--red); padding:.4rem .1rem; }
+
+.castbar{ position:sticky; bottom:0; z-index:10; margin-top:1rem;
+  background:var(--ink); border-top:1px solid var(--rule); padding:.8rem 0;
+  display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+.castbar .prog{ font-family:var(--data); font-size:.72rem; color:var(--text-low); }
+.castbar .prog b{ color:var(--text); }
+
+.receipt{ background:var(--ink-raised); border:1px solid var(--green-dim);
+  border-left:3px solid var(--green); border-radius:var(--r-md); padding:1rem 1.1rem; }
+.receipt .code{ font-family:var(--data); font-weight:600; font-size:var(--step-2);
+  letter-spacing:.14em; color:var(--green); display:block; margin:.4rem 0; }
+
+/* --- the regional map ----------------------------------------------------
+   Drawn from the same region polygons the main map stores, at a fixed size.
+   Nothing interactive, no Leaflet — it exists to say where each region is and
+   how its seats stand, which is a picture, not a tool. */
+.regmap{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-radius:var(--r-md); padding:1rem; }
+.regmap svg{ display:block; width:100%; height:auto; }
+.regmap .rlabel{ font-family:var(--data); font-size:9px; fill:var(--text-mid); }
+.regmap .rseats{ font-family:var(--data); font-size:8px; fill:var(--text-low); }
+.regmap-key{ display:flex; flex-wrap:wrap; gap:.7rem; margin-top:.7rem;
+  font-family:var(--data); font-size:.64rem; color:var(--text-low); }
+.regmap-key i{ width:.7rem; height:.7rem; border-radius:2px; display:inline-block; margin-right:.3rem; }
+
+/* --- statistics ---------------------------------------------------------- */
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr)); gap:.6rem; margin-bottom:1rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:var(--r-md); padding:.75rem .9rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; }
+.stat .k{ font-family:var(--data); font-size:.6rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.good{ --accent:var(--green); } .stat.good .n{ color:var(--green); }
+.stat.warn{ --accent:var(--gold); } .stat.warn .n{ color:var(--gold); }
+.stat.bad{ --accent:var(--red); } .stat.bad .n{ color:var(--red); }
+
+.tabs{ display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:.8rem; }
+.tab{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem;
+  background:var(--ink-raised); border:1px solid var(--rule); border-radius:var(--r-sm);
+  color:var(--text-mid); cursor:pointer; }
+.tab:hover{ border-color:var(--gold-dim); color:var(--text); }
+.tab.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+
+table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
+th{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); text-align:left; font-weight:400; padding:.45rem .5rem;
+  border-bottom:1px solid var(--rule); }
+td{ padding:.45rem .5rem; border-bottom:1px solid var(--rule-soft);
+  font-family:var(--data); font-size:.72rem; font-variant-numeric:tabular-nums; }
+td.n{ text-align:right; }
+td.name{ color:var(--text); font-weight:600; font-family:var(--body); }
+/* Turnout as a bar behind the number: forty rows of percentages are a wall,
+   forty bars are a shape you can read in one pass. */
+.tbar{ position:relative; }
+.tbar span{ position:absolute; left:0; top:0; bottom:0; background:rgba(24,157,77,.20);
+  border-radius:2px; }
+.tbar b{ position:relative; font-weight:600; }
+tr.zero td{ color:var(--red); }
+
+.hours{ display:flex; align-items:flex-end; gap:2px; height:5rem; margin-top:.5rem; }
+.hours .h{ flex:1 1 0; background:var(--green); border-radius:1px 1px 0 0; min-height:1px; }
+.hours-x{ display:flex; justify-content:space-between; font-family:var(--data);
+  font-size:.6rem; color:var(--text-low); margin-top:.25rem; }
+
+.admin{ margin-top:2rem; border:1px dashed var(--rule); border-radius:var(--r-md);
+  padding:1.1rem 1.2rem; background:var(--ink-raised); }
+.admin h2{ font-size:var(--step-1); margin-bottom:.2rem; }
+.admin .hint{ color:var(--text-low); font-size:var(--step--1); margin:0 0 1rem; }
+.fields{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
+.f input, .f select{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:var(--r-sm); padding:.42rem .55rem; font-family:var(--body); font-size:.82rem; min-width:9rem; }
+.f input:focus, .f select:focus{ border-color:var(--gold); outline:none; }
+.msg{ font-family:var(--data); font-size:var(--step--1); margin-top:.6rem; min-height:1.1em; }
+.msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
+.empty{ border:1px dashed var(--rule); border-radius:var(--r-md); padding:1.4rem; text-align:center;
+  color:var(--text-mid); font-size:var(--step--1); }
+.note{ font-family:var(--data); font-size:.66rem; color:var(--text-low); margin:.5rem 0 0; }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="government.html">&#8592; Government</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1 data-slot="title">Elections</h1>
+    <p class="sub" data-slot="subtitle">One account, one ballot</p>
+  </header>
+
+  <div id="body"><p class="empty">Loading&#8230;</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+var when = function(s){
+  if (!s) return '—';
+  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? esc(s)
+    : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + ' ' +
+      d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+};
+
+var me = null, list = null, detail = null, tally = null, stats = null, regions = null;
+var electionId = null, statTab = 'region';
+
+/* The ballot being filled in: contestId -> array of candidate ids. Held in
+   memory only and posted in one go — a half-cast ballot, with some contests
+   recorded and no way to come back and finish, would be worse than none. */
+var marks = {};
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){
+    var err = new Error((d && d.detail) || (d && d.error) || ('HTTP ' + res.status));
+    err.status = res.status; err.code = d && d.error; throw err;
+  }
+  return d;
+}
+
+function fatal(err){
+  var host = $('body') || document.body;
+  host.innerHTML = '';
+  var p = document.createElement('p');
+  p.className = 'empty';
+  p.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  p.textContent = 'This page failed to load: ' + ((err && err.message) || err);
+  host.appendChild(p);
+  try { console.error('[elections]', err); } catch (e) {}
+}
+
+var face = function(name){
+  return '<img class="face" width="22" height="22" src="https://minotar.net/helm/' +
+    encodeURIComponent(name) + '/22.png" alt="" loading="lazy" ' +
+    'onerror="this.style.visibility=\'hidden\'">';
+};
+
+/* --- the ballot ----------------------------------------------------------- */
+
+/* On the ballot. An application nobody has ruled on is not a candidate, and
+   showing one here would make an unapproved name look endorsed. */
+function candsFor(contestId){
+  return (detail.candidates || []).filter(function(c){
+    return c.contest_id === contestId && !c.withdrawn_at && c.status === 'approved'; });
+}
+
+/* Waiting on the Electoral Secretary. Only they ever see these. */
+function pendingFor(contestId){
+  return (detail.candidates || []).filter(function(c){
+    return c.contest_id === contestId && !c.withdrawn_at && c.status === 'applied'; });
+}
+
+function allApplications(){
+  return (detail.candidates || []).filter(function(c){
+    return !c.withdrawn_at && c.status === 'applied'; });
+}
+
+function contestTitle(id){
+  var c = (detail.contests || []).filter(function(x){ return x.id === id; })[0];
+  return c ? c.title : ('Contest ' + id);
+}
+
+/* Standing for a contest, during nominations only.
+ *
+ * Shown per contest rather than as one form, because the two things that make
+ * a candidacy invalid are both per contest: whether you already stand in it,
+ * and whether a House seat belongs to your region. A single form would have to
+ * explain both after the fact; a button that is simply absent explains itself. */
+function standRow(c, cands){
+  if (!detail || detail.election.status !== 'nominations') return '';
+  if (!detail.voter) return '';
+  /* Looked up across every status, not just approved — someone whose
+     application is pending or was rejected needs to see that, and the ballot
+     list they would otherwise be checked against deliberately excludes them. */
+  var mine = (detail.candidates || []).filter(function(x){
+    return x.contest_id === c.id && !x.withdrawn_at && x.player_name === detail.voter.name;
+  })[0];
+
+  /* A House seat is contested by someone who lives in that region. Said here
+     rather than letting the Worker refuse after they have typed a statement. */
+  if (c.kind === 'house' && c.region !== detail.voter.region){
+    if (!mine) return '';
+    return '<p class="note">You stand here, but you now live in ' +
+      esc(detail.voter.region || 'no region') + '.</p>';
+  }
+
+  var word = !mine ? ''
+    : mine.status === 'applied'  ? 'Waiting on the Electoral Secretary.'
+    : mine.status === 'rejected' ? 'Not approved' +
+        (mine.decision_note ? ' — ' + esc(mine.decision_note) : '.')
+    : 'You are on the ballot here.';
+
+  return '<div class="hw-route-controls" style="margin-top:.5rem;display:flex;gap:.4rem;' +
+      'align-items:center;flex-wrap:wrap">' +
+    (mine
+      ? '<button class="btn" type="button" data-withdraw="' + c.id + '">Withdraw</button>' +
+        '<span class="note" style="margin:0;color:' +
+          (mine.status === 'rejected' ? 'var(--red)'
+            : mine.status === 'applied' ? 'var(--gold)' : 'var(--green)') + '">' + word + '</span>'
+      : '<button class="btn" type="button" data-stand="' + c.id + '">Apply to stand</button>' +
+        '<span class="note" style="margin:0">The Electoral Secretary approves candidacies.</span>') +
+    (detail.canManage && pendingFor(c.id).length
+      ? '<span class="note" style="margin:0 0 0 auto;color:var(--gold)">' +
+        pendingFor(c.id).length + ' waiting</span>' : '') +
+    '</div>';
+}
+
+function contestBlock(c){
+  var cands = candsFor(c.id);
+  var picked = marks[c.id] || [];
+  var voting = detail.election.status === 'voting' && detail.voter && !detail.voter.hasVoted;
+  var closed = detail.election.status === 'closed';
+
+  var result = null;
+  if (tally) result = (tally.contests || []).filter(function(r){ return r.contestId === c.id; })[0];
+
+  var rows = cands.length ? cands.map(function(cand){
+    var on = picked.indexOf(cand.id) >= 0;
+    var votes = null, isWin = false;
+    if (result){
+      var r = (result.results || []).filter(function(x){ return x.candidate_id === cand.id; })[0];
+      votes = r ? r.votes : 0;
+      isWin = (result.winners || []).some(function(w){ return w.candidate_id === cand.id; });
+    }
+    return '<div class="cand' + (on ? ' on' : '') + (voting ? '' : ' locked') + '"' +
+      (voting ? ' data-contest="' + c.id + '" data-cand="' + cand.id + '"' : '') + '>' +
+      face(cand.player_name) +
+      '<span class="nm">' + esc(cand.player_name) + '</span>' +
+      (cand.party ? '<span class="party">' + esc(cand.party) + '</span>' : '') +
+      (cand.statement ? '<span class="st">' + esc(cand.statement) + '</span>' : '<span class="st"></span>') +
+      (votes !== null ? '<span class="votes">' + num(votes) + '</span>' : '') +
+      (isWin ? '<span class="win">elected</span>' : '') +
+      '</div>';
+  }).join('')
+    /* An empty contest is a problem, not a blank. Said in red rather than
+       shown as nothing, because nothing looks like a rendering fault. */
+    : '<div class="cand-none">Nobody is standing for this ' +
+      (c.seats > 1 ? 'contest' : 'office') + '.</div>';
+
+  var over = picked.length > c.seats;
+  return '<div class="contest ' + (closed ? 'done' : esc(c.kind)) + '">' +
+    '<div class="contest-head"><h3>' + esc(c.title) + '</h3>' +
+      '<span class="seats">' + c.seats + ' seat' + (c.seats === 1 ? '' : 's') +
+        ' · ' + cands.length + ' standing</span>' +
+      (voting ? '<span class="picked' + (over ? ' over' : '') + '">' +
+        picked.length + ' of ' + c.seats + ' marked</span>' : '') +
+      (result && result.tiedAt !== null && result.tiedAt !== undefined
+        ? '<span class="picked over">tied on ' + num(result.tiedAt) + ' — undecided</span>' : '') +
+    '</div><div class="cands">' + rows + '</div>' + standRow(c, cands) + '</div>';
+}
+
+function renderBallot(){
+  var e = detail.election;
+  var out = '';
+
+  if (e.status === 'voting' && detail.voter && detail.voter.hasVoted){
+    out += '<div class="receipt"><div style="font-family:var(--data);font-size:.7rem;' +
+      'color:var(--text-low)">Your ballot is cast. Keep this receipt — it is how you ' +
+      'confirm it was counted as you cast it, once the record is published.</div>' +
+      '<span class="code">' + esc(detail.voter.receipt) + '</span>' +
+      '<div class="note">Cast ' + esc(when(detail.voter.castAt)) + '</div></div>';
+  } else if (e.status === 'voting' && !detail.voter){
+    out += '<p class="empty" style="text-align:left;color:var(--red);border-color:var(--red-dim)">' +
+      esc(detail.eligibility) + '</p>';
+  }
+
+  var contests = detail.contests || [];
+  var offices = contests.filter(function(c){ return c.kind === 'office'; });
+  var house = contests.filter(function(c){ return c.kind === 'house'; });
+
+  out += '<div class="section-head"><h2>Offices of State</h2>' +
+    '<span class="meta">' + offices.length + ' contests, one seat each</span></div>' +
+    offices.map(contestBlock).join('');
+
+  out += '<div class="section-head"><h2>House of Representatives</h2>' +
+    '<span class="meta">' + house.reduce(function(a, c){ return a + c.seats; }, 0) +
+    ' seats across ' + house.length + ' regions</span></div>' +
+    house.map(contestBlock).join('');
+
+  return out;
+}
+
+function renderCastBar(){
+  var e = detail.election;
+  if (e.status !== 'voting' || !detail.voter || detail.voter.hasVoted) return '';
+  var contests = detail.contests || [];
+  var filled = contests.filter(function(c){ return (marks[c.id] || []).length; }).length;
+  var over = contests.some(function(c){ return (marks[c.id] || []).length > c.seats; });
+  return '<div class="castbar">' +
+    '<span class="prog"><b>' + filled + '</b> of ' + contests.length + ' contests marked' +
+      (over ? ' · <span style="color:var(--red)">too many marked somewhere</span>' : '') + '</span>' +
+    '<button class="btn" type="button" id="castBtn"' + (over ? ' disabled' : '') + '>Cast ballot</button>' +
+    '<span class="note" style="margin:0">You may leave contests blank. ' +
+      'A ballot can only be cast once.</span></div>';
+}
+
+/* --- the regional map ----------------------------------------------------
+   Built from the region polygons the main map already saves, projected into a
+   fixed viewBox. It is a picture of where the regions are and how their seats
+   stand — deliberately not interactive, because this page has one action and
+   it is not "explore the map".
+   --------------------------------------------------------------------------- */
+function renderRegionMap(){
+  if (!regions || !regions.features || !regions.features.length) return '';
+  var feats = regions.features.filter(function(f){
+    return f && f.geometry && f.properties && !f.properties.kind &&
+      (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon');
+  });
+  if (!feats.length) return '';
+
+  /* One pass for the bounding box of everything, so the projection below is
+     the same for every region — computing it per region would draw each one
+     filling the whole box. */
+  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  var rings = [];
+  feats.forEach(function(f){
+    var polys = f.geometry.type === 'MultiPolygon'
+      ? f.geometry.coordinates : [f.geometry.coordinates];
+    polys.forEach(function(poly){
+      var ring = (poly[0] || []);
+      if (ring.length < 3) return;
+      ring.forEach(function(pt){
+        if (pt[0] < minX) minX = pt[0];
+        if (pt[0] > maxX) maxX = pt[0];
+        if (pt[1] < minY) minY = pt[1];
+        if (pt[1] > maxY) maxY = pt[1];
+      });
+      rings.push({ name: f.properties.name || 'Region', ring: ring,
+                   fill: f.properties.fillColor || null });
+    });
+  });
+  if (!rings.length || !isFinite(minX)) return '';
+
+  var W = 640, H = 420, pad = 26;
+  var spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
+  var scale = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY);
+  var ox = (W - spanX * scale) / 2, oy = (H - spanY * scale) / 2;
+  var px = function(p){
+    return [(p[0] - minX) * scale + ox, (p[1] - minY) * scale + oy];
+  };
+
+  /* Seats and candidates per region, so the map says something the table
+     below does not: WHERE the gaps are. */
+  var byRegion = {};
+  (detail.contests || []).forEach(function(c){
+    if (c.kind !== 'house' || !c.region) return;
+    byRegion[c.region] = { seats: c.seats, cands: candsFor(c.id).length };
+  });
+
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Regions and their candidates">';
+  rings.forEach(function(r){
+    var info = byRegion[r.name];
+    /* Shaded by whether the region has enough candidates to fill its seats.
+       A region with four seats and two candidates is a problem visible now,
+       while nominations are open — not after they close. */
+    var fill = !info ? '#2a241c'
+      : info.cands === 0 ? 'rgba(207,32,41,.30)'
+      : info.cands < info.seats ? 'rgba(237,185,18,.28)'
+      : 'rgba(24,157,77,.26)';
+    var stroke = !info ? '#3a3229'
+      : info.cands === 0 ? '#cf2029'
+      : info.cands < info.seats ? '#edb912' : '#189d4d';
+    var d = r.ring.map(function(p, i){
+      var q = px(p);
+      return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1);
+    }).join('') + 'Z';
+    svg += '<path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.2"/>';
+
+    // Label at the ring's centroid, which is close enough for a shape this size.
+    var cx = 0, cy = 0;
+    r.ring.forEach(function(p){ var q = px(p); cx += q[0]; cy += q[1]; });
+    cx /= r.ring.length; cy /= r.ring.length;
+    svg += '<text class="rlabel" x="' + cx.toFixed(1) + '" y="' + cy.toFixed(1) +
+      '" text-anchor="middle">' + esc(r.name) + '</text>';
+    if (info){
+      svg += '<text class="rseats" x="' + cx.toFixed(1) + '" y="' + (cy + 11).toFixed(1) +
+        '" text-anchor="middle">' + info.cands + ' standing · ' + info.seats +
+        ' seat' + (info.seats === 1 ? '' : 's') + '</text>';
+    }
+  });
+  svg += '</svg>';
+
+  return '<div class="section-head"><h2>The regions</h2>' +
+    '<span class="meta">shaded by whether the seats can be filled</span></div>' +
+    '<div class="regmap">' + svg +
+      '<div class="regmap-key">' +
+        '<span><i style="background:rgba(24,157,77,.26);border:1px solid #189d4d"></i>enough candidates</span>' +
+        '<span><i style="background:rgba(237,185,18,.28);border:1px solid #edb912"></i>fewer than seats</span>' +
+        '<span><i style="background:rgba(207,32,41,.30);border:1px solid #cf2029"></i>nobody standing</span>' +
+      '</div></div>';
+}
+
+/* --- statistics, Electoral Secretary only --------------------------------- */
+
+function statTable(rows, label){
+  if (!rows || !rows.length) return '<p class="empty">Nothing recorded.</p>';
+  var max = Math.max.apply(null, rows.map(function(r){ return r.turnout; })) || 100;
+  return '<table><thead><tr><th>' + esc(label) + '</th>' +
+    '<th style="text-align:right">Eligible</th><th style="text-align:right">Voted</th>' +
+    '<th style="text-align:right">Turnout</th></tr></thead><tbody>' +
+    rows.map(function(r){
+      return '<tr' + (r.ballots === 0 ? ' class="zero"' : '') + '>' +
+        '<td class="name">' + esc(r.name) + '</td>' +
+        '<td class="n">' + num(r.eligible) + '</td>' +
+        '<td class="n">' + num(r.ballots) + '</td>' +
+        '<td class="n tbar"><span style="width:' +
+          Math.round((r.turnout / max) * 100) + '%"></span>' +
+          '<b>' + r.turnout.toFixed(1) + '%</b></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function renderStats(){
+  if (!stats) return '';
+  var s = stats;
+
+  var best = s.byRegion.length ? s.byRegion[0] : null;
+  var worst = s.byRegion.length ? s.byRegion[s.byRegion.length - 1] : null;
+
+  var out = '<div class="section-head"><h2>Statistics</h2>' +
+    '<span class="meta">who voted and from where — never what they voted</span></div>';
+
+  out += '<div class="stats">' +
+    '<div class="stat good"><span class="n">' + s.turnout.toFixed(1) + '%</span>' +
+      '<span class="k">Turnout</span></div>' +
+    '<div class="stat"><span class="n">' + num(s.ballots) + '</span>' +
+      '<span class="k">Ballots of ' + num(s.electorate) + '</span></div>' +
+    '<div class="stat ' + (s.emptyContests ? 'bad' : '') + '"><span class="n">' +
+      num(s.emptyContests) + '</span><span class="k">Contests with nobody</span></div>' +
+    '<div class="stat ' + (s.uncontestedSeats ? 'warn' : '') + '"><span class="n">' +
+      num(s.uncontestedSeats) + '</span><span class="k">Uncontested</span></div>' +
+    '</div>';
+
+  if (best && worst && best.name !== worst.name){
+    out += '<p class="note" style="margin:0 0 1rem">Strongest ' +
+      esc(best.name) + ' at ' + best.turnout.toFixed(1) + '% · weakest ' +
+      esc(worst.name) + ' at ' + worst.turnout.toFixed(1) + '%' +
+      (s.unassigned ? ' · ' + num(s.unassigned) +
+        ' citizen(s) have no region, so they can vote but cannot stand for a seat' : '') +
+      '</p>';
+  }
+
+  out += '<div class="tabs">' +
+    ['region','town','hours','contests'].map(function(t){
+      var label = { region:'By region', town:'By town', hours:'When they voted', contests:'Contests' }[t];
+      return '<span class="tab' + (statTab === t ? ' on' : '') + '" data-stat="' + t + '">' +
+        label + '</span>';
+    }).join('') + '</div>';
+
+  if (statTab === 'region') out += statTable(s.byRegion, 'Region');
+  else if (statTab === 'town') out += statTable(s.byTown, 'Town');
+  else if (statTab === 'hours'){
+    if (!s.byHour.length) out += '<p class="empty">No ballots cast yet.</p>';
+    else {
+      var peak = Math.max.apply(null, s.byHour.map(function(h){ return h.ballots; })) || 1;
+      out += '<div class="hours">' + s.byHour.map(function(h){
+        return '<div class="h" style="height:' + Math.round((h.ballots / peak) * 100) + '%" ' +
+          'title="' + h.ballots + ' ballot(s) in hour ' + h.hour + '"></div>';
+      }).join('') + '</div><div class="hours-x"><span>hour ' + s.byHour[0].hour +
+        '</span><span>peak ' + peak + '</span><span>hour ' +
+        s.byHour[s.byHour.length - 1].hour + '</span></div>' +
+        '<p class="note">Hours since polls opened. A flat tail means the vote is over, ' +
+        'not that people are still deciding.</p>';
+    }
+  } else {
+    out += '<table><thead><tr><th>Contest</th><th style="text-align:right">Seats</th>' +
+      '<th style="text-align:right">Standing</th><th>State</th></tr></thead><tbody>' +
+      s.contests.map(function(c){
+        var state = c.empty ? '<span style="color:var(--red)">nobody standing</span>'
+          : c.uncontested ? '<span style="color:var(--gold)">uncontested</span>'
+          : '<span style="color:var(--green)">contested</span>';
+        return '<tr><td class="name">' + esc(c.title) + '</td>' +
+          '<td class="n">' + c.seats + '</td><td class="n">' + c.candidates + '</td>' +
+          '<td>' + state + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  return out;
+}
+
+/* --- admin ---------------------------------------------------------------- */
+
+/* The queue. Every application across every contest in one place, because
+   that is how the job is actually done — you sit down and clear them, you do
+   not hunt through thirty contests looking for the one with a new name in it.
+   The contest is named on each row so the list still makes sense out of
+   context. */
+function renderApplications(){
+  var pending = allApplications();
+  var decided = (detail.candidates || []).filter(function(c){
+    return c.status === 'rejected' && !c.withdrawn_at; });
+
+  if (!pending.length && !decided.length){
+    return '<p class="note" style="margin:.4rem 0 0">No applications waiting.</p>';
+  }
+
+  var row = function(c, waiting){
+    var who = c.mc_name || c.player_name;
+    return '<div class="cand" style="cursor:default">' +
+      face(who) +
+      '<span class="nm">' + esc(who) + '</span>' +
+      (c.discord_name ? '<span class="party">' + esc(c.discord_name) + '</span>' : '') +
+      (c.party ? '<span class="party">' + esc(c.party) + '</span>' : '') +
+      '<span class="st">' + esc(contestTitle(c.contest_id)) +
+        (c.statement ? ' · ' + esc(c.statement) : '') + '</span>' +
+      (waiting
+        ? '<span style="display:flex;gap:.3rem;margin-left:auto">' +
+          '<button class="btn" type="button" data-approve="' + c.id + '">Approve</button>' +
+          '<button class="btn" type="button" data-reject="' + c.id + '">Reject</button></span>'
+        : '<span style="margin-left:auto;display:flex;gap:.3rem;align-items:center">' +
+          '<span class="note" style="margin:0;color:var(--red)">rejected' +
+            (c.decision_note ? ' — ' + esc(c.decision_note) : '') + '</span>' +
+          '<button class="btn" type="button" data-approve="' + c.id + '">Approve after all</button></span>') +
+      '</div>';
+  };
+
+  return (pending.length
+      ? '<div class="nc-officer-label" style="margin-top:.5rem">Waiting · ' + pending.length + '</div>' +
+        '<div class="cands">' + pending.map(function(c){ return row(c, true); }).join('') + '</div>'
+      : '') +
+    (decided.length
+      ? '<div class="nc-officer-label" style="margin-top:.7rem">Rejected · ' + decided.length + '</div>' +
+        '<div class="cands">' + decided.map(function(c){ return row(c, false); }).join('') + '</div>'
+      : '');
+}
+
+function renderAdmin(){
+  if (!detail || !detail.canManage) return '';
+  var e = detail.election;
+  var next = { draft:'nominations', nominations:'voting', voting:'closed' }[e.status];
+  var label = { nominations:'Open nominations', voting:'Open voting', closed:'Close the election' }[next];
+  var locked = e.status === 'voting' || e.status === 'closed';
+
+  return '<section class="admin"><h2>Electoral Secretary</h2>' +
+    '<p class="hint">Only the Electoral Secretary sees this. Closing is one-way — ' +
+    'a closed election cannot be reopened, because a result that can be seen and ' +
+    'then added to is not a result.</p>' +
+    (next
+      ? '<p style="margin:0 0 .8rem"><button class="btn" type="button" id="advance">' +
+        esc(label) + '</button>' +
+        '<span class="note" style="margin-left:.6rem">Or wait — the schedule does this ' +
+        'on its own, checked every minute.</span></p>'
+      : '<p class="note" style="margin:0 0 .8rem">This election is closed.</p>') +
+
+    '<div class="section-head" style="margin:1rem 0 .4rem"><h2 style="font-size:var(--step-0)">' +
+      'Candidacies</h2>' +
+      '<span class="meta">' + (locked
+        ? 'the ballot is fixed now'
+        : 'approving grants the campaigning role') + '</span></div>' +
+    (locked
+      ? '<p class="note" style="margin:0">Voting has started, so the ballot cannot change. ' +
+        'Earlier voters would have seen a different list from later ones.</p>'
+      : renderApplications()) +
+
+    '<div class="section-head" style="margin:1.2rem 0 .4rem"><h2 style="font-size:var(--step-0)">' +
+      'Campaigning role</h2></div>' +
+    '<div class="fields">' +
+      '<div class="f" style="flex:1 1 14rem"><label for="roleId">Discord role ID</label>' +
+        '<input id="roleId" inputmode="numeric" placeholder="1445914687635198175" ' +
+        'value="' + esc(detail.candidateRoleId || '') + '"></div>' +
+      '<button class="btn" type="button" id="saveRole">Save</button>' +
+    '</div>' +
+    '<p class="note">Given on approval and taken back from everyone when voting opens — ' +
+      'campaigning is over by then. Right-click the role in Discord with developer mode ' +
+      'on and choose Copy ID.</p>' +
+    '<p class="msg" id="adminMsg"></p></section>';
+}
+
+function renderNewElection(){
+  return '<section class="admin"><h2>Call an election</h2>' +
+    '<p class="hint">Builds the whole ballot: every office, plus one contest per region ' +
+    'carrying that region\'s seat count as it stands right now. Those counts are frozen ' +
+    'into the election — apportionment moves as people join and leave, and a House whose ' +
+    'seat counts changed halfway through its own election would be indefensible.' +
+    '<br><br>The three dates run it for you: nominations open, voting opens, voting closes. ' +
+    'Each is checked every minute, so you set them once and stop thinking about it. Leave ' +
+    'any blank to move that step by hand instead.</p>' +
+    '<div class="fields">' +
+      '<div class="f" style="flex:1 1 14rem"><label for="eName">Name</label>' +
+        '<input id="eName" placeholder="General election, Meskerem 2026" maxlength="80"></div>' +
+      '<div class="f"><label for="eNoms">Nominations open</label>' +
+        '<input id="eNoms" type="datetime-local"></div>' +
+      '<div class="f"><label for="eOpens">Voting opens</label>' +
+        '<input id="eOpens" type="datetime-local"></div>' +
+      '<div class="f"><label for="eCloses">Voting closes</label>' +
+        '<input id="eCloses" type="datetime-local"></div>' +
+      '<button class="btn" type="button" id="createBtn">Create</button>' +
+    '</div><p class="msg" id="createMsg"></p></section>';
+}
+
+/* --- render --------------------------------------------------------------- */
+
+function render(){
+  var out = '';
+
+  if (!detail){
+    out += '<div class="section-head"><h2>Elections</h2>' +
+      '<span class="meta">' + (list && list.elections ? list.elections.length : 0) + ' on record</span></div>';
+    out += (list && list.elections && list.elections.length)
+      ? '<table><thead><tr><th>Election</th><th>Status</th>' +
+        '<th style="text-align:right">Ballots</th><th></th></tr></thead><tbody>' +
+        list.elections.map(function(e){
+          return '<tr><td class="name">' + esc(e.name) + '</td>' +
+            '<td>' + esc(e.status) + '</td><td class="n">' + num(e.ballots) + '</td>' +
+            '<td><button class="btn" type="button" data-open="' + e.id + '" ' +
+            'style="padding:.24rem .6rem;font-size:.68rem">Open</button></td></tr>';
+        }).join('') + '</tbody></table>'
+      : '<p class="empty">No election has been called yet.</p>';
+    if (list && list.canManage) out += renderNewElection();
+    $('body').innerHTML = out;
+    wire();
+    return;
+  }
+
+  var e = detail.election;
+  var det = e.status === 'voting' && e.closes_at ? 'closes ' + when(e.closes_at)
+    : e.status === 'nominations' ? 'anyone may stand'
+    : e.status === 'closed' ? 'closed ' + when(e.closed_at)
+    : 'not yet open';
+
+  out += '<p style="margin:0 0 .9rem"><button class="btn" type="button" id="backList" ' +
+    'style="padding:.26rem .7rem;font-size:.7rem">&#8592; All elections</button></p>';
+
+  out += '<div class="phase ' + esc(e.status) + '">' +
+    '<span class="ph">' + esc(e.name) + '</span>' +
+    '<span class="det">' + esc(e.status) + ' · ' + esc(det) + '</span>' +
+    (detail.voter && detail.voter.region
+      ? '<span class="det">you vote from ' + esc(detail.voter.region) + '</span>' : '') +
+    '</div>';
+
+  if (e.status === 'nominations' && detail.voter){
+    out += '<p class="note" style="margin:0 0 1rem">Nominations are open. Stand for a ' +
+      'contest by picking it below — House seats are limited to the region you live in.</p>';
+  }
+
+  out += renderRegionMap();
+  out += renderBallot();
+  out += renderCastBar();
+  out += renderStats();
+  out += renderAdmin();
+
+  $('body').innerHTML = out;
+  wire();
+}
+
+function wire(){
+  document.querySelectorAll('[data-open]').forEach(function(b){
+    b.addEventListener('click', function(){ electionId = Number(b.dataset.open); loadDetail(); });
+  });
+  var back = $('backList');
+  if (back) back.addEventListener('click', function(){
+    electionId = null; detail = null; tally = null; stats = null; marks = {}; render();
+  });
+
+  /* A click toggles the candidate. Over-marking is allowed while filling in —
+     the count turns red and the cast button disables — rather than silently
+     refusing the click, which reads as the page being broken. */
+  document.querySelectorAll('[data-cand]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var cid = Number(el.dataset.contest), kid = Number(el.dataset.cand);
+      var picked = marks[cid] || (marks[cid] = []);
+      var i = picked.indexOf(kid);
+      if (i >= 0) picked.splice(i, 1); else picked.push(kid);
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-stat]').forEach(function(el){
+    el.addEventListener('click', function(){ statTab = el.dataset.stat; render(); });
+  });
+
+  document.querySelectorAll('[data-stand]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var party = (window.prompt('Party, if any. Leave blank to stand as an independent.') || '').trim();
+      var statement = (window.prompt('A line about why, shown next to your name. Optional.') || '').trim();
+      try {
+        await api('/api/elections/stand', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ contestId: Number(b.dataset.stand), party: party, statement: statement }) });
+        loadDetail();
+      } catch (e){ window.alert('Could not stand: ' + e.message); }
+    });
+  });
+
+  document.querySelectorAll('[data-withdraw]').forEach(function(b){
+    b.addEventListener('click', async function(){
+      if (!window.confirm('Withdraw from this contest?\n\nYou can stand again while ' +
+        'nominations are open.')) return;
+      try {
+        await api('/api/elections/stand', { method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ contestId: Number(b.dataset.withdraw), withdraw: true }) });
+        loadDetail();
+      } catch (e){ window.alert('Could not withdraw: ' + e.message); }
+    });
+  });
+
+  var cast = $('castBtn');
+  if (cast) cast.addEventListener('click', castBallot);
+
+  var adv = $('advance');
+  if (adv) adv.addEventListener('click', advance);
+
+  var decide = async function(id, decision, note){
+    try {
+      var r = await api('/api/elections/decide', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: id, decision: decision, note: note || '' }) });
+      /* The role is reported separately because it can fail on its own — the
+         decision is recorded either way, and a secretary needs to know which
+         of the two happened rather than assuming both did. */
+      if (r.role && !r.role.ok){
+        window.alert('Decision saved, but the campaigning role did not change: ' +
+          r.role.detail + '\n\nSet it by hand in Discord.');
+      }
+      loadDetail();
+    } catch (e){ window.alert('Could not record that: ' + e.message); }
+  };
+
+  document.querySelectorAll('[data-approve]').forEach(function(b){
+    b.addEventListener('click', function(){ decide(Number(b.dataset.approve), 'approved'); });
+  });
+  document.querySelectorAll('[data-reject]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var note = (window.prompt('Why? Shown to them on their own application.') || '').trim();
+      decide(Number(b.dataset.reject), 'rejected', note);
+    });
+  });
+
+  var saveRole = $('saveRole');
+  if (saveRole) saveRole.addEventListener('click', async function(){
+    var msg = $('adminMsg');
+    try {
+      await api('/api/elections/settings', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ candidateRoleId: $('roleId').value.trim() }) });
+      if (msg){ msg.textContent = 'Campaigning role saved.'; msg.className = 'msg ok'; }
+      loadDetail();
+    } catch (e){ if (msg){ msg.textContent = e.message; msg.className = 'msg err'; } }
+  });
+
+  var create = $('createBtn');
+  if (create) create.addEventListener('click', createElection);
+}
+
+async function castBallot(){
+  var contests = detail.contests || [];
+  var filled = contests.filter(function(c){ return (marks[c.id] || []).length; }).length;
+  if (!window.confirm('Cast your ballot?\n\n' + filled + ' of ' + contests.length +
+    ' contests marked. This cannot be undone or changed.')) return;
+  try {
+    var r = await api('/api/elections/vote', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ electionId: detail.election.id, choices: marks })
+    });
+    marks = {};
+    window.alert('Ballot cast.\n\nYour receipt is ' + r.receipt +
+      '\n\nKeep it — it is how you confirm your ballot was counted as you cast it.');
+    loadDetail();
+  } catch (e){ window.alert('Could not cast: ' + e.message); }
+}
+
+async function advance(){
+  var e = detail.election;
+  var next = { draft:'nominations', nominations:'voting', voting:'closed' }[e.status];
+  if (next === 'closed' && !window.confirm(
+    'Close this election?\n\nThis is one-way. The result becomes visible and the ' +
+    'ballot record is published. Nobody can vote afterwards.')) return;
+  var msg = $('adminMsg');
+  try {
+    await api('/api/elections/status', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: e.id, status: next })
+    });
+    loadDetail();
+  } catch (err){ if (msg){ msg.textContent = err.message; msg.className = 'msg err'; } }
+}
+
+async function createElection(){
+  var msg = $('createMsg');
+  var name = $('eName').value.trim();
+  if (!name){ msg.textContent = 'Give the election a name.'; msg.className = 'msg err'; return; }
+  var iso = function(v){ return v ? new Date(v).toISOString() : null; };
+  try {
+    var r = await api('/api/elections/create', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: name,
+        nominationsOpenAt: iso($('eNoms').value),
+        opensAt: iso($('eOpens').value),
+        closesAt: iso($('eCloses').value),
+      })
+    });
+    msg.textContent = 'Created with ' + r.contests + ' contests. Open nominations when ready.';
+    msg.className = 'msg ok';
+    electionId = r.id;
+    loadDetail();
+  } catch (e){
+    msg.textContent = e.code === 'no_seats'
+      ? e.message + ' Recalculate House seats on the government page first.'
+      : e.message;
+    msg.className = 'msg err';
+  }
+}
+
+/* --- load ----------------------------------------------------------------- */
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/elections.html') + '">Sign in with Discord</a>';
+  }
+}
+
+async function loadDetail(){
+  detail = await api('/api/elections/detail?id=' + electionId);
+  marks = {};
+
+  /* Each of these is optional and independently allowed to fail: the tally is
+     for everyone, the stats are for the Electoral Secretary, and the regions
+     need citizenship. A 401 on any one of them must not take the ballot down
+     with it. */
+  try { tally = await api('/api/elections/tally?id=' + electionId); } catch (_e) { tally = null; }
+  try { stats = await api('/api/elections/stats?id=' + electionId); } catch (_e) { stats = null; }
+  /* Read back through the settings endpoint, which returns the current value
+     on any call — no separate GET to keep in step with the POST. */
+  if (detail.canManage){
+    try {
+      var r = await api('/api/elections/settings', { method:'POST',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify({}) });
+      detail.candidateRoleId = r.candidateRoleId || '';
+    } catch (_e) { detail.candidateRoleId = ''; }
+  }
+  if (!regions){
+    try {
+      regions = await (await fetch(API + '/regions', { credentials:'include' })).json();
+    } catch (_e) { regions = null; }
+  }
+
+  render();
+  $('stamp').textContent = detail.election.status;
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  try { renderAuth(); } catch (e) { /* header only */ }
+
+  try {
+    list = await api('/api/elections');
+  } catch (e){
+    if (e.status === 401){
+      $('body').innerHTML = '<p class="empty">Sign in as a verified citizen of Ethiopia ' +
+        'to see elections.</p>';
+      $('stamp').textContent = 'Not signed in';
+      return;
+    }
+    throw e;
+  }
+
+  /* Straight into the live one. Someone opening this page during a vote is
+     almost certainly here to vote, not to browse a list of one. */
+  var live = (list.elections || []).filter(function(e){
+    return e.status === 'voting' || e.status === 'nominations'; })[0];
+  if (live){ electionId = live.id; await loadDetail(); return; }
+
+  render();
+  $('stamp').textContent = (list.elections || []).length + ' on record';
+}
+
+load().catch(fatal);
+</script>
+<script src="assets/pagetext.js?v=1"></script>
+<script src="assets/election-banner.js?v=1"></script>
+</body>
+</html>
 

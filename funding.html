@@ -117,6 +117,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
   <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
 </div>
 
+<script src="assets/session.js?v=1"></script>
 <script>
 'use strict';
 var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
@@ -496,11 +497,37 @@ async function loadGrants(){
   }
 }
 
+/* The signed-in chip: Discord avatar, Minecraft name, tier.
+ *
+ * Both names, not one. The Discord account is who you are to the government
+ * and the Minecraft account is who you are in the world — this system's whole
+ * premise is that those are one verified identity, so showing only half of it
+ * makes people wonder which account they are actually signed in as. The
+ * avatar is the fastest way to answer that without reading anything. */
+function ethiopiaProfileChip(me){
+  var face = me.avatarUrl
+    ? '<img src="' + esc(me.avatarUrl) + '" alt="" width="18" height="18" ' +
+      'style="width:18px;height:18px;border-radius:50%;object-fit:cover;' +
+      'vertical-align:-.2rem;margin-right:.35rem" ' +
+      'onerror="this.style.display=\'none\'">'
+    : '';
+  var head = me.mcName
+    ? '<img src="https://minotar.net/helm/' + encodeURIComponent(me.mcName) + '/18.png" ' +
+      'alt="" width="18" height="18" style="width:18px;height:18px;border-radius:2px;' +
+      'image-rendering:pixelated;vertical-align:-.2rem;margin-right:.35rem" ' +
+      'onerror="this.style.display=\'none\'">'
+    : '';
+  var who = me.mcName
+    ? esc(me.mcName) + (me.discordName ? ' \u00b7 ' + esc(me.discordName) : '')
+    : esc(me.discordName || 'Signed in');
+  return face + head + who + ' \u00b7 ' + esc(me.tier);
+}
+
 function renderAuth(){
   var slot = $('authSlot');
   if (me && me.signedIn){
     slot.innerHTML = '<button class="btn" type="button" id="signout">' +
-      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+      ethiopiaProfileChip(me) + '</button>';
     $('signout').addEventListener('click', async function(){
       try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
       location.reload();
@@ -545,4 +572,3 @@ load().catch(fatal);
 <script src="assets/election-banner.js?v=1"></script>
 </body>
 </html>
-

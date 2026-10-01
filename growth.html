@@ -152,7 +152,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
 
   <header class="masthead">
     <h1 data-slot="title">Growth</h1>
-    <p class="sub" data-slot="subtitle">How the nation has risen and fallen</p>
+    <p class="sub" data-slot="subtitle">Statistics for Ethiopia</p>
   </header>
 
   <div id="body"><p class="empty">Loading&#8230;</p></div>
@@ -520,7 +520,7 @@ function render(){
   if (online){
     var missing = online.expectedSamples
       ? Math.round((1 - (online.samples / online.expectedSamples)) * 100) : 0;
-    out += '<div class="chartwrap"><h3>Who is actually on</h3>' +
+    out += '<div class="chartwrap"><h3>Online Count</h3>' +
       '<p class="cap">Ethiopians in game, sampled every minute' +
         (online.bucketMinutes > 1
           ? ' · averaged into ' + online.bucketMinutes + '-minute points' : '') +
@@ -544,13 +544,13 @@ function render(){
   }
 
   out += '<div class="chartwrap"><h3>Residents</h3>' +
-      '<p class="cap">Everyone living in an Ethiopian town, day by day.</p>' +
+      '<p class="cap">Total active resident count chart</p>' +
       '<canvas id="cPeople"></canvas></div>' +
     '<div class="chartwrap"><h3>Land</h3>' +
-      '<p class="cap">Total chunks claimed across every town.</p>' +
+      '<p class="cap">Total chunk count graph</p>' +
       '<canvas id="cLand"></canvas></div>' +
     '<div class="chartwrap"><h3>Towns</h3>' +
-      '<p class="cap">How many towns fly the flag.</p>' +
+      '<p class="cap">Total town count graph</p>' +
       '<canvas id="cTowns"></canvas></div>';
 
   out += '<div class="section-head"><h2>Towns</h2>' +

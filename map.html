@@ -1777,6 +1777,8 @@ const COLORS = {
 // broken page load entirely. Caught and fixed by checking declaration
 // order, not assumed.
 let showClaims = true;
+// Must be declared BEFORE showTerrain below, which reads it.
+const IS_SMALL_SCREEN = window.matchMedia('(max-width: 820px)').matches;
 /* OFF on a phone.
  *
  * Deferring it to first open was not enough: the crash is not about WHEN the
@@ -1801,7 +1803,6 @@ let colorByActivity = false;
 // Declared here, ABOVE MapController, not down with MAX_CLAIM_TOWNS where it
 // used to live: buildTerrainLayer() now reads it, and that runs during map
 // construction. A later declaration would be a temporal-dead-zone crash.
-const IS_SMALL_SCREEN = window.matchMedia('(max-width: 820px)').matches;
 let showRegions = true;      // region polygons layer (Ethiopia view only)
 let showHighways = true;     // ice highway lines + stations
 let showNationClaims = true; // admin-drawn nation border areas

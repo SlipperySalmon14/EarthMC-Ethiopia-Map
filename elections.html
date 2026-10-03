@@ -197,6 +197,19 @@ var when = function(s){
 };
 
 var me = null, list = null, detail = null, tally = null, stats = null, regions = null;
+
+/* An ISO instant rendered for a datetime-local input, which wants LOCAL time
+   with no zone marker. Feeding it the raw ISO string shows the UTC wall-clock
+   as though it were local — so a secretary in Addis would set 19:00 and read
+   back 16:00, and assume the save failed. */
+function localDt(iso){
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d)) return '';
+  var p = function(n){ return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+    'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
 var electionId = null, statTab = 'region';
 
 /* The ballot being filled in: contestId -> array of candidate ids. Held in
@@ -397,6 +410,9 @@ function renderCastBar(){
    stand — deliberately not interactive, because this page has one action and
    it is not "explore the map".
    --------------------------------------------------------------------------- */
+var regView = null;        // {x, y, w, h} in SVG units; null = fit everything
+var regFit = null;         // the full extent, which is also the zoom-out floor
+
 function renderRegionMap(){
   if (!regions || !regions.features || !regions.features.length) return '';
   var feats = regions.features.filter(function(f){
@@ -405,10 +421,11 @@ function renderRegionMap(){
   });
   if (!feats.length) return '';
 
-  /* One pass for the bounding box of everything, so the projection below is
-     the same for every region — computing it per region would draw each one
-     filling the whole box. */
-  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  /* Saved geometry is in PLANE space: [worldX, -worldZ]. SVG y grows downward
+     and so does world Z, so the y source is -plane[1]. Using plane[1]
+     directly renders the whole country upside down, which is what it was
+     doing. */
+  var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
   var rings = [];
   feats.forEach(function(f){
     var polys = f.geometry.type === 'MultiPolygon'
@@ -416,75 +433,197 @@ function renderRegionMap(){
     polys.forEach(function(poly){
       var ring = (poly[0] || []);
       if (ring.length < 3) return;
-      ring.forEach(function(pt){
-        if (pt[0] < minX) minX = pt[0];
-        if (pt[0] > maxX) maxX = pt[0];
-        if (pt[1] < minY) minY = pt[1];
-        if (pt[1] > maxY) maxY = pt[1];
+      var pts = ring.map(function(pt){ return [pt[0], -pt[1]]; });   // x, worldZ
+      pts.forEach(function(p){
+        if (p[0] < minX) minX = p[0];
+        if (p[0] > maxX) maxX = p[0];
+        if (p[1] < minZ) minZ = p[1];
+        if (p[1] > maxZ) maxZ = p[1];
       });
-      rings.push({ name: f.properties.name || 'Region', ring: ring,
-                   fill: f.properties.fillColor || null });
+      rings.push({ name: f.properties.name || 'Region', pts: pts });
     });
   });
   if (!rings.length || !isFinite(minX)) return '';
 
-  var W = 640, H = 420, pad = 26;
-  var spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
-  var scale = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY);
-  var ox = (W - spanX * scale) / 2, oy = (H - spanY * scale) / 2;
-  var px = function(p){
-    return [(p[0] - minX) * scale + ox, (p[1] - minY) * scale + oy];
-  };
+  var pad = (Math.max(maxX - minX, maxZ - minZ) || 1) * 0.06;
+  minX -= pad; maxX += pad; minZ -= pad; maxZ += pad;
+  regFit = { x: minX, y: minZ, w: maxX - minX, h: maxZ - minZ };
+  if (!regView) regView = Object.assign({}, regFit);
 
-  /* Seats and candidates per region, so the map says something the table
-     below does not: WHERE the gaps are. */
+  /* Terrain, from the same squaremap tiles the main map uses. One folder is
+     chosen so the whole country is covered by a handful of images rather than
+     a grid of hundreds — this is a locator map, not a world map, and it is
+     dimmed hard so the borders stay the thing you read. */
+  var span = Math.max(regView.w, regView.h);
+  var folder = 5;
+  while (folder > 0 && (span / (512 * Math.pow(2, 5 - folder))) > 4) folder--;
+  var tileSpan = 512 * Math.pow(2, 5 - folder);
+  var tiles = '';
+  var tx0 = Math.floor(regView.x / tileSpan), tx1 = Math.floor((regView.x + regView.w) / tileSpan);
+  var tz0 = Math.floor(regView.y / tileSpan), tz1 = Math.floor((regView.y + regView.h) / tileSpan);
+  for (var tx = tx0; tx <= tx1; tx++){
+    for (var tz = tz0; tz <= tz1; tz++){
+      tiles += '<image href="https://map.earthmc.net/tiles/minecraft_overworld/' +
+        folder + '/' + tx + '_' + tz + '.png" ' +
+        'x="' + (tx * tileSpan) + '" y="' + (tz * tileSpan) + '" ' +
+        'width="' + tileSpan + '" height="' + tileSpan + '" ' +
+        'opacity=".30" style="image-rendering:pixelated" preserveAspectRatio="none"/>';
+    }
+  }
+
+  /* Seats, candidates and who they are, per region. The names are the point —
+     a map that only says "2 standing" makes you go and look it up. */
   var byRegion = {};
   (detail.contests || []).forEach(function(c){
     if (c.kind !== 'house' || !c.region) return;
-    byRegion[c.region] = { seats: c.seats, cands: candsFor(c.id).length };
+    byRegion[c.region] = {
+      seats: c.seats,
+      cands: candsFor(c.id).map(function(x){ return x.player_name; }),
+      pending: pendingFor(c.id).length,
+    };
   });
 
-  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Regions and their candidates">';
+  var svg = '<svg id="regSvg" viewBox="' + regView.x + ' ' + regView.y + ' ' +
+    regView.w + ' ' + regView.h + '" preserveAspectRatio="xMidYMid meet" ' +
+    'style="touch-action:none;cursor:grab" role="img" aria-label="Regions and their candidates">' +
+    '<rect x="' + regView.x + '" y="' + regView.y + '" width="' + regView.w +
+      '" height="' + regView.h + '" fill="#0b0a08"/>' + tiles;
+
+  /* Scaled to the VIEW, so labels stay legible as you zoom instead of growing
+     with the map. */
+  var k = regView.w / 640;
+
   rings.forEach(function(r){
     var info = byRegion[r.name];
-    /* Shaded by whether the region has enough candidates to fill its seats.
-       A region with four seats and two candidates is a problem visible now,
-       while nominations are open — not after they close. */
-    var fill = !info ? '#2a241c'
-      : info.cands === 0 ? 'rgba(207,32,41,.30)'
-      : info.cands < info.seats ? 'rgba(237,185,18,.28)'
-      : 'rgba(24,157,77,.26)';
-    var stroke = !info ? '#3a3229'
-      : info.cands === 0 ? '#cf2029'
-      : info.cands < info.seats ? '#edb912' : '#189d4d';
-    var d = r.ring.map(function(p, i){
-      var q = px(p);
-      return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1);
+    var fill = !info ? 'rgba(120,110,95,.18)'
+      : info.cands.length === 0 ? 'rgba(207,32,41,.26)'
+      : info.cands.length < info.seats ? 'rgba(237,185,18,.24)'
+      : 'rgba(24,157,77,.24)';
+    var stroke = !info ? '#5a5245'
+      : info.cands.length === 0 ? '#cf2029'
+      : info.cands.length < info.seats ? '#edb912' : '#189d4d';
+    var d = r.pts.map(function(p, i){
+      return (i ? 'L' : 'M') + p[0].toFixed(0) + ' ' + p[1].toFixed(0);
     }).join('') + 'Z';
-    svg += '<path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.2"/>';
+    svg += '<path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" ' +
+      'stroke-width="' + (1.6 * k).toFixed(1) + '" stroke-linejoin="round"/>';
 
-    // Label at the ring's centroid, which is close enough for a shape this size.
     var cx = 0, cy = 0;
-    r.ring.forEach(function(p){ var q = px(p); cx += q[0]; cy += q[1]; });
-    cx /= r.ring.length; cy /= r.ring.length;
-    svg += '<text class="rlabel" x="' + cx.toFixed(1) + '" y="' + cy.toFixed(1) +
-      '" text-anchor="middle">' + esc(r.name) + '</text>';
+    r.pts.forEach(function(p){ cx += p[0]; cy += p[1]; });
+    cx /= r.pts.length; cy /= r.pts.length;
+
+    svg += '<text x="' + cx.toFixed(0) + '" y="' + cy.toFixed(0) + '" text-anchor="middle" ' +
+      'font-family="Martian Mono, monospace" font-size="' + (11 * k).toFixed(1) + '" ' +
+      'fill="#f4efe4" paint-order="stroke" stroke="#0b0a08" stroke-width="' +
+      (3 * k).toFixed(1) + '">' + esc(r.name) + '</text>';
+
     if (info){
-      svg += '<text class="rseats" x="' + cx.toFixed(1) + '" y="' + (cy + 11).toFixed(1) +
-        '" text-anchor="middle">' + info.cands + ' standing · ' + info.seats +
-        ' seat' + (info.seats === 1 ? '' : 's') + '</text>';
+      svg += '<text x="' + cx.toFixed(0) + '" y="' + (cy + 13 * k).toFixed(0) + '" ' +
+        'text-anchor="middle" font-family="Martian Mono, monospace" font-size="' +
+        (8.5 * k).toFixed(1) + '" fill="' + stroke + '" paint-order="stroke" ' +
+        'stroke="#0b0a08" stroke-width="' + (3 * k).toFixed(1) + '">' +
+        info.cands.length + ' of ' + info.seats + ' seat' + (info.seats === 1 ? '' : 's') +
+        (info.pending ? ' · ' + info.pending + ' waiting' : '') + '</text>';
+
+      /* Candidate names, one per line under the region. Capped — past four a
+         label stops being a label and starts being a list that overlaps its
+         neighbours. */
+      info.cands.slice(0, 4).forEach(function(nm, i){
+        svg += '<text x="' + cx.toFixed(0) + '" y="' + (cy + (25 + i * 11) * k).toFixed(0) + '" ' +
+          'text-anchor="middle" font-family="Martian Mono, monospace" font-size="' +
+          (8 * k).toFixed(1) + '" fill="#b3a894" paint-order="stroke" stroke="#0b0a08" ' +
+          'stroke-width="' + (3 * k).toFixed(1) + '">' + esc(nm) + '</text>';
+      });
+      if (info.cands.length > 4){
+        svg += '<text x="' + cx.toFixed(0) + '" y="' + (cy + (25 + 4 * 11) * k).toFixed(0) + '" ' +
+          'text-anchor="middle" font-family="Martian Mono, monospace" font-size="' +
+          (8 * k).toFixed(1) + '" fill="#756c5d">+' + (info.cands.length - 4) + ' more</text>';
+      }
     }
   });
   svg += '</svg>';
 
   return '<div class="section-head"><h2>The regions</h2>' +
     '<span class="meta">shaded by whether the seats can be filled</span></div>' +
-    '<div class="regmap">' + svg +
+    '<div class="regmap" style="position:relative">' +
+      '<div style="position:absolute;top:.6rem;right:.6rem;z-index:2;display:flex;gap:.25rem">' +
+        '<button type="button" class="btn btn-small" id="regIn">+</button>' +
+        '<button type="button" class="btn btn-small" id="regOut">&minus;</button>' +
+        '<button type="button" class="btn btn-small" id="regFitBtn">Fit</button>' +
+      '</div>' + svg +
       '<div class="regmap-key">' +
         '<span><i style="background:rgba(24,157,77,.26);border:1px solid #189d4d"></i>enough candidates</span>' +
-        '<span><i style="background:rgba(237,185,18,.28);border:1px solid #edb912"></i>fewer than seats</span>' +
-        '<span><i style="background:rgba(207,32,41,.30);border:1px solid #cf2029"></i>nobody standing</span>' +
+        '<span><i style="background:rgba(237,185,18,.24);border:1px solid #edb912"></i>fewer than seats</span>' +
+        '<span><i style="background:rgba(207,32,41,.26);border:1px solid #cf2029"></i>nobody standing</span>' +
+        '<span style="margin-left:auto">drag to pan · scroll or +/&minus; to zoom</span>' +
       '</div></div>';
+}
+
+/* Pan and zoom on the SVG viewBox directly — no library, and nothing that can
+   disagree with the coordinates the paths were drawn in.
+
+   Zooming OUT is clamped to the original fit. Letting someone zoom out past
+   the whole country leaves them hunting for it in an empty black field, and
+   there is nothing out there to see: this map has exactly one subject. */
+function wireRegionMap(){
+  var svg = document.getElementById('regSvg');
+  if (!svg || !regView || !regFit) return;
+
+  var apply = function(){
+    /* Never larger than the fit, and never panned off it. */
+    regView.w = Math.min(regView.w, regFit.w);
+    regView.h = Math.min(regView.h, regFit.h);
+    regView.x = Math.max(regFit.x, Math.min(regView.x, regFit.x + regFit.w - regView.w));
+    regView.y = Math.max(regFit.y, Math.min(regView.y, regFit.y + regFit.h - regView.h));
+    svg.setAttribute('viewBox', regView.x + ' ' + regView.y + ' ' + regView.w + ' ' + regView.h);
+  };
+
+  var zoom = function(factor, ax, az){
+    var nw = Math.max(regFit.w / 24, Math.min(regView.w * factor, regFit.w));
+    var k = nw / regView.w;
+    if (ax == null){ ax = regView.x + regView.w / 2; az = regView.y + regView.h / 2; }
+    regView.x = ax - (ax - regView.x) * k;
+    regView.y = az - (az - regView.y) * k;
+    regView.w = nw;
+    regView.h = regView.h * k;
+    apply();
+  };
+
+  var toWorld = function(cx, cy){
+    var r = svg.getBoundingClientRect();
+    return [regView.x + ((cx - r.left) / r.width) * regView.w,
+            regView.y + ((cy - r.top) / r.height) * regView.h];
+  };
+
+  svg.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var p = toWorld(e.clientX, e.clientY);
+    zoom(Math.exp(Math.max(-120, Math.min(120, e.deltaY)) * 0.0022), p[0], p[1]);
+  }, { passive:false });
+
+  var drag = null;
+  svg.addEventListener('pointerdown', function(e){
+    drag = { px:e.clientX, py:e.clientY, x:regView.x, y:regView.y };
+    svg.setPointerCapture(e.pointerId);
+    svg.style.cursor = 'grabbing';
+  });
+  svg.addEventListener('pointermove', function(e){
+    if (!drag) return;
+    var r = svg.getBoundingClientRect();
+    regView.x = drag.x - ((e.clientX - drag.px) / r.width) * regView.w;
+    regView.y = drag.y - ((e.clientY - drag.py) / r.height) * regView.h;
+    apply();
+  });
+  ['pointerup','pointercancel'].forEach(function(ev){
+    svg.addEventListener(ev, function(){ drag = null; svg.style.cursor = 'grab'; });
+  });
+
+  var bind = function(id, fn){ var el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+  bind('regIn',  function(){ zoom(0.7); });
+  bind('regOut', function(){ zoom(1.4); });
+  /* Re-rendered on Fit rather than just reset, so the terrain folder is
+     recalculated for the wider view instead of staying at the close-up one. */
+  bind('regFitBtn', function(){ regView = Object.assign({}, regFit); render(); });
 }
 
 /* --- statistics, Electoral Secretary only --------------------------------- */
@@ -648,6 +787,20 @@ function renderAdmin(){
       : renderApplications()) +
 
     '<div class="section-head" style="margin:1.2rem 0 .4rem"><h2 style="font-size:var(--step-0)">' +
+      'Schedule</h2><span class="meta">checked every minute</span></div>' +
+    '<div class="fields">' +
+      '<div class="f"><label for="sNoms">Nominations open</label>' +
+        '<input id="sNoms" type="datetime-local" value="' + localDt(e.nominations_open_at) + '"></div>' +
+      '<div class="f"><label for="sOpens">Voting opens</label>' +
+        '<input id="sOpens" type="datetime-local" value="' + localDt(e.opens_at) + '"></div>' +
+      '<div class="f"><label for="sCloses">Voting closes</label>' +
+        '<input id="sCloses" type="datetime-local" value="' + localDt(e.closes_at) + '"></div>' +
+      '<button class="btn" type="button" id="saveSchedule">Save dates</button>' +
+    '</div>' +
+    '<p class="note">Leave one blank to move that step by hand instead. A date in the ' +
+      'past means it happens on the next check, which is a legitimate way to say now.</p>' +
+
+    '<div class="section-head" style="margin:1.2rem 0 .4rem"><h2 style="font-size:var(--step-0)">' +
       'Campaigning role</h2></div>' +
     '<div class="fields">' +
       '<div class="f" style="flex:1 1 14rem"><label for="roleId">Discord role ID</label>' +
@@ -790,6 +943,8 @@ function wire(){
     });
   });
 
+  wireRegionMap();
+
   var cast = $('castBtn');
   if (cast) cast.addEventListener('click', castBallot);
 
@@ -820,6 +975,20 @@ function wire(){
       var note = (window.prompt('Why? Shown to them on their own application.') || '').trim();
       decide(Number(b.dataset.reject), 'rejected', note);
     });
+  });
+
+  var saveSchedule = $('saveSchedule');
+  if (saveSchedule) saveSchedule.addEventListener('click', async function(){
+    var msg = $('adminMsg');
+    var iso = function(id){ var el = $(id); return el && el.value ? new Date(el.value).toISOString() : null; };
+    try {
+      await api('/api/elections/schedule', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: detail.election.id,
+          nominationsOpenAt: iso('sNoms'), opensAt: iso('sOpens'), closesAt: iso('sCloses') }) });
+      if (msg){ msg.textContent = 'Schedule saved.'; msg.className = 'msg ok'; }
+      loadDetail();
+    } catch (e){ if (msg){ msg.textContent = e.message; msg.className = 'msg err'; } }
   });
 
   var saveRole = $('saveRole');

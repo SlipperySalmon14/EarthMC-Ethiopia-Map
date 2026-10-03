@@ -252,7 +252,9 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
           <div class="f"><label for="nTown">Town (recruiting)</label>
             <input id="nTown" placeholder="Capital" maxlength="60"></div>
           <div class="f"><label for="nRep">Representative (Discord ID)</label>
-            <input id="nRep" inputmode="numeric" placeholder="defaults to you" style="min-width:11rem"></div>
+            <input id="nRep" inputmode="numeric" autocomplete="off"
+                 placeholder="Search a name, or leave blank for you"
+                 data-account-picker="discordId" style="min-width:13rem"></div>
         </div>
         <div class="fields" style="margin-top:.5rem">
           <div class="f wide"><label for="nTitle">Title</label>
@@ -295,6 +297,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
 </div>
 
 <script src="assets/session.js?v=1"></script>
+<script src="assets/account-picker.js?v=1"></script>
 <script>
 'use strict';
 var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
@@ -571,8 +574,9 @@ function editForm(j){
         (locked ? ' disabled' : '')) +
       f('Cut', 'Company each', j.companyCut && j.quantity ? Math.round(j.companyCut / j.quantity) : '',
         'inputmode="numeric" style="min-width:6rem"' + (locked ? ' disabled' : '')) +
-      f('Rep', 'Representative ID', j.representative ? j.representative.discordId : '',
-        'inputmode="numeric" style="min-width:10rem"') +
+      f('Rep', 'Representative', j.representative ? j.representative.discordId : '',
+        'inputmode="numeric" autocomplete="off" data-account-picker="discordId" ' +
+        'placeholder="Search a name" style="min-width:12rem"') +
     '</div>' +
     '<div class="fields" style="margin-top:.5rem">' +
       f('Det', 'Details', j.details, 'maxlength="1000" style="min-width:18rem"') +

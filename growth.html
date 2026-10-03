@@ -501,7 +501,23 @@ function render(){
         '<span class="k">Chunks</span>' + deltaText('chunks') + '</div>' +
       '<div class="stat bal"><span class="n">' + gold(latest.balance) + '</span>' +
         '<span class="k">Town banks combined</span>' + deltaText('balance', 'g') + '</div>' +
-    '</div>';
+    '</div>' +
+    /* Said plainly, because these figures disagree with the home page and
+       that looks like a fault until you know why.
+       
+       The home page asks EarthMC directly and gets the count as of this
+       second. This page reads the stored daily snapshot, which is the only
+       way to have a history at all — you cannot chart a number you never
+       wrote down. So the newest point here is as old as the last sweep, and
+       on a day when towns joined or a purge ran the two will differ by real
+       amounts. Neither is wrong; they are answers to different questions. */
+    '<p class="note" style="margin:.1rem 0 0">' +
+      (latest.day
+        ? 'Recorded ' + esc(latest.day) + ' — the stored daily snapshot, which is what ' +
+          'makes a history possible. The home page asks the server live, so it will ' +
+          'read slightly higher or lower.'
+        : 'No snapshot recorded yet.') +
+    '</p>';
 
   out += '<div class="tools">' +
     '<div class="f" style="flex:0 0 10rem"><label for="days">Period</label>' +

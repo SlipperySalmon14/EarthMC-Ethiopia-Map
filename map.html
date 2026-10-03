@@ -4613,6 +4613,19 @@ function setMapWorld(world){
   if (mapController.syncLayerToggles) mapController.syncLayerToggles();
 }
 
+/* A circle as a polygon, in the plane space turf works in. 48 points is
+   smooth enough that the union below has no visible flat spots at the zooms
+   this is read at, and few enough that sixty of them merge quickly. */
+function rangeDisc(xz, radius){
+  const pts = [];
+  for (let i = 0; i < 48; i++){
+    const a = (i / 48) * Math.PI * 2;
+    pts.push(CoordUtils.mcToPlane(xz[0] + Math.cos(a) * radius, xz[1] + Math.sin(a) * radius));
+  }
+  pts.push(pts[0]);
+  return turf.polygon([pts]);
+}
+
 function renderNationRange(){
   const group = mapController.rangeLayerGroup;
   if (!group) return;
@@ -4622,37 +4635,94 @@ function renderNationRange(){
   const nation = nationClaimState.activeNation || HOME_NATION;
   const anchors = rangeAnchors(nation);
   if (!anchors.length) return;
-  const tint = nationColors(nation).fill;
 
-  /* Rings, not filled discs. Forty overlapping translucent circles stack into
-     an unreadable gradient exactly where a nation is densest; outlines show
-     the real frontier and which town holds each part of it. The capital's is
-     heavier because it is a different RULE, not just a bigger number. */
+  /* The UNION of every disc, as one boundary — not sixty overlapping rings.
+   *
+   * Rings were the first attempt and they were unreadable for two separate
+   * reasons. Drawn in the nation's own colour at 40% opacity over that
+   * nation's own purple territory, the 1,500-block circles were invisible —
+   * which is why only the capital's appeared and the member towns looked like
+   * they were not counting. And even in a colour that showed, sixty circles
+   * over one another is a scribble, not a frontier.
+   *
+   * What the question actually wants is the EDGE: the line past which a town
+   * cannot join. That is one shape, so it is drawn as one.
+   */
+  let merged = null;
+  try {
+    anchors.forEach(a => {
+      const disc = rangeDisc(a.xz, a.isCapital ? RANGE_FROM_CAPITAL : RANGE_FROM_TOWN);
+      merged = merged ? turf.union(merged, disc) : disc;
+    });
+  } catch (_err) { merged = null; }
+
+  if (merged){
+    const polys = merged.geometry.type === 'MultiPolygon'
+      ? merged.geometry.coordinates : [merged.geometry.coordinates];
+    polys.forEach(poly => {
+      (poly || []).forEach((ring, i) => {
+        if (!ring || ring.length < 4) return;
+        const latlngs = ring.map(([px, py]) => L.latLng(py, px));
+        L.polygon(latlngs, {
+          /* Gold, bright, heavier than anything it crosses. This line answers
+             "how far can we reach", so it has to win against terrain, claims
+             and region borders at once. A union's inner rings are holes —
+             land enclosed but out of reach — so they are drawn thinner and
+             dashed rather than as part of the frontier. */
+          color: COLORS.brassHi,
+          weight: i === 0 ? 2.6 : 1.4,
+          opacity: 1,
+          dashArray: i === 0 ? null : '4 4',
+          fill: i === 0,
+          fillColor: COLORS.brass,
+          fillOpacity: 0.05,
+          interactive: false, pmIgnore: true,
+        }).addTo(group);
+      });
+    });
+  } else {
+    /* turf could not merge them. Plain discs rather than nothing — a messy
+       frontier still beats an absent one. */
+    anchors.forEach(a => {
+      L.circle(CoordUtils.mcToLatLng(a.xz[0], a.xz[1]), {
+        radius: a.isCapital ? RANGE_FROM_CAPITAL : RANGE_FROM_TOWN,
+        color: COLORS.brassHi, weight: 1.6, opacity: .8,
+        fill: false, interactive: false, pmIgnore: true,
+      }).addTo(group);
+    });
+  }
+
+  /* Each member town's own contribution, marked where it sits. Small, so the
+     frontier stays the thing you read — but present, because "which town is
+     holding that bulge" is the next question after seeing the shape. */
   anchors.forEach(a => {
-    const cap = a.isCapital;
-    L.circle(CoordUtils.mcToLatLng(a.xz[0], a.xz[1]), {
-      radius: cap ? RANGE_FROM_CAPITAL : RANGE_FROM_TOWN,
-      color: cap ? COLORS.brassHi : tint,
-      weight: cap ? 2 : 1,
-      opacity: cap ? .85 : .40,
-      fill: cap, fillColor: tint, fillOpacity: cap ? .05 : 0,
-      dashArray: cap ? null : '4 4',
-      interactive: false, pmIgnore: true,
-    }).addTo(group);
+    L.circleMarker(CoordUtils.mcToLatLng(a.xz[0], a.xz[1]), {
+      radius: a.isCapital ? 5 : 2.5,
+      color: a.isCapital ? COLORS.brassHi : COLORS.brass,
+      weight: a.isCapital ? 2 : 1,
+      fillColor: COLORS.ink, fillOpacity: 1,
+      interactive: true, pmIgnore: true, bubblingMouseEvents: false,
+    }).bindTooltip(escapeHtml(
+      a.name + ' — ' + (a.isCapital ? 'capital, 5,000' : '1,500') + ' block reach'),
+      { direction: 'top', className: 'claim-tooltip' }).addTo(group);
   });
 
   /* The payoff: towns inside the frontier that are not yours yet, each
-     labelled with which of your towns puts them in range. The rings are
-     interesting; this is the answer to the actual question. */
+     labelled with which of your towns puts them in range. */
   rangeReachableTowns(nation).forEach(({ town, via }) => {
     L.circleMarker(CoordUtils.mcToLatLng(town.homeX, town.homeZ), {
       radius: 5, color: COLORS.sageHi, weight: 2,
       fillColor: COLORS.ink, fillOpacity: .9,
       interactive: true, pmIgnore: true, bubblingMouseEvents: false,
-    }).bindTooltip(escapeHtml(`${town.name} — in range via ${via}` +
-      (town.nationName ? ` · currently ${town.nationName}` : ' · nationless')),
+    }).bindTooltip(escapeHtml(town.name + ' — in range via ' + via +
+      (town.nationName ? ' · currently ' + town.nationName : ' · nationless')),
       { direction: 'top', className: 'claim-tooltip' }).addTo(group);
   });
+
+  /* Said once per draw, because "is it even seeing my towns" was the actual
+     question and a number answers it instantly. */
+  auditLog.log('Range for ' + nation + ': ' + anchors.length + ' town(s) contributing' +
+    (anchors.some(a => a.isCapital) ? '' : ' — no capital found, so no 5,000 circle'), 'info');
 }
 
 function renderExpansionOverlay(){

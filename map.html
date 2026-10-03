@@ -9980,11 +9980,33 @@ async function saveRegionsToBackend(){
   const attemptedVersion = ++persistVersion;
   try{
     const fc = buildPersistPayload();
+    const body = JSON.stringify(fc);
+
+    /* Measured before sending, because "Failed to fetch" is what the browser
+       says for everything it could not complete — a network drop, a rejected
+       preflight, a body the connection would not carry. On its own it points
+       at nothing. The size is the one thing we can know for certain here, and
+       a payload that has quietly grown past what a request can carry is by far
+       the likeliest cause once the same endpoint worked a minute ago. */
+    const kb = Math.round(body.length / 1024);
+    if (kb > 4096){
+      setSaveStatus(`Not saved — the document is ${CoordUtils.fmt(kb)} KB, too large to send.`, true);
+      auditLog.log(`Save refused: the saved document has grown to ${CoordUtils.fmt(kb)} KB ` +
+        `(${fc.features.length} features). Something is storing far more than it should — ` +
+        `most likely an expansion plan holding tens of thousands of chunk keys. ` +
+        `Delete the largest saved plan and try again.`, 'error');
+      return;
+    }
+    if (kb > 1024){
+      auditLog.log(`Saving ${CoordUtils.fmt(kb)} KB across ${fc.features.length} feature(s) ` +
+        `— large, but within limits`, 'warn');
+    }
+
     const res = await fetch(regionsEndpoint(), {
       method: 'POST',
       credentials: 'include',   // this alone is the whole of the auth now
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(fc),
+      body,
     });
     if (!res.ok){
       let bodyText = '';
@@ -9998,7 +10020,16 @@ async function saveRegionsToBackend(){
     }
     auditLog.log('Regions saved to the shared store', 'success');
   } catch(err){
-    setSaveStatus(`Save failed: ${err.message}`, true);
+    /* A bare "Failed to fetch" tells the user nothing they can act on, so the
+       size goes in the message — it is the measurement that most often
+       explains it, and it costs nothing to carry. */
+    let extra = '';
+    try {
+      const probe = JSON.stringify(buildPersistPayload());
+      extra = ` (document was ${CoordUtils.fmt(Math.round(probe.length / 1024))} KB, ` +
+        `${JSON.parse(probe).features.length} features)`;
+    } catch (_e) { /* if even measuring fails, the plain message stands */ }
+    setSaveStatus(`Save failed: ${err.message}${extra}`, true);
     auditLog.log(`Save failed: ${err.message}`, 'error');
   } finally{
     saveInFlight = false;

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>War Department · Ethiopia</title>
+<script src="assets/session.js?v=1"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=3">
+<style>
+.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
+.back:hover{ color:var(--gold); }
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+.topbar .spacer{ margin-left:auto; }
+.masthead{ border-bottom:1px solid var(--rule-soft); padding-bottom:1.2rem; margin-bottom:1.4rem; }
+.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
+.masthead .sub{ font-family:var(--display); font-weight:400; font-style:italic;
+  font-size:var(--step-1); color:var(--gold); margin:.35rem 0 0; }
+
+.search{ display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:1.2rem; }
+.f{ display:flex; flex-direction:column; gap:.25rem; }
+.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
+.f input{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
+  border-radius:var(--r-sm); padding:.45rem .6rem; font-family:var(--body); font-size:.86rem; min-width:14rem; }
+.f input:focus{ border-color:var(--gold); outline:none; }
+
+.watchlist{ display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:1.2rem; }
+.watchlist .w{ font-family:var(--data); font-size:.7rem; padding:.3rem .65rem;
+  background:var(--ink-raised); border:1px solid var(--rule); border-radius:999px;
+  color:var(--text-mid); cursor:pointer; }
+.watchlist .w:hover{ border-color:var(--gold-dim); color:var(--text); }
+.watchlist .w b{ color:var(--gold); font-weight:600; }
+
+.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(8rem,1fr)); gap:.6rem; margin-bottom:1rem; }
+.stat{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--accent,var(--rule)); border-radius:var(--r-md); padding:.75rem .9rem; }
+.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
+  font-variant-numeric:tabular-nums; display:block; }
+.stat .k{ font-family:var(--data); font-size:.6rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
+.stat.red{ --accent:var(--red); } .stat.red .n{ color:var(--red); }
+.stat.gold{ --accent:var(--gold); } .stat.gold .n{ color:var(--gold); }
+.stat.green{ --accent:var(--green); } .stat.green .n{ color:var(--green); }
+.stat.grey .n{ color:var(--text-low); }
+
+.section-head{ position:relative; display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:1.8rem 0 1rem; }
+.section-head::after{ content:''; position:absolute; left:0; bottom:-1px; width:3.2rem; height:2px;
+  background:linear-gradient(90deg, var(--green) 0 33.33%, var(--gold) 33.33% 66.66%, var(--red) 66.66% 100%); }
+.section-head h2{ font-size:var(--step-2); }
+.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
+th{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-low); text-align:left; font-weight:400; padding:.45rem .5rem;
+  border-bottom:1px solid var(--rule); position:sticky; top:0; background:var(--ink); }
+td{ padding:.45rem .5rem; border-bottom:1px solid var(--rule-soft);
+  font-family:var(--data); font-size:.72rem; font-variant-numeric:tabular-nums; }
+td.n{ text-align:right; }
+td.name{ color:var(--text); font-weight:600; font-family:var(--body); }
+tr.imminent td{ background:rgba(207,32,41,.10); }
+tr.imminent td.days{ color:var(--red); font-weight:600; }
+tr.soon td.days{ color:var(--gold); }
+tr.unknown td{ color:var(--text-low); font-style:italic; }
+.tablewrap{ max-height:30rem; overflow:auto; border:1px solid var(--rule); border-radius:var(--r-md); }
+
+.bars{ display:flex; height:1.6rem; border-radius:var(--r-sm); overflow:hidden;
+  border:1px solid var(--rule); margin-bottom:.4rem; }
+.bars i{ display:block; height:100%; }
+.barkey{ display:flex; flex-wrap:wrap; gap:.8rem; font-family:var(--data); font-size:.64rem;
+  color:var(--text-low); }
+.barkey span{ display:flex; align-items:center; gap:.3rem; }
+.barkey em{ width:.7rem; height:.7rem; border-radius:2px; display:inline-block; font-style:normal; }
+
+canvas{ width:100%; height:200px; display:block; }
+.card{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:var(--r-md);
+  padding:1rem 1.1rem; margin-bottom:.8rem; }
+.card h3{ font-family:var(--display); font-size:var(--step-0); margin:0 0 .15rem; }
+.card .cap{ font-family:var(--data); font-size:.62rem; color:var(--text-low); margin:0 0 .7rem; }
+
+.empty{ border:1px dashed var(--rule); border-radius:var(--r-md); padding:1.4rem;
+  text-align:center; color:var(--text-mid); font-size:var(--step--1); }
+.note{ font-family:var(--data); font-size:.66rem; color:var(--text-low); margin:.5rem 0 0; }
+footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+</style>
+</head>
+<body>
+<div class="flag-edge" aria-hidden="true"></div>
+<div class="shell">
+
+  <div class="topbar">
+    <a class="back" href="admin.html">&#8592; Admin</a>
+    <span class="spacer"></span>
+    <span id="authSlot"></span>
+  </div>
+
+  <header class="masthead">
+    <h1>War Department</h1>
+    <p class="sub">Who is holding, and who is only still listed</p>
+  </header>
+
+  <div class="search">
+    <div class="f">
+      <label for="nationInput">Nation</label>
+      <input id="nationInput" placeholder="Nation name, e.g. Nubia" autocomplete="off">
+    </div>
+    <button class="btn" type="button" id="goBtn">Assess</button>
+    <button class="btn" type="button" id="watchBtn" hidden>Watch</button>
+  </div>
+
+  <div class="watchlist" id="watchlist"></div>
+  <div id="body"><p class="empty">Name a nation to assess it.</p></div>
+
+  <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
+</div>
+
+<script src="assets/chart.js?v=1"></script>
+<script>
+'use strict';
+var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
+var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+
+var me = null, intel = null, watching = [];
+
+async function api(path, opts){
+  var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
+  var d = null;
+  try { d = await res.json(); } catch (e) {}
+  if (!res.ok){
+    var err = new Error((d && d.detail) || (d && d.error) || ('HTTP ' + res.status));
+    err.status = res.status; err.code = d && d.error; throw err;
+  }
+  return d;
+}
+
+function ethiopiaProfileChip(me){
+  var face = me.avatarUrl
+    ? '<img src="' + esc(me.avatarUrl) + '" alt="" width="18" height="18" ' +
+      'style="width:18px;height:18px;border-radius:50%;object-fit:cover;' +
+      'vertical-align:-.2rem;margin-right:.35rem" onerror="this.style.display=\'none\'">' : '';
+  var head = me.mcName
+    ? '<img src="https://minotar.net/helm/' + encodeURIComponent(me.mcName) + '/18.png" ' +
+      'alt="" width="18" height="18" style="width:18px;height:18px;border-radius:2px;' +
+      'image-rendering:pixelated;vertical-align:-.2rem;margin-right:.35rem" ' +
+      'onerror="this.style.display=\'none\'">' : '';
+  var who = me.mcName
+    ? esc(me.mcName) + (me.discordName ? ' \u00b7 ' + esc(me.discordName) : '')
+    : esc(me.discordName || 'Signed in');
+  return face + head + who + ' \u00b7 ' + esc(me.tier);
+}
+
+function renderAuth(){
+  var slot = $('authSlot');
+  if (me && me.signedIn){
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
+      ethiopiaProfileChip(me) + '</button>';
+    $('signout').addEventListener('click', async function(){
+      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
+      location.reload();
+    });
+  } else {
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
+      encodeURIComponent('/war.html') + '">Sign in with Discord</a>';
+  }
+}
+
+/* ---- the report ---------------------------------------------------------- */
+
+function activityBar(a){
+  var total = a.counted || 1;
+  var seg = [
+    ['active7',  a.active7,  'var(--green)',    'active this week'],
+    ['idle14',   a.idle14,   '#9aa84e',          'idle 2 weeks'],
+    ['idle30',   a.idle30,   'var(--gold)',      'idle a month'],
+    ['lapsed42', a.lapsed42, 'var(--red)',       'past 42 days'],
+    ['unknown',  a.unknown,  'var(--text-low)',  'opted out of the API'],
+  ];
+  return '<div class="bars">' + seg.map(function(s){
+    var pct = (s[1] / total) * 100;
+    return pct > 0 ? '<i style="width:' + pct + '%;background:' + s[2] + '" title="' +
+      s[1] + ' ' + s[3] + '"></i>' : '';
+  }).join('') + '</div>' +
+  '<div class="barkey">' + seg.map(function(s){
+    return '<span><em style="background:' + s[2] + '"></em>' + esc(s[3]) + ' <b>' + num(s[1]) + '</b></span>';
+  }).join('') + '</div>';
+}
+
+function townsTable(towns){
+  if (!towns.length) return '<p class="empty">No towns.</p>';
+  return '<div class="tablewrap"><table><thead><tr>' +
+    '<th>Town</th><th style="text-align:right">Res</th>' +
+    '<th style="text-align:right">Chunks</th><th style="text-align:right">Idle</th>' +
+    '<th style="text-align:right">Falls in</th><th>Flags</th>' +
+    '</tr></thead><tbody>' +
+    towns.map(function(t){
+      var cls = t.daysLeft === null ? 'unknown'
+        : t.daysLeft <= 7 ? 'imminent'
+        : t.daysLeft <= 14 ? 'soon' : '';
+      var flags = [];
+      if (t.isCapital) flags.push('<span style="color:var(--gold)">capital</span>');
+      if (t.isOpen) flags.push('<span style="color:var(--green)">open</span>');
+      if (t.isOverClaimed) flags.push('<span style="color:var(--red)">overclaimed</span>');
+      /* Said explicitly when some residents are invisible. A town where half
+         the roster opted out could be wide open or perfectly healthy, and the
+         figure alone does not distinguish those. */
+      if (t.known < t.residents) {
+        flags.push('<span style="color:var(--text-low)">' +
+          (t.residents - t.known) + ' unseen</span>');
+      }
+      return '<tr class="' + cls + '">' +
+        '<td class="name">' + esc(t.name) + '</td>' +
+        '<td class="n">' + num(t.residents) + '</td>' +
+        '<td class="n">' + num(t.chunks) +
+          (t.maxChunks ? '<span style="color:var(--text-low)">/' + num(t.maxChunks) + '</span>' : '') + '</td>' +
+        '<td class="n">' + (t.idleDays === null ? '—' : t.idleDays + 'd') + '</td>' +
+        '<td class="n days">' + (t.daysLeft === null ? 'unknown' : t.daysLeft + 'd') + '</td>' +
+        '<td>' + flags.join(' · ') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function render(){
+  if (!intel){ $('body').innerHTML = '<p class="empty">Name a nation to assess it.</p>'; return; }
+  var n = intel.nation, a = intel.activity;
+  var out = '';
+
+  out += '<div class="section-head"><h2>' + esc(n.name) + '</h2>' +
+    '<span class="meta">' + (n.king ? 'led by ' + esc(n.king) + ' · ' : '') +
+    (intel.watched ? 'watched · ' + intel.history.length + ' day(s) recorded' : 'not watched') +
+    '</span></div>';
+
+  out += '<div class="stats">' +
+    '<div class="stat"><span class="n">' + num(n.towns) + '</span><span class="k">Towns</span></div>' +
+    '<div class="stat"><span class="n">' + num(n.residents) + '</span><span class="k">Residents</span></div>' +
+    '<div class="stat"><span class="n">' + num(n.chunks) + '</span><span class="k">Chunks</span></div>' +
+    '<div class="stat gold"><span class="n">' + num(n.balance) + 'g</span><span class="k">Nation bank</span></div>' +
+    '<div class="stat green"><span class="n">' + num(a.online) + '</span><span class="k">Online now</span></div>' +
+    '<div class="stat ' + (intel.atRisk ? 'red' : 'grey') + '"><span class="n">' +
+      num(intel.atRisk) + '</span><span class="k">Towns falling in 12d</span></div>' +
+    '<div class="stat ' + (intel.openTowns ? 'green' : 'grey') + '"><span class="n">' +
+      num(intel.openTowns) + '</span><span class="k">Open to join</span></div>' +
+    '<div class="stat ' + (intel.overClaimed ? 'red' : 'grey') + '"><span class="n">' +
+      num(intel.overClaimed) + '</span><span class="k">Overclaimable</span></div>' +
+    '</div>';
+
+  out += '<div class="card"><h3>Who is actually there</h3>' +
+    '<p class="cap">Every resident once, by how long since they last logged in.</p>' +
+    activityBar(a) +
+    '<p class="note">Anyone who has opted out of the EarthMC API shows as unseen rather ' +
+    'than inactive. Treating silence as absence would mark living towns as falling, and ' +
+    'sending people to overclaim a town that is still held is the worse mistake.</p></div>';
+
+  out += '<div class="section-head"><h2>Towns</h2>' +
+    '<span class="meta">soonest to fall first · 42 days with no login deletes a town</span></div>' +
+    townsTable(intel.towns) +
+    '<p class="note">The clock runs on the MOST RECENT login in each town, so one active ' +
+    'resident holds a town of lapsed ones indefinitely. &ldquo;Falls in&rdquo; is what is ' +
+    'left of the 42 days from that login.</p>';
+
+  if (intel.history && intel.history.length > 1){
+    out += '<div class="section-head"><h2>Trend</h2>' +
+      '<span class="meta">one row a day since watching began</span></div>' +
+      '<div class="card"><h3>Residents and towns</h3>' +
+      '<p class="cap">A nation shedding people for a fortnight is the signal, not its count today.</p>' +
+      '<canvas id="cTrend"></canvas></div>' +
+      '<div class="card"><h3>Land</h3>' +
+      '<p class="cap">Chunks claimed, day by day.</p>' +
+      '<canvas id="cLand"></canvas></div>';
+  } else if (intel.watched){
+    out += '<p class="note">Watching started recently — a trend needs at least two days.</p>';
+  }
+
+  $('body').innerHTML = out;
+
+  if (intel.history && intel.history.length > 1 && window.EthChart){
+    EthChart.line($('cTrend'), intel.history.map(function(r){
+      return { x: r.day, residents: r.residents, towns: r.towns };
+    }), { keys:['residents','towns'], colors:[EthChart.colors[0], EthChart.colors[2]] });
+    EthChart.line($('cLand'), intel.history.map(function(r){
+      return { x: r.day, chunks: r.chunks };
+    }), { keys:['chunks'], colors:[EthChart.gold] });
+  }
+
+  var wb = $('watchBtn');
+  wb.hidden = !intel.canWatch;
+  wb.textContent = intel.watched ? 'Stop watching' : 'Watch this nation';
+}
+
+function renderWatchlist(){
+  var host = $('watchlist');
+  if (!watching.length){ host.innerHTML = ''; return; }
+  host.innerHTML = '<span style="font-family:var(--data);font-size:.62rem;color:var(--text-low);' +
+    'align-self:center;letter-spacing:.06em;text-transform:uppercase">Watching</span>' +
+    watching.map(function(w){
+      return '<span class="w" data-w="' + esc(w.nation) + '"><b>' + esc(w.nation) + '</b>' +
+        (w.days ? ' · ' + w.days + 'd' : '') + '</span>';
+    }).join('');
+  host.querySelectorAll('[data-w]').forEach(function(el){
+    el.addEventListener('click', function(){
+      $('nationInput').value = el.dataset.w;
+      assess();
+    });
+  });
+}
+
+async function assess(){
+  var name = $('nationInput').value.trim();
+  if (!name) return;
+  $('body').innerHTML = '<p class="empty">Reading every town and every resident of ' +
+    esc(name) + '&hellip; this one is slow on purpose.</p>';
+  $('stamp').textContent = 'working';
+  try {
+    intel = await api('/api/war/nation?name=' + encodeURIComponent(name));
+    render();
+    $('stamp').textContent = 'live from EarthMC · ' + new Date().toLocaleTimeString('en-GB',
+      { hour:'2-digit', minute:'2-digit' });
+  } catch (e){
+    intel = null;
+    $('body').innerHTML = '<p class="empty" style="color:var(--red);border-color:var(--red-dim)">' +
+      esc(e.code === 'no_such_nation' ? 'No nation by that name.' : e.message) + '</p>';
+    $('stamp').textContent = 'failed';
+  }
+}
+
+async function loadWatch(){
+  try { watching = (await api('/api/war/watch')).watching || []; renderWatchlist(); }
+  catch (e) { /* not a manager, or the migration has not run */ }
+}
+
+async function load(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  renderAuth();
+  if (!me || !me.signedIn || ['treasurer','manager'].indexOf(me.tier) < 0){
+    $('body').innerHTML = '<p class="empty">The War Department is for treasurers and managers.</p>';
+    $('stamp').textContent = 'not authorised';
+    return;
+  }
+  await loadWatch();
+  $('stamp').textContent = 'ready';
+}
+
+$('goBtn').addEventListener('click', assess);
+$('nationInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') assess(); });
+$('watchBtn').addEventListener('click', async function(){
+  if (!intel) return;
+  try {
+    await api('/api/war/watch', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ nation: intel.nation.name, remove: intel.watched }) });
+    intel.watched = !intel.watched;
+    await loadWatch();
+    render();
+  } catch (e){ window.alert('Could not change the watch list: ' + e.message); }
+});
+
+load().catch(function(e){
+  $('body').innerHTML = '<p class="empty" style="color:var(--red)">This page failed to load: ' +
+    esc(e && e.message) + '</p>';
+});
+</script>
+<script src="assets/election-banner.js?v=1"></script>
+</body>
+</html>

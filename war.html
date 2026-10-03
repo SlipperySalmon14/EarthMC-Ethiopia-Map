@@ -131,6 +131,7 @@ var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 
 var me = null, intel = null, watching = [], overview = null;
 var view = 'watch';        // 'watch' | 'nation'
+var hideLapsed = false, rosterQ = '';
 var openTown = null;       // town name whose roster is expanded
 
 async function api(path, opts){
@@ -296,6 +297,49 @@ function render(){
       num(intel.overClaimed) + '</span><span class="k">Overclaimable</span></div>' +
     '</div>';
 
+  /* The score first, because it is the answer and everything below is the
+     working. Shown with its four parts, never alone — a single number about
+     another nation's strength is exactly the kind of thing that gets quoted
+     back without its assumptions. */
+  if (intel.resolve){
+    var rv = intel.resolve, sc = rv.score;
+    var scol = sc >= 60 ? 'var(--green)' : sc >= 35 ? 'var(--gold)' : 'var(--red)';
+    var word = sc >= 60 ? 'holding' : sc >= 35 ? 'strained' : 'collapsing';
+    out += '<div class="card" style="border-left:3px solid ' + scol + '">' +
+      '<div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">' +
+      '<span style="font-family:var(--display);font-size:2.6rem;font-weight:600;color:' +
+        scol + ';line-height:1">' + sc + '</span>' +
+      '<div><h3 style="margin:0">Resolve &mdash; ' + word + '</h3>' +
+      '<p class="cap" style="margin:.1rem 0 0">Out of 100. How much of this nation is ' +
+        'still turning up, and how much of its land depends on people who are not.</p></div></div>' +
+      '<div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.8rem;' +
+        'font-family:var(--data);font-size:.68rem;color:var(--text-mid)">' +
+        '<span>' + rv.parts.activeShare + '% active this week</span>' +
+        '<span>' + rv.parts.aliveShare + '% not yet past 42 days</span>' +
+        '<span>' + rv.parts.landShare + '% of land not on a falling town</span>' +
+        '<span>' + num(rv.fallingChunks) + ' of ' + num(rv.totalChunks) + ' chunks at risk</span>' +
+      '</div>' +
+      '<p class="note">Weighted toward activity, because activity is what holds land &mdash; ' +
+        'big claims with nobody logging in is not strength, it is a queue. The weights are ' +
+        'a judgement, so the four parts are shown and you can disagree with the total.</p></div>';
+  }
+
+  if (intel.projection && intel.projection.length){
+    out += '<div class="card"><h3>If nobody logs in again</h3>' +
+      '<p class="cap">Cumulative. A worst case, and it moves the moment anyone returns.</p>' +
+      '<div class="tablewrap" style="max-height:none"><table><thead><tr>' +
+      '<th>Within</th><th style="text-align:right">Towns fall</th>' +
+      '<th style="text-align:right">Residents</th><th style="text-align:right">Chunks freed</th>' +
+      '</tr></thead><tbody>' +
+      intel.projection.map(function(p){
+        return '<tr' + (p.towns ? '' : ' class="unknown"') + '>' +
+          '<td class="name">' + p.days + ' days</td>' +
+          '<td class="n">' + num(p.towns) + '</td>' +
+          '<td class="n">' + num(p.residents) + '</td>' +
+          '<td class="n">' + num(p.chunks) + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+  }
+
   out += '<div class="card"><h3>Who is actually there</h3>' +
     '<p class="cap">Every resident once, by how long since they last logged in.</p>' +
     activityBar(a) +
@@ -309,6 +353,55 @@ function render(){
     '<p class="note">The clock runs on the MOST RECENT login in each town, so one active ' +
     'resident holds a town of lapsed ones indefinitely. &ldquo;Falls in&rdquo; is what is ' +
     'left of the 42 days from that login.</p>';
+
+  if (intel.roster && intel.roster.length){
+    var lapsedCount = intel.roster.filter(function(r){ return r.lapsed; }).length;
+    out += '<div class="section-head"><h2>Everyone</h2>' +
+      '<span class="meta">' + num(intel.roster.length) + ' people · ' +
+      num(lapsedCount) + ' already past 42 days</span></div>' +
+      '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem">' +
+      '<label style="font-family:var(--data);font-size:.68rem;color:var(--text-mid);' +
+        'display:flex;align-items:center;gap:.35rem">' +
+        '<input type="checkbox" id="hideLapsed"' + (hideLapsed ? ' checked' : '') + '> ' +
+        'hide the ' + num(lapsedCount) + ' already gone</label>' +
+      '<input id="rosterSearch" placeholder="Filter by name or town" value="' +
+        esc(rosterQ) + '" style="flex:1 1 12rem;background:var(--ink);color:var(--text);' +
+        'border:1px solid var(--rule);border-radius:var(--r-sm);padding:.3rem .5rem;' +
+        'font-family:var(--data);font-size:.7rem">' +
+      '</div>' +
+      '<div class="tablewrap"><table><thead><tr>' +
+      '<th>Player</th><th>Town</th><th style="text-align:right">Idle</th>' +
+      '<th style="text-align:right">Their 42d</th>' +
+      '</tr></thead><tbody>' +
+      intel.roster.filter(function(r){
+        /* Lapsed players stay COUNTED either way — the header total and the
+           resolve score both include them. Hiding is only about reading the
+           list; a nation's dead weight is the most important thing about it
+           and must never silently vanish from the figures. */
+        if (hideLapsed && r.lapsed) return false;
+        if (!rosterQ) return true;
+        var q = rosterQ.toLowerCase();
+        return String(r.name).toLowerCase().indexOf(q) >= 0 ||
+               String(r.town || '').toLowerCase().indexOf(q) >= 0;
+      }).map(function(r){
+        var cls = r.idleDays === null ? 'unknown'
+          : r.lapsed ? 'imminent' : r.idleDays >= 30 ? 'soon' : '';
+        return '<tr class="' + cls + '">' +
+          '<td class="name"><img src="https://minotar.net/helm/' +
+            encodeURIComponent(r.name) + '/16.png" alt="" width="16" height="16" ' +
+            'style="width:16px;height:16px;border-radius:2px;image-rendering:pixelated;' +
+            'vertical-align:-.15rem;margin-right:.35rem" ' +
+            'onerror="this.style.visibility=\'hidden\'">' + esc(r.name) +
+            (r.online ? ' <span style="color:var(--green)">online</span>' : '') + '</td>' +
+          '<td>' + esc(r.town || '—') + '</td>' +
+          '<td class="n">' + (r.idleDays === null ? 'unseen' : r.idleDays + 'd') + '</td>' +
+          '<td class="n days">' + (r.daysLeft === null ? '—'
+            : r.lapsed ? 'gone' : r.daysLeft + 'd') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="note">Someone past 42 days is shown as gone but still counted everywhere ' +
+      'above &mdash; they are the reason a town falls, so removing them from the totals ' +
+      'would hide the thing worth knowing.</p>';
+  }
 
   if (intel.history && intel.history.length > 1){
     out += '<div class="section-head"><h2>Trend</h2>' +
@@ -333,6 +426,20 @@ function render(){
       return { x: r.day, chunks: r.chunks };
     }), { keys:['chunks'], colors:[EthChart.gold] });
   }
+
+  var hl = $('hideLapsed');
+  if (hl) hl.addEventListener('change', function(){ hideLapsed = hl.checked; render(); });
+  var rs = $('rosterSearch');
+  if (rs) rs.addEventListener('input', function(){
+    rosterQ = rs.value;
+    var at = rs.selectionStart;
+    render();
+    /* Focus and caret restored by hand: the table is re-rendered from scratch
+       on every keystroke, which would otherwise drop the cursor after one
+       letter and make the field unusable. */
+    var again = $('rosterSearch');
+    if (again){ again.focus(); try { again.setSelectionRange(at, at); } catch (e) {} }
+  });
 
   $('body').querySelectorAll('[data-town]').forEach(function(tr){
     tr.addEventListener('click', function(){

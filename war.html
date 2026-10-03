@@ -28,9 +28,10 @@
 .f input:focus{ border-color:var(--gold); outline:none; }
 
 .watchlist{ display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:1.2rem; }
-.watchlist .w{ font-family:var(--data); font-size:.7rem; padding:.3rem .65rem;
+.watchlist .w{ font-family:var(--data); font-size:.7rem; padding:.3rem .8rem;
   background:var(--ink-raised); border:1px solid var(--rule); border-radius:999px;
   color:var(--text-mid); cursor:pointer; }
+.watchlist .w.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
 .watchlist .w:hover{ border-color:var(--gold-dim); color:var(--text); }
 .watchlist .w b{ color:var(--gold); font-weight:600; }
 
@@ -128,7 +129,9 @@ var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, fun
   return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
 var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 
-var me = null, intel = null, watching = [];
+var me = null, intel = null, watching = [], overview = null;
+var view = 'watch';        // 'watch' | 'nation'
+var openTown = null;       // town name whose roster is expanded
 
 async function api(path, opts){
   var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
@@ -196,7 +199,7 @@ function activityBar(a){
 function townsTable(towns){
   if (!towns.length) return '<p class="empty">No towns.</p>';
   return '<div class="tablewrap"><table><thead><tr>' +
-    '<th>Town</th><th style="text-align:right">Res</th>' +
+    '<th>Town</th><th style="text-align:right">Res (holding)</th>' +
     '<th style="text-align:right">Chunks</th><th style="text-align:right">Idle</th>' +
     '<th style="text-align:right">Falls in</th><th>Flags</th>' +
     '</tr></thead><tbody>' +
@@ -215,18 +218,61 @@ function townsTable(towns){
         flags.push('<span style="color:var(--text-low)">' +
           (t.residents - t.known) + ' unseen</span>');
       }
-      return '<tr class="' + cls + '">' +
-        '<td class="name">' + esc(t.name) + '</td>' +
-        '<td class="n">' + num(t.residents) + '</td>' +
+      var open = openTown === t.name;
+      var roster = open && t.roster && t.roster.length
+        ? '<tr><td colspan="7" style="background:var(--ink);padding:.6rem .8rem">' +
+          '<div style="font-family:var(--data);font-size:.62rem;color:var(--text-low);' +
+            'letter-spacing:.06em;text-transform:uppercase;margin-bottom:.4rem">' +
+            esc(t.name) + ' · ' + t.holders + ' of ' + t.residents +
+            ' still inside the 42 days</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:.3rem">' +
+          t.roster.map(function(r){
+            var col = r.idleDays === null ? 'var(--text-low)'
+              : r.idleDays >= 42 ? 'var(--red)'
+              : r.idleDays >= 30 ? 'var(--gold)' : 'var(--green)';
+            return '<span style="display:inline-flex;align-items:center;gap:.3rem;' +
+              'padding:.2rem .45rem;background:var(--ink-raised);border:1px solid var(--rule);' +
+              'border-radius:var(--r-sm);font-family:var(--data);font-size:.66rem">' +
+              '<img src="https://minotar.net/helm/' + encodeURIComponent(r.name) + '/16.png" ' +
+                'alt="" width="16" height="16" style="width:16px;height:16px;border-radius:2px;' +
+                'image-rendering:pixelated" onerror="this.style.visibility=\'hidden\'">' +
+              esc(r.name) + '<span style="color:' + col + '">' +
+              (r.online ? 'on' : r.idleDays === null ? 'unseen' : r.idleDays + 'd') +
+              '</span></span>';
+          }).join('') + '</div>' +
+          '<p class="note" style="margin-top:.4rem">The town falls 42 days after the ' +
+          'GREENEST figure here, not the average. Everyone else is already gone as far ' +
+          'as the clock is concerned.</p></td></tr>'
+        : '';
+
+      return '<tr class="' + cls + '" data-town="' + esc(t.name) + '" style="cursor:pointer">' +
+        '<td class="name">' + esc(t.name) +
+          '<span style="color:var(--text-low);margin-left:.3rem">' + (open ? '\u25b4' : '\u25be') +
+          '</span></td>' +
+        '<td class="n">' + num(t.residents) +
+          (t.holders != null && t.holders < t.residents
+            ? '<span style="color:var(--red)"> (' + t.holders + ')</span>' : '') + '</td>' +
         '<td class="n">' + num(t.chunks) +
           (t.maxChunks ? '<span style="color:var(--text-low)">/' + num(t.maxChunks) + '</span>' : '') + '</td>' +
         '<td class="n">' + (t.idleDays === null ? '—' : t.idleDays + 'd') + '</td>' +
         '<td class="n days">' + (t.daysLeft === null ? 'unknown' : t.daysLeft + 'd') + '</td>' +
-        '<td>' + flags.join(' · ') + '</td></tr>';
+        '<td>' + flags.join(' · ') + '</td></tr>' + roster;
     }).join('') + '</tbody></table></div>';
 }
 
 function render(){
+  renderWatchlist();
+  if (view === 'watch'){
+    $('body').innerHTML = renderOverview();
+    $('body').querySelectorAll('[data-assess]').forEach(function(b){
+      b.addEventListener('click', function(){
+        $('nationInput').value = b.dataset.assess;
+        assess();
+      });
+    });
+    var wb0 = $('watchBtn'); if (wb0) wb0.hidden = true;
+    return;
+  }
   if (!intel){ $('body').innerHTML = '<p class="empty">Name a nation to assess it.</p>'; return; }
   var n = intel.nation, a = intel.activity;
   var out = '';
@@ -288,26 +334,97 @@ function render(){
     }), { keys:['chunks'], colors:[EthChart.gold] });
   }
 
+  $('body').querySelectorAll('[data-town]').forEach(function(tr){
+    tr.addEventListener('click', function(){
+      openTown = openTown === tr.dataset.town ? null : tr.dataset.town;
+      render();
+    });
+  });
+
   var wb = $('watchBtn');
   wb.hidden = !intel.canWatch;
   wb.textContent = intel.watched ? 'Stop watching' : 'Watch this nation';
+  /* Said at the button, because "watch" on its own sounds like it might do
+     something to the nation rather than to our own records. */
+  wb.title = intel.watched
+    ? 'Stop keeping a daily record of this nation'
+    : 'Keep a row a day for this nation, so a trend exists to look at later';
 }
 
 function renderWatchlist(){
   var host = $('watchlist');
-  if (!watching.length){ host.innerHTML = ''; return; }
-  host.innerHTML = '<span style="font-family:var(--data);font-size:.62rem;color:var(--text-low);' +
-    'align-self:center;letter-spacing:.06em;text-transform:uppercase">Watching</span>' +
-    watching.map(function(w){
-      return '<span class="w" data-w="' + esc(w.nation) + '"><b>' + esc(w.nation) + '</b>' +
-        (w.days ? ' · ' + w.days + 'd' : '') + '</span>';
-    }).join('');
-  host.querySelectorAll('[data-w]').forEach(function(el){
-    el.addEventListener('click', function(){
-      $('nationInput').value = el.dataset.w;
-      assess();
-    });
+  host.innerHTML =
+    '<span class="w' + (view === 'watch' ? ' on' : '') + '" data-view="watch">The watch list' +
+      (watching.length ? ' · ' + watching.length : '') + '</span>' +
+    (intel ? '<span class="w' + (view === 'nation' ? ' on' : '') + '" data-view="nation">' +
+      esc(intel.nation.name) + '</span>' : '');
+  host.querySelectorAll('[data-view]').forEach(function(el){
+    el.addEventListener('click', function(){ view = el.dataset.view; render(); });
   });
+}
+
+/* What watching is FOR, said once where it is decided.
+ *
+ * It was a button with no stated consequence, which is a fair thing to be
+ * suspicious of. It does exactly one thing: records a row a day for that
+ * nation so the trend exists later. Nothing about the live assessment changes
+ * — an unwatched nation gives you the same report this second. What it cannot
+ * give you is last week. */
+function renderOverview(){
+  if (!overview){ return '<p class="empty">Loading the watch list&hellip;</p>'; }
+  var us = overview.us;
+  var out = '<div class="section-head"><h2>The watch list</h2>' +
+    '<span class="meta">measured against us · a row a day is kept for each</span></div>';
+
+  if (!overview.rows.length){
+    return out + '<p class="empty">Nothing watched yet. Assess a nation and press ' +
+      '<b>Watch</b> to start keeping a daily record of it — that is all watching does, ' +
+      'and it is the only way to have a trend to look at later.</p>';
+  }
+
+  var pct = function(v){
+    if (v == null) return '<span style="color:var(--text-low)">—</span>';
+    var col = v >= 100 ? 'var(--red)' : v >= 60 ? 'var(--gold)' : 'var(--text-mid)';
+    return '<span style="color:' + col + '">' + v + '%</span>';
+  };
+  var delta = function(d){
+    if (d == null) return '';
+    var col = d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--text-low)';
+    return ' <span style="color:' + col + ';font-size:.64rem">' +
+      (d > 0 ? '+' : '') + num(d) + '</span>';
+  };
+
+  out += '<div class="tablewrap"><table><thead><tr>' +
+    '<th>Nation</th><th style="text-align:right">Towns</th>' +
+    '<th style="text-align:right">Residents</th><th style="text-align:right">Chunks</th>' +
+    '<th style="text-align:right">vs us</th><th></th>' +
+    '</tr></thead><tbody>' +
+    (us ? '<tr style="background:rgba(24,157,77,.08)">' +
+      '<td class="name" style="color:var(--green)">' + esc(us.name) + ' (us)</td>' +
+      '<td class="n">' + num(us.towns) + '</td>' +
+      '<td class="n">' + num(us.residents) + '</td>' +
+      '<td class="n">' + num(us.chunks) + '</td>' +
+      '<td class="n">—</td><td></td></tr>' : '') +
+    overview.rows.map(function(r){
+      if (r.missing){
+        return '<tr class="unknown"><td class="name">' + esc(r.name) + '</td>' +
+          '<td colspan="5">no longer exists on the server</td></tr>';
+      }
+      var c = r.change;
+      return '<tr>' +
+        '<td class="name">' + esc(r.name) + '</td>' +
+        '<td class="n">' + num(r.towns) + (c ? delta(c.towns) : '') + '</td>' +
+        '<td class="n">' + num(r.residents) + (c ? delta(c.residents) : '') + '</td>' +
+        '<td class="n">' + num(r.chunks) + (c ? delta(c.chunks) : '') + '</td>' +
+        '<td class="n">' + pct(r.vsChunks) + '</td>' +
+        '<td><button class="btn" type="button" data-assess="' + esc(r.name) + '" ' +
+          'style="padding:.2rem .5rem;font-size:.64rem">Assess</button></td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p class="note">The vs column is their claimed land as a share of ours. Deltas are ' +
+    'the change across however many days have been recorded — which is why watching ' +
+    'exists: a live reading cannot tell you a nation has been shedding towns for a ' +
+    'fortnight.</p>';
+  return out;
 }
 
 async function assess(){
@@ -318,6 +435,8 @@ async function assess(){
   $('stamp').textContent = 'working';
   try {
     intel = await api('/api/war/nation?name=' + encodeURIComponent(name));
+    view = 'nation';
+    openTown = null;
     render();
     $('stamp').textContent = 'live from EarthMC · ' + new Date().toLocaleTimeString('en-GB',
       { hour:'2-digit', minute:'2-digit' });
@@ -343,6 +462,9 @@ async function load(){
     return;
   }
   await loadWatch();
+  try { overview = await api('/api/war/overview'); }
+  catch (e) { overview = { rows: [], us: null }; }
+  render();
   $('stamp').textContent = 'ready';
 }
 
@@ -355,6 +477,7 @@ $('watchBtn').addEventListener('click', async function(){
       body: JSON.stringify({ nation: intel.nation.name, remove: intel.watched }) });
     intel.watched = !intel.watched;
     await loadWatch();
+    try { overview = await api('/api/war/overview'); } catch (e) {}
     render();
   } catch (e){ window.alert('Could not change the watch list: ' + e.message); }
 });

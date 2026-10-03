@@ -323,11 +323,14 @@ footer{
       <div class="fields">
         <div class="f">
           <label for="mDiscord">Discord user ID</label>
-          <input id="mDiscord" inputmode="numeric" placeholder="1234567890...">
+          <input id="mDiscord" inputmode="numeric" autocomplete="off"
+                 placeholder="Search a name, or paste an ID"
+                 data-account-picker="discordId" data-account-also="mName:mcName">
         </div>
         <div class="f">
           <label for="mName">Minecraft name</label>
-          <input id="mName" placeholder="SlipperySalmon14" maxlength="16">
+          <input id="mName" placeholder="SlipperySalmon14" maxlength="16" autocomplete="off"
+                 data-account-picker="mcName">
         </div>
         <div class="f">
           <label for="mParty">Party</label>
@@ -435,6 +438,7 @@ footer{
 </div>
 
 <script src="assets/session.js?v=1"></script>
+<script src="assets/account-picker.js?v=1"></script>
 <script>
 'use strict';
 

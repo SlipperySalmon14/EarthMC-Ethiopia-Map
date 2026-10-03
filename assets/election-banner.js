@@ -34,7 +34,7 @@
     try { return localStorage.getItem(KEY) === id + ':' + status; }
     catch (e) { return false; }
   }
-  function dismiss(id, status) {
+  function dismissFor(id, status) {
     try { localStorage.setItem(KEY, id + ':' + status); } catch (e) {}
   }
 
@@ -57,36 +57,99 @@
     return 'in ' + Math.round(hrs / 24) + ' days';
   }
 
-  function show(live) {
-    if (document.getElementById('electionBanner')) return;
+  /* The page is blurred rather than dimmed. A dim layer reads as "loading";
+     a blur reads as "something is in front of this", which is what is true. */
+  function blur(on) {
+    var app = document.querySelector('.shell') || document.querySelector('.app');
+    if (!app) return;
+    app.style.transition = 'filter .18s ease';
+    app.style.filter = on ? 'blur(5px)' : '';
+    app.style.pointerEvents = on ? 'none' : '';
+  }
 
+  function bar(live) {
+    if (document.getElementById('electionBar')) return;
     var voting = live.status === 'voting';
     var left = remaining(voting ? live.closes_at : live.opens_at);
 
-    var bar = document.createElement('div');
-    bar.id = 'electionBanner';
-    bar.style.cssText =
+    var el = document.createElement('div');
+    el.id = 'electionBar';
+    el.style.cssText =
       'position:sticky;top:0;z-index:9000;display:flex;align-items:center;gap:.8rem;' +
-      'flex-wrap:wrap;padding:.6rem 1rem;font-family:"Martian Mono",monospace;' +
-      'font-size:.72rem;color:#12100c;' +
-      'background:' + (voting ? '#189d4d' : '#edb912') + ';' +
-      'box-shadow:0 2px 10px rgba(0,0,0,.45)';
-
-    bar.innerHTML =
-      '<b style="font-weight:600">' + (voting ? 'Voting is open' : 'Nominations are open') + '</b>' +
+      'flex-wrap:wrap;padding:.55rem 1rem;font-family:"Martian Mono",monospace;' +
+      'font-size:.7rem;color:#12100c;background:' + (voting ? '#189d4d' : '#edb912') + ';' +
+      'box-shadow:0 2px 10px rgba(0,0,0,.4)';
+    el.innerHTML =
+      '<b>' + (voting ? 'Voting is open' : 'Nominations are open') + '</b>' +
       '<span style="opacity:.85">' + esc(live.name) +
-        (left ? ' · ' + (voting ? 'closes ' : 'voting opens ') + left : '') + '</span>' +
+        (left ? ' \u00b7 ' + (voting ? 'closes ' : 'voting opens ') + left : '') + '</span>' +
       '<a href="elections.html" style="margin-left:auto;background:#12100c;color:#f4efe4;' +
-        'text-decoration:none;padding:.32rem .8rem;border-radius:999px;font-weight:600">' +
-        (voting ? 'Cast your ballot' : 'Stand or see who is') + '</a>' +
-      '<button type="button" id="electionBannerX" aria-label="Dismiss" ' +
-        'style="background:rgba(0,0,0,.22);border:0;color:#12100c;border-radius:999px;' +
-        'width:1.4rem;height:1.4rem;line-height:1;cursor:pointer;font-weight:700">×</button>';
+        'text-decoration:none;padding:.3rem .8rem;border-radius:999px;font-weight:600">' +
+        (voting ? 'Cast your ballot' : 'Stand or see who is') + '</a>';
+    document.body.insertBefore(el, document.body.firstChild);
+  }
 
-    document.body.insertBefore(bar, document.body.firstChild);
-    document.getElementById('electionBannerX').addEventListener('click', function () {
-      dismiss(live.id, live.status);
-      bar.remove();
+  function modal(live) {
+    if (document.getElementById('electionModal')) return;
+    var voting = live.status === 'voting';
+    var left = remaining(voting ? live.closes_at : live.opens_at);
+    var accent = voting ? '#189d4d' : '#edb912';
+
+    var wrap = document.createElement('div');
+    wrap.id = 'electionModal';
+    wrap.style.cssText =
+      'position:fixed;inset:0;z-index:9800;display:flex;align-items:center;' +
+      'justify-content:center;padding:1.2rem;background:rgba(8,7,5,.55)';
+
+    wrap.innerHTML =
+      '<div role="dialog" aria-modal="true" aria-label="Election notice" style="' +
+        'max-width:26rem;width:100%;background:#16130f;border:1px solid #2f2a23;' +
+        'border-top:3px solid ' + accent + ';border-radius:10px;padding:1.6rem 1.5rem;' +
+        'box-shadow:0 20px 60px rgba(0,0,0,.7);text-align:center;position:relative">' +
+        '<button type="button" id="electionModalX" aria-label="Close" style="' +
+          'position:absolute;top:.6rem;right:.7rem;background:none;border:0;' +
+          'color:#756c5d;font-size:1.3rem;line-height:1;cursor:pointer">&times;</button>' +
+        '<div style="font-family:Martian Mono,monospace;font-size:.62rem;' +
+          'letter-spacing:.12em;text-transform:uppercase;color:' + accent + '">' +
+          (voting ? 'Voting is open' : 'Nominations are open') + '</div>' +
+        '<div style="font-family:Fraunces,Georgia,serif;font-size:1.5rem;font-weight:600;' +
+          'color:#f4efe4;margin:.5rem 0 .3rem">' + esc(live.name) + '</div>' +
+        '<p style="font-family:Karla,sans-serif;font-size:.86rem;color:#b3a894;margin:0 0 1.2rem">' +
+          (voting
+            ? 'One account, one ballot. ' + (left ? 'Voting closes ' + left + '.' : '')
+            : 'Apply to stand for an office or a House seat. ' +
+              (left ? 'Voting opens ' + left + '.' : '')) +
+        '</p>' +
+        '<a href="elections.html" style="display:inline-block;background:' + accent + ';' +
+          'color:#12100c;text-decoration:none;font-family:Martian Mono,monospace;' +
+          'font-size:.8rem;font-weight:600;padding:.6rem 1.4rem;border-radius:999px">' +
+          (voting ? 'Cast your ballot' : 'See the ballot') + '</a>' +
+        '<div style="margin-top:.9rem"><button type="button" id="electionModalLater" style="' +
+          'background:none;border:0;color:#756c5d;font-family:Martian Mono,monospace;' +
+          'font-size:.68rem;cursor:pointer;text-decoration:underline">Not now</button></div>' +
+      '</div>';
+
+    document.body.appendChild(wrap);
+    blur(true);
+
+    var dismiss = function () {
+      dismissFor(live.id, live.status);
+      blur(false);
+      wrap.remove();
+      bar(live);            // acknowledged, but still one tap away
+    };
+    document.getElementById('electionModalX').addEventListener('click', dismiss);
+    document.getElementById('electionModalLater').addEventListener('click', dismiss);
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) dismiss(); });
+    document.addEventListener('keydown', function onEsc(e) {
+      if (e.key === 'Escape' && document.getElementById('electionModal')) {
+        dismiss(); document.removeEventListener('keydown', onEsc);
+      }
+    });
+    /* Going to vote counts as having seen it, or it reappears the moment the
+       elections page sends you anywhere else. */
+    wrap.querySelector('a').addEventListener('click', function () {
+      dismissFor(live.id, live.status); blur(false);
     });
   }
 
@@ -99,9 +162,9 @@
       if (!live) return;
       /* Nothing left for this person to do, or they have already closed it for
          this phase. Both are deliberate silence rather than a missing banner. */
-      if (live.acted) return;
-      if (dismissedFor(live.id, live.status)) return;
-      show(live);
+      if (live.acted) return;                        // nothing left to ask
+      if (dismissedFor(live.id, live.status)) bar(live);
+      else modal(live);
     } catch (e) { /* signed out, offline, or the Worker is down — say nothing */ }
   }
 
@@ -115,7 +178,12 @@
     }
     /* Re-checked every few minutes so a phase change reaches someone who left
        a tab open, which during a vote is most people. */
-    setInterval(check, 5 * 60 * 1000);
+    /* Only the BAR may appear on the interval. A modal that materialises over
+       someone mid-sentence is an ambush, so a phase change found this way is
+       announced quietly and the modal waits for the next page load. */
+    setInterval(function () {
+      if (document.getElementById('electionModal')) return;
+      check();
+    }, 5 * 60 * 1000);
   }
 })();
-

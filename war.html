@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="assets/base.css?v=3">
 <style>
 .back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
@@ -77,6 +78,23 @@ tr.unknown td{ color:var(--text-low); font-style:italic; }
 .barkey em{ width:.7rem; height:.7rem; border-radius:2px; display:inline-block; font-style:normal; }
 
 canvas{ width:100%; height:200px; display:block; }
+#warMap{ height:30rem; border-radius:var(--r-md); background:#0b0a08; }
+#warMap .leaflet-control-attribution{ display:none; }
+.maplegend{ display:flex; flex-wrap:wrap; gap:.7rem; margin-top:.6rem;
+  font-family:var(--data); font-size:.64rem; color:var(--text-low); }
+.maplegend span{ display:flex; align-items:center; gap:.3rem; }
+.maplegend em{ width:.7rem; height:.7rem; border-radius:2px; display:inline-block; font-style:normal; }
+.maptools{ display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.6rem; }
+.maptools .btn{ padding:.28rem .7rem; font-size:.66rem; }
+.maptools .btn.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+.leaflet-popup-content-wrapper{ background:var(--ink-raised); color:var(--text);
+  border:1px solid var(--rule); border-radius:var(--r-md); }
+.leaflet-popup-tip{ background:var(--ink-raised); border:1px solid var(--rule); }
+.leaflet-popup-content{ margin:.7rem .9rem; font-family:var(--body); font-size:.8rem; }
+.wpop h4{ font-family:var(--display); font-size:.95rem; margin:0 0 .3rem; }
+.wpop .r{ display:flex; justify-content:space-between; gap:.8rem;
+  font-family:var(--data); font-size:.68rem; padding:.12rem 0; }
+.wpop .r span:last-child{ color:var(--text); font-variant-numeric:tabular-nums; }
 .card{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:var(--r-md);
   padding:1rem 1.1rem; margin-bottom:.8rem; }
 .card h3{ font-family:var(--display); font-size:var(--step-0); margin:0 0 .15rem; }
@@ -120,6 +138,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
   <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="assets/chart.js?v=1"></script>
 <script>
 'use strict';
@@ -132,6 +151,15 @@ var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 var me = null, intel = null, watching = [], overview = null;
 var view = 'watch';        // 'watch' | 'nation'
 var hideLapsed = false, rosterQ = '';
+var warMap = null, warLayers = null, mapColour = 'falling', showRange = false;
+
+/* The same projection the main map uses: x east, -z north, so a Leaflet
+   latLng is (-z, x). Reimplemented here rather than imported because war.html
+   needs four lines of it and loading the whole map page to get them would
+   bring 10,000 lines of editing tools with it. */
+var MC = {
+  toLatLng: function(x, z){ return L.latLng(-z, x); },
+};
 var openTown = null;       // town name whose roster is expanded
 
 async function api(path, opts){
@@ -347,6 +375,42 @@ function render(){
     'than inactive. Treating silence as absence would mark living towns as falling, and ' +
     'sending people to overclaim a town that is still held is the worse mistake.</p></div>';
 
+  out += '<div class="section-head"><h2>The ground</h2>' +
+    '<span class="meta">every claim, coloured by how long it has left</span></div>' +
+    '<div class="maptools">' +
+      '<button type="button" class="btn ' + (mapColour === 'falling' ? 'on' : '') +
+        '" data-mc="falling">Time left</button>' +
+      '<button type="button" class="btn ' + (mapColour === 'size' ? 'on' : '') +
+        '" data-mc="size">Size</button>' +
+      '<button type="button" class="btn ' + (mapColour === 'chain' ? 'on' : '') +
+        '" data-mc="chain">Chain</button>' +
+      '<button type="button" class="btn ' + (showRange ? 'on' : '') +
+        '" id="rangeToggle">Nation range</button>' +
+    '</div>' +
+    '<div id="warMap"></div>' +
+    '<div class="maplegend" id="mapLegend"></div>';
+
+  if (intel.chainCritical && intel.chainCritical.length){
+    out += '<div class="card" style="margin-top:.8rem;border-left:3px solid var(--gold)">' +
+      '<h3>Load-bearing towns</h3>' +
+      '<p class="cap">Lose one of these and everything beyond it drops out of nation range, ' +
+      'whatever its own size.</p>' +
+      intel.chainCritical.slice(0, 10).map(function(c){
+        var urgent = c.daysLeft !== null && c.daysLeft <= 21;
+        return '<div class="wpop r" style="border-bottom:1px solid var(--rule-soft)">' +
+          '<span style="color:' + (urgent ? 'var(--red)' : 'var(--text)') + '">' +
+            esc(c.name) + '</span>' +
+          '<span>strands ' + c.stranded + ' town' + (c.stranded === 1 ? '' : 's') +
+            (c.daysLeft === null ? '' : ' · ' + c.daysLeft + 'd left') + '</span></div>';
+      }).join('') +
+      (intel.chainAtRisk && intel.chainAtRisk.length
+        ? '<p class="note" style="color:var(--red)">' + intel.chainAtRisk.length +
+          ' of these are also running out within three weeks. That pairing — holding the ' +
+          'chain AND nearly gone — is the shortlist worth acting on.</p>'
+        : '<p class="note">None of them are close to falling.</p>') +
+      '</div>';
+  }
+
   out += '<div class="section-head"><h2>Towns</h2>' +
     '<span class="meta">soonest to fall first · 42 days with no login deletes a town</span></div>' +
     townsTable(intel.towns) +
@@ -426,6 +490,13 @@ function render(){
       return { x: r.day, chunks: r.chunks };
     }), { keys:['chunks'], colors:[EthChart.gold] });
   }
+
+  drawWarMap();
+  $('body').querySelectorAll('[data-mc]').forEach(function(b){
+    b.addEventListener('click', function(){ mapColour = b.dataset.mc; render(); });
+  });
+  var rt = $('rangeToggle');
+  if (rt) rt.addEventListener('click', function(){ showRange = !showRange; render(); });
 
   var hl = $('hideLapsed');
   if (hl) hl.addEventListener('change', function(){ hideLapsed = hl.checked; render(); });
@@ -532,6 +603,152 @@ function renderOverview(){
     'exists: a live reading cannot tell you a nation has been shedding towns for a ' +
     'fortnight.</p>';
   return out;
+}
+
+/* The map.
+ *
+ * Purpose-built rather than reusing map.html: that page carries region
+ * editing, highways, the expansion planner and ten thousand lines of tooling
+ * none of which belongs in an intelligence view. What IS reused is the part
+ * that matters — the same squaremap tiles, the same projection, the same
+ * chunk-to-block maths — so the two agree about where things are.
+ */
+function fallColour(t){
+  if (t.daysLeft === null) return '#5a5245';          // unseen, not safe or unsafe
+  if (t.daysLeft <= 7)  return '#cf2029';
+  if (t.daysLeft <= 14) return '#e06c1f';
+  if (t.daysLeft <= 28) return '#edb912';
+  return '#189d4d';
+}
+
+function sizeColour(t){
+  var c = t.chunks || 0;
+  return c >= 500 ? '#cf2029' : c >= 200 ? '#edb912' : c >= 60 ? '#189d4d' : '#3f7fb8';
+}
+
+function townColour(t){
+  if (mapColour === 'size') return sizeColour(t);
+  if (mapColour === 'chain') return t.chainCritical ? '#edb912' : '#4a4238';
+  return fallColour(t);
+}
+
+function townPopup(t){
+  var row = function(k, v){
+    return '<div class="r"><span>' + esc(k) + '</span><span>' + v + '</span></div>';
+  };
+  var holders = (t.roster || []).filter(function(r){
+    return r.idleDays !== null && r.idleDays < 42; });
+
+  /* Who is most likely to end up with this town.
+   *
+   * Stated as what it is — the resident who has been on most recently — and
+   * not dressed up as a prediction. Towny hands a fallen town to nobody; what
+   * actually happens is whoever is around claims it. The newest login is the
+   * best available proxy for that and the honest label for it is "most active
+   * resident", not "most likely to get it". */
+  var likely = holders.length ? holders[0] : null;
+
+  return '<div class="wpop"><h4>' + esc(t.name) +
+    (t.isCapital ? ' <span style="color:var(--gold);font-size:.7rem">capital</span>' : '') +
+    '</h4>' +
+    row('Falls in', t.daysLeft === null ? 'unknown'
+      : '<b style="color:' + fallColour(t) + '">' + t.daysLeft + ' days</b>') +
+    row('Residents', t.residents + (t.holders != null ? ' (' + t.holders + ' holding)' : '')) +
+    row('Chunks', num(t.chunks) + (t.maxChunks ? ' of ' + num(t.maxChunks) : '')) +
+    (t.maxChunks && t.chunks > t.maxChunks
+      ? row('Over the limit', '<b style="color:var(--red)">' +
+          num(t.chunks - t.maxChunks) + '</b>') : '') +
+    row('Bank', num(t.balance) + 'g') +
+    row('Mayor', esc(t.mayor || '—')) +
+    (likely ? row('Most active', esc(likely.name) + ' · ' +
+      (likely.online ? 'on now' : likely.idleDays + 'd')) : '') +
+    (t.chainCritical
+      ? '<div class="r" style="color:var(--gold)"><span>Holds the chain</span>' +
+        '<span>' + t.stranded + ' town(s) beyond it</span></div>' : '') +
+    '<div style="margin-top:.4rem;font-family:var(--data);font-size:.64rem">' +
+      (t.isOpen ? '<span style="color:var(--green)">open</span> ' : '') +
+      (t.isOverClaimed ? '<span style="color:var(--red)">overclaimable now</span> ' : '') +
+      (t.known < t.residents
+        ? '<span style="color:var(--text-low)">' + (t.residents - t.known) + ' unseen</span>' : '') +
+    '</div></div>';
+}
+
+function drawWarMap(){
+  var host = document.getElementById('warMap');
+  if (!host || !intel || typeof L === 'undefined') return;
+
+  if (warMap){ warMap.remove(); warMap = null; }
+  warMap = L.map(host, {
+    crs: L.CRS.Simple, minZoom: -6, maxZoom: 2, zoomSnap: 0.25,
+    attributionControl: false, preferCanvas: true,
+  });
+
+  L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
+    tileSize: 2048, zoomOffset: 3, minNativeZoom: 0, maxNativeZoom: 3,
+    noWrap: true, opacity: 0.45, keepBuffer: 0, updateWhenIdle: true,
+  }).addTo(warMap);
+
+  var bounds = [];
+
+  (intel.towns || []).forEach(function(t){
+    var claims = t.claims || [];
+    if (!claims.length) return;
+    var col = townColour(t);
+
+    /* One rectangle per chunk, on a canvas renderer. Tracing outlines would be
+       prettier and is what the main map does — but that tracer lives in
+       map.html with its own cache and 200 lines of edge-walking, and a view
+       that is read once and closed does not justify carrying it here. */
+    claims.forEach(function(c){
+      var x = c[0] * 16, z = c[1] * 16;
+      bounds.push([-z, x], [-(z + 16), x + 16]);
+      L.rectangle([MC.toLatLng(x, z), MC.toLatLng(x + 16, z + 16)], {
+        color: col, weight: 0.4, opacity: 0.55,
+        fillColor: col, fillOpacity: 0.45,
+        interactive: false, 
+      }).addTo(warMap);
+    });
+
+    if (typeof t.homeX === 'number'){
+      L.circleMarker(MC.toLatLng(t.homeX, t.homeZ), {
+        radius: t.isCapital ? 7 : (t.chainCritical ? 6 : 4),
+        color: t.chainCritical ? '#edb912' : (t.isCapital ? '#f4efe4' : col),
+        weight: t.chainCritical ? 3 : 1.5,
+        fillColor: col, fillOpacity: 1,
+      }).bindPopup(townPopup(t), { maxWidth: 300 }).addTo(warMap);
+    }
+  });
+
+  /* Nation range, as the union of reach discs — same rule the map page uses:
+     5,000 from the capital's home plot, 1,500 from every member's. */
+  if (showRange){
+    (intel.towns || []).forEach(function(t){
+      if (typeof t.homeX !== 'number') return;
+      L.circle(MC.toLatLng(t.homeX, t.homeZ), {
+        radius: t.isCapital ? 5000 : 1500,
+        color: '#edb912', weight: t.isCapital ? 2 : 1,
+        opacity: t.isCapital ? 0.9 : 0.35,
+        fill: false, dashArray: t.isCapital ? null : '4 4',
+        interactive: false,
+      }).addTo(warMap);
+    });
+  }
+
+  if (bounds.length) warMap.fitBounds(L.latLngBounds(bounds).pad(0.08));
+  else warMap.setView([0, 0], -4);
+
+  var legend = document.getElementById('mapLegend');
+  if (legend){
+    var key = mapColour === 'size'
+      ? [['#3f7fb8','under 60 chunks'],['#189d4d','60–200'],['#edb912','200–500'],['#cf2029','500+']]
+      : mapColour === 'chain'
+      ? [['#edb912','holds the chain'],['#4a4238','does not']]
+      : [['#cf2029','falls within a week'],['#e06c1f','within two'],
+         ['#edb912','within a month'],['#189d4d','longer'],['#5a5245','unseen']];
+    legend.innerHTML = key.map(function(k){
+      return '<span><em style="background:' + k[0] + '"></em>' + esc(k[1]) + '</span>';
+    }).join('') + '<span style="margin-left:auto">click a town for its detail</span>';
+  }
 }
 
 async function assess(){

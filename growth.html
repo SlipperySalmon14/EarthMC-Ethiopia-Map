@@ -511,13 +511,32 @@ function render(){
        wrote down. So the newest point here is as old as the last sweep, and
        on a day when towns joined or a purge ran the two will differ by real
        amounts. Neither is wrong; they are answers to different questions. */
-    '<p class="note" style="margin:.1rem 0 0">' +
-      (latest.day
-        ? 'Recorded ' + esc(latest.day) + ' — the stored daily snapshot, which is what ' +
-          'makes a history possible. The home page asks the server live, so it will ' +
-          'read slightly higher or lower.'
-        : 'No snapshot recorded yet.') +
-    '</p>';
+    /* Staleness in words, not just a date.
+     *
+     * "Recorded 2026-10-02T21" is only meaningful if you happen to know what
+     * today is, so a snapshot that stopped four days ago reads as a normal
+     * timestamp and nobody notices the history has frozen. Hours-ago says it
+     * outright, and past a day it turns red — because at that point this is
+     * not staleness, it is a broken sweep. */
+    (function(){
+      if (!latest.day) return '<p class="note" style="margin:.1rem 0 0">No snapshot recorded yet.</p>';
+      var when = latest.takenAt || latest.taken_at || latest.day;
+      var ageH = (Date.now() - new Date(when).getTime()) / 3600000;
+      var bad = !isFinite(ageH) || ageH > 26;
+      var ageWord = !isFinite(ageH) ? 'at an unknown time'
+        : ageH < 1.5 ? 'about an hour ago'
+        : ageH < 48 ? Math.round(ageH) + ' hours ago'
+        : Math.round(ageH / 24) + ' days ago';
+      return '<p class="note" style="margin:.1rem 0 0' +
+        (bad ? ';color:var(--red)' : '') + '">' +
+        'Last recorded ' + esc(ageWord) + ' (' + esc(String(when).slice(0, 16)) + ').' +
+        (bad
+          ? ' That is too old — the sweep has stopped, so everything below is frozen at ' +
+            'that moment. The figures on the home page are live and will not match.'
+          : ' These are the stored snapshots, which is what makes a history possible; ' +
+            'the home page asks the server live, so it reads slightly higher or lower.') +
+        '</p>';
+    })();
 
   out += '<div class="tools">' +
     '<div class="f" style="flex:0 0 10rem"><label for="days">Period</label>' +

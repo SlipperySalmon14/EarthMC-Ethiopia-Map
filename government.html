@@ -251,6 +251,8 @@ footer{
     <span class="spacer"></span>
     <a class="btn" href="elections.html"
        style="text-decoration:none;border-color:var(--gold-dim);color:var(--gold)">Elections</a>
+    <a class="btn" href="war.html" id="warLink" hidden
+       style="text-decoration:none;border-color:var(--red-dim);color:var(--red)">War Department</a>
     <div class="lang" role="group" aria-label="Language">
       <button class="btn" type="button" data-set-lang="en" aria-pressed="true">EN</button>
       <button class="btn" type="button" data-set-lang="am" aria-pressed="false" lang="am">አማርኛ</button>
@@ -1400,6 +1402,15 @@ async function load(){
 
   await loadParties();
   await renderElectionCard();
+
+  /* The War Department link appears only for someone who can actually open it.
+     Showing it to everyone and letting the page refuse them is a worse
+     experience than not advertising a door they cannot use — and it quietly
+     tells the whole nation the department exists and who is in it. */
+  try {
+    var w = await api('/api/war/watch');
+    if (w && w.ok) $('warLink').hidden = false;
+  } catch (e) { /* not Defence, not a manager — the link stays hidden */ }
 }
 
 load();

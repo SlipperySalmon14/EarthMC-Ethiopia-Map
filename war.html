@@ -79,6 +79,35 @@ tr.unknown td{ color:var(--text-low); font-style:italic; }
 
 canvas{ width:100%; height:200px; display:block; }
 #warMap{ height:30rem; border-radius:var(--r-md); background:#0b0a08; }
+
+/* The 42-day board. Cards rather than another table, because this is the one
+   thing on the page people will act on and a row in a list of forty does not
+   carry that. Each card is a decision. */
+.fallgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr)); gap:.6rem; }
+.fall{ background:var(--ink-raised); border:1px solid var(--rule);
+  border-left:3px solid var(--urg,var(--rule)); border-radius:var(--r-md);
+  padding:.75rem .85rem; cursor:pointer; transition:border-color .12s ease; position:relative; }
+.fall:hover{ border-color:var(--urg,var(--gold-dim)); }
+.fall .top{ display:flex; align-items:baseline; gap:.5rem; }
+.fall .nm{ font-family:var(--display); font-weight:600; font-size:.95rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fall .d{ margin-left:auto; font-family:var(--data); font-weight:600;
+  font-size:1.25rem; color:var(--urg); font-variant-numeric:tabular-nums; }
+.fall .d small{ font-size:.6rem; font-weight:400; color:var(--text-low); margin-left:.1rem; }
+.fall .clock{ height:4px; border-radius:2px; background:var(--ink); margin:.5rem 0 .45rem;
+  overflow:hidden; }
+.fall .clock i{ display:block; height:100%; background:var(--urg); }
+.fall .meta{ font-family:var(--data); font-size:.64rem; color:var(--text-low);
+  display:flex; flex-wrap:wrap; gap:.5rem; }
+.fall .meta b{ color:var(--text-mid); font-weight:400; }
+.fall .who{ display:flex; align-items:center; gap:.35rem; margin-top:.45rem;
+  font-family:var(--data); font-size:.66rem; color:var(--text-mid); }
+.fall .who img{ width:16px; height:16px; border-radius:2px; image-rendering:pixelated; }
+.fall .tag{ position:absolute; top:.5rem; right:.6rem; font-family:var(--data);
+  font-size:.56rem; letter-spacing:.06em; text-transform:uppercase; padding:.1rem .3rem;
+  border-radius:2px; }
+.fallband{ font-family:var(--data); font-size:.62rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-low); margin:1rem 0 .5rem; }
 #warMap .leaflet-control-attribution{ display:none; }
 .maplegend{ display:flex; flex-wrap:wrap; gap:.7rem; margin-top:.6rem;
   font-family:var(--data); font-size:.64rem; color:var(--text-low); }
@@ -92,9 +121,9 @@ canvas{ width:100%; height:200px; display:block; }
 .leaflet-popup-tip{ background:var(--ink-raised); border:1px solid var(--rule); }
 .leaflet-popup-content{ margin:.7rem .9rem; font-family:var(--body); font-size:.8rem; }
 .wpop h4{ font-family:var(--display); font-size:.95rem; margin:0 0 .3rem; }
-.wpop .r{ display:flex; justify-content:space-between; gap:.8rem;
+.wpop .r, .r{ display:flex; justify-content:space-between; gap:.8rem;
   font-family:var(--data); font-size:.68rem; padding:.12rem 0; }
-.wpop .r span:last-child{ color:var(--text); font-variant-numeric:tabular-nums; }
+.wpop .r span:last-child, .r span:last-child{ color:var(--text); font-variant-numeric:tabular-nums; }
 .card{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:var(--r-md);
   padding:1rem 1.1rem; margin-bottom:.8rem; }
 .card h3{ font-family:var(--display); font-size:var(--step-0); margin:0 0 .15rem; }
@@ -151,7 +180,12 @@ var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 var me = null, intel = null, watching = [], overview = null;
 var view = 'watch';        // 'watch' | 'nation'
 var hideLapsed = false, rosterQ = '';
-var warMap = null, warLayers = null, mapColour = 'falling', showRange = false;
+var warMap = null, mapColour = 'falling';
+/* Each layer independent, because they answer different questions and nobody
+   wants all of them at once. Defaults are what you want on opening: the land,
+   who holds it, and nothing else competing for attention. */
+var warShow = { terrain: true, outlines: true, markers: true, chunks: false,
+                range: false, labels: false };
 
 /* The same projection the main map uses: x east, -z north, so a Leaflet
    latLng is (-z, x). Reimplemented here rather than imported because war.html
@@ -375,17 +409,89 @@ function render(){
     'than inactive. Treating silence as absence would mark living towns as falling, and ' +
     'sending people to overclaim a town that is still held is the worse mistake.</p></div>';
 
+  /* The 42-day board, above the map.
+   *
+   * Everything else here describes a nation; this is the list of things that
+   * are about to stop existing, which is the only part anyone opens this page
+   * in a hurry for. Banded by urgency rather than sorted into one long run,
+   * because "this week" and "next month" are different decisions and a
+   * continuous list makes you find the boundary yourself. */
+  var falling = (intel.towns || []).filter(function(t){
+    return t.daysLeft !== null && t.daysLeft <= 42; });
+
+  if (falling.length){
+    var bands = [
+      { max: 7,  label: 'Within a week',     col: '#cf2029' },
+      { max: 14, label: 'Within two weeks',  col: '#e06c1f' },
+      { max: 28, label: 'Within a month',    col: '#edb912' },
+      { max: 42, label: 'Within six weeks',  col: '#9aa84e' },
+    ];
+    out += '<div class="section-head"><h2>Running out</h2>' +
+      '<span class="meta">' + falling.length + ' town' + (falling.length === 1 ? '' : 's') +
+      ' on the 42-day clock</span></div>';
+
+    var done = 0;
+    bands.forEach(function(b, i){
+      var prev = i ? bands[i - 1].max : -1;
+      var inBand = falling.filter(function(t){
+        return t.daysLeft > prev && t.daysLeft <= b.max; });
+      if (!inBand.length) return;
+      done += inBand.length;
+      out += '<div class="fallband">' + esc(b.label) + ' · ' + inBand.length + '</div>' +
+        '<div class="fallgrid">' + inBand.map(function(t){
+          /* The bar runs the other way on purpose: it fills as the town runs
+             out, so a nearly-full bar is a nearly-dead town. A bar that
+             empties reads as progress, which is the opposite of what this is. */
+          var used = Math.round(((42 - t.daysLeft) / 42) * 100);
+          var holder = (t.roster || []).filter(function(r){
+            return r.idleDays !== null && r.idleDays < 42; })[0];
+          return '<div class="fall" data-fall="' + esc(t.name) + '" style="--urg:' + b.col + '">' +
+            (t.chainCritical
+              ? '<span class="tag" style="background:rgba(237,185,18,.18);color:#edb912">chain</span>'
+              : t.isOverClaimed
+              ? '<span class="tag" style="background:rgba(207,32,41,.18);color:#cf2029">overclaimed</span>'
+              : '') +
+            '<div class="top"><span class="nm">' + esc(t.name) + '</span>' +
+              '<span class="d">' + t.daysLeft + '<small>d</small></span></div>' +
+            '<div class="clock"><i style="width:' + used + '%"></i></div>' +
+            '<div class="meta">' +
+              '<span><b>' + num(t.chunks) + '</b> chunks</span>' +
+              '<span><b>' + t.residents + '</b> res' +
+                (t.holders != null && t.holders < t.residents
+                  ? ', <b>' + t.holders + '</b> holding' : '') + '</span>' +
+              '<span><b>' + num(t.balance) + 'g</b></span>' +
+              (t.isOpen ? '<span style="color:var(--green)">open</span>' : '') +
+            '</div>' +
+            (holder
+              ? '<div class="who"><img src="https://minotar.net/helm/' +
+                encodeURIComponent(holder.name) + '/16.png" alt="" ' +
+                'onerror="this.style.visibility=\'hidden\'">' +
+                'held by ' + esc(holder.name) +
+                (holder.online ? ' · <span style="color:var(--green)">on now</span>'
+                  : ' · ' + holder.idleDays + 'd') + '</div>'
+              : '<div class="who" style="color:var(--text-low)">nobody visible is holding it</div>') +
+          '</div>';
+        }).join('') + '</div>';
+    });
+
+    out += '<p class="note">The bar fills as the clock runs down, so a full bar is a town ' +
+      'about to go. Click any card to find it on the map.</p>';
+  }
+
   out += '<div class="section-head"><h2>The ground</h2>' +
     '<span class="meta">every claim, coloured by how long it has left</span></div>' +
     '<div class="maptools">' +
-      '<button type="button" class="btn ' + (mapColour === 'falling' ? 'on' : '') +
-        '" data-mc="falling">Time left</button>' +
-      '<button type="button" class="btn ' + (mapColour === 'size' ? 'on' : '') +
-        '" data-mc="size">Size</button>' +
-      '<button type="button" class="btn ' + (mapColour === 'chain' ? 'on' : '') +
-        '" data-mc="chain">Chain</button>' +
-      '<button type="button" class="btn ' + (showRange ? 'on' : '') +
-        '" id="rangeToggle">Nation range</button>' +
+      ['falling','size','chain'].map(function(m){
+        var label = { falling:'Time left', size:'Size', chain:'Chain' }[m];
+        return '<button type="button" class="btn ' + (mapColour === m ? 'on' : '') +
+          '" data-mc="' + m + '">' + label + '</button>';
+      }).join('') +
+      '<span style="width:1px;background:var(--rule);margin:0 .3rem"></span>' +
+      [['terrain','Terrain'],['outlines','Borders'],['markers','Towns'],
+       ['chunks','Chunks'],['range','Range'],['labels','Names']].map(function(k){
+        return '<button type="button" class="btn ' + (warShow[k[0]] ? 'on' : '') +
+          '" data-layer="' + k[0] + '">' + k[1] + '</button>';
+      }).join('') +
     '</div>' +
     '<div id="warMap"></div>' +
     '<div class="maplegend" id="mapLegend"></div>';
@@ -492,11 +598,40 @@ function render(){
   }
 
   drawWarMap();
-  $('body').querySelectorAll('[data-mc]').forEach(function(b){
-    b.addEventListener('click', function(){ mapColour = b.dataset.mc; render(); });
+  $('body').querySelectorAll('[data-fall]').forEach(function(card){
+    card.addEventListener('click', function(){
+      var t = (intel.towns || []).filter(function(x){ return x.name === card.dataset.fall; })[0];
+      if (!t || typeof t.homeX !== 'number' || !warMap) return;
+      document.getElementById('warMap').scrollIntoView({ behavior:'smooth', block:'center' });
+      warMap.setView(MC.toLatLng(t.homeX, t.homeZ), 0);
+      /* Opened after the pan so the popup lands where the eye already is,
+         rather than appearing off-screen and pulling the map after it. */
+      setTimeout(function(){
+        L.popup({ maxWidth: 320 })
+          .setLatLng(MC.toLatLng(t.homeX, t.homeZ))
+          .setContent(townPopup(t)).openOn(warMap);
+      }, 420);
+    });
   });
-  var rt = $('rangeToggle');
-  if (rt) rt.addEventListener('click', function(){ showRange = !showRange; render(); });
+  /* Redrawn in place rather than re-rendering the page: a full render would
+     rebuild the map from scratch and throw away wherever you had panned to,
+     which makes toggling a layer feel like losing your place. */
+  $('body').querySelectorAll('[data-mc]').forEach(function(b){
+    b.addEventListener('click', function(){
+      mapColour = b.dataset.mc;
+      $('body').querySelectorAll('[data-mc]').forEach(function(o){
+        o.classList.toggle('on', o.dataset.mc === mapColour); });
+      drawWarMap(true);
+    });
+  });
+  $('body').querySelectorAll('[data-layer]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var k = b.dataset.layer;
+      warShow[k] = !warShow[k];
+      b.classList.toggle('on', warShow[k]);
+      drawWarMap(true);
+    });
+  });
 
   var hl = $('hideLapsed');
   if (hl) hl.addEventListener('change', function(){ hideLapsed = hl.checked; render(); });
@@ -613,6 +748,57 @@ function renderOverview(){
  * that matters — the same squaremap tiles, the same projection, the same
  * chunk-to-block maths — so the two agree about where things are.
  */
+/* Chunk list to outline rings.
+ *
+ * Every chunk contributes four edges; an edge shared by two chunks is interior
+ * and cancels out. What is left is the boundary, which is then chained into
+ * loops. Handles holes and disconnected pieces for free, because both are
+ * simply more loops.
+ *
+ * Directions are kept consistent (each edge walked clockwise around its own
+ * chunk) so that chaining never has to guess which way round a loop goes. */
+function traceChunks(claims){
+  if (!claims || !claims.length) return [];
+  var edges = new Map();
+  var key = function(a, b){ return a[0] + ',' + a[1] + '>' + b[0] + ',' + b[1]; };
+
+  claims.forEach(function(c){
+    var x = c[0] * 16, z = c[1] * 16, X = x + 16, Z = z + 16;
+    [[[x,z],[X,z]], [[X,z],[X,Z]], [[X,Z],[x,Z]], [[x,Z],[x,z]]].forEach(function(e){
+      /* If the reverse of this edge is already present, the two chunks share
+         it — drop both rather than storing an interior line. */
+      var rev = key(e[1], e[0]);
+      if (edges.has(rev)) edges.delete(rev);
+      else edges.set(key(e[0], e[1]), e);
+    });
+  });
+
+  var byStart = new Map();
+  edges.forEach(function(e){
+    var k = e[0][0] + ',' + e[0][1];
+    if (!byStart.has(k)) byStart.set(k, []);
+    byStart.get(k).push(e);
+  });
+
+  var rings = [], guard = 0;
+  edges.forEach(function(start){
+    if (start.used || guard++ > 20000) return;
+    var ring = [start[0]], cur = start;
+    cur.used = true;
+    while (guard++ < 200000){
+      ring.push(cur[1]);
+      var next = (byStart.get(cur[1][0] + ',' + cur[1][1]) || [])
+        .filter(function(e){ return !e.used; })[0];
+      if (!next) break;
+      next.used = true;
+      cur = next;
+      if (cur[1][0] === ring[0][0] && cur[1][1] === ring[0][1]){ ring.push(cur[1]); break; }
+    }
+    if (ring.length > 3) rings.push(ring);
+  });
+  return rings;
+}
+
 function fallColour(t){
   if (t.daysLeft === null) return '#5a5245';          // unseen, not safe or unsafe
   if (t.daysLeft <= 7)  return '#cf2029';
@@ -673,20 +859,28 @@ function townPopup(t){
     '</div></div>';
 }
 
-function drawWarMap(){
+function drawWarMap(keepView){
   var host = document.getElementById('warMap');
   if (!host || !intel || typeof L === 'undefined') return;
 
+  /* keepView redraws into the existing map instead of rebuilding it, so
+     toggling a layer does not throw away wherever you had panned to. */
+  var saved = keepView && warMap ? { c: warMap.getCenter(), z: warMap.getZoom() } : null;
   if (warMap){ warMap.remove(); warMap = null; }
+
   warMap = L.map(host, {
-    crs: L.CRS.Simple, minZoom: -6, maxZoom: 2, zoomSnap: 0.25,
+    crs: L.CRS.Simple, minZoom: -6, maxZoom: 2,
+    zoomSnap: 1, zoomDelta: 1, wheelPxPerZoomLevel: 120,
     attributionControl: false, preferCanvas: true,
   });
 
-  L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
-    tileSize: 2048, zoomOffset: 3, minNativeZoom: 0, maxNativeZoom: 3,
-    noWrap: true, opacity: 0.45, keepBuffer: 0, updateWhenIdle: true,
-  }).addTo(warMap);
+  if (warShow.terrain){
+    L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
+      tileSize: 2048, zoomOffset: 3, minNativeZoom: 0, maxNativeZoom: 5,
+      noWrap: true, opacity: 0.5, keepBuffer: 0,
+      updateWhenIdle: true, updateWhenZooming: false,
+    }).addTo(warMap);
+  }
 
   var bounds = [];
 
@@ -694,34 +888,67 @@ function drawWarMap(){
     var claims = t.claims || [];
     if (!claims.length) return;
     var col = townColour(t);
+    var popup = townPopup(t);
 
-    /* One rectangle per chunk, on a canvas renderer. Tracing outlines would be
-       prettier and is what the main map does — but that tracer lives in
-       map.html with its own cache and 200 lines of edge-walking, and a view
-       that is read once and closed does not justify carrying it here. */
     claims.forEach(function(c){
-      var x = c[0] * 16, z = c[1] * 16;
-      bounds.push([-z, x], [-(z + 16), x + 16]);
-      L.rectangle([MC.toLatLng(x, z), MC.toLatLng(x + 16, z + 16)], {
-        color: col, weight: 0.4, opacity: 0.55,
-        fillColor: col, fillOpacity: 0.45,
-        interactive: false, 
-      }).addTo(warMap);
+      bounds.push([-(c[1] * 16), c[0] * 16], [-(c[1] * 16 + 16), c[0] * 16 + 16]);
     });
 
+    if (warShow.outlines){
+      traceChunks(claims).forEach(function(ring){
+        L.polygon(ring.map(function(pt){ return MC.toLatLng(pt[0], pt[1]); }), {
+          color: col, weight: 1.8, opacity: 0.95,
+          fillColor: col, fillOpacity: 0.28,
+          /* Clickable. The outline is the town as far as anyone looking at
+             this map is concerned, so clicking the shape has to do what
+             clicking the dot does — hunting for a 4px marker inside a large
+             territory is not a thing anyone should have to do. */
+          interactive: true, bubblingMouseEvents: false,
+        }).bindPopup(popup, { maxWidth: 320 }).addTo(warMap);
+      });
+    }
+
+    /* Individual chunks, off by default. Only useful once you are zoomed into
+       a border — at nation scale they are sub-pixel and cost thousands of
+       paths for nothing. */
+    if (warShow.chunks){
+      claims.forEach(function(c){
+        var x = c[0] * 16, z = c[1] * 16;
+        L.rectangle([MC.toLatLng(x, z), MC.toLatLng(x + 16, z + 16)], {
+          color: col, weight: 0.5, opacity: 0.45, fill: false,
+          interactive: false,
+        }).addTo(warMap);
+      });
+    }
+
     if (typeof t.homeX === 'number'){
-      L.circleMarker(MC.toLatLng(t.homeX, t.homeZ), {
-        radius: t.isCapital ? 7 : (t.chainCritical ? 6 : 4),
-        color: t.chainCritical ? '#edb912' : (t.isCapital ? '#f4efe4' : col),
-        weight: t.chainCritical ? 3 : 1.5,
-        fillColor: col, fillOpacity: 1,
-      }).bindPopup(townPopup(t), { maxWidth: 300 }).addTo(warMap);
+      if (warShow.markers){
+        L.circleMarker(MC.toLatLng(t.homeX, t.homeZ), {
+          radius: t.isCapital ? 7 : (t.chainCritical ? 6 : 4),
+          color: t.chainCritical ? '#edb912' : (t.isCapital ? '#f4efe4' : col),
+          weight: t.chainCritical ? 3 : 1.5,
+          fillColor: col, fillOpacity: 1,
+          bubblingMouseEvents: false,
+        }).bindPopup(popup, { maxWidth: 320 })
+          .bindTooltip(esc(t.name) + (t.daysLeft === null ? '' : ' · ' + t.daysLeft + 'd'),
+            { direction: 'top' })
+          .addTo(warMap);
+      }
+      if (warShow.labels){
+        L.marker(MC.toLatLng(t.homeX, t.homeZ), {
+          interactive: false,
+          icon: L.divIcon({
+            className: '',
+            html: '<div style="font-family:Martian Mono,monospace;font-size:10px;' +
+              'color:#f4efe4;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap;' +
+              'transform:translate(-50%,-160%)">' + esc(t.name) + '</div>',
+          }),
+        }).addTo(warMap);
+      }
     }
   });
 
-  /* Nation range, as the union of reach discs — same rule the map page uses:
-     5,000 from the capital's home plot, 1,500 from every member's. */
-  if (showRange){
+  if (warShow.range){
     (intel.towns || []).forEach(function(t){
       if (typeof t.homeX !== 'number') return;
       L.circle(MC.toLatLng(t.homeX, t.homeZ), {
@@ -734,7 +961,8 @@ function drawWarMap(){
     });
   }
 
-  if (bounds.length) warMap.fitBounds(L.latLngBounds(bounds).pad(0.08));
+  if (saved) warMap.setView(saved.c, saved.z);
+  else if (bounds.length) warMap.fitBounds(L.latLngBounds(bounds).pad(0.08));
   else warMap.setView([0, 0], -4);
 
   var legend = document.getElementById('mapLegend');
@@ -747,7 +975,7 @@ function drawWarMap(){
          ['#edb912','within a month'],['#189d4d','longer'],['#5a5245','unseen']];
     legend.innerHTML = key.map(function(k){
       return '<span><em style="background:' + k[0] + '"></em>' + esc(k[1]) + '</span>';
-    }).join('') + '<span style="margin-left:auto">click a town for its detail</span>';
+    }).join('') + '<span style="margin-left:auto">click a town or its border</span>';
   }
 }
 

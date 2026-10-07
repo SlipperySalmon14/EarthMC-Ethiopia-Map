@@ -521,7 +521,16 @@ function render(){
     (function(){
       if (!latest.day) return '<p class="note" style="margin:.1rem 0 0">No snapshot recorded yet.</p>';
       var when = latest.takenAt || latest.taken_at || latest.day;
-      var ageH = (Date.now() - new Date(when).getTime()) / 3600000;
+      /* Snapshot keys are hour-stamped — 2026-10-02T21 — and that is not a
+         valid ISO instant: the spec needs minutes once hours are given, so
+         new Date() returns Invalid Date and every comparison against it is
+         false. Which is why this read "at an unknown time" while printing the
+         timestamp right next to it. Padded to a parseable form first. */
+      var iso = String(when || '');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) iso += 'T12:00:00Z';
+      else if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(iso)) iso += ':00:00Z';
+      else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(iso)) iso += ':00Z';
+      var ageH = (Date.now() - new Date(iso).getTime()) / 3600000;
       var bad = !isFinite(ageH) || ageH > 26;
       var ageWord = !isFinite(ageH) ? 'at an unknown time'
         : ageH < 1.5 ? 'about an hour ago'

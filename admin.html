@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Admin · Ethiopia</title>
+<script src="assets/session.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/base.css?v=2">
+<link rel="stylesheet" href="assets/base.css?v=3">
 <style>
 .back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
   letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
@@ -31,11 +32,30 @@
 .tile.people{ --accent:var(--green); } .tile.gov{ --accent:var(--red); }
 .tile.money{ --accent:var(--gold); } .tile.jobs{ --accent:var(--green); }
 .tile.don{ --accent:var(--gold); } .tile.map{ --accent:var(--blue); }
+.tile.war{ --accent:var(--red); }
 
 .section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
   border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
 .section-head h2{ font-size:var(--step-2); }
 .section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+
+/* --- the refresh panel --------------------------------------------------- */
+.refresh{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px;
+  padding:1rem 1.1rem; margin-bottom:1.6rem; }
+.refresh .lead{ display:flex; align-items:center; gap:.9rem; flex-wrap:wrap; }
+.refresh p.why{ color:var(--text-mid); font-size:var(--step--1); margin:.5rem 0 0; max-width:42rem; }
+.steps{ margin-top:.9rem; display:flex; flex-direction:column; gap:.3rem; }
+.step{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;
+  padding:.4rem .55rem; background:var(--ink); border:1px solid var(--rule);
+  border-left:3px solid var(--mark,var(--rule)); border-radius:2px;
+  font-family:var(--data); font-size:.7rem; }
+.step.ok{ --mark:var(--green); }
+.step.bad{ --mark:var(--red); }
+.step .nm{ color:var(--text); }
+.step .de{ color:var(--text-low); font-size:.64rem; }
+.step .ms{ margin-left:auto; color:var(--text-low); font-variant-numeric:tabular-nums; }
+.step .err{ flex-basis:100%; color:var(--red); font-size:.66rem; }
+.step .res{ flex-basis:100%; color:var(--text-mid); font-size:.64rem; }
 
 .pagepick{ display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:1rem; }
 .pp{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem; background:var(--ink-raised);
@@ -90,6 +110,14 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
         <h3>Government</h3>
         <p>Offices, parties, regions and House seats.</p>
         <span class="go">Open &#8594;</span></a>
+      <a class="tile gov" href="elections.html">
+        <h3>Elections</h3>
+        <p>Call an election, approve candidacies, and read the turnout.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile war" href="war.html">
+        <h3>War Department</h3>
+        <p>Any nation's towns, residents and 42-day clocks &mdash; who is holding, and who is only still listed.</p>
+        <span class="go">Open &#8594;</span></a>
       <a class="tile money" href="treasury.html">
         <h3>Treasury</h3>
         <p>The ledger, reconciliation against the nation bank.</p>
@@ -108,11 +136,15 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
         <span class="go">Open &#8594;</span></a>
       <a class="tile people" href="account.html">
         <h3>Accounts</h3>
-        <p>One person's full record — look anyone up by Discord ID.</p>
+        <p>One person's full record &mdash; look anyone up by Discord ID.</p>
         <span class="go">Open &#8594;</span></a>
       <a class="tile gold" href="history.html">
         <h3>The record</h3>
         <p>Growth month by month, terms, and past governments.</p>
+        <span class="go">Open &#8594;</span></a>
+      <a class="tile gold" href="growth.html">
+        <h3>Growth</h3>
+        <p>Residents, land and towns over time, and every arrival and departure.</p>
         <span class="go">Open &#8594;</span></a>
       <a class="tile gold" href="stats.html">
         <h3>Usage</h3>
@@ -122,6 +154,24 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
         <h3>Map</h3>
         <p>Regions, ice highways and nation borders.</p>
         <span class="go">Open &#8594;</span></a>
+    </div>
+
+    <div class="section-head">
+      <h2>Data</h2>
+      <span class="meta">Every scheduled job, on demand</span>
+    </div>
+    <div class="refresh">
+      <div class="lead">
+        <button class="btn btn-accent" type="button" id="refreshBtn">&#8635; Refresh everything now</button>
+        <span class="msg" id="refreshMsg"></span>
+      </div>
+      <p class="why">
+        These normally run on separate timers, so a problem with any one of them is
+        invisible until someone notices a chart has stopped &mdash; which last time took
+        four days. Each step reports on its own: a partial run says which part failed
+        rather than hiding it behind a single tick.
+      </p>
+      <div class="steps" id="refreshSteps"></div>
     </div>
 
     <div class="section-head">
@@ -148,6 +198,7 @@ var PAGES = {
   index:      { label:'Home',       slots:{ title:'Ethiopia', subtitle:'Republic and Empire',
                 intro:'The live map, the treasury, open work, and the record of who holds which office.' } },
   government: { label:'Government', slots:{ title:'Government', subtitle:'Offices of State' } },
+  elections:  { label:'Elections',  slots:{ title:'Elections', subtitle:'One account, one ballot' } },
   treasury:   { label:'Treasury',   slots:{ title:'Treasury', subtitle:'The national ledger' } },
   funding:    { label:'Funding',    slots:{ title:'Funding', subtitle:'Monthly allowances' } },
   donations:  { label:'Donations',  slots:{ title:'Donations', subtitle:'With thanks' } },
@@ -165,9 +216,60 @@ async function api(path, opts){
   var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
   var d = null;
   try { d = await res.json(); } catch (e) {}
-  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  if (!res.ok){
+    var err = new Error((d && (d.detail || d.error)) || ('HTTP ' + res.status));
+    err.status = res.status; err.payload = d; throw err;
+  }
   return d;
 }
+
+/* --- refresh -------------------------------------------------------------- */
+
+function renderSteps(steps){
+  var host = $('refreshSteps');
+  if (!steps || !steps.length){ host.innerHTML = ''; return; }
+  host.innerHTML = steps.map(function(s){
+    /* The result object is printed compactly rather than summarised, because
+       the useful part varies by step — one returns a row count, another a
+       timestamp — and guessing which field matters for each would mean the
+       one that mattered was eventually left out. */
+    var res = s.result && Object.keys(s.result).length
+      ? Object.keys(s.result).map(function(k){
+          return esc(k) + ' ' + esc(String(s.result[k])); }).join(' · ')
+      : '';
+    return '<div class="step ' + (s.ok ? 'ok' : 'bad') + '">' +
+      '<span class="nm">' + (s.ok ? '\u2713' : '\u2715') + ' ' + esc(s.name) + '</span>' +
+      '<span class="de">' + esc(s.detail || '') + '</span>' +
+      '<span class="ms">' + s.ms + 'ms</span>' +
+      (s.error ? '<span class="err">' + esc(s.error) + '</span>' : '') +
+      (res ? '<span class="res">' + res + '</span>' : '') +
+    '</div>';
+  }).join('');
+}
+
+async function refreshAll(){
+  var btn = $('refreshBtn'), msg = $('refreshMsg');
+  btn.disabled = true;
+  msg.textContent = 'Running — the nation figures take a few seconds.';
+  msg.className = 'msg';
+  $('refreshSteps').innerHTML = '';
+  try {
+    var d = await api('/api/admin/refresh', { method:'POST' });
+    renderSteps(d.steps);
+    msg.textContent = d.summary + ' · ' + d.totalMs + 'ms';
+    msg.className = 'msg ' + (d.failed ? 'err' : 'ok');
+  } catch (e){
+    /* A failure here still has steps attached when the Worker got far enough
+       to produce them — showing those is more useful than the status code. */
+    if (e.payload && e.payload.steps) renderSteps(e.payload.steps);
+    msg.textContent = e.message;
+    msg.className = 'msg err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* --- page wording --------------------------------------------------------- */
 
 function renderPicker(){
   $('pagepick').innerHTML = Object.keys(PAGES).map(function(p){
@@ -233,11 +335,29 @@ function renderSlots(){
   });
 }
 
+/* --- auth ----------------------------------------------------------------- */
+
+function ethiopiaProfileChip(me){
+  var face = me.avatarUrl
+    ? '<img src="' + esc(me.avatarUrl) + '" alt="" width="18" height="18" ' +
+      'style="width:18px;height:18px;border-radius:50%;object-fit:cover;' +
+      'vertical-align:-.2rem;margin-right:.35rem" onerror="this.style.display=\'none\'">' : '';
+  var head = me.mcName
+    ? '<img src="https://minotar.net/helm/' + encodeURIComponent(me.mcName) + '/18.png" ' +
+      'alt="" width="18" height="18" style="width:18px;height:18px;border-radius:2px;' +
+      'image-rendering:pixelated;vertical-align:-.2rem;margin-right:.35rem" ' +
+      'onerror="this.style.display=\'none\'">' : '';
+  var who = me.mcName
+    ? esc(me.mcName) + (me.discordName ? ' \u00b7 ' + esc(me.discordName) : '')
+    : esc(me.discordName || 'Signed in');
+  return face + head + who + ' \u00b7 ' + esc(me.tier);
+}
+
 function renderAuth(){
   var slot = $('authSlot');
   if (me && me.signedIn){
     slot.innerHTML = '<button class="btn" type="button" id="signout">' +
-      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+      ethiopiaProfileChip(me) + '</button>';
     $('signout').addEventListener('click', async function(){
       try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
       location.reload();
@@ -247,7 +367,6 @@ function renderAuth(){
       encodeURIComponent('/admin.html') + '">Sign in with Discord</a>';
   }
 }
-
 
 /* A missing element must never take the page down.
    A page stuck on "Loading…" with no error is the worst failure mode there is:
@@ -278,6 +397,8 @@ async function load(quiet){
       $('stamp').textContent = 'Not permitted';
       return;
     }
+    var rb = $('refreshBtn');
+    if (rb) rb.addEventListener('click', refreshAll);
   }
   try {
     var d = await api('/api/page-text');
@@ -291,6 +412,6 @@ async function load(quiet){
 load().catch(fatal);
 </script>
 <script src="assets/pagetext.js?v=1"></script>
+<script src="assets/election-banner.js?v=1"></script>
 </body>
 </html>
-

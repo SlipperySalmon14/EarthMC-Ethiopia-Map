@@ -168,6 +168,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script src="assets/chart.js?v=1"></script>
 <script>
 'use strict';
@@ -496,6 +497,19 @@ function render(){
     '<div id="warMap"></div>' +
     '<div class="maplegend" id="mapLegend"></div>';
 
+  if (intel.disconnected && intel.disconnected.length){
+    out += '<div class="card" style="margin-top:.8rem;border-left:3px solid var(--red)">' +
+      '<h3 style="color:var(--red)">Already out of range</h3>' +
+      '<p class="cap">No reach link back to the capital. These are not at risk of leaving ' +
+      'the nation &mdash; they are leaving it.</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:.3rem">' +
+      intel.disconnected.map(function(n){
+        return '<span style="font-family:var(--data);font-size:.68rem;padding:.2rem .5rem;' +
+          'background:rgba(207,32,41,.14);border:1px solid var(--red-dim);' +
+          'border-radius:var(--r-sm);color:var(--red)">' + esc(n) + '</span>';
+      }).join('') + '</div></div>';
+  }
+
   if (intel.chainCritical && intel.chainCritical.length){
     out += '<div class="card" style="margin-top:.8rem;border-left:3px solid var(--gold)">' +
       '<h3>Load-bearing towns</h3>' +
@@ -814,7 +828,16 @@ function sizeColour(t){
 
 function townColour(t){
   if (mapColour === 'size') return sizeColour(t);
-  if (mapColour === 'chain') return t.chainCritical ? '#edb912' : '#4a4238';
+  if (mapColour === 'chain'){
+    /* Three states, not two. A town already OUT of range is a different
+       situation from one that merely holds the chain — it is the emergency,
+       because it is losing nation status now rather than if something else
+       falls. Grey for "nothing depends on it" is the common case and should
+       recede. */
+    if (t.stranded === -1) return '#cf2029';        // already disconnected
+    if (t.chainCritical) return '#edb912';          // others depend on it
+    return '#4a4238';
+  }
   return fallColour(t);
 }
 
@@ -877,8 +900,17 @@ function drawWarMap(keepView){
   if (warShow.terrain){
     L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
       tileSize: 2048, zoomOffset: 3, minNativeZoom: 0, maxNativeZoom: 5,
-      noWrap: true, opacity: 0.5, keepBuffer: 0,
-      updateWhenIdle: true, updateWhenZooming: false,
+      /* minZoom and maxZoom HERE mean "hide this layer outside this range",
+         which is a different thing from the map's own zoom limits. Leaving
+         them out meant minZoom defaulted to 0 — so the terrain was switched
+         off at every negative zoom, which is every zoom wide enough to see a
+         nation. It only appeared once you had zoomed past 0, which is exactly
+         the symptom. minNativeZoom below is the separate setting that stops it
+         FETCHING folders that do not exist. */
+      minZoom: -7, maxZoom: 2,
+      noWrap: true, opacity: 0.55, keepBuffer: 1,
+      updateWhenZooming: false,
+      errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
     }).addTo(warMap);
   }
 
@@ -949,16 +981,52 @@ function drawWarMap(keepView){
   });
 
   if (warShow.range){
-    (intel.towns || []).forEach(function(t){
-      if (typeof t.homeX !== 'number') return;
-      L.circle(MC.toLatLng(t.homeX, t.homeZ), {
-        radius: t.isCapital ? 5000 : 1500,
-        color: '#edb912', weight: t.isCapital ? 2 : 1,
-        opacity: t.isCapital ? 0.9 : 0.35,
-        fill: false, dashArray: t.isCapital ? null : '4 4',
-        interactive: false,
-      }).addTo(warMap);
-    });
+    /* ONE merged frontier, not a circle per town.
+     *
+     * Sixty overlapping dashed rings is a scribble — and worse, it is a
+     * misleading one: it suggests the towns each hold a separate bubble when
+     * what actually exists is a single connected area. The union is the real
+     * shape, and the real question (can a town at X join) is answered by
+     * whether X is inside it. */
+    var merged = null;
+    try {
+      (intel.towns || []).forEach(function(t){
+        if (typeof t.homeX !== 'number') return;
+        var r = t.isCapital ? 5000 : 1500, pts = [];
+        for (var i = 0; i < 40; i++){
+          var a = (i / 40) * Math.PI * 2;
+          pts.push([t.homeX + Math.cos(a) * r, -(t.homeZ + Math.sin(a) * r)]);
+        }
+        pts.push(pts[0]);
+        var disc = turf.polygon([pts]);
+        merged = merged ? turf.union(merged, disc) : disc;
+      });
+    } catch (e) { merged = null; }
+
+    if (merged){
+      var polys = merged.geometry.type === 'MultiPolygon'
+        ? merged.geometry.coordinates : [merged.geometry.coordinates];
+      polys.forEach(function(poly){
+        (poly || []).forEach(function(ring, i){
+          if (!ring || ring.length < 4) return;
+          L.polygon(ring.map(function(pt){ return L.latLng(pt[1], pt[0]); }), {
+            color: '#edb912', weight: i === 0 ? 2.4 : 1.2, opacity: 1,
+            dashArray: i === 0 ? null : '4 4',
+            fill: i === 0, fillColor: '#edb912', fillOpacity: 0.04,
+            interactive: false,
+          }).addTo(warMap);
+        });
+      });
+    } else {
+      (intel.towns || []).forEach(function(t){
+        if (typeof t.homeX !== 'number') return;
+        L.circle(MC.toLatLng(t.homeX, t.homeZ), {
+          radius: t.isCapital ? 5000 : 1500,
+          color: '#edb912', weight: 1, opacity: 0.4, fill: false,
+          interactive: false,
+        }).addTo(warMap);
+      });
+    }
   }
 
   if (saved) warMap.setView(saved.c, saved.z);
@@ -970,7 +1038,8 @@ function drawWarMap(keepView){
     var key = mapColour === 'size'
       ? [['#3f7fb8','under 60 chunks'],['#189d4d','60–200'],['#edb912','200–500'],['#cf2029','500+']]
       : mapColour === 'chain'
-      ? [['#edb912','holds the chain'],['#4a4238','does not']]
+      ? [['#cf2029','already out of range'],['#edb912','holds the chain up'],
+         ['#4a4238','nothing depends on it']]
       : [['#cf2029','falls within a week'],['#e06c1f','within two'],
          ['#edb912','within a month'],['#189d4d','longer'],['#5a5245','unseen']];
     legend.innerHTML = key.map(function(k){

@@ -2143,8 +2143,29 @@ const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
 // tile and scales it in CSS instead of fetching a separate copy per grid
 // cell. A custom getTileUrl bypasses that entirely, which is what previously
 // caused hundreds of duplicate requests for the same image.
-const TERRAIN_TILE_SIZE = 2048;  // blocks spanned by one tile at map zoom 0
-const TERRAIN_ZOOM_OFFSET = 3;   // map zoom -3 -> folder 0; map zoom 2 -> folder 5
+/* 512, not 2048 — the size squaremap actually serves.
+ *
+ * This single number was both the blur and, almost certainly, the mobile
+ * crash. Squaremap returns 512x512 images. Declaring tileSize 2048 told
+ * Leaflet to lay each one out in a 2048px box, so the browser upscaled every
+ * tile 4x in each direction: 4x blurrier, and SIXTEEN TIMES the composited
+ * pixel area per tile. A phone holding a screenful of those is holding tens of
+ * megapixels of stretched image for detail that was never in the file.
+ *
+ * At 512 with the offset below, one image pixel is one display pixel at every
+ * zoom — sharp, and a sixteenth of the memory. It also picks a BETTER folder
+ * at middle zooms: where the old pairing reached for the coarsest tiles and
+ * stretched them, this fetches the folder that actually matches. */
+const TERRAIN_TILE_SIZE = 512;   // squaremap's real image size, 1:1 at map zoom 0
+/* Must move with TERRAIN_TILE_SIZE: the pair decides which squaremap folder
+ * is asked for at a given map zoom, and they are only correct together.
+ *
+ * A tile must cover the same world area Leaflet thinks it does. At map zoom z
+ * a tile spans TILE_SIZE / 2^z world units; folder f covers 512 * 2^(5-f). Set
+ * them equal and f = z + log2(512/TILE_SIZE) + 5. With TILE_SIZE 512 that is
+ * z + 5; with the old 2048 it was z + 3. Change one without the other and
+ * every tile lands in the wrong place. */
+const TERRAIN_ZOOM_OFFSET = 5;   // map zoom -5 -> folder 0; map zoom 0 -> folder 5
 const TERRAIN_OPACITY_NORMAL = 0.6;  // default — terrain visible but not overpowering
 const TERRAIN_OPACITY_DIM = 0.22;    // "Dim terrain" — pushes it back so claims read clearly
 

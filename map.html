@@ -2213,10 +2213,21 @@ const MAP_MAX_ZOOM = 7; // ~25 blocks across a phone screen at the closest zoom
 const TERRAIN_MAX_ELEMENT_PX = IS_SMALL_SCREEN ? 4096 : 8192;
 
 function terrainSafeMaxZoom(nativeZoom){
-  if (!IS_SMALL_SCREEN) return MAP_MAX_ZOOM;
+  /* Applied on EVERY device, not just phones.
+   *
+   * This used to bail out with MAP_MAX_ZOOM on desktop, which is why terrain
+   * vanished when you zoomed right in: past squaremap's finest folder Leaflet
+   * stops fetching and starts SCALING what it has, and the scale factor
+   * doubles per zoom level. At map zoom 7 a tile is painted at 65,536px.
+   * Browsers simply refuse to paint an element that size — no error, the layer
+   * just stops drawing. Capping the map's zoom is the only fix, because the
+   * element size is a consequence of the zoom and nothing else.
+   *
+   * Desktop gets a larger budget than a phone, but a budget either way. */
+  const budget = IS_SMALL_SCREEN ? TERRAIN_MAX_ELEMENT_PX : TERRAIN_MAX_ELEMENT_PX * 2;
   let z = MAP_MAX_ZOOM;
   while (z > 1 &&
-         TERRAIN_TILE_SIZE * Math.pow(2, z + TERRAIN_ZOOM_OFFSET - nativeZoom) > TERRAIN_MAX_ELEMENT_PX){
+         TERRAIN_TILE_SIZE * Math.pow(2, z + TERRAIN_ZOOM_OFFSET - nativeZoom) > budget){
     z--;
   }
   return z;
@@ -2738,44 +2749,70 @@ window.planFromPopup = function(name){
   expOpenTown(town);
 };
 
+/* Three rungs of the same tile pyramid, swapped by zoom.
+ *
+ * Squaremap already stores the world at six levels of detail; the mistake was
+ * reading it through ONE lens at every zoom. A single tileSize forces a single
+ * trade: 2048 is fine from orbit and a blurry mess up close, 512 is perfect up
+ * close and asks for sixteen tiles where four would look identical.
+ *
+ * tileSize and zoomOffset are not independent — a tile must cover the world
+ * area Leaflet believes it covers, which fixes folder = zoom + offset and ties
+ * the pair together. So changing detail means changing BOTH, which means a
+ * layer per rung with its own zoom window:
+ *
+ *   zoom <= -3   2048 / 3   four tiles instead of sixteen, and the upscaling
+ *                           is invisible there because it is already reading
+ *                           the coarsest folder squaremap has
+ *   -2 to -1     1024 / 4   middle ground
+ *   zoom >= 0     512 / 5   one image pixel per display pixel, no upscaling
+ *
+ * Leaflet only draws a tile layer inside its own minZoom/maxZoom, so the swap
+ * costs nothing — the layers take turns. Returned as a group carrying the few
+ * TileLayer methods the rest of this file calls, so nothing else has to know
+ * it is three things.
+ */
+const TERRAIN_RUNGS = [
+  { tileSize: 2048, zoomOffset: 3, minZoom: -7, maxZoom: -3 },
+  { tileSize: 1024, zoomOffset: 4, minZoom: -2, maxZoom: -1 },
+  { tileSize: 512,  zoomOffset: 5, minZoom: 0,  maxZoom: MAP_MAX_ZOOM },
+];
+
 function buildTerrainLayer(){
-  return L.tileLayer(TERRAIN_URL_TEMPLATE, {
-    tileSize: TERRAIN_TILE_SIZE,
-    zoomOffset: TERRAIN_ZOOM_OFFSET,
-    // NOT lowered on phones. Doing that was a mistake: a lower maxNativeZoom
-    // means MORE upscaling, so the painted element gets BIGGER, not smaller —
-    // it took the mobile layer from 65,536px to 262,144px and made the crash
-    // worse. Memory is saved by keepBuffer/updateWhenIdle below and by the
-    // zoom cap above, not by this.
+  const group = L.layerGroup();
+  group.rungs = TERRAIN_RUNGS.map(r => L.tileLayer(TERRAIN_URL_TEMPLATE, {
+    tileSize: r.tileSize,
+    zoomOffset: r.zoomOffset,
+    minZoom: r.minZoom,
+    maxZoom: r.maxZoom,
     maxNativeZoom: TERRAIN_MAX_NATIVE_ZOOM,
     minNativeZoom: TERRAIN_MIN_NATIVE_ZOOM,
-    // Only what's actually on screen. Leaflet's default keepBuffer of 2 holds
-    // a two-tile ring OUTSIDE the viewport; at a 2048-unit tile size that is a
-    // large amount of image memory for pixels nobody can see, and is the most
-    // likely cause of the mobile reloads.
-    keepBuffer: IS_SMALL_SCREEN ? 0 : 1,
-    // Don't fetch mid-gesture on phones — wait until the pan/zoom settles,
-    // instead of requesting a whole tile set for every intermediate frame.
+    /* Sized to the rung: at 512 an off-screen ring is cheap and stops panning
+       flashing white; at 2048 one ring is four megapixels a tile, and the view
+       barely moves at that zoom anyway. */
+    keepBuffer: IS_SMALL_SCREEN ? 0 : (r.tileSize <= 512 ? 2 : 1),
     updateWhenIdle: IS_SMALL_SCREEN,
     updateWhenZooming: false,
-    // -7 fits the whole 128,000-block world in view. Below folder 0 there is
-    // nothing coarser to fetch, so minNativeZoom:0 makes Leaflet reuse the
-    // same 8x4 folder-0 tile set and scale it down — no extra requests.
-    // Must equal -TERRAIN_ZOOM_OFFSET. Any lower and the requested folder
-    // goes negative, and every tile 404s — which is exactly what blanked the
-    // terrain when the offset changed from 3 to 6 without this following it.
-    minZoom: -7,
-    // IMPORTANT: this must match the map's own maxZoom, not the tile server's.
-    // On a tile layer maxZoom means "hide this layer past here" — setting it
-    // below the map's ceiling makes terrain vanish when you zoom in, which is
-    // exactly what was happening. maxNativeZoom (5) is the separate setting
-    // that stops it FETCHING beyond folder 5; past that Leaflet upscales what
-    // it already has, so zooming stays smooth and nothing disappears.
-    maxZoom: MAP_MAX_ZOOM,
     opacity: TERRAIN_OPACITY_NORMAL,
     pmIgnore: true,
     errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  });
+  }));
+  group.rungs.forEach(l => group.addLayer(l));
+
+  /* Forwarded so every existing call site keeps working unchanged — the dim
+     toggle, the moon switch and the low-quality switch all treat this as a
+     single tile layer and should carry on doing so. */
+  group.setOpacity = function(o){ group.rungs.forEach(l => l.setOpacity(o)); return group; };
+  group.setUrl = function(u){ group.rungs.forEach(l => l.setUrl(u)); return group; };
+  group.setNativeZoom = function(n){
+    group.rungs.forEach(l => { l.options.maxNativeZoom = n; l.redraw(); });
+    return group;
+  };
+  group.setKeepBuffer = function(n){
+    group.rungs.forEach(l => { l.options.keepBuffer = n; });
+    return group;
+  };
+  return group;
 }
 
 /* =========================================================================
@@ -4621,8 +4658,8 @@ function setMapWorld(world){
   mapWorld = world;
   const layer = mapController.terrainLayer;
   if (layer){
-    layer.options.maxNativeZoom = world === 'moon'
-      ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM;
+    layer.setNativeZoom(world === 'moon'
+      ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM);
     layer.setUrl(world === 'moon'
       ? `${MOON_TILE_BASE}/{z}/{x}_{y}.png` : TERRAIN_URL_TEMPLATE);
   }
@@ -9127,8 +9164,8 @@ function setLowQuality(on){
     // with a matching cut to the map's maxZoom or the painted element grows
     // instead of shrinking — the opposite of what this switch is for.
     const nativeZoom = on ? 3 : TERRAIN_MAX_NATIVE_ZOOM;
-    layer.options.maxNativeZoom = nativeZoom;
-    layer.options.keepBuffer = on ? 0 : (IS_SMALL_SCREEN ? 0 : 1);
+    layer.setNativeZoom(nativeZoom);
+    layer.setKeepBuffer(on ? 0 : (IS_SMALL_SCREEN ? 0 : 1));
     layer.options.updateWhenIdle = on || IS_SMALL_SCREEN;
     const safeZoom = terrainSafeMaxZoom(nativeZoom);
     if (mapController && mapController.map && mapController.map.getMaxZoom() !== safeZoom){

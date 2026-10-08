@@ -899,7 +899,10 @@ function drawWarMap(keepView){
 
   if (warShow.terrain){
     L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
-      tileSize: 2048, zoomOffset: 3, minNativeZoom: 0, maxNativeZoom: 5,
+      /* 512 with offset 5 — squaremap's real tile size, so one image pixel is
+         one display pixel. The old 2048/3 pairing stretched every tile 4x and
+         cost sixteen times the pixel area for detail the file never had. */
+      tileSize: 512, zoomOffset: 5, minNativeZoom: 0, maxNativeZoom: 5,
       /* minZoom and maxZoom HERE mean "hide this layer outside this range",
          which is a different thing from the map's own zoom limits. Leaving
          them out meant minZoom defaulted to 0 — so the terrain was switched

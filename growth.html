@@ -40,7 +40,15 @@
   border-radius:var(--r-md); padding:.9rem 1rem 1rem; margin-bottom:1rem; }
 .chartwrap h3{ font-size:var(--step-0); margin:0 0 .1rem; }
 .chartwrap .cap{ font-family:var(--data); font-size:.62rem; color:var(--text-low); margin:0; }
-.chartwrap canvas{ width:100%; height:200px; display:block; margin-top:.7rem; }
+.chartwrap canvas{ width:100%; height:200px; display:block; margin-top:.7rem; cursor:crosshair; }
+.rangebar{ display:flex; align-items:center; gap:.45rem; flex-wrap:wrap;
+  margin:.6rem 0 0; font-family:var(--data); font-size:.68rem; }
+.rangebar .rl{ color:var(--text-low); }
+.rangebar input[type=date]{ background:var(--ink); color:var(--text);
+  border:1px solid var(--rule); border-radius:3px; padding:.25rem .4rem;
+  font-family:var(--data); font-size:.68rem; color-scheme:dark; }
+.rangebar input[type=date]:focus{ border-color:var(--gold); outline:none; }
+.rangebar .rn{ margin-left:auto; color:var(--text-low); font-size:.62rem; }
 .keys{ display:flex; gap:.9rem; flex-wrap:wrap; margin-top:.5rem;
   font-family:var(--data); font-size:.64rem; color:var(--text-low); }
 .keys i{ display:inline-block; width:.7rem; height:.16rem; border-radius:999px;
@@ -168,7 +176,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
      fetched and executed before the parser reaches the inline block, which
      removes the race rather than making it unlikely. -->
 <script src="assets/session.js?v=1"></script>
-<script src="assets/chart.js?v=1"></script>
+<script src="assets/chart.js?v=2"></script>
 
 <script>
 'use strict';
@@ -588,6 +596,10 @@ function render(){
       '</p></div>';
   }
 
+  /* One bar for all three, placed above them — it governs the whole group, so
+     putting a copy on each would imply they move independently. */
+  out += rangeBar();
+
   out += '<div class="chartwrap"><h3>Residents</h3>' +
       '<p class="cap">Everyone living in an Ethiopian town, day by day.</p>' +
       '<canvas id="cPeople"></canvas></div>' +
@@ -755,6 +767,6 @@ async function load(){
 load().catch(fatal);
 </script>
 <script src="assets/pagetext.js?v=1"></script>
-<script src="assets/election-banner.js?v=1"></script>
+<script src="assets/election-banner.js?v=2"></script>
 </body>
 </html>

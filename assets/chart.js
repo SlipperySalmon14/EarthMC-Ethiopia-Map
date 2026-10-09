@@ -99,8 +99,36 @@
   }
 
   /* --- the draw ---------------------------------------------------------- */
+/* The visible slice.
+ *
+ * chart.rows is always the full series; chart.view is the window onto it. Every
+ * other function reads visibleRows() rather than chart.rows, so zooming is a
+ * change to two numbers and nothing else has to know it happened. */
+function visibleRows(chart) {
+  var all = chart.rows || [];
+  if (!chart.view) return all;
+  return all.slice(chart.view.lo, chart.view.hi + 1);
+}
+
+function clampView(chart) {
+  var n = (chart.rows || []).length;
+  if (!chart.view) return;
+  /* Four points is the floor. Below that a line chart stops being one — and
+     it is also the point where zooming further tells you nothing a tooltip
+     would not. */
+  var minSpan = Math.min(4, n);
+  if (chart.view.hi - chart.view.lo + 1 < minSpan) chart.view.hi = chart.view.lo + minSpan - 1;
+  if (chart.view.lo < 0) { chart.view.hi -= chart.view.lo; chart.view.lo = 0; }
+  if (chart.view.hi > n - 1) {
+    chart.view.lo -= (chart.view.hi - (n - 1));
+    chart.view.hi = n - 1;
+  }
+  if (chart.view.lo < 0) chart.view.lo = 0;
+  if (chart.view.lo === 0 && chart.view.hi === n - 1) chart.view = null;   // back to all
+}
+
   function draw(chart) {
-    var canvas = chart.canvas, rows = chart.rows, opts = chart.opts;
+    var canvas = chart.canvas, rows = visibleRows(chart), opts = chart.opts;
     var s = sizeTo(canvas, canvas);
     var ctx = s.ctx, w = s.w, h = s.h;
     ctx.clearRect(0, 0, w, h);
@@ -212,7 +240,40 @@
     /* Kept so the pointer handler can reuse the exact same maths rather than
        approximating it — an approximation here is a tooltip that names the
        wrong day. */
-    chart.geom = { padL: padL, padR: padR, padT: padT, padB: padB, w: w, h: h, X: X, Y: Y, flat: flat };
+    /* Every plotted point, kept as drawn.
+     *
+     * The hover marker used to recompute its position from the row value,
+     * which meant two code paths deciding where a point sits and nothing
+     * forcing them to agree — so the dot drifted off the line. Reading back
+     * the coordinates the line was actually drawn from makes that impossible
+     * by construction. */
+    var pts = {};
+    lines.forEach(function (l) {
+      pts[l.key] = rows.map(function (r, i) {
+        return { x: X(i), y: Y(Number(r[l.key]) || 0) };
+      });
+    });
+
+    chart.geom = { padL: padL, padR: padR, padT: padT, padB: padB, w: w, h: h,
+                   X: X, Y: Y, flat: flat, pts: pts };
+    chart.visible = rows;
+
+    /* The window, announced so a page can show it or bind inputs to it. Fired
+       on the canvas rather than returned, because the window changes from a
+       wheel or a drag long after line() returned. */
+    try {
+      canvas.dispatchEvent(new CustomEvent('ethchart:range', {
+        bubbles: true,
+        detail: {
+          lo: chart.view ? chart.view.lo : 0,
+          hi: chart.view ? chart.view.hi : (chart.rows.length - 1),
+          total: chart.rows.length,
+          from: rows[0] || null,
+          to: rows[rows.length - 1] || null,
+          zoomed: !!chart.view,
+        },
+      }));
+    } catch (_e) { /* CustomEvent unsupported — the chart still works */ }
   }
 
   /* --- hover ------------------------------------------------------------- */
@@ -222,16 +283,17 @@
     var r = chart.canvas.getBoundingClientRect();
     var x = clientX - r.left;
     if (x < g.padL - 12 || x > g.w - g.padR + 12) return -1;
-    if (g.flat || chart.rows.length === 1) return 0;
+    var rows = chart.visible || chart.rows;
+    if (g.flat || rows.length === 1) return 0;
     var t = (x - g.padL) / (g.w - g.padL - g.padR);
-    var i = Math.round(t * (chart.rows.length - 1));
-    return Math.max(0, Math.min(chart.rows.length - 1, i));
+    var i = Math.round(t * (rows.length - 1));
+    return Math.max(0, Math.min(rows.length - 1, i));
   }
 
   function showAt(chart, i) {
     var ov = chart.canvas._ethOverlay;
     if (!ov || !chart.geom) return;
-    var g = chart.geom, rows = chart.rows, opts = chart.opts;
+    var g = chart.geom, rows = chart.visible || chart.rows, opts = chart.opts;
     var ctx = ov.over.getContext('2d');
     ctx.clearRect(0, 0, g.w, g.h);
 
@@ -239,7 +301,11 @@
     chart.hover = i;
 
     var row = rows[i];
-    var px = g.X(i);
+    /* The crosshair takes its x from the first plotted series for the same
+       reason — one source of truth for where point i sits. */
+    var firstKey = (opts.lines || [])[0] && (opts.lines || [])[0].key;
+    var firstPts = g.pts && firstKey ? g.pts[firstKey] : null;
+    var px = (firstPts && firstPts[i]) ? firstPts[i].x : g.X(i);
 
     /* crosshair */
     ctx.strokeStyle = 'rgba(244,239,228,.22)';
@@ -257,9 +323,14 @@
        line would lose that the moment two series overlap. */
     var ys = [];
     (opts.lines || []).forEach(function (l) {
-      var y = g.Y(Number(row[l.key]) || 0);
-      ys.push(y);
-      ctx.beginPath(); ctx.arc(px, y, 4.5, 0, Math.PI * 2);
+      /* Read back from what was plotted, never recomputed. g.Y(row[key]) and
+         the line itself were two separate derivations of the same point, and
+         any disagreement between them — a rounding difference, a stale geom
+         after a resize — showed up as a dot floating beside its own line. */
+      var p = g.pts && g.pts[l.key] && g.pts[l.key][i];
+      if (!p) return;
+      ys.push(p.y);
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
       ctx.fillStyle = '#ffffff'; ctx.fill();
       ctx.lineWidth = 2.5; ctx.strokeStyle = l.color; ctx.stroke();
     });
@@ -331,9 +402,93 @@
 
     canvas.style.touchAction = 'pan-y';   // let the page still scroll on touch
     canvas.addEventListener('pointermove', onMove);
-    canvas.addEventListener('pointerdown', onMove);
     canvas.addEventListener('pointerleave', function () { showAt(chart, -1); });
     canvas.addEventListener('pointercancel', function () { showAt(chart, -1); });
+
+    if (chart.opts.zoom === false) {
+      canvas.addEventListener('pointerdown', onMove);
+      return;
+    }
+
+    /* --- zoom ------------------------------------------------------------
+       Around the cursor, not the centre. Zooming to the middle means the thing
+       you were looking at slides away as you zoom toward it, and you end up
+       chasing it — the commonest way a zoomable chart feels broken.
+
+       preventDefault only once the chart actually consumes the gesture, so a
+       chart already showing everything still lets the page scroll past it
+       rather than trapping the wheel. */
+    canvas.addEventListener('wheel', function (e) {
+      var n = (chart.rows || []).length;
+      if (n < 6) return;
+      var g = chart.geom;
+      if (!g) return;
+
+      var lo = chart.view ? chart.view.lo : 0;
+      var hi = chart.view ? chart.view.hi : n - 1;
+      var span = hi - lo + 1;
+      var out = e.deltaY > 0;
+      if (out && span >= n) return;          // already whole; let the page scroll
+
+      e.preventDefault();
+
+      var r = canvas.getBoundingClientRect();
+      var t = (e.clientX - r.left - g.padL) / Math.max(1, g.w - g.padL - g.padR);
+      t = Math.max(0, Math.min(1, t));
+      var anchor = lo + t * (span - 1);
+
+      var factor = out ? 1.25 : 0.8;
+      var next = Math.max(4, Math.min(n, Math.round(span * factor)));
+      chart.view = {
+        lo: Math.round(anchor - t * (next - 1)),
+        hi: Math.round(anchor + (1 - t) * (next - 1)),
+      };
+      clampView(chart);
+      draw(chart);
+      showAt(chart, indexAt(chart, e.clientX));
+    }, { passive: false });
+
+    /* --- pan -------------------------------------------------------------
+       Dragging moves the window; a click without movement still reads as a
+       hover. The three-pixel threshold is what separates them — without it
+       every tap on a touchscreen registers as a one-pixel drag and the
+       tooltip never opens. */
+    var drag = null;
+    canvas.addEventListener('pointerdown', function (e) {
+      onMove(e);
+      if (!chart.view || !chart.geom) return;
+      drag = { x: e.clientX, lo: chart.view.lo, hi: chart.view.hi, moved: false };
+      try { canvas.setPointerCapture(e.pointerId); } catch (_e) {}
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (!drag || !chart.geom) return;
+      var g = chart.geom;
+      var dx = e.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) < 3) return;
+      drag.moved = true;
+      canvas.style.cursor = 'grabbing';
+      var span = drag.hi - drag.lo + 1;
+      var perPx = span / Math.max(1, g.w - g.padL - g.padR);
+      var shift = Math.round(-dx * perPx);
+      chart.view = { lo: drag.lo + shift, hi: drag.hi + shift };
+      clampView(chart);
+      draw(chart);
+    });
+    var endDrag = function () {
+      if (drag && drag.moved) showAt(chart, -1);
+      drag = null;
+      canvas.style.cursor = '';
+    };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+
+    /* Double-click is the universal "show me everything again". */
+    canvas.addEventListener('dblclick', function (e) {
+      e.preventDefault();
+      chart.view = null;
+      draw(chart);
+      showAt(chart, -1);
+    });
   }
 
   /* --- public ------------------------------------------------------------ */
@@ -373,9 +528,51 @@
     resizeTimer = setTimeout(redrawAll, 160);
   });
 
+  /* Set the window from outside — what a pair of date inputs calls.
+   *
+   * Takes row PREDICATES rather than indices, because a page thinks in dates
+   * and the chart thinks in positions, and whichever side does that
+   * translation has to know the row shape. The page does. */
+  function setRange(canvas, fromFn, toFn) {
+    var chart = null;
+    for (var i = 0; i < charts.length; i++) if (charts[i].canvas === canvas) chart = charts[i];
+    if (!chart) return null;
+    var rows = chart.rows || [];
+    if (!rows.length) return null;
+
+    var lo = 0, hi = rows.length - 1;
+    if (typeof fromFn === 'function') {
+      var a = rows.findIndex(fromFn);
+      if (a >= 0) lo = a;
+    }
+    if (typeof toFn === 'function') {
+      for (var j = rows.length - 1; j >= 0; j--) { if (toFn(rows[j])) { hi = j; break; } }
+    }
+    if (hi < lo) { var t = lo; lo = hi; hi = t; }
+    chart.view = { lo: lo, hi: hi };
+    clampView(chart);
+    draw(chart);
+    showAt(chart, -1);
+    return chart.view;
+  }
+
+  function resetRange(canvas) {
+    for (var i = 0; i < charts.length; i++) {
+      if (charts[i].canvas === canvas) {
+        charts[i].view = null;
+        draw(charts[i]);
+        showAt(charts[i], -1);
+        return true;
+      }
+    }
+    return false;
+  }
+
   global.EthChart = {
     line: line,
     redrawAll: redrawAll,
+    setRange: setRange,
+    resetRange: resetRange,
     colors: PALETTE,
     /* Shared formatters, so "1,000g" is spelled the same on every page. */
     gold: function (n) { return num(n) + 'g'; },

@@ -229,6 +229,92 @@ function axisLabel(r){
   return v.length > 10 ? v.slice(5, 10) + ' ' + v.slice(11, 13) + ':00' : v.slice(5);
 }
 
+/* The window, as two date fields.
+ *
+ * Bound BOTH ways: typing a date sets the chart's window, and zooming or
+ * panning writes the dates back. One direction alone is the frustrating
+ * version — you can either steer with the inputs or read them, and whichever
+ * you picked is the one you want when you do not have it.
+ *
+ * The chart is the authority on what the window IS; these fields only express
+ * it. That keeps the two from fighting when both change at once. */
+function rangeBar(){
+  return '<div class="rangebar">' +
+    '<span class="rl">From</span><input type="date" id="rFrom">' +
+    '<span class="rl">to</span><input type="date" id="rTo">' +
+    '<button class="btn btn-small" type="button" id="rAll">All</button>' +
+    '<span class="rn" id="rNote">scroll to zoom &middot; drag to pan &middot; double-click to reset</span>' +
+    '</div>';
+}
+
+/* All three charts move together: they are three views of one series over one
+   period, and zooming residents while land and towns stayed put would be
+   comparing different windows side by side without saying so. */
+var SYNCED = ['cPeople', 'cLand', 'cTowns'];
+var syncing = false;
+
+function dayOf(r){ return String((r && r.day) || '').slice(0, 10); }
+
+function applyRange(fromStr, toStr){
+  if (syncing) return;
+  syncing = true;
+  SYNCED.forEach(function(id){
+    var c = $(id);
+    if (!c) return;
+    if (!fromStr && !toStr) { EthChart.resetRange(c); return; }
+    EthChart.setRange(c,
+      fromStr ? function(r){ return dayOf(r) >= fromStr; } : null,
+      toStr   ? function(r){ return dayOf(r) <= toStr; } : null);
+  });
+  syncing = false;
+}
+
+function wireRange(){
+  var from = $('rFrom'), to = $('rTo'), all = $('rAll');
+  if (!from || from.dataset.wired) return;
+  from.dataset.wired = '1';
+
+  var push = function(){ applyRange(from.value, to.value); };
+  from.addEventListener('change', push);
+  to.addEventListener('change', push);
+  if (all) all.addEventListener('click', function(){
+    from.value = ''; to.value = '';
+    applyRange('', '');
+  });
+
+  /* Written back from whichever chart was touched, then mirrored onto the
+     others. The syncing flag stops that mirroring re-entering the handlers. */
+  SYNCED.forEach(function(id){
+    var c = $(id);
+    if (!c) return;
+    c.addEventListener('ethchart:range', function(e){
+      var d = e.detail;
+      if (!d || !d.from) return;
+      var a = dayOf(d.from), b = dayOf(d.to);
+      if (from.value !== a) from.value = a;
+      if (to.value !== b) to.value = b;
+
+      var note = $('rNote');
+      if (note){
+        note.textContent = d.zoomed
+          ? (d.hi - d.lo + 1) + ' of ' + d.total + ' points \u00b7 double-click to reset'
+          : 'scroll to zoom \u00b7 drag to pan \u00b7 double-click to reset';
+      }
+
+      if (syncing) return;
+      syncing = true;
+      SYNCED.forEach(function(other){
+        if (other === id) return;
+        var oc = $(other);
+        if (oc) EthChart.setRange(oc,
+          function(r){ return dayOf(r) >= a; },
+          function(r){ return dayOf(r) <= b; });
+      });
+      syncing = false;
+    });
+  });
+}
+
 function paintCharts(){
   if (!hist) return;
   var rows = hist.series || [];
@@ -246,6 +332,11 @@ function paintCharts(){
     lines: [{ key:'towns', color:'#2f6fb8', width:2.2, label:'Towns' }],
     xFormat: axisLabel,
   });
+
+  /* After the three canvases exist, not before — the handlers bind to the
+     elements paintCharts just created, and the page rebuilds this whole
+     section with innerHTML on every repaint. */
+  wireRange();
 
   if (online){
     EthChart.line($('cOnline'), online.series || [], {
@@ -770,4 +861,3 @@ load().catch(fatal);
 <script src="assets/election-banner.js?v=2"></script>
 </body>
 </html>
-

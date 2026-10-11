@@ -79,6 +79,36 @@ tr.unknown td{ color:var(--text-low); font-style:italic; }
 
 canvas{ width:100%; height:200px; display:block; }
 #warMap{ height:30rem; border-radius:var(--r-md); background:#0b0a08; }
+#townMap{ height:16rem; border-radius:var(--r-sm); background:#0b0a08; }
+#townMap .leaflet-control-attribution{ display:none; }
+
+/* The expanded town. A grid rather than a table because these are facts of
+   different shapes — a name, a coordinate, a yes/no — and forcing them into
+   columns makes every one of them harder to find. */
+.tdetail{ display:grid; grid-template-columns:1.1fr .9fr; gap:1rem; padding:.9rem 1rem;
+  background:var(--ink); }
+@media (max-width:900px){ .tdetail{ grid-template-columns:1fr; } }
+.tfacts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(8rem,1fr)); gap:.55rem; }
+.tfact{ font-family:var(--data); font-size:.7rem; }
+.tfact span{ display:block; color:var(--text-low); font-size:.6rem;
+  letter-spacing:.05em; text-transform:uppercase; margin-bottom:.1rem; }
+.tfact b{ font-weight:400; color:var(--text); }
+.tbanner{ grid-column:1/-1; padding:.5rem .7rem; border-radius:var(--r-sm);
+  font-family:var(--data); font-size:.72rem; margin-bottom:.2rem; }
+
+/* The permission grid: four actions down, four audiences across. Shown whole
+   rather than summarised, because which audience has which is the entire
+   question and a derived word for it always loses something. */
+.pgrid{ width:100%; border-collapse:collapse; font-family:var(--data); font-size:.66rem; }
+.pgrid th{ text-align:center; font-weight:400; color:var(--text-low); font-size:.58rem;
+  letter-spacing:.05em; text-transform:uppercase; padding:.25rem; border:none;
+  position:static; background:none; }
+.pgrid th:first-child{ text-align:left; }
+.pgrid td{ text-align:center; padding:.3rem .25rem; border-bottom:1px solid var(--rule-soft); }
+.pgrid td:first-child{ text-align:left; color:var(--text-mid); }
+.pgrid .y{ color:var(--red); font-weight:600; }
+.pgrid .n{ color:var(--text-low); }
+.pgrid tr.key td{ background:rgba(207,32,41,.07); }
 
 /* The 42-day board. Cards rather than another table, because this is the one
    thing on the page people will act on and a row in a list of forty does not
@@ -184,7 +214,9 @@ var perms = null;
 var raidQ = { open: '1', griefable: '', joinable: '', ruined: '', spawn: '',
               minGold: '', minChunks: '', maxResidents: '', nation: '',
               q: '', sort: 'gold', dir: 'desc' };
-var raidOpen = null;   // town name expanded in the list
+var raidOpen = null;      // town name expanded in the list
+var raidDetail = null;    // the live read for that town
+var raidMap = null;       // its own small map, separate from the nation one
 var hideLapsed = false, rosterQ = '';
 var warMap = null, mapColour = 'falling';
 /* Each layer independent, because they answer different questions and nobody
@@ -334,6 +366,7 @@ function render(){
   if (view === 'raid'){
     $('body').innerHTML = renderRaid();
     wireRaid();
+    if (raidOpen && raidDetail) drawTownMap();
     var wb1 = $('watchBtn'); if (wb1) wb1.hidden = true;
     return;
   }
@@ -819,29 +852,7 @@ function renderRaid(){
       var open = raidOpen === t.town;
 
       var detail = open
-        ? '<tr><td colspan="8" style="background:var(--ink);padding:.7rem .9rem">' +
-          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));' +
-            'gap:.5rem;font-family:var(--data);font-size:.68rem">' +
-            '<div><span style="color:var(--text-low)">Mayor</span><br>' + esc(t.mayor || '—') + '</div>' +
-            '<div><span style="color:var(--text-low)">Home block</span><br>' +
-              (typeof t.home_x === 'number' ? num(t.home_x) + ', ' + num(t.home_z) : '—') + '</div>' +
-            '<div><span style="color:var(--text-low)">Spawn</span><br>' +
-              (t.is_public ? 'public — /t spawn ' + esc(t.town) : 'residents only') + '</div>' +
-            '<div><span style="color:var(--text-low)">Joining</span><br>' +
-              (t.is_open ? 'open — /t join ' + esc(t.town) : 'invite only') + '</div>' +
-            '<div><span style="color:var(--text-low)">Nearest way in</span><br>' +
-              (t.nearestSpawn
-                ? esc(t.nearestSpawn.town) + ' · ' + num(t.nearestSpawn.blocks) + ' blocks'
-                : '—') + '</div>' +
-            '<div><span style="color:var(--text-low)">Last seen</span><br>' +
-              esc(String(t.last_seen || t.scanned_at || '').slice(0, 16)) + '</div>' +
-          '</div>' +
-          (typeof t.home_x === 'number'
-            ? '<div style="margin-top:.6rem"><button class="btn" type="button" ' +
-              'data-raidmap="' + esc(t.town) + '" style="padding:.25rem .6rem;font-size:.66rem">' +
-              'Show on the map</button></div>'
-            : '') +
-          '</td></tr>'
+        ? '<tr><td colspan="8" style="padding:0">' + townPanel(t) + '</td></tr>'
         : '';
 
       return '<tr class="' + (t.gone ? 'unknown' : t.is_ruined ? 'imminent' : t.open_anyone ? 'imminent' : '') +
@@ -862,6 +873,175 @@ function renderRaid(){
     'are not, and nothing outside the game can see that.</p>';
 
   return out;
+}
+
+/* The expanded town: everything known about it, and its own map.
+ *
+ * Its own map, not the nation one. A raid target is a place you are going to
+ * stand in, and the question is the shape of its claims and where its edges
+ * are — sending the view off to the surrounding nation answers a question
+ * nobody asked and loses the town in it. Nations barely matter here anyway;
+ * the one way they do is that you cannot /t spawn to a nationless town.
+ */
+function townPanel(row){
+  var d = raidDetail && raidDetail.name === row.town ? raidDetail : null;
+  if (!d) return '<div class="tdetail"><p class="note" style="margin:0">Reading ' +
+    esc(row.town) + '&hellip;</p></div>';
+
+  var fact = function(label, val){
+    return '<div class="tfact"><span>' + esc(label) + '</span><b>' + val + '</b></div>';
+  };
+
+  /* The headline is how you ARRIVE, because everything else is moot without
+     it. Outsider spawn is a paid flag — a mayor spends gold a day so that
+     /t spawn works for anyone — which is why it is worth calling out by its
+     real name rather than "public". */
+  /* A walk needs a number, not an adjective. "Nearby" could be two hundred
+     blocks or four thousand, and those are a different afternoon. */
+  var walk = function(b){
+    return b < 1000 ? num(b) + ' blocks'
+      : b < 5000 ? (b / 1000).toFixed(1) + 'k blocks'
+      : '<span style="color:var(--red)">' + (b / 1000).toFixed(1) + 'k blocks</span>';
+  };
+
+  var arrive;
+  if (d.outsiderSpawn){
+    arrive = '<div class="tbanner" style="background:rgba(24,157,77,.14);border:1px solid var(--sage);' +
+      'color:var(--sage-hi)">Outsider spawn is on &mdash; <b>/t spawn ' + esc(d.name) +
+      '</b> works for anyone. They pay gold a day for that.</div>';
+  } else if (d.waysIn && d.waysIn.length){
+    var best = d.waysIn[0];
+    arrive = '<div class="tbanner" style="background:rgba(237,185,18,.12);' +
+      'border:1px solid var(--gold-dim);color:var(--gold)">' +
+      'No outsider spawn here. Closest way in is <b>/t spawn ' + esc(best.town) + '</b>, ' +
+      'then ' + walk(best.blocks) + ' on foot.' +
+      (d.waysIn.length > 1
+        ? '<div style="margin-top:.3rem;font-size:.64rem;color:var(--text-mid)">then ' +
+          d.waysIn.slice(1).map(function(w){
+            return esc(w.town) + ' ' + walk(w.blocks) +
+              (w.sameNation ? ' <span style="color:var(--red)">(their own nation)</span>' : '');
+          }).join(' &middot; ') + '</div>'
+        : '') +
+      (best.sameNation
+        ? '<div style="margin-top:.3rem;font-size:.64rem;color:var(--red)">That spawn belongs ' +
+          'to the same nation &mdash; you would be arriving among their people.</div>'
+        : '') +
+      '</div>';
+  } else {
+    arrive = '<div class="tbanner" style="background:rgba(207,32,41,.12);border:1px solid var(--red-dim);' +
+      'color:var(--red)">No outsider spawn, and no public spawn anywhere near it in the last ' +
+      'scan. There is no teleport to this place &mdash; it is entirely on foot.</div>';
+  }
+
+  if (d.isRuined){
+    arrive = '<div class="tbanner" style="background:rgba(207,32,41,.18);border:1px solid var(--red);' +
+      'color:var(--red)"><b>RUINED.</b> Every permission is open regardless of the grid below, ' +
+      'until it is reclaimed or deleted.</div>' + arrive;
+  }
+
+  var p = d.perms || {};
+  var cell = function(on){ return on ? '<td class="y">yes</td>' : '<td class="n">&mdash;</td>'; };
+  var prow = function(key, label, note, isKey){
+    var v = p[key] || {};
+    return '<tr' + (isKey ? ' class="key"' : '') + '><td>' + esc(label) +
+      '<span style="color:var(--text-low)"> ' + esc(note) + '</span></td>' +
+      cell(v.resident) + cell(v.nation) + cell(v.ally) + cell(v.outsider) + '</tr>';
+  };
+
+  var grid = '<table class="pgrid"><thead><tr><th>Permission</th>' +
+    '<th>Resident</th><th>Nation</th><th>Ally</th><th>Outsider</th></tr></thead><tbody>' +
+    prow('switch', 'switch', 'chests, furnaces, hoppers', true) +
+    prow('destroy', 'destroy', 'break blocks', false) +
+    prow('build', 'build', 'place blocks', false) +
+    prow('itemUse', 'itemUse', 'potions, pearls, buckets', false) +
+    '</tbody></table>' +
+    '<p class="note" style="margin-top:.3rem">' +
+      '<b>switch</b> is the row that decides whether you can take anything. ' +
+      'The other three are for getting in and wrecking it.</p>' +
+    '<div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.4rem;' +
+      'font-family:var(--data);font-size:.64rem;color:var(--text-low)">' +
+      (p.flags && p.flags.pvp ? '<span style="color:var(--gold)">pvp on</span>' : '<span>pvp off</span>') +
+      (p.flags && p.flags.explosion ? '<span style="color:var(--gold)">explosions</span>' : '') +
+      (p.flags && p.flags.fire ? '<span style="color:var(--gold)">fire spread</span>' : '') +
+    '</div>';
+
+  return '<div class="tdetail">' +
+    '<div>' + arrive +
+      '<div class="tfacts">' +
+        fact('Mayor', esc(d.mayor || '—')) +
+        fact('Residents', num(d.residents)) +
+        fact('Bank', num(d.balance) + 'g') +
+        fact('Chunks', num(d.chunks) + (d.maxChunks ? ' of ' + num(d.maxChunks) : '')) +
+        fact('Founded', esc(String(d.founded || '').slice(0, 10) || '—')) +
+        fact('Home block', typeof d.homeX === 'number' ? num(d.homeX) + ', ' + num(d.homeZ) : '—') +
+        fact('Joining', d.isOpen ? '<span style="color:var(--sage-hi)">open &mdash; /t join ' +
+          esc(d.name) + '</span>' : 'invite only') +
+        fact('Nation', esc(d.nation || 'none')) +
+        (d.isOverClaimed ? fact('Overclaimed', '<span style="color:var(--red)">yes</span>') : '') +
+        (d.trusted && d.trusted.length ? fact('Trusted', num(d.trusted.length)) : '') +
+      '</div>' +
+      '<div style="margin-top:.7rem">' + grid + '</div>' +
+    '</div>' +
+    '<div><div id="townMap"></div>' +
+      '<p class="note" style="margin-top:.35rem">' + num((d.claims || []).length) +
+      ' chunks. This town only &mdash; the nation around it is not the question here.</p></div>' +
+    '</div>';
+}
+
+/* The town's own map. Rebuilt each time a row opens, which is correct: only
+   one is ever expanded, so keeping more than one alive would be holding tiles
+   for something nobody is looking at. */
+function drawTownMap(){
+  var host = document.getElementById('townMap');
+  if (!host || !raidDetail || typeof L === 'undefined') return;
+  if (raidMap){ raidMap.remove(); raidMap = null; }
+
+  raidMap = L.map(host, {
+    crs: L.CRS.Simple, minZoom: -6, maxZoom: 3,
+    zoomSnap: 1, attributionControl: false, preferCanvas: true,
+  });
+  L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
+    tileSize: 512, zoomOffset: 5, minNativeZoom: 0, maxNativeZoom: 5,
+    minZoom: -7, maxZoom: 3, noWrap: true, opacity: 0.85,
+  }).addTo(raidMap);
+
+  var claims = raidDetail.claims || [];
+  var col = raidDetail.isRuined ? '#cf2029'
+    : (raidDetail.perms && raidDetail.perms.openToAnyone) ? '#e06c1f' : '#189d4d';
+  var bounds = [];
+  claims.forEach(function(c){
+    bounds.push([-(c[1] * 16), c[0] * 16], [-(c[1] * 16 + 16), c[0] * 16 + 16]);
+  });
+  traceChunks(claims).forEach(function(ring){
+    L.polygon(ring.map(function(pt){ return MC.toLatLng(pt[0], pt[1]); }), {
+      color: col, weight: 2, opacity: 1, fillColor: col, fillOpacity: 0.25,
+      interactive: false,
+    }).addTo(raidMap);
+  });
+  if (typeof raidDetail.homeX === 'number'){
+    L.circleMarker(MC.toLatLng(raidDetail.homeX, raidDetail.homeZ), {
+      radius: 5, color: '#f4efe4', weight: 2, fillColor: col, fillOpacity: 1,
+    }).bindTooltip('home block', { direction: 'top' }).addTo(raidMap);
+  }
+  if (bounds.length) raidMap.fitBounds(L.latLngBounds(bounds).pad(0.3));
+  else if (typeof raidDetail.homeX === 'number'){
+    raidMap.setView(MC.toLatLng(raidDetail.homeX, raidDetail.homeZ), 0);
+  }
+}
+
+async function loadRaidTown(name){
+  raidDetail = null;
+  render();
+  try {
+    var d = await api('/api/war/town?name=' + encodeURIComponent(name));
+    raidDetail = d.town;
+  } catch (e){
+    raidDetail = null;
+    window.alert(e.message);
+    raidOpen = null;
+  }
+  render();
+  drawTownMap();
 }
 
 async function loadPerms(){
@@ -913,30 +1093,11 @@ function wireRaid(){
   });
 
   $('body').querySelectorAll('[data-raid]').forEach(function(tr){
-    tr.addEventListener('click', function(e){
-      if (e.target.closest('[data-raidmap]')) return;
-      raidOpen = raidOpen === tr.dataset.raid ? null : tr.dataset.raid;
-      render();
-    });
-  });
-
-  $('body').querySelectorAll('[data-raidmap]').forEach(function(b){
-    b.addEventListener('click', function(e){
-      e.stopPropagation();
-      var t = (perms.towns || []).filter(function(x){ return x.town === b.dataset.raidmap; })[0];
-      if (!t || typeof t.home_x !== 'number') return;
-      /* Assessing the nation is what puts a map on screen, and a raid target
-         is nearly always worth seeing in the context of the nation around it
-         anyway — who else is nearby, what else is falling. */
-      if (t.nation){
-        $('nationInput').value = t.nation;
-        assess().then(function(){
-          if (warMap) warMap.setView(MC.toLatLng(t.home_x, t.home_z), 0);
-        });
-      } else {
-        window.alert(t.town + ' has no nation, so there is no nation map to place it on.\n\n' +
-          'Home block: ' + t.home_x + ', ' + t.home_z);
-      }
+    tr.addEventListener('click', function(){
+      var name = tr.dataset.raid;
+      if (raidOpen === name){ raidOpen = null; raidDetail = null; render(); return; }
+      raidOpen = name;
+      loadRaidTown(name);
     });
   });
 

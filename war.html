@@ -179,7 +179,10 @@ var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, fun
 var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 
 var me = null, intel = null, watching = [], overview = null;
-var view = 'watch';        // 'watch' | 'nation'
+var view = 'watch';        // 'watch' | 'nation' | 'raid'
+var perms = null;
+var raidQ = { open: '1', griefable: '', joinable: '', minGold: '', minChunks: '',
+              maxResidents: '', nation: '', sort: 'gold', dir: 'desc' };
 var hideLapsed = false, rosterQ = '';
 var warMap = null, mapColour = 'falling';
 /* Each layer independent, because they answer different questions and nobody
@@ -326,6 +329,12 @@ function townsTable(towns){
 
 function render(){
   renderWatchlist();
+  if (view === 'raid'){
+    $('body').innerHTML = renderRaid();
+    wireRaid();
+    var wb1 = $('watchBtn'); if (wb1) wb1.hidden = true;
+    return;
+  }
   if (view === 'watch'){
     $('body').innerHTML = renderOverview();
     $('body').querySelectorAll('[data-assess]').forEach(function(b){
@@ -678,11 +687,192 @@ function render(){
     : 'Keep a row a day for this nation, so a trend exists to look at later';
 }
 
+/* The raiding board.
+ *
+ * Town permissions are public — anyone can read them in game with /t <name>,
+ * and the API exposes them for the same reason. This is that command run
+ * across every town on the server at once, with the answer sorted by what is
+ * worth the trip.
+ *
+ * The column that decides everything is SWITCH, which is the one with a name
+ * that does not say what it does: it governs chests, furnaces and hoppers.
+ * build and destroy only matter for griefing; switch is the one that means
+ * you can take things. */
+function renderRaid(){
+  if (!perms){ return '<p class="empty">Loading the permission table&hellip;</p>'; }
+
+  var m = perms.meta || {};
+  var age = m.last
+    ? Math.round((Date.now() - new Date(m.last).getTime()) / 3600000) : null;
+  var stale = age === null || age > 48;
+
+  var out = '<div class="section-head"><h2>Raiding</h2>' +
+    '<span class="meta">' +
+    (m.total ? num(m.total) + ' towns scanned · ' + num(m.open || 0) + ' open to anyone' : 'never scanned') +
+    '</span></div>';
+
+  out += '<div class="card" style="border-left:3px solid ' +
+      (stale ? 'var(--red)' : 'var(--green)') + '">' +
+    '<div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">' +
+      '<span style="font-family:var(--data);font-size:.7rem;color:' +
+        (stale ? 'var(--red)' : 'var(--text-mid)') + '">' +
+        (age === null ? 'No scan has been run yet.'
+          : age < 2 ? 'Scanned within the hour.'
+          : age < 48 ? 'Scanned ' + age + ' hours ago.'
+          : 'Scanned ' + Math.round(age / 24) + ' days ago — permissions will have moved since.') +
+      '</span>' +
+      (perms.canScan
+        ? '<button class="btn" type="button" id="scanBtn" style="margin-left:auto">Scan the server</button>'
+        : '') +
+      '<span class="msg" id="scanMsg"></span>' +
+    '</div>' +
+    '<p class="note">Sixty requests and about a minute. It records where it got to, ' +
+      'so if it stops early, running it again carries on rather than starting over.</p></div>';
+
+  /* Filters first, because the raw list is six thousand rows and nobody wants
+     it — the question is always "which of these is worth the trip". */
+  var chk = function(k, label){
+    return '<label style="display:flex;align-items:center;gap:.3rem;font-family:var(--data);' +
+      'font-size:.68rem;color:var(--text-mid)"><input type="checkbox" data-rq="' + k + '"' +
+      (raidQ[k] ? ' checked' : '') + '> ' + esc(label) + '</label>';
+  };
+  var fld = function(k, label, ph){
+    return '<div class="f"><label>' + esc(label) + '</label>' +
+      '<input data-rq="' + k + '" value="' + esc(raidQ[k]) + '" placeholder="' + esc(ph || '') +
+      '" style="min-width:7rem"></div>';
+  };
+
+  out += '<div class="search" style="align-items:flex-end">' +
+    fld('nation', 'Nation', 'any') +
+    fld('minGold', 'Gold at least', '0') +
+    fld('minChunks', 'Chunks at least', '0') +
+    fld('maxResidents', 'Residents at most', 'any') +
+    '<button class="btn" type="button" id="raidGo">Apply</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin:-.4rem 0 .9rem">' +
+      chk('open', 'chests open to anyone') +
+      chk('griefable', 'outsiders can build or break') +
+      chk('joinable', 'town is open to join') +
+    '</div>';
+
+  var rows = perms.towns || [];
+  if (!rows.length){
+    out += '<p class="empty">Nothing matches. Loosen a filter, or run a scan if none has been.</p>';
+    return out;
+  }
+
+  var sortBtn = function(k, label){
+    return '<th style="cursor:pointer;text-align:right" data-sort="' + k + '">' + esc(label) +
+      (raidQ.sort === k ? (raidQ.dir === 'desc' ? ' \u25be' : ' \u25b4') : '') + '</th>';
+  };
+
+  out += '<div class="tablewrap"><table><thead><tr>' +
+    '<th style="cursor:pointer" data-sort="town">Town</th><th>Nation</th>' +
+    sortBtn('gold', 'Bank') + sortBtn('chunks', 'Chunks') +
+    sortBtn('residents', 'Res') + sortBtn('age', 'Founded') +
+    '<th>How open</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(function(t){
+      /* Three states, not a tick: walk in, ally only, or join first. They are
+         completely different amounts of work and lumping them together is
+         what would send someone on a pointless trip. */
+      var how = t.open_anyone
+        ? '<span style="color:var(--red)">anyone can open chests</span>'
+        : t.open_allies
+        ? '<span style="color:var(--gold)">allies only</span>'
+        : t.is_open
+        ? '<span style="color:var(--green)">join the town first</span>'
+        : '<span style="color:var(--text-low)">locked</span>';
+      if (t.griefable) how += ' <span style="color:var(--red)">· griefable</span>';
+      if (t.pvp) how += ' <span style="color:var(--gold)">· pvp</span>';
+
+      var founded = t.founded ? String(t.founded).slice(0, 10) : '—';
+      return '<tr' + (t.open_anyone ? ' class="imminent"' : '') + '>' +
+        '<td class="name">' + esc(t.town) + '</td>' +
+        '<td>' + esc(t.nation || 'none') + '</td>' +
+        '<td class="n">' + num(t.balance) + 'g</td>' +
+        '<td class="n">' + num(t.chunks) + '</td>' +
+        '<td class="n">' + num(t.residents) + '</td>' +
+        '<td class="n">' + esc(founded) + '</td>' +
+        '<td>' + how + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p class="note">Town-level permissions only &mdash; the API does not expose plot ' +
+    'perms. EarthMC\'s own docs say town perms override plot perms, so anything locked ' +
+    'here is genuinely locked; a town open here may still have individual plots that ' +
+    'are not, and nothing outside the game can see that.</p>';
+
+  return out;
+}
+
+async function loadPerms(){
+  try {
+    var q = [];
+    ['open','griefable','joinable','nation','minGold','minChunks','maxResidents','sort','dir']
+      .forEach(function(k){ if (raidQ[k]) q.push(k + '=' + encodeURIComponent(raidQ[k])); });
+    perms = await api('/api/war/perms?' + q.join('&'));
+  } catch (e) { perms = { towns: [], meta: null, canScan: false }; }
+}
+
+function wireRaid(){
+  $('body').querySelectorAll('[data-rq]').forEach(function(el){
+    var k = el.dataset.rq;
+    if (el.type === 'checkbox'){
+      el.addEventListener('change', function(){
+        raidQ[k] = el.checked ? '1' : '';
+        loadPerms().then(render);
+      });
+    } else {
+      el.addEventListener('keydown', function(e){ if (e.key === 'Enter') applyRaid(); });
+    }
+  });
+  var go = $('raidGo');
+  if (go) go.addEventListener('click', applyRaid);
+
+  $('body').querySelectorAll('[data-sort]').forEach(function(th){
+    th.addEventListener('click', function(){
+      var k = th.dataset.sort;
+      /* Clicking the active column flips it; a new column starts descending,
+         because for gold, chunks and residents the big ones are what you came
+         for and starting ascending would show the emptiest towns first. */
+      if (raidQ.sort === k) raidQ.dir = raidQ.dir === 'desc' ? 'asc' : 'desc';
+      else { raidQ.sort = k; raidQ.dir = 'desc'; }
+      loadPerms().then(render);
+    });
+  });
+
+  var scan = $('scanBtn');
+  if (scan) scan.addEventListener('click', async function(){
+    var msg = $('scanMsg');
+    scan.disabled = true;
+    msg.textContent = 'Reading every town — about a minute.';
+    msg.className = 'msg';
+    try {
+      var r = await api('/api/war/permscan', { method:'POST' });
+      msg.textContent = num(r.scanned) + ' towns read, ' + num(r.open) + ' open to anyone' +
+        (r.complete ? '.' : ' — stopped at the time limit, run it again to continue.');
+      msg.className = 'msg ' + (r.complete ? 'ok' : 'err');
+      await loadPerms();
+      render();
+    } catch (e){
+      msg.textContent = e.message; msg.className = 'msg err';
+    } finally { scan.disabled = false; }
+  });
+}
+
+function applyRaid(){
+  ['nation','minGold','minChunks','maxResidents'].forEach(function(k){
+    var el = document.querySelector('[data-rq="' + k + '"]');
+    if (el) raidQ[k] = el.value.trim();
+  });
+  loadPerms().then(render);
+}
+
 function renderWatchlist(){
   var host = $('watchlist');
   host.innerHTML =
     '<span class="w' + (view === 'watch' ? ' on' : '') + '" data-view="watch">The watch list' +
       (watching.length ? ' · ' + watching.length : '') + '</span>' +
+    '<span class="w' + (view === 'raid' ? ' on' : '') + '" data-view="raid">Raiding</span>' +
     (intel ? '<span class="w' + (view === 'nation' ? ' on' : '') + '" data-view="nation">' +
       esc(intel.nation.name) + '</span>' : '');
   host.querySelectorAll('[data-view]').forEach(function(el){
@@ -1088,6 +1278,7 @@ async function load(){
   await loadWatch();
   try { overview = await api('/api/war/overview'); }
   catch (e) { overview = { rows: [], us: null }; }
+  await loadPerms();
   render();
   $('stamp').textContent = 'ready';
 }

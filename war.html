@@ -792,7 +792,7 @@ function renderRaid(){
       chk('ruined', 'ruined — everything is open') +
       chk('griefable', 'outsiders can build or break') +
       chk('joinable', 'town is open to join') +
-      chk('spawn', 'public spawn, reachable now') +
+      chk('spawn', 'their nation can spawn here') +
     '</div>' +
     '<div class="search" style="margin-bottom:.9rem">' +
       '<div class="f" style="flex:1 1 16rem"><label>Find a town</label>' +
@@ -841,12 +841,18 @@ function renderRaid(){
 
       /* How you get there. A public spawn is a free teleport in; otherwise
          the nearest one and how far you would still have to walk. */
+      /* is_public is /t toggle public, which lets THEIR OWN NATION spawn
+         here — not us. It was labelled "public spawn" and read as reachable,
+         which was simply wrong and is why this column never answered the
+         question it was asked. Whether outsiders can spawn is a third toggle
+         (/t toggle outsiderscanspawn) and the scan cannot see it, so the
+         list says what it knows and the row detail checks live. */
       var reach = t.is_public
-        ? '<span style="color:var(--green)">public spawn</span>'
+        ? '<span style="color:var(--gold)">their nation can spawn</span>'
         : t.nearestSpawn
         ? '<span style="color:var(--text-low)">' + num(t.nearestSpawn.blocks) + ' from ' +
           esc(t.nearestSpawn.town) + '</span>'
-        : '<span style="color:var(--text-low)">no spawn near it</span>';
+        : '<span style="color:var(--text-low)">&mdash;</span>';
 
       var founded = t.founded ? String(t.founded).slice(0, 10) : '—';
       var open = raidOpen === t.town;
@@ -905,16 +911,32 @@ function townPanel(row){
   };
 
   var arrive;
-  if (d.outsiderSpawn){
+  if (d.outsiderSpawn === true){
     arrive = '<div class="tbanner" style="background:rgba(24,157,77,.14);border:1px solid var(--sage);' +
-      'color:var(--sage-hi)">Outsider spawn is on &mdash; <b>/t spawn ' + esc(d.name) +
-      '</b> works for anyone. They pay gold a day for that.</div>';
+      'color:var(--sage-hi)"><b>/t spawn ' + esc(d.name) + '</b> works for anyone &mdash; ' +
+      'outsiderscanspawn is on.</div>';
+  } else if (d.outsiderSpawn === null){
+    /* Not false — unknown. The API does not appear to expose this toggle, and
+       saying "no" would quietly rule out towns that are in fact wide open. */
+    arrive = '<div class="tbanner" style="background:rgba(120,110,95,.14);' +
+      'border:1px solid var(--rule);color:var(--text-mid)">' +
+      'Whether outsiders can spawn here is <b>not in the API</b> &mdash; check in game with ' +
+      '<b>/t ' + esc(d.name) + '</b>.' +
+      (d.nationSpawn
+        ? ' Its own nation can spawn to it, which is a different toggle and does not help us.'
+        : '') +
+      (d.waysIn && d.waysIn.length
+        ? '<div style="margin-top:.3rem;font-size:.64rem">If not, the closest likely way in is ' +
+          '<b>' + esc(d.waysIn[0].town) + '</b>, then ' + walk(d.waysIn[0].blocks) + ' on foot.</div>'
+        : '') +
+      '</div>';
   } else if (d.waysIn && d.waysIn.length){
     var best = d.waysIn[0];
     arrive = '<div class="tbanner" style="background:rgba(237,185,18,.12);' +
       'border:1px solid var(--gold-dim);color:var(--gold)">' +
-      'No outsider spawn here. Closest way in is <b>/t spawn ' + esc(best.town) + '</b>, ' +
-      'then ' + walk(best.blocks) + ' on foot.' +
+      'No outsider spawn here. Closest <i>likely</i> way in is <b>' + esc(best.town) + '</b>, ' +
+      'then ' + walk(best.blocks) + ' on foot &mdash; those towns are flagged for their own ' +
+      'nation, so confirm before relying on one.' +
       (d.waysIn.length > 1
         ? '<div style="margin-top:.3rem;font-size:.64rem;color:var(--text-mid)">then ' +
           d.waysIn.slice(1).map(function(w){
@@ -976,6 +998,12 @@ function townPanel(row){
         fact('Home block', typeof d.homeX === 'number' ? num(d.homeX) + ', ' + num(d.homeZ) : '—') +
         fact('Joining', d.isOpen ? '<span style="color:var(--sage-hi)">open &mdash; /t join ' +
           esc(d.name) + '</span>' : 'invite only') +
+        fact('Nation spawn', d.nationSpawn
+          ? '<span style="color:var(--gold)">on &mdash; their nation only</span>' : 'off') +
+        fact('Outsider spawn', d.outsiderSpawn === true
+          ? '<span style="color:var(--sage-hi)">on</span>'
+          : d.outsiderSpawn === false ? 'off'
+          : '<span style="color:var(--text-low)">not in the API</span>') +
         fact('Nation', esc(d.nation || 'none')) +
         (d.isOverClaimed ? fact('Overclaimed', '<span style="color:var(--red)">yes</span>') : '') +
         (d.trusted && d.trusted.length ? fact('Trusted', num(d.trusted.length)) : '') +

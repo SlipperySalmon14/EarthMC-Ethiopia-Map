@@ -181,8 +181,10 @@ var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 var me = null, intel = null, watching = [], overview = null;
 var view = 'watch';        // 'watch' | 'nation' | 'raid'
 var perms = null;
-var raidQ = { open: '1', griefable: '', joinable: '', minGold: '', minChunks: '',
-              maxResidents: '', nation: '', sort: 'gold', dir: 'desc' };
+var raidQ = { open: '1', griefable: '', joinable: '', ruined: '', spawn: '',
+              minGold: '', minChunks: '', maxResidents: '', nation: '',
+              q: '', sort: 'gold', dir: 'desc' };
+var raidOpen = null;   // town name expanded in the list
 var hideLapsed = false, rosterQ = '';
 var warMap = null, mapColour = 'falling';
 /* Each layer independent, because they answer different questions and nobody
@@ -708,7 +710,10 @@ function renderRaid(){
 
   var out = '<div class="section-head"><h2>Raiding</h2>' +
     '<span class="meta">' +
-    (m.total ? num(m.total) + ' towns scanned · ' + num(m.open || 0) + ' open to anyone' : 'never scanned') +
+    (m.total
+      ? num(m.total) + ' scanned · ' + num(m.open || 0) + ' open · ' +
+        num(m.ruined || 0) + ' ruined'
+      : 'never scanned') +
     '</span></div>';
 
   out += '<div class="card" style="border-left:3px solid ' +
@@ -749,10 +754,17 @@ function renderRaid(){
     fld('maxResidents', 'Residents at most', 'any') +
     '<button class="btn" type="button" id="raidGo">Apply</button>' +
     '</div>' +
-    '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin:-.4rem 0 .9rem">' +
+    '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin:-.4rem 0 .6rem">' +
       chk('open', 'chests open to anyone') +
+      chk('ruined', 'ruined — everything is open') +
       chk('griefable', 'outsiders can build or break') +
       chk('joinable', 'town is open to join') +
+      chk('spawn', 'public spawn, reachable now') +
+    '</div>' +
+    '<div class="search" style="margin-bottom:.9rem">' +
+      '<div class="f" style="flex:1 1 16rem"><label>Find a town</label>' +
+        '<input id="raidSearch" value="' + esc(raidQ.q) + '" autocomplete="off" ' +
+        'placeholder="Any town by name — searches the whole scan, filters off"></div>' +
     '</div>';
 
   var rows = perms.towns || [];
@@ -770,31 +782,79 @@ function renderRaid(){
     '<th style="cursor:pointer" data-sort="town">Town</th><th>Nation</th>' +
     sortBtn('gold', 'Bank') + sortBtn('chunks', 'Chunks') +
     sortBtn('residents', 'Res') + sortBtn('age', 'Founded') +
-    '<th>How open</th>' +
+    '<th>Getting there</th><th>How open</th>' +
     '</tr></thead><tbody>' +
     rows.map(function(t){
-      /* Three states, not a tick: walk in, ally only, or join first. They are
-         completely different amounts of work and lumping them together is
-         what would send someone on a pointless trip. */
-      var how = t.open_anyone
-        ? '<span style="color:var(--red)">anyone can open chests</span>'
-        : t.open_allies
-        ? '<span style="color:var(--gold)">allies only</span>'
-        : t.is_open
-        ? '<span style="color:var(--green)">join the town first</span>'
-        : '<span style="color:var(--text-low)">locked</span>';
-      if (t.griefable) how += ' <span style="color:var(--red)">· griefable</span>';
-      if (t.pvp) how += ' <span style="color:var(--gold)">· pvp</span>';
+      /* State first, and these are ordered by how much they override each
+         other. A deleted town is not a locked town with a caveat — it does
+         not exist, and nothing else on the row means anything. A ruined one
+         is open regardless of what its permissions say. */
+      var how;
+      if (t.gone){
+        how = '<span style="color:var(--text-low)">gone — the API no longer returns it</span>';
+      } else if (t.is_ruined){
+        how = '<span style="color:var(--red)">RUINED — everything is open</span>';
+      } else {
+        how = t.open_anyone
+          ? '<span style="color:var(--red)">anyone can open chests</span>'
+          : t.open_allies
+          ? '<span style="color:var(--gold)">allies only</span>'
+          : t.is_open
+          ? '<span style="color:var(--green)">join the town first</span>'
+          : '<span style="color:var(--text-low)">locked</span>';
+        if (t.griefable) how += ' <span style="color:var(--red)">· griefable</span>';
+        if (t.pvp) how += ' <span style="color:var(--gold)">· pvp</span>';
+      }
+
+      /* How you get there. A public spawn is a free teleport in; otherwise
+         the nearest one and how far you would still have to walk. */
+      var reach = t.is_public
+        ? '<span style="color:var(--green)">public spawn</span>'
+        : t.nearestSpawn
+        ? '<span style="color:var(--text-low)">' + num(t.nearestSpawn.blocks) + ' from ' +
+          esc(t.nearestSpawn.town) + '</span>'
+        : '<span style="color:var(--text-low)">no spawn near it</span>';
 
       var founded = t.founded ? String(t.founded).slice(0, 10) : '—';
-      return '<tr' + (t.open_anyone ? ' class="imminent"' : '') + '>' +
-        '<td class="name">' + esc(t.town) + '</td>' +
+      var open = raidOpen === t.town;
+
+      var detail = open
+        ? '<tr><td colspan="8" style="background:var(--ink);padding:.7rem .9rem">' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));' +
+            'gap:.5rem;font-family:var(--data);font-size:.68rem">' +
+            '<div><span style="color:var(--text-low)">Mayor</span><br>' + esc(t.mayor || '—') + '</div>' +
+            '<div><span style="color:var(--text-low)">Home block</span><br>' +
+              (typeof t.home_x === 'number' ? num(t.home_x) + ', ' + num(t.home_z) : '—') + '</div>' +
+            '<div><span style="color:var(--text-low)">Spawn</span><br>' +
+              (t.is_public ? 'public — /t spawn ' + esc(t.town) : 'residents only') + '</div>' +
+            '<div><span style="color:var(--text-low)">Joining</span><br>' +
+              (t.is_open ? 'open — /t join ' + esc(t.town) : 'invite only') + '</div>' +
+            '<div><span style="color:var(--text-low)">Nearest way in</span><br>' +
+              (t.nearestSpawn
+                ? esc(t.nearestSpawn.town) + ' · ' + num(t.nearestSpawn.blocks) + ' blocks'
+                : '—') + '</div>' +
+            '<div><span style="color:var(--text-low)">Last seen</span><br>' +
+              esc(String(t.last_seen || t.scanned_at || '').slice(0, 16)) + '</div>' +
+          '</div>' +
+          (typeof t.home_x === 'number'
+            ? '<div style="margin-top:.6rem"><button class="btn" type="button" ' +
+              'data-raidmap="' + esc(t.town) + '" style="padding:.25rem .6rem;font-size:.66rem">' +
+              'Show on the map</button></div>'
+            : '') +
+          '</td></tr>'
+        : '';
+
+      return '<tr class="' + (t.gone ? 'unknown' : t.is_ruined ? 'imminent' : t.open_anyone ? 'imminent' : '') +
+        '" data-raid="' + esc(t.town) + '" style="cursor:pointer">' +
+        '<td class="name">' + esc(t.town) +
+          '<span style="color:var(--text-low);margin-left:.3rem">' + (open ? '\u25b4' : '\u25be') + '</span></td>' +
         '<td>' + esc(t.nation || 'none') + '</td>' +
         '<td class="n">' + num(t.balance) + 'g</td>' +
         '<td class="n">' + num(t.chunks) + '</td>' +
         '<td class="n">' + num(t.residents) + '</td>' +
         '<td class="n">' + esc(founded) + '</td>' +
-        '<td>' + how + '</td></tr>';
+        '<td>' + reach + '</td>' +
+        '<td>' + how + '</td></tr>' + detail;
     }).join('') + '</tbody></table></div>' +
     '<p class="note">Town-level permissions only &mdash; the API does not expose plot ' +
     'perms. EarthMC\'s own docs say town perms override plot perms, so anything locked ' +
@@ -807,7 +867,7 @@ function renderRaid(){
 async function loadPerms(){
   try {
     var q = [];
-    ['open','griefable','joinable','nation','minGold','minChunks','maxResidents','sort','dir']
+    ['open','griefable','joinable','ruined','spawn','q','nation','minGold','minChunks','maxResidents','sort','dir']
       .forEach(function(k){ if (raidQ[k]) q.push(k + '=' + encodeURIComponent(raidQ[k])); });
     perms = await api('/api/war/perms?' + q.join('&'));
   } catch (e) { perms = { towns: [], meta: null, canScan: false }; }
@@ -837,6 +897,46 @@ function wireRaid(){
       if (raidQ.sort === k) raidQ.dir = raidQ.dir === 'desc' ? 'asc' : 'desc';
       else { raidQ.sort = k; raidQ.dir = 'desc'; }
       loadPerms().then(render);
+    });
+  });
+
+  var sb = $('raidSearch');
+  if (sb) sb.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter') return;
+    raidQ.q = sb.value.trim();
+    /* A name search drops every other filter on purpose. Someone typing a
+       town name wants THAT town, and silently hiding it because it does not
+       happen to be open or rich is the single most annoying thing a search
+       box can do. */
+    if (raidQ.q){ raidQ.open = ''; raidQ.ruined = ''; raidQ.griefable = ''; raidQ.joinable = ''; raidQ.spawn = ''; }
+    loadPerms().then(render);
+  });
+
+  $('body').querySelectorAll('[data-raid]').forEach(function(tr){
+    tr.addEventListener('click', function(e){
+      if (e.target.closest('[data-raidmap]')) return;
+      raidOpen = raidOpen === tr.dataset.raid ? null : tr.dataset.raid;
+      render();
+    });
+  });
+
+  $('body').querySelectorAll('[data-raidmap]').forEach(function(b){
+    b.addEventListener('click', function(e){
+      e.stopPropagation();
+      var t = (perms.towns || []).filter(function(x){ return x.town === b.dataset.raidmap; })[0];
+      if (!t || typeof t.home_x !== 'number') return;
+      /* Assessing the nation is what puts a map on screen, and a raid target
+         is nearly always worth seeing in the context of the nation around it
+         anyway — who else is nearby, what else is falling. */
+      if (t.nation){
+        $('nationInput').value = t.nation;
+        assess().then(function(){
+          if (warMap) warMap.setView(MC.toLatLng(t.home_x, t.home_z), 0);
+        });
+      } else {
+        window.alert(t.town + ' has no nation, so there is no nation map to place it on.\n\n' +
+          'Home block: ' + t.home_x + ', ' + t.home_z);
+      }
     });
   });
 

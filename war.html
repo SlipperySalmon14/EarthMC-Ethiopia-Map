@@ -792,7 +792,7 @@ function renderRaid(){
       chk('ruined', 'ruined — everything is open') +
       chk('griefable', 'outsiders can build or break') +
       chk('joinable', 'town is open to join') +
-      chk('spawn', 'their nation can spawn here') +
+      chk('spawn', 'outsiders can teleport in') +
     '</div>' +
     '<div class="search" style="margin-bottom:.9rem">' +
       '<div class="f" style="flex:1 1 16rem"><label>Find a town</label>' +
@@ -847,11 +847,16 @@ function renderRaid(){
          question it was asked. Whether outsiders can spawn is a third toggle
          (/t toggle outsiderscanspawn) and the scan cannot see it, so the
          list says what it knows and the row detail checks live. */
-      var reach = t.is_public
-        ? '<span style="color:var(--gold)">their nation can spawn</span>'
+      /* outsider_spawn is the paid toggle and the only one that lets us in.
+         is_public is their own nation's and is shown second, dimmer, because
+         it is a fact about the town but not a route for us. */
+      var reach = t.outsider_spawn === 1
+        ? '<span style="color:var(--sage-hi)">/t spawn ' + esc(t.town) + '</span>'
         : t.nearestSpawn
         ? '<span style="color:var(--text-low)">' + num(t.nearestSpawn.blocks) + ' from ' +
           esc(t.nearestSpawn.town) + '</span>'
+        : t.outsider_spawn === 0
+        ? '<span style="color:var(--text-low)">no teleport</span>'
         : '<span style="color:var(--text-low)">&mdash;</span>';
 
       var founded = t.founded ? String(t.founded).slice(0, 10) : '—';
@@ -934,9 +939,8 @@ function townPanel(row){
     var best = d.waysIn[0];
     arrive = '<div class="tbanner" style="background:rgba(237,185,18,.12);' +
       'border:1px solid var(--gold-dim);color:var(--gold)">' +
-      'No outsider spawn here. Closest <i>likely</i> way in is <b>' + esc(best.town) + '</b>, ' +
-      'then ' + walk(best.blocks) + ' on foot &mdash; those towns are flagged for their own ' +
-      'nation, so confirm before relying on one.' +
+      'No outsider teleport here. Closest town that does accept outsiders is ' +
+      '<b>/t spawn ' + esc(best.town) + '</b>, then ' + walk(best.blocks) + ' on foot.' +
       (d.waysIn.length > 1
         ? '<div style="margin-top:.3rem;font-size:.64rem;color:var(--text-mid)">then ' +
           d.waysIn.slice(1).map(function(w){

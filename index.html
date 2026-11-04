@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- First script on the page, on purpose. Signing in sends people back HERE
+     with their session in the address (#session=...), and on a phone that is
+     the only copy they will get: the cookie is blocked. Without this file the
+     fragment was never read, so a phone finished signing in and was still
+     signed out. It also has to wrap fetch before anything below calls it. -->
+<script src="assets/session.js?v=2"></script>
+
 <title>Ethiopia · EarthMC</title>
 <meta name="description" content="The live map, the treasury, open work, and the record of who holds which office.">
 
@@ -117,6 +125,20 @@ html[data-lang="am"] .title .am{ display: inline; }
 .status[data-state="live"]{ color: var(--green); }
 .status[data-state="live"]::before{ background: var(--green); }
 
+/* --- sign-in outcome ------------------------------------------------------
+   Shown only when Discord sent someone back without signing them in. Before
+   this, a refused or cancelled sign-in landed on an unchanged page, which
+   reads exactly like the button doing nothing — the one impression a
+   sign-in must never give. Body text and a red rule rather than a coloured
+   box: it is a sentence telling you what happened, not an alarm. */
+.signin-note{
+  max-width: 36rem;
+  margin: 0 0 2rem; padding: .15rem 0 .15rem .9rem;
+  border-left: 2px solid var(--red);
+  color: var(--text-mid);
+}
+.signin-note[data-tone="neutral"]{ border-left-color: var(--rule); }
+
 /* --- pending ------------------------------------------------------------- */
 .band{
   display: flex; align-items: baseline; gap: .6rem;
@@ -191,6 +213,10 @@ footer{
     </div>
     <span class="aside" id="authSlot"></span>
   </header>
+
+  <!-- Filled only when a sign-in came back unsuccessful. role="status" so a
+       screen reader announces it without the reader having to find it. -->
+  <p class="signin-note" id="signinNote" role="status" hidden></p>
 
   <!-- The state of the nation, right now. This is what the site is about, so
        it opens the page rather than sitting inside a card lower down. The
@@ -379,19 +405,35 @@ function renderAuth(me){
   if (strip) strip.hidden = !(me && me.signedIn && me.tier === 'manager');
 
   var slot = document.getElementById('authSlot');
+  slot.textContent = '';
+
+  /* Built with textContent rather than innerHTML. A Discord display name is
+     whatever its owner typed, markup included, and this button is the one
+     place on the page that prints one. With the session now kept in
+     localStorage, a script smuggled in through a name would be able to read
+     it — so the name is only ever treated as text. */
   if (me && me.signedIn){
-    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
-      (me.discordName || 'Signed in') + ' \u00b7 ' + me.tier + '</button>';
-    document.getElementById('signout').addEventListener('click', async function(){
+    var btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.type = 'button';
+    btn.id = 'signout';
+    btn.textContent = (me.discordName || 'Signed in') + ' \u00b7 ' + me.tier;
+    btn.addEventListener('click', async function(){
       try {
         await fetch(PROXY + '/api/auth/logout', { method:'POST', credentials:'include' });
       } catch (e) { /* signing out locally regardless */ }
       location.reload();
     });
+    slot.appendChild(btn);
   } else {
-    slot.innerHTML = '<a class="btn" href="' + PROXY +
-      '/api/auth/login?redirect=' + encodeURIComponent('/index.html') +
-      '" data-en="Sign in with Discord" data-am="በዲስኮርድ ግባ">Sign in with Discord</a>';
+    var a = document.createElement('a');
+    a.className = 'btn';
+    a.href = PROXY + '/api/auth/login?redirect=' + encodeURIComponent('/index.html');
+    a.setAttribute('data-en', 'Sign in with Discord');
+    a.setAttribute('data-am', 'በዲስኮርድ ግባ');
+    a.textContent = document.documentElement.getAttribute('data-lang') === 'am'
+      ? 'በዲስኮርድ ግባ' : 'Sign in with Discord';
+    slot.appendChild(a);
   }
 }
 
@@ -400,6 +442,48 @@ async function loadAuth(){
     var res = await fetch(PROXY + '/api/me', { credentials:'include' });
     renderAuth(res.ok ? await res.json() : null);
   } catch (e) { renderAuth(null); }
+}
+
+/* --- when Discord sends someone back unsigned ----------------------------
+   The Worker redirects here with ?login=<reason> whenever Discord declines:
+   "cancelled" when the person pressed Cancel, otherwise Discord's own error
+   code passed through untouched. Each gets a sentence saying what happened
+   and what to do, and the parameter is then removed so a reload does not
+   repeat a message about something already dealt with. */
+
+var SIGNIN_REASONS = {
+  cancelled: {
+    tone: 'neutral',
+    text: 'Sign-in was cancelled on Discord, so nothing changed. Press Sign in with Discord to try again.'
+  },
+  login_required: {
+    text: 'Discord needed you to log in first and could not show its login page. ' +
+          'Open discord.com in this browser, log in there, then press Sign in with Discord again.'
+  },
+  interaction_required: {
+    text: 'Discord needed you to confirm something and could not ask. ' +
+          'Press Sign in with Discord again and approve the request when Discord shows it.'
+  }
+};
+
+function showSigninOutcome(){
+  var params = new URLSearchParams(location.search);
+  var reason = params.get('login');
+  if (!reason) return;
+
+  var known = SIGNIN_REASONS[reason];
+  var note = document.getElementById('signinNote');
+  note.textContent = known ? known.text
+    : 'Discord turned the sign-in down (' + reason + '). Try again; if it happens ' +
+      'twice, send a screenshot of this page to an admin.';
+  note.setAttribute('data-tone', (known && known.tone) || 'error');
+  note.hidden = false;
+
+  params.delete('login');
+  var rest = params.toString();
+  try {
+    history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+  } catch (e) { /* leaving the parameter in place is harmless */ }
 }
 
 /* --- live figures --------------------------------------------------------
@@ -450,11 +534,10 @@ async function loadFigures(){
   }
 }
 
+showSigninOutcome();
 loadFigures();
 loadAuth();
 </script>
 <script src="assets/pagetext.js?v=1"></script>
 </body>
 </html>
-
-

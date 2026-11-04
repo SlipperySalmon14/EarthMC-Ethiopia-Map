@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- First script on the page. This page never loaded it, so on a phone —
+     where the session cookie is blocked and the token in this file is the
+     only proof of who you are — the shop always looked signed out, however
+     recently you had signed in elsewhere on the site. It has to wrap fetch
+     before the page script below makes its first call. -->
+<script src="assets/session.js?v=2"></script>
 <title>Shop · Ethiopia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1431,4 +1437,3 @@ load().catch(fatal);
 <script src="assets/pagetext.js?v=1"></script>
 </body>
 </html>
-

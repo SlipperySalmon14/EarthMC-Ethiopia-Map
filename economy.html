@@ -276,6 +276,25 @@ input, select{ border-radius:0; }
 .rec.void .tag{ color:var(--loss); border-color:rgba(255,77,85,.4); }
 .edit{ grid-column:1 / -1; margin:.45rem 0 .2rem; padding:.8rem; border:1px solid var(--edge-hot); background:#0b0a08; }
 
+/* --- services by type --- */
+.svc td small, .rec .what small b{ font-weight:400; }
+.svc td small{ display:block; margin-top:.15rem; font-family:var(--data); font-size:.54rem; font-weight:400; color:var(--text-low); }
+.svc tr.type-row td{ color:var(--text-mid); font-size:.66rem; }
+.svc tr.type-row td:first-child{ padding-left:1.6rem; font-family:var(--data); font-size:.68rem; font-weight:400; color:var(--text-mid); }
+.svc tr.svc-row td{ border-top:1px solid rgba(255,191,60,.14); }
+.mini{ display:inline-block; width:2.6rem; height:4px; margin-right:.45rem; vertical-align:.1rem; background:rgba(255,255,255,.06); }
+.mini span{ display:block; height:100%; }
+.stats .stat:nth-child(n+5) .n{ font-size:.95rem; }
+
+/* --- a figure that is probably wrong, said where it shows --- */
+.warn{ display:flex; flex-wrap:wrap; align-items:center; gap:.4rem .8rem; margin:0 0 1rem; padding:.7rem .9rem;
+  border:1px solid rgba(255,77,85,.4); border-left:3px solid var(--loss); background:rgba(255,77,85,.06);
+  font-family:var(--data); font-size:.62rem; line-height:1.6; color:var(--text-mid); }
+.warn b{ color:#ff8a90; font-weight:600; margin-right:.3rem; }
+.warn .btn{ margin-left:auto; }
+.rec .val.muted{ color:var(--text-low); }
+.inrow .link{ grid-column:1 / -1; font-size:.78rem; }
+
 /* --- setup: tucked away, because it is done once --- */
 details.panel > summary{ list-style:none; cursor:pointer; }
 details.panel > summary::-webkit-details-marker{ display:none; }
@@ -283,8 +302,12 @@ details.panel > summary .ph{ margin:0; }
 details.panel > summary .ph h3::after{ content:'+'; margin-left:.4rem; color:var(--amber); }
 details.panel[open] > summary .ph h3::after{ content:'\2212'; }
 details.panel[open] > summary .ph{ margin-bottom:.65rem; }
-.barrel{ display:grid; grid-template-columns:minmax(0, 1fr) 9rem minmax(0, 1fr) auto; gap:.5rem; align-items:center;
+.barrel{ display:grid; grid-template-columns:minmax(0, 1.2fr) 10rem 5.5rem 5.5rem minmax(0, 1fr) auto; gap:.5rem; align-items:center;
   padding:.45rem 0; border-bottom:1px solid rgba(255,255,255,.035); }
+.barrel.head{ padding:.2rem 0; font-family:var(--data); font-size:.5rem; letter-spacing:.14em; text-transform:uppercase; color:var(--text-low); }
+.barrel.loose .it small b{ color:#ff8a90; font-weight:400; }
+.chk{ display:flex; align-items:center; gap:.35rem; font-family:var(--data); font-size:.6rem; color:var(--text-mid); cursor:pointer; }
+.chk input{ accent-color:var(--amber); }
 .barrel:last-child{ border-bottom:0; }
 .barrel .it{ font-size:.84rem; } .barrel .it small{ display:block; font-family:var(--data); font-size:.54rem; color:var(--text-low); }
 
@@ -321,7 +344,8 @@ footer{ margin-top:2.4rem; padding-top:.8rem; border-top:1px solid var(--edge); 
   .mix{ grid-template-columns:7rem minmax(0, 1fr); }
   .inrow{ grid-template-columns:1fr 4.5rem; }
   .inrow .what{ grid-column:1 / -1; }
-  .barrel{ grid-template-columns:1fr 1fr; } .barrel .it{ grid-column:1 / -1; }
+  .barrel{ grid-template-columns:1fr 1fr; } .barrel .it{ grid-column:1 / -1; } .barrel.head{ display:none; }
+  .svc th:nth-child(3), .svc td:nth-child(3), .svc th:nth-child(5), .svc td:nth-child(5){ display:none; }
   .rec{ grid-template-columns:minmax(0, 1fr) auto; }
   .rec .tag{ grid-column:1 / -1; }
   .rec .ops{ grid-column:1 / -1; grid-row:3; }
@@ -393,7 +417,15 @@ var SOURCES = {
   other: { name:'Other',        hex:'#5fa8ff', shades:['#5fa8ff','#9cc8ff','#2f7fe0','#cfe3ff','#1d5aa6','#7db7ff'] },
 };
 var SPEND_COLORS = ['#ff4d55','#f2b632','#5fa8ff','#b48cff','#1fbf5f','#ff8a3d','#9a907e'];
-var SERVICE_NAMES = { recruiting:'Recruiting', mapart:'Map art', claimmap:'Claim maps', media:'Media', bulk:'Bulk orders' };
+var SERVICE_NAMES = { recruiting:'Recruiting', mapart:'Mapart creation', claimmap:'Claim map creation',
+  media:'Media creation', bulk:'Bulk sales' };
+/* A service's name: the known ones above, then whatever its rate card calls
+   it, so a service added later is named properly without a change here. */
+function serviceName(s){
+  if (SERVICE_NAMES[s]) return SERVICE_NAMES[s];
+  var r = data && (data.rates || []).find(function(x){ return x.service === s && !x.priority; });
+  return (r && r.label) || pretty(s);
+}
 var SPEND_NAMES = { buybacks:'Buy-backs', restock:'Restocking', materials:'Materials',
   worker_pay:'Workers on shop-sold jobs', refunds:'Refunds' };
 var HIST_FILTERS = [['all','Everything'], ['hand','Entered by hand'], ['emc','EMC orders'], ['shop','Shop sales'], ['spend','Spending']];
@@ -403,7 +435,7 @@ var PERIODS = [['7','7D'], ['30','30D'], ['90','90D'], ['year','1Y'], ['all','Al
 function catName(source, cat, label){
   if (label) return itemName(label);
   if (SPEND_NAMES[cat]) return SPEND_NAMES[cat];
-  if (SERVICE_NAMES[cat]) return SERVICE_NAMES[cat];
+  if (source === 'emc') return serviceName(cat);
   return pretty(cat);
 }
 /* What one unit of a service is called, from the rate card: a recruiting job
@@ -876,6 +908,21 @@ function renderView(){
   if (state.animate){ state.animate = false; countUp(v); }
 }
 
+/* Paper sold at barrels nobody has marked. Labelled paper is how services are
+   bought, so this is very probably service money counted as shop income — and
+   counted again when the order goes in. Said wherever it skews a figure. */
+function looseWarning(){
+  var lp = data.loosePaper || {};
+  if (!lp.n) return '';
+  return '<div class="warn"><b>Check ' + num(lp.n) + ' paper sale' + (lp.n === 1 ? '' : 's') + ' (' + gold(lp.gold) + ')</b>' +
+    'They came from barrels not marked as a service, so they count as shop income. If they were EMC purchases, ' +
+    'they are counted twice: once here and again on their orders. <button class="btn quiet" type="button" data-fix>Mark the barrels</button></div>';
+}
+function wireWarning(v){
+  var b = v.querySelector('[data-fix]');
+  if (b) b.addEventListener('click', function(){ state.tab = 'shop'; state.openSetup = true; renderControls(); renderView(); });
+}
+
 /* --- overview ------------------------------------------------------------------------ */
 function viewOverview(){
   var t = data.totals, p = data.previous || {}, rows = flowRows();
@@ -884,13 +931,13 @@ function viewOverview(){
     { label:'Gross income', value:t.gross, prev:p.gross, mode:'up', spark:col('gross'),
       hint:'Everything the businesses took in' },
     { op:'−', label:'To workers', value:t.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:'#9a907e',
-      hint:'Paid straight to whoever did the job; it never stays with the business' },
+      hint:'What workers earn on these orders, whether paid yet or still owed' },
     { op:'=', label:'Kept', value:kept(t), prev:data.previous ? kept(p) : null, mode:'up', spark:col('kept') },
     { op:'−', label:'Spent', value:t.spend, prev:p.spend, mode:'down', spark:col('spend'), color:'#ff4d55',
       hint:'Restocking, buy-backs, materials and refunds' },
     { op:'=', label:'Profit', value:profit(t), prev:data.previous ? profit(p) : null, mode:'up', spark:col('profit'),
       color:'#1fbf5f', hero:true },
-  ]);
+  ]) + looseWarning();
 
   var active = ['emc', 'shop', 'other'].filter(function(s){ return rows.some(function(r){ return r[s]; }); });
   var parts = active.map(function(s){ return { key:s, name:SOURCES[s].name, color:SOURCES[s].hex }; })
@@ -927,6 +974,7 @@ function viewOverview(){
   return out;
 }
 after.overview = function(v){
+  wireWarning(v);
   v.querySelectorAll('#mixSwitch [data-m]').forEach(function(b){
     b.addEventListener('click', function(){ state.mix = b.dataset.m; renderView(); });
   });
@@ -945,68 +993,110 @@ function viewEmc(){
 
   var pend = data.pending || [];
   if (pend.length){
-    out += panel('Bought in the shop', metaText(pend.length + ' waiting for a town'),
-      '<p class="note" style="margin:0 0 .4rem">Paid for at a service barrel. Add the town and post it, and it goes on the job board like any other order.</p>' +
-      pend.map(pendingRow).join(''), 'incoming');
+    var waiting = pend.reduce(function(a, x){ return a + (x.amount || 0); }, 0);
+    out += panel('Bought in the shop', metaText(pend.length + ' waiting · ' + gold(waiting) + ' paid'),
+      '<p class="note" style="margin:0 0 .4rem">Paid for at a service barrel and not yet a job. Add the town and post it, or link it to the ' +
+      'order a manager already entered. It counts in the figures once it is an order.</p>' + pend.map(pendingRow).join(''), 'incoming');
   }
 
   out += kpis([
     { label:'Billed', value:b.gross, prev:p.gross, mode:'up', spark:col('gross'), color:'#f2b632',
-      hint:'Paid orders, and sales at service barrels' },
-    { op:'−', label:'To workers', value:b.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:'#9a907e',
-      hint:'Paid straight from the customer to the worker' },
+      hint:'Every order placed in this period. The customer has already paid for it, when they bought the paper.' },
+    { op:'−', label:'Workers\u2019 share', value:b.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:'#9a907e',
+      hint:'What the workers earn on these orders, paid or still owed. Paid once the job is done.' },
     { op:'=', label:'Company keeps', value:kept(b), prev:data.previous ? kept(p) : null, mode:'up', spark:col('kept') },
     { op:'−', label:'Costs', value:b.spend, prev:p.spend, mode:'down', spark:col('spend'), color:'#ff4d55',
-      hint:'Materials, refunds, and workers paid for jobs sold in the shop' },
+      hint:'Materials and refunds' },
     { op:'=', label:'Profit', value:profit(b), prev:data.previous ? profit(p) : null, mode:'up', spark:col('profit'), color:'#1fbf5f', hero:true },
   ]);
-  if (data.owed && data.owed.orders){
-    out += '<p class="footline"><b>' + gold(data.owed.gross) + '</b> more is finished but not yet paid, across ' + num(data.owed.orders) +
-      ' job' + (data.owed.orders === 1 ? '' : 's') + '. It counts here once it is marked paid on the job board.</p>';
-  }
+
+  /* What the company owes its workers right now, whatever the period: a job
+     sold last month and still unpaid is a debt today. */
+  var ow = data.owed || {}, parts = [];
+  if (ow.done && ow.done.n) parts.push('<b>' + gold(ow.done.gold) + '</b> for ' + num(ow.done.n) + ' finished job' + (ow.done.n === 1 ? '' : 's') + ' not yet paid');
+  if (ow.active && ow.active.n) parts.push('<b>' + gold(ow.active.gold) + '</b> for ' + num(ow.active.n) + ' in progress');
+  if (ow.queued && ow.queued.n) parts.push('<b>' + gold(ow.queued.gold) + '</b> for ' + num(ow.queued.n) + ' not yet picked up');
+  if (parts.length) out += '<p class="footline">Workers are owed ' + parts.join(' · ') + '.</p>';
+
   if (!b.gross && !b.spend){
-    return out + empty('No orders paid', 'Nothing was paid for on the job board or at a service barrel in this period.');
+    return out + empty('No orders', 'No EMC Services orders were placed in this period.');
   }
 
+  var types = data.types || [];
   var list = cats(function(c){ return c.source === 'emc' && c.gross > 0; }).sort(function(a, z){ return z.gross - a.gross; });
-  var orders = sum(list, 'n'), cust = data.customers.emc || [];
+  var orders = types.reduce(function(a, t){ return a + t.n; }, 0), cust = data.customers.emc || [];
   var repeat = cust.filter(function(c){ return c.n > 1; }).length;
+  var pri = types.filter(function(t){ return t.priority; }).reduce(function(a, t){ return a + t.n; }, 0);
+  var open = (ow.active ? ow.active.n : 0) + (ow.queued ? ow.queued.n : 0);
 
   out += '<div class="grid g-main">' +
-    panel(grainly() + ' split', metaText('what each ' + grain() + ' billed, and where it went'),
+    panel(grainly() + ' orders', metaText('billed each ' + grain() + ', and where it went'),
       '<div class="chart" id="cSplit"></div>' + keyrow([{ name:'Company', color:'#ffbf3c' }, { name:'Workers', color:'#7a5a14' },
         { name:'Costs', color:'#ff4d55' }, { name:'Profit', color:'#1fbf5f', line:true }])) +
     panel('Traffic', '', '<div class="stats">' +
-      '<div class="stat"><span class="n">' + num(orders) + '</span><span class="k">Orders paid</span></div>' +
-      '<div class="stat"><span class="n">' + (orders ? gold(b.gross / orders) : '—') + '</span><span class="k">Average order</span></div>' +
-      '<div class="stat"><span class="n">' + num(cust.length) + '</span><span class="k">Customers</span></div>' +
-      '<div class="stat"><span class="n">' + (cust.length ? Math.round((repeat / cust.length) * 100) + '%' : '—') +
-        '</span><span class="k">Ordered again</span></div></div>' +
+      stat(num(orders), 'Orders placed') + stat(orders ? gold(b.gross / orders) : '—', 'Average order') +
+      stat(num(cust.length), 'Customers') + stat(cust.length ? Math.round((repeat / cust.length) * 100) + '%' : '—', 'Ordered again') +
+      stat(orders ? Math.round((pri / orders) * 100) + '%' : '—', 'Priority') + stat(num(open), 'Open jobs now') + '</div>' +
       sparkBlock(col('orders'), 'Orders per ' + grain(), '#f2b632')) +
     '</div>';
 
-  var segs = list.map(function(c, i){ return { name:catName('emc', c.cat, c.label), v:c.gross, color:SOURCES.emc.shades[i % 6] }; });
-  out += panel('Services', metaText(list.length + ' service' + (list.length === 1 ? '' : 's')), mixbar(segs) + '<div class="tw"><table><thead><tr><th>Service</th><th>Orders</th>' +
-    '<th>Billed</th><th>Company</th><th>Workers</th><th>Average</th><th>Share</th></tr></thead><tbody>' + list.map(function(c, i){
-      return '<tr><td><i class="sw" style="background:' + segs[i].color + '"></i>' + esc(segs[i].name) + '</td><td>' + num(c.n) + '</td>' +
-        '<td>' + gold(c.gross) + '</td><td>' + gold(c.gross - c.workers) + '</td><td>' + gold(c.workers) + '</td>' +
-        '<td>' + (c.n ? gold(c.gross / c.n) : '—') + '</td><td>' + (b.gross ? Math.round((c.gross / b.gross) * 100) : 0) + '%</td></tr>';
-    }).join('') + '</tbody></table></div>');
+  /* Every service, and inside each, every type it was sold as: priority
+     against regular, a mapart's size. The service row carries the totals;
+     the rows under it say what they were made of. */
+  var segs = list.map(function(c, i){ return { name:serviceName(c.cat), v:c.gross, color:SOURCES.emc.shades[i % 6] }; });
+  var guessed = types.reduce(function(a, t){ return a + (t.guessed || 0); }, 0);
+  var body = mixbar(segs) + '<div class="tw"><table class="svc"><thead><tr><th>Service and type</th><th>Orders</th><th>Units</th>' +
+    '<th>Billed</th><th>Company</th><th>Average</th><th>Share</th></tr></thead><tbody>';
+  list.forEach(function(c, i){
+    var mine = types.filter(function(t){ return t.service === c.cat; }).sort(function(a, z){ return z.gross - a.gross; });
+    var sized = mine.some(function(t){ return t.variant; });
+    var pn = mine.filter(function(t){ return t.priority; });
+    var priNote = pn.length ? 'priority ' + Math.round(pn.reduce(function(a, t){ return a + t.n; }, 0) / Math.max(1, c.n) * 100) +
+      '% of orders, ' + Math.round(pn.reduce(function(a, t){ return a + t.gross; }, 0) / Math.max(1, c.gross) * 100) + '% of billing' : '';
+    body += '<tr class="svc-row"><td><i class="sw" style="background:' + segs[i].color + '"></i>' + esc(segs[i].name) +
+      (priNote ? '<small>' + esc(priNote) + '</small>' : '') + '</td><td>' + num(c.n) + '</td><td>' + unitOf(c.cat, c.qty) + '</td>' +
+      '<td>' + gold(c.gross) + '</td><td>' + gold(c.gross - c.workers) + '</td><td>' + (c.n ? gold(c.gross / c.n) : '—') + '</td>' +
+      '<td>' + (b.gross ? Math.round((c.gross / b.gross) * 100) : 0) + '%</td></tr>';
+    if (mine.length > 1 || (mine.length === 1 && (mine[0].variant || mine[0].priority))){
+      mine.forEach(function(t){
+        var share = c.gross ? t.gross / c.gross : 0;
+        body += '<tr class="type-row"><td>' + esc(typeName(t, sized)) + (t.guessed ? '<small>' + num(t.guessed) + ' read from title</small>' : '') +
+          '</td><td>' + num(t.n) + '</td><td>' + unitOf(t.service, t.qty) + '</td><td>' + gold(t.gross) + '</td>' +
+          '<td>' + gold(t.gross - t.workers) + '</td><td>' + gold(t.gross / t.n) + '</td>' +
+          '<td><span class="mini"><span style="width:' + Math.round(share * 100) + '%;background:' + segs[i].color + '"></span></span>' +
+          Math.round(share * 100) + '%</td></tr>';
+      });
+    }
+  });
+  body += '</tbody></table></div>' + (guessed ? '<p class="note">Sizes marked "read from title" were taken from what the order was called, ' +
+    'because no size was set on it. Set one in History if it is wrong.</p>' : '');
+  out += panel('Services', metaText(list.length + ' service' + (list.length === 1 ? '' : 's')), body);
 
   out += '<div class="grid g-2" style="margin-top:1rem">' +
     panel('Biggest customers', '', rankList(cust.slice(0, 6), function(c){ return gold(c.gross); },
       function(c){ return c.n + ' order' + (c.n === 1 ? '' : 's'); }, function(c){ return c.gross; })) +
     panel('Top-earning workers', '', rankList((data.workers || []).slice(0, 6), function(w){ return gold(w.earned); },
-      function(w){ return w.n + ' job' + (w.n === 1 ? '' : 's'); }, function(w){ return w.earned; })) +
+      function(w){ return w.n + ' job' + (w.n === 1 ? '' : 's') + (w.owed ? ' · ' + gold(w.owed) + ' still owed' : ''); },
+      function(w){ return w.earned; })) +
     '</div>';
   return out;
+}
+function stat(n, k){ return '<div class="stat"><span class="n">' + n + '</span><span class="k">' + esc(k) + '</span></div>'; }
+/* A type's name: its size if it has one, and whether it was bought at
+   priority. Recruiting has no sizes, so it reads Regular or Priority. A
+   sized service's order with no size says so, rather than passing for
+   "regular". */
+function typeName(t, sized){
+  var base = t.variant || (sized ? 'Size not recorded' : (t.priority ? '' : 'Regular'));
+  return [base, t.priority ? 'Priority' : ''].filter(Boolean).join(' · ');
 }
 function sparkBlock(vals, label, color){
   return '<p class="note" style="margin:.7rem 0 .2rem">' + esc(label) + '</p>' +
     '<div class="kpi" style="border:0;background:none;padding:0">' + sparkline(vals, color) + '</div>';
 }
 function pendingRow(p){
-  var name = p.label || SERVICE_NAMES[p.service] || pretty(p.service);
+  var name = p.label || [serviceName(p.service), p.variant, p.priority ? 'Priority' : ''].filter(Boolean).join(' · ');
+  var links = (data.linkable || []).filter(function(o){ return o.service === p.service; });
   return '<div class="inrow" data-id="' + p.id + '">' +
     '<span class="what"><i class="blink"></i>' + esc(name) + '<small>' + esc(p.buyer || 'Unknown buyer') + ' paid ' + gold(p.amount) +
       ' on ' + esc(short(p.occurred_at || p.created_at)) + '</small></span>' +
@@ -1015,6 +1105,11 @@ function pendingRow(p){
       esc(unitOf(p.service, 2).replace(/^2 /, '')) + '">' +
     '<button class="btn" data-act="post">Post</button>' +
     '<button class="btn danger" data-act="cancel">Refund</button>' +
+    (links.length ? '<select class="fld link" name="link" aria-label="Or link to an order already entered">' +
+      '<option value="">…or link to an order already entered</option>' + links.map(function(o){
+        return '<option value="' + o.id + '">#' + o.id + ' · ' + esc(o.customer || 'unknown') + ' · ' + esc(o.title || serviceName(o.service)) +
+          ' · ' + gold(o.gross) + ' · ' + esc(short(o.created_at)) + '</option>';
+      }).join('') + '</select>' : '') +
     '<span class="msg"></span></div>';
 }
 after.emc = function(v){
@@ -1029,13 +1124,20 @@ after.emc = function(v){
   }
   v.querySelectorAll('.inrow').forEach(function(row){
     var id = Number(row.dataset.id), msg = row.querySelector('.msg');
-    var val = function(n){ return row.querySelector('[name="' + n + '"]').value; };
-    row.querySelector('[data-act="post"]').addEventListener('click', async function(){
-      if (!val('town').trim()){ msg.className = 'msg err'; msg.textContent = 'Add the town first.'; return; }
-      msg.className = 'msg'; msg.textContent = 'Posting…';
+    var val = function(n){ var el = row.querySelector('[name="' + n + '"]'); return el ? el.value : ''; };
+    var postBtn = row.querySelector('[data-act="post"]'), linkSel = row.querySelector('[name="link"]');
+    /* Choosing an order to link turns Post into Link, so one button does
+       whichever the row is set up for. */
+    if (linkSel) linkSel.addEventListener('change', function(){ postBtn.textContent = linkSel.value ? 'Link' : 'Post'; });
+    postBtn.addEventListener('click', async function(){
+      var linkTo = val('link');
+      if (!linkTo && !val('town').trim()){ msg.className = 'msg err'; msg.textContent = 'Add the town first, or pick the order to link.'; return; }
+      msg.className = 'msg'; msg.textContent = linkTo ? 'Linking…' : 'Posting…';
       try {
-        var r = await post('/api/economy/pending', { id:id, action:'post', town:val('town'), quantity:val('quantity') });
-        msg.textContent = 'Posted as order #' + r.orderId + '.';
+        var r = linkTo
+          ? await post('/api/economy/pending', { id:id, action:'link', orderId:Number(linkTo) })
+          : await post('/api/economy/pending', { id:id, action:'post', town:val('town'), quantity:val('quantity') });
+        msg.textContent = linkTo ? 'Linked to order #' + r.orderId + '.' : 'Posted as order #' + r.orderId + '.';
         setTimeout(load, 700);
       } catch (e){ msg.className = 'msg err'; msg.textContent = e.message; }
     });
@@ -1062,7 +1164,7 @@ function viewShop(){
   ];
   if (other > 0) tiles.push({ op:'−', label:'Other costs', value:other, mode:'down' });
   tiles.push({ op:'=', label:'Profit', value:profit(b), prev:data.previous ? profit(p) : null, mode:'up', spark:col('profit'), color:'#1fbf5f', hero:true });
-  var out = kpis(tiles);
+  var out = kpis(tiles) + looseWarning();
 
   if (!b.gross && !b.spend){
     var since = data.first && data.first.shop;
@@ -1109,8 +1211,9 @@ function barrelSetup(){
   return '<details class="panel" id="setup" style="margin-top:1rem"><summary><div class="ph"><h3>Service barrels</h3>' +
     metaText('setup · once per barrel') + '</div></summary>' +
     '<p class="note" style="margin:0 0 .6rem">The shop feed only knows that a barrel holds paper. Mark which barrels sell an EMC ' +
-    'service and give them a name: their sales then count as EMC income, and each new sale waits on the EMC tab to be posted as a job. ' +
-    'Sales from before a barrel is marked are not queued, so nothing is done twice.</p><div id="barrels"><p class="note">Loading…</p></div></details>';
+    'service, and what kind: a size for mapart, Priority for priority recruitment. Their paper is then counted once, on the order it pays ' +
+    'for, and each new sale waits on the EMC tab to be posted as a job of the right type. Sales from before a barrel is marked are not ' +
+    'queued, so nothing is done twice.</p><div id="barrels"><p class="note">Loading…</p></div></details>';
 }
 after.shop = function(v){
   if ($('cShop')){
@@ -1118,8 +1221,12 @@ after.shop = function(v){
     chart($('cShop'), rows, [{ key:'gross', name:'Sales', color:'#1fbf5f' }, { key:'out', name:'Costs', color:'#ff4d55', flip:true }],
       { line:{ key:'profit', name:'Profit', color:'#ffbf3c' } });
   }
+  wireWarning(v);
   var d = $('setup');
-  if (d) d.addEventListener('toggle', function(){ if (d.open) loadBarrels(); });
+  if (d){
+    d.addEventListener('toggle', function(){ if (d.open) loadBarrels(); });
+    if (state.openSetup){ state.openSetup = false; d.open = true; d.scrollIntoView({ block:'start' }); }
+  }
 };
 async function loadBarrels(){
   var host = $('barrels');
@@ -1128,23 +1235,34 @@ async function loadBarrels(){
   catch (e){ host.innerHTML = '<p class="msg err">Could not load the barrels: ' + esc(e.message) + '</p>'; return; }
   var list = state.barrels.filter(function(x){ return x.shop_type !== 'buy'; });
   if (!list.length){ host.innerHTML = '<p class="note">The shop has not reported any sell barrels yet.</p>'; return; }
-  host.innerHTML = list.map(function(x){
-    return '<div class="barrel" data-shop="' + esc(x.shop_id) + '"><span class="it">' + esc(x.label || pretty(x.item)) +
-      '<small>' + esc(pretty(x.item)) + ' · ' + gold(x.price) + (x.amount > 1 ? ' for ' + num(x.amount) : '') + ' · barrel ' + esc(x.shop_id) + '</small></span>' +
-      '<select class="fld" aria-label="Sells"><option value="">Shop item</option>' + (data.services || []).map(function(s){
-        return '<option value="' + s + '"' + (x.service === s ? ' selected' : '') + '>' + esc(SERVICE_NAMES[s] || pretty(s)) + '</option>';
-      }).join('') + '</select>' +
-      '<input class="fld" aria-label="Name" placeholder="Name (optional)" value="' + esc(x.label || '') + '">' +
-      '<button class="btn quiet" type="button">Save</button></div>';
-  }).join('');
-  host.querySelectorAll('.barrel').forEach(function(row){
+  /* Paper that nobody has marked comes first and is flagged: labelled paper
+     is how services are bought, so it is almost certainly one. */
+  host.innerHTML = '<div class="barrel head"><span>Barrel</span><span>Sells</span><span>Type</span><span>Priority</span><span>Name</span><span></span></div>' +
+    list.map(function(x){
+      var loose = !x.service && String(x.item).toUpperCase() === 'PAPER';
+      return '<div class="barrel' + (loose ? ' loose' : '') + '" data-shop="' + esc(x.shop_id) + '"><span class="it">' + esc(x.label || pretty(x.item)) +
+        '<small>' + (loose ? '<b>Paper · probably a service</b> · ' : esc(pretty(x.item)) + ' · ') + gold(x.price) +
+          (x.amount > 1 ? ' for ' + num(x.amount) : '') + ' · barrel ' + esc(x.shop_id) + '</small></span>' +
+        '<select class="fld" name="service" aria-label="Sells"><option value="">Shop item</option>' + (data.services || []).map(function(s){
+          return '<option value="' + s + '"' + (x.service === s ? ' selected' : '') + '>' + esc(serviceName(s)) + '</option>';
+        }).join('') + '</select>' +
+        '<input class="fld" name="variant" list="sizes2" aria-label="Type, such as a size" placeholder="2x2" value="' + esc(x.variant || '') + '">' +
+        '<label class="chk"><input type="checkbox" name="priority"' + (x.priority ? ' checked' : '') + '> Priority</label>' +
+        '<input class="fld" name="label" aria-label="Name" placeholder="Name on the paper" value="' + esc(x.label || '') + '">' +
+        '<button class="btn quiet" type="button">Save</button></div>';
+    }).join('') + '<datalist id="sizes2">' + SIZE_HINTS.map(function(s){ return '<option value="' + s + '">'; }).join('') + '</datalist>';
+  host.querySelectorAll('.barrel[data-shop]').forEach(function(row){
     var btn = row.querySelector('button');
+    var f = function(n){ return row.querySelector('[name="' + n + '"]'); };
     btn.addEventListener('click', async function(){
       btn.textContent = 'Saving…';
       try {
-        var r = await post('/api/economy/barrels', { shopId:row.dataset.shop, service:row.querySelector('select').value,
-          label:row.querySelector('input').value });
-        state.barrels = r.barrels; btn.textContent = 'Saved';
+        var r = await post('/api/economy/barrels', { shopId:row.dataset.shop, service:f('service').value, variant:f('variant').value,
+          priority:f('priority').checked, label:f('label').value });
+        state.barrels = r.barrels; state.openSetup = true;
+        /* Marking a barrel moves its sales between businesses, so every
+           figure is fetched again rather than left stale. */
+        load();
       } catch (e){ btn.textContent = 'Retry'; alert(e.message); }
     });
   });
@@ -1244,21 +1362,42 @@ function saleForm(rec){
     '<button class="btn quiet" data-cancel>Cancel</button><span class="msg"></span></div>';
 }
 function amountOf(x){ return x.gross > 0 ? x.gross : -(x.spend || 0); }
+/* Where an order stands, in words: the money side of it is settled only once
+   the worker is paid. */
+function orderStage(x){
+  if (x.paid_at) return 'worker paid ' + short(x.paid_at);
+  if (x.status === 'done') return 'done · worker not paid yet';
+  if (x.status === 'active') return 'in progress';
+  return 'waiting for a worker';
+}
+var SIZE_HINTS = ['1x1', '1x2', '2x2', '2x3', '3x3', '3x4', '4x4', '5x5'];
 function recordRow(x){
-  var amt = amountOf(x), key = x.type + ':' + x.id, tag, name, sub = [];
+  var amt = amountOf(x), key = x.type + ':' + x.id, tag, name, sub = [], counted = x.counted !== 0;
   if (x.type === 'order'){
-    var svc = x.cat === 'worker_pay' ? x.note : x.cat;
-    tag = '<span class="tag' + (amt < 0 ? ' out' : '') + '">' + (x.cat === 'worker_pay' ? 'Worker paid' : 'Order') + '</span>';
-    name = (SERVICE_NAMES[svc] || pretty(svc)) + (x.label ? ' — ' + x.label : '');
+    tag = '<span class="tag">Order</span>';
+    var type = [x.variant, x.priority ? 'Priority' : ''].filter(Boolean).join(' · ');
+    name = serviceName(x.cat) + (type ? ' · ' + type : '') + (x.label ? ' — ' + x.label : '');
     if (x.who) sub.push(x.who);
-    if (x.qty) sub.push(unitOf(svc, x.qty));
-    if (x.cat !== 'worker_pay') sub.push(gold(x.workers) + ' to the worker', gold(x.gross - x.workers) + ' kept');
-    else sub.push('job sold in the shop');
+    sub.push(unitOf(x.cat, x.qty));
+    sub.push(gold(x.workers) + ' to the worker, ' + gold(x.gross - x.workers) + ' kept');
+    sub.push(orderStage(x));
+    if (x.guessed) sub.push('size read from title');
+    if (x.link) sub.push('bought in the shop');
   } else if (x.type === 'sale'){
-    tag = '<span class="tag' + (amt < 0 ? ' out' : '') + '">' + (amt < 0 ? 'Buy-back' : x.source === 'emc' ? 'Service sale' : 'Sale') + '</span>';
-    name = itemName(x.label || x.cat);
+    var paper = !counted;
+    tag = '<span class="tag' + (amt < 0 ? ' out' : '') + '">' + (amt < 0 ? 'Buy-back' : paper ? 'Paper' : 'Sale') + '</span>';
+    name = paper ? (x.label && !/^[A-Z0-9_]+$/.test(x.label) ? x.label
+      : [serviceName(x.cat), x.variant, x.priority ? 'Priority' : ''].filter(Boolean).join(' · ')) : itemName(x.label || x.cat);
     if (x.who) sub.push(x.who);
-    if (x.qty) sub.push('×' + num(x.qty));
+    if (x.qty && !paper) sub.push('×' + num(x.qty));
+    /* Paper at a service barrel is counted on its order, never here. Which
+       order, if known; otherwise where it stands. A sale from before the
+       barrel was marked was never queued, so it is counted on whatever order
+       a manager entered for it by hand. */
+    if (paper) sub.push(x.link ? 'counted on order #' + x.link
+      : x.status === 'waiting' ? 'waiting to be posted as an order'
+      : x.status === 'cancelled' ? 'cancelled'
+      : 'sold before the barrel was marked · counted on its order if one was entered');
     if (x.note) sub.push(x.note);
   } else {
     tag = '<span class="tag hand">By hand</span>';
@@ -1276,14 +1415,22 @@ function recordRow(x){
     try { var o = JSON.parse(x.original); was = '<span class="was">was ' + gold(o.amount) + '</span>'; } catch (e) {}
   }
   var ops = x.type === 'order'
-    ? '<a href="jobs.html">Edit on the job board ↗</a>'
+    ? '<button data-op="type">' + (x.variant && !x.guessed ? 'Change type' : 'Set type') + '</button><a href="jobs.html">Job board ↗</a>'
     : '<button data-op="edit">Correct</button><button data-op="void">' + (x.voided ? 'Restore' : 'Void') + '</button>';
+  var form = '';
+  if (state.editing === key){
+    form = '<div class="edit">' + (x.type === 'entry' ? entryForm(x) : x.type === 'sale' ? saleForm(x)
+      : '<div class="form"><div class="f"><label>Type, e.g. a size</label><input class="fld" name="variant" list="sizes" value="' +
+          esc(x.variant || '') + '"><datalist id="sizes">' + SIZE_HINTS.map(function(s){ return '<option value="' + s + '">'; }).join('') +
+          '</datalist></div></div><div class="actions"><button class="btn" data-save>Save type</button>' +
+          '<button class="btn quiet" data-cancel>Cancel</button><span class="msg">Price, cut and priority stay on the job board.</span></div>') + '</div>';
+  }
   return '<div class="rec' + (x.voided ? ' void' : '') + '" data-key="' + esc(key) + '">' + tag +
     '<span class="what">' + esc(name) + (sub.length ? '<small>' + esc(sub.join(' · ')) + '</small>' : '') + '</span>' +
     '<span class="ops">' + ops + '</span>' +
-    '<span class="val ' + (amt >= 0 ? 'plus' : 'minus') + '">' + (amt >= 0 ? '+' : '−') + gold(Math.abs(amt)) + was + '</span>' +
-    (state.editing === key ? '<div class="edit">' + (x.type === 'entry' ? entryForm(x) : saleForm(x)) + '</div>' : '') +
-    '</div>';
+    '<span class="val ' + (!counted ? 'muted' : amt >= 0 ? 'plus' : 'minus') + '"' +
+      (!counted ? ' title="Not counted here: the gold is on the order it paid for"' : '') + '>' +
+      (amt >= 0 ? '+' : '−') + gold(Math.abs(amt)) + was + '</span>' + form + '</div>';
 }
 function renderRecords(){
   var host = $('records');
@@ -1291,17 +1438,15 @@ function renderRecords(){
   var list = state.histRecords;
   $('hcount').textContent = state.histTotal ? num(state.histTotal) + ' record' + (state.histTotal === 1 ? '' : 's') : '';
   if (!list.length){ host.innerHTML = empty('Nothing here', 'No records of this kind in this period.'); return; }
-  var html = '', day = null, i = 0;
+  var html = '', i = 0;
   while (i < list.length){
-    day = String(list[i].at).slice(0, 10);
-    var group = [];
+    var day = String(list[i].at).slice(0, 10), group = [];
     while (i < list.length && String(list[i].at).slice(0, 10) === day){ group.push(list[i]); i++; }
-    var net = group.filter(function(x){ return !x.voided; }).reduce(function(a, x){ return a + amountOf(x); }, 0);
-    var live = group.filter(function(x){ return !x.voided; }).length;
-    html += '<div class="day">' + esc(dayHead(day)) + '<span class="sum">' + group.length + ' · ' + (live
+    var live = group.filter(function(x){ return !x.voided && x.counted !== 0; });
+    var net = live.reduce(function(a, x){ return a + amountOf(x); }, 0);
+    html += '<div class="day">' + esc(dayHead(day)) + '<span class="sum">' + group.length + ' · ' + (live.length
       ? '<span class="' + (net < 0 ? 'neg' : 'pos') + '">' + (net < 0 ? '−' : '+') + gold(Math.abs(net)) + '</span>'
-      : 'all voided') + '</span></div>' +
-      group.map(recordRow).join('');
+      : 'nothing counted') + '</span></div>' + group.map(recordRow).join('');
   }
   if (list.length < state.histTotal){
     html += '<div class="actions"><button class="btn quiet" id="more">Show ' + num(Math.min(50, state.histTotal - list.length)) +
@@ -1314,7 +1459,7 @@ function renderRecords(){
     var key = row.dataset.key, rec = list.find(function(x){ return x.type + ':' + x.id === key; });
     row.querySelectorAll('[data-op]').forEach(function(btn){
       btn.addEventListener('click', async function(){
-        if (btn.dataset.op === 'edit'){ state.editing = state.editing === key ? null : key; renderRecords(); return; }
+        if (btn.dataset.op === 'edit' || btn.dataset.op === 'type'){ state.editing = state.editing === key ? null : key; renderRecords(); return; }
         var undo = !!rec.voided, reason = undo ? null : prompt('Why is this being voided?', '');
         if (!undo && reason === null) return;
         try { await post('/api/economy/void', { type:rec.type, id:rec.id, undo:undo, reason:reason }); load(); }
@@ -1334,6 +1479,8 @@ function wireForm(box, rec){
     try {
       if (rec && rec.type === 'sale'){
         await post('/api/economy/correct', { id:rec.id, amount:v('amount'), quantity:v('quantity'), note:v('note') });
+      } else if (rec && rec.type === 'order'){
+        await post('/api/economy/order-type', { id:Number(rec.id), variant:v('variant') });
       } else {
         await post('/api/economy/entry', { id:rec ? rec.id : undefined, at:v('at'), kind:v('kind'), source:v('source'),
           category:v('category'), amount:Number(v('amount')), workersShare:v('kind') === 'income' ? Number(v('workers') || 0) : 0, note:v('note') });
@@ -1433,4 +1580,3 @@ tick(); setInterval(tick, 1000);
 </script>
 </body>
 </html>
-

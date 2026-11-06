@@ -1,23 +1,17 @@
 /* ===========================================================================
-   Ethiopia Ecosystem — shared chart  (v1)
+   Ethiopia Ecosystem — shared chart  (v3)
    ---------------------------------------------------------------------------
-   WHAT THIS REPLACES
-
-   Four hand-rolled canvas renderers that had already drifted apart:
-     treasury.html  drawChart()    one line, gradient fill, its own axis code
-     growth.html    drawSeries()   n lines, shared min/max across all of them
-     shop.html      drawSeries()   n lines, near-identical to growth's
-     history.html   drawSpark()    small, gradient, no axis
-
-   They were four copies of the same maths, so a fix to one never reached the
-   others — growth and shop had already diverged on whether zero is forced onto
-   the axis. One module means hover, touch and the axis rules are written once.
+   v3: the Economy page's palette and its glowing lines. Pages still pass the
+   colours they always did; the old flag values are mapped to the new ones
+   here, so every chart on the site changed without any page being edited.
+   Everything else is as v2: one module for the line charts on treasury,
+   growth, shop and history, with hover, touch, zoom and pan.
 
    WHY STILL CANVAS, AND STILL NO DEPENDENCY
 
-   The original reasoning holds: a few lines on a dark ground do not justify
-   200KB of charting library, and the site loads no third-party script at all.
-   What was missing was never the drawing — it was the hit-testing.
+   A few lines on a dark ground do not justify 200KB of charting library, and
+   the site loads no third-party script at all. What was missing was never the
+   drawing — it was the hit-testing.
 
    HOW HOVER WORKS WITHOUT DOM NODES
 
@@ -25,29 +19,32 @@
    the plot geometry computed during the draw is kept, the pointer's x is
    turned back into a series index, and the nearest point wins.
 
-   Two things make this cheap enough to run on every pointer move:
-
      - a SECOND canvas is stacked over the first and only that one is cleared
-       and redrawn. Repainting the main chart per frame would redraw the
-       gradient fill every time, which is the expensive part.
+       and redrawn per pointer move, so the fill is not repainted every frame.
      - the tooltip is a real positioned <div>, not text drawn into the canvas,
        so it gets real fonts, real wrapping, and costs nothing to move.
 
-   pointer* events rather than mouse*, so a finger works the same as a cursor —
-   matching how shop.html's floor plan already handles input.
+   pointer* events rather than mouse*, so a finger works the same as a cursor.
    =========================================================================== */
 (function (global) {
   'use strict';
 
   var PALETTE = {
-    green: '#189d4d', gold: '#edb912', red: '#cf2029', blue: '#2f6fb8',
-    rule: '#2b2620', label: '#756c5d', text: '#f4efe4', ink: '#12100c',
+    green: '#22c55e', gold: '#fcd116', red: '#ef4444', blue: '#4d8dff',
+    rule: 'rgba(255,255,255,.07)', label: '#958d7d', text: '#f5f1e8', ink: '#0f0d0b',
   };
+
+  /* The colours pages were written with, mapped to the console palette, so a
+     page that still says '#189d4d' draws in the new green. */
+  var REMAP = {
+    '#189d4d': '#22c55e', '#edb912': '#fcd116', '#e0a92a': '#fcd116', '#cf2029': '#ef4444',
+    '#2f6fb8': '#4d8dff', '#17539e': '#4d8dff',
+  };
+  function tone(c) { return REMAP[String(c || '').toLowerCase()] || c || PALETTE.gold; }
 
   var num = function (n) { return (Number(n) || 0).toLocaleString('en-US'); };
 
-  /* Every live chart, so one resize listener serves the whole page instead of
-     each page wiring its own debounced handler. */
+  /* Every live chart, so one resize listener serves the whole page. */
   var charts = [];
 
   function cssVar(name, fallback) {
@@ -58,9 +55,8 @@
   }
 
   /* --- the overlay -------------------------------------------------------
-     Created once per chart and reused. Appended to the canvas's own parent,
-     which is made a positioning context if it is not one already — that way a
-     page does not have to add CSS for this to work. */
+     Created once per chart and reused, appended to the canvas's own parent,
+     which is made a positioning context if it is not one already. */
   function ensureOverlay(canvas) {
     if (canvas._ethOverlay) return canvas._ethOverlay;
 
@@ -75,10 +71,10 @@
     tip.className = 'eth-chart-tip';
     tip.style.cssText =
       'position:absolute;pointer-events:none;opacity:0;transition:opacity .1s ease;' +
-      'background:rgba(18,16,12,.96);border:1px solid ' + cssVar('--rule', '#322c24') + ';' +
-      'border-radius:' + cssVar('--r-sm', '6px') + ';padding:.45rem .6rem;' +
-      'font-family:' + cssVar('--data', 'monospace') + ';font-size:.66rem;line-height:1.5;' +
-      'white-space:nowrap;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.45)';
+      'background:rgba(15,13,11,.97);border:1px solid rgba(245,241,232,.2);' +
+      'border-radius:10px;padding:.5rem .65rem;' +
+      'font-family:' + cssVar('--body', 'Karla, sans-serif') + ';font-size:.78rem;line-height:1.5;' +
+      'white-space:nowrap;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.55)';
 
     host.appendChild(over);
     host.appendChild(tip);
@@ -98,34 +94,28 @@
     return { ctx: ctx, w: w, h: h };
   }
 
-  /* --- the draw ---------------------------------------------------------- */
-/* The visible slice.
- *
- * chart.rows is always the full series; chart.view is the window onto it. Every
- * other function reads visibleRows() rather than chart.rows, so zooming is a
- * change to two numbers and nothing else has to know it happened. */
-function visibleRows(chart) {
-  var all = chart.rows || [];
-  if (!chart.view) return all;
-  return all.slice(chart.view.lo, chart.view.hi + 1);
-}
-
-function clampView(chart) {
-  var n = (chart.rows || []).length;
-  if (!chart.view) return;
-  /* Four points is the floor. Below that a line chart stops being one — and
-     it is also the point where zooming further tells you nothing a tooltip
-     would not. */
-  var minSpan = Math.min(4, n);
-  if (chart.view.hi - chart.view.lo + 1 < minSpan) chart.view.hi = chart.view.lo + minSpan - 1;
-  if (chart.view.lo < 0) { chart.view.hi -= chart.view.lo; chart.view.lo = 0; }
-  if (chart.view.hi > n - 1) {
-    chart.view.lo -= (chart.view.hi - (n - 1));
-    chart.view.hi = n - 1;
+  /* The visible slice. chart.rows is always the full series; chart.view is
+     the window onto it, so zooming is a change to two numbers. */
+  function visibleRows(chart) {
+    var all = chart.rows || [];
+    if (!chart.view) return all;
+    return all.slice(chart.view.lo, chart.view.hi + 1);
   }
-  if (chart.view.lo < 0) chart.view.lo = 0;
-  if (chart.view.lo === 0 && chart.view.hi === n - 1) chart.view = null;   // back to all
-}
+
+  function clampView(chart) {
+    var n = (chart.rows || []).length;
+    if (!chart.view) return;
+    /* Four points is the floor: below that a line chart stops being one. */
+    var minSpan = Math.min(4, n);
+    if (chart.view.hi - chart.view.lo + 1 < minSpan) chart.view.hi = chart.view.lo + minSpan - 1;
+    if (chart.view.lo < 0) { chart.view.hi -= chart.view.lo; chart.view.lo = 0; }
+    if (chart.view.hi > n - 1) {
+      chart.view.lo -= (chart.view.hi - (n - 1));
+      chart.view.hi = n - 1;
+    }
+    if (chart.view.lo < 0) chart.view.lo = 0;
+    if (chart.view.lo === 0 && chart.view.hi === n - 1) chart.view = null;   // back to all
+  }
 
   function draw(chart) {
     var canvas = chart.canvas, rows = visibleRows(chart), opts = chart.opts;
@@ -139,7 +129,7 @@ function clampView(chart) {
 
     if (!rows || !rows.length) {
       ctx.fillStyle = PALETTE.label;
-      ctx.font = '12px "Martian Mono", monospace';
+      ctx.font = '13px Karla, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(opts.emptyText || 'Nothing recorded in this period', w / 2, h / 2);
@@ -147,7 +137,10 @@ function clampView(chart) {
       return;
     }
 
-    var lines = opts.lines || [];
+    var lines = (opts.lines || []).map(function (l) {
+      return Object.assign({}, l, { color: tone(l.color) });
+    });
+    chart.lines = lines;
     var padL = opts.padL == null ? 54 : opts.padL;
     var padR = 12, padT = 14, padB = 26;
 
@@ -158,9 +151,7 @@ function clampView(chart) {
     var min = Math.min.apply(null, all), max = Math.max.apply(null, all);
 
     /* Zero on the axis unless the data sits a long way from it. A count that
-       never shows the floor turns a drop of five into a visual collapse —
-       this was already the rule in three of the four originals, and the
-       fourth disagreed. */
+       never shows the floor turns a drop of five into a visual collapse. */
     if (opts.zeroBased === false) {
       if (min === max) { min -= 1; max += 1; }
     } else {
@@ -185,13 +176,15 @@ function clampView(chart) {
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (var g = 0; g <= 4; g++) {
       var v = min + (max - min) * (g / 4), yy = Math.round(Y(v)) + 0.5;
+      ctx.setLineDash(g === 0 ? [] : [1, 3]);
       ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(w - padR, yy); ctx.stroke();
       ctx.fillText(Math.round(v).toLocaleString('en-US'), padL - 8, yy);
     }
+    ctx.setLineDash([]);
 
     /* a marked zero line, but only when the data actually crosses it */
     if (min < 0 && max > 0) {
-      ctx.strokeStyle = '#7a1318'; ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#991b1b'; ctx.setLineDash([3, 3]);
       var zy = Math.round(Y(0)) + 0.5;
       ctx.beginPath(); ctx.moveTo(padL, zy); ctx.lineTo(w - padR, zy); ctx.stroke();
       ctx.setLineDash([]);
@@ -201,7 +194,7 @@ function clampView(chart) {
     if (opts.fill && lines.length === 1) {
       var c0 = lines[0].color;
       var grad = ctx.createLinearGradient(0, padT, 0, h - padB);
-      grad.addColorStop(0, c0 + '33');
+      grad.addColorStop(0, c0 + '40');
       grad.addColorStop(1, c0 + '00');
       ctx.beginPath();
       ctx.moveTo(X(0), Y(Number(rows[0][lines[0].key]) || 0));
@@ -211,18 +204,28 @@ function clampView(chart) {
       ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
     }
 
+    /* Each line drawn twice: a soft glow in its own colour, then the line
+       itself crisp on top — the look of the Economy page's charts. */
     lines.forEach(function (l) {
+      var path = function () {
+        ctx.beginPath();
+        rows.forEach(function (r, i) {
+          var y = Y(Number(r[l.key]) || 0);
+          if (i === 0) ctx.moveTo(X(i), y); else ctx.lineTo(X(i), y);
+        });
+      };
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.save();
+      ctx.shadowColor = l.color; ctx.shadowBlur = 12;
+      ctx.strokeStyle = l.color; ctx.globalAlpha = 0.55; ctx.lineWidth = (l.width || 1.8) + 2;
+      path(); ctx.stroke();
+      ctx.restore();
       ctx.strokeStyle = l.color; ctx.lineWidth = l.width || 1.8;
-      ctx.lineJoin = 'round'; ctx.beginPath();
-      rows.forEach(function (r, i) {
-        var y = Y(Number(r[l.key]) || 0);
-        if (i === 0) ctx.moveTo(X(i), y); else ctx.lineTo(X(i), y);
-      });
-      ctx.stroke();
+      path(); ctx.stroke();
       /* One reading is still a reading — draw it as a dot or it is invisible. */
       if (flat) {
         ctx.fillStyle = l.color;
-        ctx.beginPath(); ctx.arc(X(0), Y(Number(rows[0][l.key]) || 0), 2.8, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(X(0), Y(Number(rows[0][l.key]) || 0), 3.2, 0, Math.PI * 2);
         ctx.fill();
       }
     });
@@ -237,16 +240,8 @@ function clampView(chart) {
       ctx.fillText(xf(rows[rows.length - 1]), w - padR, h - padB + 8);
     }
 
-    /* Kept so the pointer handler can reuse the exact same maths rather than
-       approximating it — an approximation here is a tooltip that names the
-       wrong day. */
-    /* Every plotted point, kept as drawn.
-     *
-     * The hover marker used to recompute its position from the row value,
-     * which meant two code paths deciding where a point sits and nothing
-     * forcing them to agree — so the dot drifted off the line. Reading back
-     * the coordinates the line was actually drawn from makes that impossible
-     * by construction. */
+    /* Every plotted point, kept as drawn, so the hover marker reads back the
+       coordinates the line was drawn from rather than recomputing them. */
     var pts = {};
     lines.forEach(function (l) {
       pts[l.key] = rows.map(function (r, i) {
@@ -258,9 +253,7 @@ function clampView(chart) {
                    X: X, Y: Y, flat: flat, pts: pts };
     chart.visible = rows;
 
-    /* The window, announced so a page can show it or bind inputs to it. Fired
-       on the canvas rather than returned, because the window changes from a
-       wheel or a drag long after line() returned. */
+    /* The window, announced so a page can show it or bind inputs to it. */
     try {
       canvas.dispatchEvent(new CustomEvent('ethchart:range', {
         bubbles: true,
@@ -294,6 +287,7 @@ function clampView(chart) {
     var ov = chart.canvas._ethOverlay;
     if (!ov || !chart.geom) return;
     var g = chart.geom, rows = chart.visible || chart.rows, opts = chart.opts;
+    var lines = chart.lines || opts.lines || [];
     var ctx = ov.over.getContext('2d');
     ctx.clearRect(0, 0, g.w, g.h);
 
@@ -301,14 +295,12 @@ function clampView(chart) {
     chart.hover = i;
 
     var row = rows[i];
-    /* The crosshair takes its x from the first plotted series for the same
-       reason — one source of truth for where point i sits. */
-    var firstKey = (opts.lines || [])[0] && (opts.lines || [])[0].key;
+    var firstKey = lines[0] && lines[0].key;
     var firstPts = g.pts && firstKey ? g.pts[firstKey] : null;
     var px = (firstPts && firstPts[i]) ? firstPts[i].x : g.X(i);
 
     /* crosshair */
-    ctx.strokeStyle = 'rgba(244,239,228,.22)';
+    ctx.strokeStyle = 'rgba(245,241,232,.25)';
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -317,61 +309,47 @@ function clampView(chart) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    /* White fill, ring in the line's own colour. Inverting it this way keeps
-       the marker reading as a single bright point against a dark ground while
-       still saying which series it belongs to — a solid white dot on every
-       line would lose that the moment two series overlap. */
+    /* White fill, ring in the line's own colour, with a glow in it. */
     var ys = [];
-    (opts.lines || []).forEach(function (l) {
-      /* Read back from what was plotted, never recomputed. g.Y(row[key]) and
-         the line itself were two separate derivations of the same point, and
-         any disagreement between them — a rounding difference, a stale geom
-         after a resize — showed up as a dot floating beside its own line. */
+    lines.forEach(function (l) {
       var p = g.pts && g.pts[l.key] && g.pts[l.key][i];
       if (!p) return;
       ys.push(p.y);
+      ctx.save();
+      ctx.shadowColor = l.color; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
       ctx.fillStyle = '#ffffff'; ctx.fill();
       ctx.lineWidth = 2.5; ctx.strokeStyle = l.color; ctx.stroke();
+      ctx.restore();
     });
 
     /* tooltip */
     var fmt = opts.format || num;
     var xf = opts.xFormat || function (r) { return String(r[opts.x || 'day'] || ''); };
-    var html = '<div style="color:' + PALETTE.text + ';margin-bottom:.2rem">' +
+    var html = '<div style="color:' + PALETTE.text + ';font-weight:600;margin-bottom:.2rem">' +
       escapeHtml(xf(row)) + '</div>';
-    (opts.lines || []).forEach(function (l) {
+    lines.forEach(function (l) {
       html += '<div style="display:flex;gap:.5rem;align-items:center">' +
         '<i style="width:.5rem;height:.5rem;border-radius:999px;background:' + l.color +
-        ';display:inline-block;flex:none"></i>' +
+        ';box-shadow:0 0 6px ' + l.color + ';display:inline-block;flex:none"></i>' +
         '<span style="color:' + PALETTE.label + '">' + escapeHtml(l.label || l.key) + '</span>' +
-        '<b style="margin-left:auto;color:' + PALETTE.text + ';font-variant-numeric:tabular-nums">' +
+        '<b style="margin-left:auto;padding-left:.8rem;color:' + PALETTE.text +
+        ';font-family:\'Martian Mono\',monospace;font-size:.74rem;font-variant-numeric:tabular-nums">' +
         escapeHtml(fmt(Number(row[l.key]) || 0, l.key)) + '</b></div>';
     });
     ov.tip.innerHTML = html;
     ov.tip.style.opacity = '1';
 
-    /* Sits beside the marker rather than pinned to the top of the panel, so
-       the reading and the point it describes are in one place and the eye
-       does not have to travel between them.
-
-       Anchored on the TOPMOST series, not the first one declared: with two
-       lines the tooltip would otherwise sometimes cover the other one.
-
-       Both axes are clamped to the canvas, and the horizontal flips to the
-       left of the crosshair near the right edge, so it can never be clipped
-       by the panel. */
+    /* Beside the marker, anchored on the topmost series, clamped to the
+       canvas and flipped left near the right edge so it is never clipped. */
     var tw = ov.tip.offsetWidth, th = ov.tip.offsetHeight;
-
     var left = px + 14;
     if (left + tw > g.w - 4) left = px - tw - 14;
     if (left < 4) left = 4;
-
     var anchorY = ys.length ? Math.min.apply(null, ys) : g.padT;
     var top = anchorY - th / 2;
     if (top < 4) top = 4;
     if (top + th > g.h - 4) top = g.h - th - 4;
-
     ov.tip.style.left = left + 'px';
     ov.tip.style.top = top + 'px';
   }
@@ -387,8 +365,7 @@ function clampView(chart) {
     chart.wired = true;
     var canvas = chart.canvas;
 
-    /* Coalesced to one update per frame. pointermove fires far faster than the
-       screen can repaint, and the work per move is a full overlay redraw. */
+    /* Coalesced to one update per frame. */
     var queued = false, pendingX = 0;
     var onMove = function (e) {
       pendingX = e.clientX;
@@ -410,14 +387,9 @@ function clampView(chart) {
       return;
     }
 
-    /* --- zoom ------------------------------------------------------------
-       Around the cursor, not the centre. Zooming to the middle means the thing
-       you were looking at slides away as you zoom toward it, and you end up
-       chasing it — the commonest way a zoomable chart feels broken.
-
+    /* --- zoom: around the cursor, not the centre --------------------------
        preventDefault only once the chart actually consumes the gesture, so a
-       chart already showing everything still lets the page scroll past it
-       rather than trapping the wheel. */
+       chart already showing everything lets the page scroll past it. */
     canvas.addEventListener('wheel', function (e) {
       var n = (chart.rows || []).length;
       if (n < 6) return;
@@ -448,11 +420,7 @@ function clampView(chart) {
       showAt(chart, indexAt(chart, e.clientX));
     }, { passive: false });
 
-    /* --- pan -------------------------------------------------------------
-       Dragging moves the window; a click without movement still reads as a
-       hover. The three-pixel threshold is what separates them — without it
-       every tap on a touchscreen registers as a one-pixel drag and the
-       tooltip never opens. */
+    /* --- pan: a drag moves the window; a tap without movement is a hover -- */
     var drag = null;
     canvas.addEventListener('pointerdown', function (e) {
       onMove(e);
@@ -511,8 +479,7 @@ function clampView(chart) {
   }
 
   /* Drops charts whose canvas has left the document — these pages rebuild
-     whole sections with innerHTML, so without this the array grows on every
-     repaint and resize starts drawing into detached canvases. */
+     whole sections with innerHTML, so without this the array grows forever. */
   function sweep() {
     charts = charts.filter(function (c) { return document.body.contains(c.canvas); });
   }
@@ -528,11 +495,8 @@ function clampView(chart) {
     resizeTimer = setTimeout(redrawAll, 160);
   });
 
-  /* Set the window from outside — what a pair of date inputs calls.
-   *
-   * Takes row PREDICATES rather than indices, because a page thinks in dates
-   * and the chart thinks in positions, and whichever side does that
-   * translation has to know the row shape. The page does. */
+  /* Set the window from outside — what a pair of date inputs calls. Takes row
+     PREDICATES rather than indices, because a page thinks in dates. */
   function setRange(canvas, fromFn, toFn) {
     var chart = null;
     for (var i = 0; i < charts.length; i++) if (charts[i].canvas === canvas) chart = charts[i];

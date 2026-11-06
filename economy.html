@@ -1137,7 +1137,12 @@ var SIZE_HINTS = ['1x1', '1x2', '2x2', '2x3', '3x3', '3x4', '4x4', '5x5'];
    size, and a media barrel what kind of piece it is. A service added later
    gets a plain "type" until it is described here. */
 var SERVICE_FACTORS = {
-  recruiting: { priority:true },
+  /* Recruiting comes in three kinds, chosen as one: regular, priority, or
+     mayor recruitment — finding a would-be mayor and sending them a nation's
+     way, which takes far longer than recruiting a resident and is priced as
+     its own thing. Stored as the type "Mayor" so it gets its own row. */
+  recruiting: { kinds:[ { name:'Regular', variant:'', priority:0 }, { name:'Priority', variant:'', priority:1 },
+                        { name:'Mayor recruitment', variant:'Mayor', priority:0 } ] },
   mapart:     { priority:true, variant:{ label:'Size', options:SIZE_HINTS, placeholder:'2x2' } },
   claimmap:   { priority:true, variant:{ label:'Size', options:SIZE_HINTS, placeholder:'2x2' } },
   media:      { priority:true, variant:{ label:'Kind', options:['LARP document', 'Banner', 'Poster', 'Video'], placeholder:'e.g. LARP document' } },
@@ -1155,12 +1160,14 @@ function catName(source, cat, label){
   if (source === 'emc') return serviceName(cat);
   return pretty(cat);
 }
-function unitOf(service, n){
+function isMayor(v){ return /^mayor/i.test(String(v || '')); }
+function unitOf(service, n, variant){
   var r = data && (data.rates || []).find(function(x){ return x.service === service && !x.priority; });
-  var u = (r && r.unit_name) || 'unit';
+  var u = isMayor(variant) ? 'mayor' : (r && r.unit_name) || 'unit';
   return num(n) + ' ' + u + (Number(n) === 1 ? '' : 's');
 }
 function typeName(t, sized){
+  if (isMayor(t.variant)) return 'Mayor recruitment' + (t.priority ? ' · Priority' : '');
   var base = t.variant || (sized ? 'Size not recorded' : (t.priority ? '' : 'Regular'));
   return [base, t.priority ? 'Priority' : ''].filter(Boolean).join(' · ');
 }
@@ -2099,7 +2106,7 @@ function viewEmc(){
         var share = c.gross ? t.gross / c.gross : 0, tc = TYPE_COLORS[j % TYPE_COLORS.length];
         var pt = prev ? (prev.types || []).find(function(x){ return x.service === t.service && (x.variant || '') === (t.variant || '') && x.priority === t.priority; }) : null;
         body += '<tr class="type-row"><td><i class="sw sm" style="background:' + tc + '"></i>' + esc(typeName(t, sized)) + (t.guessed ? '<small>' + num(t.guessed) + ' read from title</small>' : '') +
-          '</td><td>' + num(t.n) + '</td><td>' + unitOf(t.service, t.qty) + '</td><td>' + gold(t.gross) + '</td><td class="c-fee">' + gold(t.gross - t.workers) + '</td>' +
+          '</td><td>' + num(t.n) + '</td><td>' + unitOf(t.service, t.qty, t.variant) + '</td><td>' + gold(t.gross) + '</td><td class="c-fee">' + gold(t.gross - t.workers) + '</td>' +
           '<td>' + (t.gross ? Math.round(((t.gross - t.workers) / t.gross) * 100) + '%' : '—') + '</td><td>' + gold(t.gross / t.n) + '</td>' +
           '<td><span class="mini"><span style="width:' + Math.round(share * 100) + '%;background:' + tc + '"></span></span>' + Math.round(share * 100) + '%</td><td></td>' +
           '<td>' + (prev ? delta(t.gross, pt ? pt.gross : 0, 'up', true) : '') + '</td></tr>';
@@ -3028,9 +3035,23 @@ function svcForm(m){
       '<div class="f wide"><label>Name on the paper (optional)</label><input class="fld" name="label" value="' + esc(m.label || '') + '" placeholder="e.g. Priority recruitment"></div></div></div>' +
     '<div class="actions"><button class="btn" type="button" data-save' + (on ? '' : ' hidden') + '>Save</button><span class="msg"></span></div></div>';
 }
+/* Which of a service's kinds a barrel is set to now: the one whose type and
+   priority both match, or the first. */
+function kindOf(svc, m){
+  var f = factorsOf(svc);
+  if (!f.kinds || !m || m.service !== svc) return 0;
+  var v = String(m.variant || ''), p = m.priority ? 1 : 0;
+  for (var i = 0; i < f.kinds.length; i++){ if (f.kinds[i].variant.toLowerCase() === v.toLowerCase() && f.kinds[i].priority === p) return i; }
+  return isMayor(v) ? f.kinds.findIndex(function(k){ return isMayor(k.variant); }) : (p ? 1 : 0);
+}
 function factorFields(svc, m){
   if (!svc) return '';
   var f = factorsOf(svc), out = '';
+  if (f.kinds){
+    var on = kindOf(svc, m);
+    out += '<div class="f wide"><label>Order type</label><div class="seg small kinds">' + f.kinds.map(function(k, i){
+      return '<button type="button" data-kind="' + i + '" class="' + (on === i ? 'on' : '') + '">' + esc(k.name) + '</button>'; }).join('') + '</div></div>';
+  }
   if (f.variant){
     var id = 'dl' + (++chartSeq);
     out += '<div class="f"><label>' + esc(f.variant.label) + '</label><input class="fld" name="variant" list="' + id + '" placeholder="' + esc(f.variant.placeholder || '') +
@@ -3062,6 +3083,9 @@ function wireSvcForm(box, shopId, current, done){
     form.querySelectorAll('[data-pri]').forEach(function(b){
       b.addEventListener('click', function(){ form.querySelectorAll('[data-pri]').forEach(function(x){ x.classList.toggle('on', x === b); }); });
     });
+    form.querySelectorAll('[data-kind]').forEach(function(b){
+      b.addEventListener('click', function(){ form.querySelectorAll('[data-kind]').forEach(function(x){ x.classList.toggle('on', x === b); }); });
+    });
   };
   wirePri();
   form.querySelector('[name="svc"]').addEventListener('change', function(){
@@ -3072,9 +3096,12 @@ function wireSvcForm(box, shopId, current, done){
     var svc = on ? form.querySelector('[name="svc"]').value : '';
     if (on && !svc){ msg.className = 'msg err'; msg.textContent = 'Pick the service first.'; return; }
     var v = form.querySelector('[name="variant"]'), pri = form.querySelector('[data-pri].on');
+    var kind = form.querySelector('[data-kind].on'), kinds = factorsOf(svc).kinds;
+    var variant = on && v ? v.value : '', priority = !!(on && pri && pri.dataset.pri === '1');
+    if (on && kinds && kind){ var k = kinds[Number(kind.dataset.kind)]; variant = k.variant; priority = !!k.priority; }
     msg.className = 'msg'; msg.textContent = 'Saving…';
     try {
-      var r = await post('/api/economy/barrels', { shopId:shopId, service:svc, variant:on && v ? v.value : '', priority:!!(on && pri && pri.dataset.pri === '1'),
+      var r = await post('/api/economy/barrels', { shopId:shopId, service:svc, variant:variant, priority:priority,
         label:on ? form.querySelector('[name="label"]').value : '' });
       state.barrels = r.barrels; indexBarrels();
       toast(svc ? 'Barrel ' + esc(shopId) + ' sells ' + esc(serviceName(svc)) : 'Barrel ' + esc(shopId) + ' is a shop item');
@@ -3201,7 +3228,7 @@ function recordRow(x){
     var type = [x.variant, x.priority ? 'Priority' : ''].filter(Boolean).join(' · ');
     name = serviceName(x.cat) + (type ? ' · ' + type : '') + (x.label ? ' — ' + x.label : '');
     if (x.who) T(x.who);
-    T(unitOf(x.cat, x.qty));
+    T(unitOf(x.cat, x.qty, x.variant));
     sub.push(gold(x.workers) + ' worker payment, ' + gold(x.gross - x.workers) + ' company income');
     T(orderStage(x));
     if (x.guessed) T('size read from title');

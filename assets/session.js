@@ -1,5 +1,5 @@
 /* ===========================================================================
-   SESSION  (v1)  —  must load BEFORE every other script on the page
+   SESSION  (v2)  —  must load BEFORE every other script on the page
    ---------------------------------------------------------------------------
    WHY THIS EXISTS
 
@@ -16,23 +16,44 @@
 
    WHAT THIS DOES
 
-   The Worker now also hands the session token back in the URL fragment after
+   The Worker also hands the session token back in the URL fragment after
    login. This file picks it up, keeps it, and sends it as an Authorization
-   header on every API request. Headers are not cookies, so no tracking
-   prevention touches them.
+   header on API requests. Headers are not cookies, so no tracking prevention
+   touches them.
 
-   The cookie is still the primary path wherever it works, because HttpOnly
-   keeps it out of reach of any script on the page. This is the fallback, and
-   it only matters on browsers that refuse the cookie.
+   The cookie is still sent wherever the browser allows it, because HttpOnly
+   keeps it out of reach of any script on the page. The Worker tries both.
+
+   WHAT CHANGED FROM v1, AND WHY v1 BROKE SIGN-IN
+
+   1. The token now goes ONLY to /api/* and /regions.
+      v1 attached it to everything on the Worker's address, including the
+      /?url= forwarder that fetches EarthMC data and map tiles. Attaching it
+      also switched those requests to credentialed mode, and the forwarder
+      answers with a wildcard origin, which a browser refuses outright for a
+      credentialed request. Every forwarded call failed with "Failed to
+      fetch" for anyone holding a token. The forwarder never reads a session,
+      so it never needed one.
+
+   2. A 401 no longer throws the token away.
+      v1 treated any 401 as "this session is dead". But most 401s on this API
+      mean "you are signed in, just not senior enough" — a citizen opening a
+      page that also asks for treasurer-only figures. v1 deleted a perfectly
+      good token on that, so on a phone, where there is no cookie to fall back
+      on, simply opening the treasury signed you out. The token is now dropped
+      only when /api/me says plainly that it is not signed in.
+
+   3. Signing out sends the token before forgetting it.
+      v1 forgot it on the click, before the logout request left, so on a
+      phone the server never learned which session to end. The row sat there,
+      valid, until it expired on its own.
 
    WHY IT PATCHES fetch RATHER THAN EACH PAGE
 
-   Every page has its own api() helper, seven of them, written at different
-   times. Teaching each one about bearer tokens means seven edits that have to
-   stay in step forever. Wrapping fetch once means they all inherit it and
-   none of them has to know this problem exists. The wrapper touches only
-   requests aimed at the Worker and leaves every other fetch exactly as it
-   was.
+   Every page has its own api() helper, written at different times. Teaching
+   each one about bearer tokens means a dozen edits that have to stay in step
+   forever. Wrapping fetch once means they all inherit it and none of them
+   has to know this problem exists.
    =========================================================================== */
 (function () {
   'use strict';
@@ -40,14 +61,32 @@
   var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
   var KEY = 'ethiopia-session';
 
-  function store(token) {
-    try { localStorage.setItem(KEY, token); } catch (e) { /* private mode */ }
+  /* Held between the sign-out click and the logout request. The click forgets
+     the stored token at once, so a page that reloads straight after signing
+     out can never pick it back up; this keeps a copy just long enough for the
+     logout request to tell the server which session to delete. */
+  var pendingLogout = '';
+
+  function store(t) {
+    try { localStorage.setItem(KEY, t); } catch (e) { /* private mode */ }
   }
   function token() {
     try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
   }
   function forget() {
     try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+
+  /* The part of a Worker URL after the host, or null for anything else. */
+  function workerPath(url) {
+    return url.indexOf(API) === 0 ? url.slice(API.length) : null;
+  }
+
+  /* Session-aware routes only. The /?url= forwarder is deliberately left
+     out: see point 1 at the top of this file. */
+  function wantsToken(path) {
+    return path !== null &&
+      (path.indexOf('/api/') === 0 || /^\/regions(?:[/?#]|$)/.test(path));
   }
 
   /* Picked out of the fragment the Worker redirected to, then removed from the
@@ -66,41 +105,53 @@
 
   window.fetch = function (input, init) {
     var url = typeof input === 'string' ? input
-      : (input && input.url) ? input.url : '';
+      : (input && typeof input.url === 'string') ? input.url : '';
+    var path = workerPath(url);
 
-    // Only our own API. Everything else — tiles, Minotar heads, squaremap —
-    // is left completely alone.
-    if (url.indexOf(API) !== 0) return realFetch(input, init);
+    if (!wantsToken(path)) return realFetch(input, init);
 
-    var t = token();
+    var isLogout = path.indexOf('/api/auth/logout') === 0;
+    var t = isLogout ? (pendingLogout || token()) : token();
+    if (isLogout) {
+      // Whatever happens to the request, this device is signed out now.
+      pendingLogout = '';
+      forget();
+    }
     if (!t) return realFetch(input, init);
 
-    var opts = Object.assign({}, init || {});
     var headers = new Headers(
       (init && init.headers) || (typeof input === 'object' && input.headers) || {}
     );
     // Never overwrite an Authorization header a caller set deliberately.
     if (!headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + t);
-    opts.headers = headers;
+
+    var opts = Object.assign({}, init || {}, { headers: headers });
     // Cookies still go too, so a browser that allows them keeps using them.
     if (!opts.credentials) opts.credentials = 'include';
 
-    return realFetch(typeof input === 'string' ? input : input.url, opts)
-      .then(function (res) {
-        /* A 401 on a request we attached a token to means the token is dead —
-           expired, or its session was deleted. Dropping it here stops every
-           later request carrying a credential the server has already refused,
-           and lets the page show a clean signed-out state instead of looping. */
-        if (res.status === 401 && url.indexOf('/api/auth/') < 0) forget();
-        return res;
-      });
+    var sent = typeof input === 'string'
+      ? realFetch(input, opts)
+      : realFetch(new Request(input, opts));
+
+    if (!/^\/api\/me(?:[?#]|$)/.test(path)) return sent;
+
+    /* The one reliable signal that the token itself is dead: we sent it, and
+       /api/me answered "not signed in". Read from a clone so the page still
+       gets an unread body. The token() === t check stops a slow response from
+       wiping a newer token that a fresh sign-in stored in the meantime. */
+    return sent.then(function (res) {
+      res.clone().json().then(function (body) {
+        if (body && body.signedIn === false && token() === t) forget();
+      }).catch(function () { /* not JSON; nothing to learn */ });
+      return res;
+    });
   };
 
-  /* Signing out has to clear the token as well as the cookie, or the next
-     request would re-authenticate with something the user just discarded. */
   window.addEventListener('click', function (e) {
     var el = e.target && e.target.closest ? e.target.closest('#signout, #logout') : null;
-    if (el) forget();
+    if (!el) return;
+    pendingLogout = token();
+    forget();
   }, true);
 
   window.ethiopiaSession = { token: token, forget: forget };

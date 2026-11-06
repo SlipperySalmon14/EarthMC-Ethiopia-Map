@@ -999,6 +999,12 @@ table.margins td:first-child{ font-size:.88rem; }
 
 /* the floor's frame */
 .floorwrap{ box-shadow:inset 0 0 40px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04), 0 12px 40px rgba(0,0,0,.35); }
+
+/* The unit is the game's own gold ingot, loaded from the same texture source
+   as every item icon on the page. If that source cannot be reached, the
+   drawn ingot stands in (see the check at the end of the script). */
+:root{ --ingot-img:url("https://assets.mcasset.cloud/1.21.4/assets/minecraft/textures/item/gold_ingot.png"); }
+.ig{ width:.92em; height:.92em; margin-left:.12em; vertical-align:-.14em; background:var(--ingot-img, var(--ingot)) no-repeat center / contain; image-rendering:pixelated; }
 </style>
 </head>
 <body>
@@ -3409,6 +3415,13 @@ window.addEventListener('resize', function(){
   lastW = window.innerWidth; clearTimeout(resizeTimer);
   resizeTimer = setTimeout(function(){ if (data && state.tab !== 'history') renderView(); }, 200);
 });
+/* The ingot texture loads like any item icon; if it cannot, the drawn
+   ingot in the stylesheet takes its place rather than leaving a blank. */
+(function(){
+  var im = new Image();
+  im.onerror = function(){ document.documentElement.style.setProperty('--ingot-img', 'var(--ingot)'); };
+  im.src = TEX + 'item/gold_ingot.png';
+})();
 function tick(){ $('utc').textContent = new Date().toISOString().slice(11, 19); }
 tick(); setInterval(tick, 1000); autoLabel();
 

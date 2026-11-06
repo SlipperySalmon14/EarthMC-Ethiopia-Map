@@ -544,6 +544,187 @@ section.panel + section.panel, section.panel + details.panel, .grid + section.pa
   .svc th:nth-child(8), .svc td:nth-child(8){ display:none; }
   .items td:first-child{ white-space:nowrap; }
 }
+
+
+/* ---------------------------------------------------------------------------
+   v6 theme
+
+   The national colours, each with one job, on neutral chrome. Amber was
+   doing everything before — headings, borders, figures, charts — and so it
+   said nothing. Now the frame is quiet and the colour is all data:
+     green   money in, and the shop          (flag)
+     yellow  company income, and EMC         (flag)
+     red     costs and losses                (flag)
+     blue    payment for completing orders   (emblem)
+   Type is a size larger throughout: this is read by a lot of people, most
+   of them not treasurers.
+   --------------------------------------------------------------------------- */
+:root{
+  --g:#22c55e; --y:#fcd116; --r:#ef4444; --b:#4d8dff; --o:#f97316;
+  --emc:#fcd116; --shop:#22c55e; --other:#4d8dff; --loss:#ef4444;
+  --fg:#f5f1e8; --fg2:#cfc8b8; --fg3:#958d7d;
+  --edge:#2f2b25; --edge-hot:rgba(245,241,232,.22);
+  --panel:#131110;
+  --amber:#fcd116; --glow:rgba(252,209,22,.3); --glow-soft:rgba(252,209,22,.1);
+  --tri:linear-gradient(90deg, var(--g) 0 33.3%, var(--y) 33.3% 66.6%, var(--r) 66.6% 100%);
+}
+body{ color:var(--fg); }
+
+/* neutral frame */
+.panel, .kpi{ background:linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0) 110px), var(--panel); border-color:var(--edge); }
+.panel::before, .kpi.hero::before{ --c:rgba(245,241,232,.2); }
+.panel{ padding:1rem 1.15rem; }
+.panel::after{ content:''; position:absolute; left:-1px; top:-1px; width:5.5rem; height:2px; background:var(--c, var(--edge)); pointer-events:none; }
+.ph h3{ font-size:.82rem; letter-spacing:.14em; color:var(--fg); }
+.ph h3::before{ width:.5rem; height:.5rem; background:var(--c, var(--y)); box-shadow:0 0 10px var(--c, var(--y)); }
+.ph .meta, .hint{ font-size:.62rem; color:var(--fg3); letter-spacing:.04em; }
+.note{ font-size:.66rem; color:var(--fg3); line-height:1.65; }
+
+/* tabs and controls */
+.tab{ font-size:.86rem; padding:.58rem .95rem; color:var(--fg2); }
+.tab.on{ color:var(--fg); background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.01)); }
+.tab.on::after{ height:3px; background:var(--tri); box-shadow:none; }
+.chip{ font-size:.66rem; padding:.48rem .68rem; color:var(--fg2); }
+.chip.on{ background:var(--y); color:#141006; box-shadow:none; }
+.range{ font-size:.6rem; color:var(--fg3); } .range b{ color:var(--fg); }
+.btn{ color:var(--fg); border-color:var(--edge-hot); background:rgba(255,255,255,.04); }
+.btn:hover{ background:rgba(255,255,255,.1); box-shadow:none; }
+.btn.danger{ color:#ff8a8a; border-color:rgba(239,68,68,.5); }
+.ph .seg button{ font-size:.6rem; color:var(--fg2); }
+.ph .seg button.on, .floorbar .seg button.on{ background:rgba(255,255,255,.08); color:var(--fg); box-shadow:0 -2px 0 var(--c, var(--y)) inset; }
+.ph .seg button:disabled{ opacity:.35; cursor:default; }
+.tbtn{ font-size:.58rem; color:var(--fg2); }
+
+/* figure tiles: each wears its colour */
+.kpi{ border-top:3px solid var(--c); padding:.85rem .95rem .65rem; }
+.kpi .k{ font-size:.62rem; letter-spacing:.12em; color:var(--c); }
+.kpi .k em{ display:block; margin-top:.1rem; font-style:normal; letter-spacing:.02em; text-transform:none; font-size:.58rem; color:var(--fg3); }
+.kpi .n{ font-size:1.55rem; color:var(--fg); }
+.kpi .d{ font-size:.62rem; }
+.kpi.hero{ border-top:0; background:linear-gradient(180deg, rgba(252,209,22,.09), rgba(252,209,22,.02)), var(--panel); border-color:rgba(252,209,22,.35); }
+.kpi.hero::after{ content:''; position:absolute; left:-1px; right:-1px; top:-1px; height:4px; background:var(--tri); }
+.kpi.hero .k{ color:var(--fg); }
+.kpi.hero .n{ font-size:2rem; color:var(--y); text-shadow:0 0 22px rgba(252,209,22,.35); }
+.kpi.hero.neg .n{ color:var(--r); text-shadow:0 0 22px rgba(239,68,68,.35); }
+.kpi.sel{ box-shadow:0 0 0 1px var(--c) inset, 0 0 26px rgba(255,255,255,.05); }
+.kpi.sel .k::after{ content:' · in pace chart'; color:var(--fg3); letter-spacing:.04em; text-transform:none; }
+.op{ color:var(--fg3); font-size:1.1rem; opacity:1; }
+.d.up{ color:var(--g); } .d.down{ color:var(--r); }
+
+/* colour classes for figures that mean one thing */
+.c-pay{ color:#8db6ff; } .c-fee{ color:var(--y); } .c-cost{ color:#ff8a8a; } .c-in{ color:var(--g); }
+td.strong{ color:var(--fg); font-weight:600; }
+.owed{ color:var(--o); }
+.warnc{ color:var(--o); }
+.dotc{ display:inline-block; width:.5rem; height:.5rem; margin-right:.45rem; vertical-align:.02rem; }
+.footline{ font-size:.66rem; color:var(--fg2); }
+.footline b{ color:#8db6ff; }
+
+/* tables: bigger, calmer */
+th{ font-size:.58rem; color:var(--fg3); border-bottom-color:var(--edge-hot); }
+td{ font-size:.78rem; color:var(--fg2); }
+td:first-child{ font-size:.9rem; color:var(--fg); }
+tr.total td{ color:var(--fg); border-top-color:var(--edge-hot); }
+td i.sw.sm{ width:.42rem; height:.42rem; }
+.svc tr.type-row td, .pay tr.type-row td{ font-size:.72rem; color:var(--fg3); }
+.svc tr.type-row td:first-child, .pay tr.type-row td:first-child{ padding-left:1.6rem; font-size:.78rem; color:var(--fg2); font-family:var(--body); }
+.pay tr.svc-row td{ border-top:1px solid rgba(255,255,255,.07); }
+.mini.wide{ width:4.5rem; }
+
+/* legends, ranks */
+.lg .nm{ font-size:.9rem; color:var(--fg); } .lg .v{ font-size:.76rem; color:var(--fg); } .lg .p{ font-size:.62rem; color:var(--fg3); }
+.lg .nm small{ font-size:.6rem; color:var(--fg3); }
+.dial .tick{ stroke:rgba(245,241,232,.16); } .dial .tick.major{ stroke:rgba(245,241,232,.45); }
+.dial .scan{ stroke:var(--fg); opacity:.35; }
+.dial .hub{ fill:rgba(255,255,255,.03); stroke:rgba(255,255,255,.12); }
+.ring-label{ fill:var(--fg3); }
+.dial-total{ color:var(--fg); }
+.rank .r{ color:var(--fg3); font-size:.66rem; } .rank .nm{ font-size:.9rem; } .rank .v{ font-size:.78rem; color:var(--fg); }
+.rank .nm small{ font-size:.6rem; color:var(--fg3); }
+.rank .bar span{ background:var(--fg3); }
+
+/* charts */
+.chart .axis{ font-size:10px; fill:var(--fg3); }
+.chart .grid{ stroke:rgba(245,241,232,.07); }
+.chart .cursor{ stroke:var(--fg2); }
+.readout{ border-color:var(--edge-hot); font-size:.66rem; }
+.readout .t{ color:var(--fg); }
+.keyrow{ font-size:.62rem; color:var(--fg2); gap:.35rem 1.1rem; }
+
+/* at a glance: big readable figures with a plain sentence under each */
+.glance{ display:grid; grid-template-columns:repeat(auto-fit, minmax(11rem, 1fr)); gap:1px; background:var(--edge); border:1px solid var(--edge); }
+.glance.two{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.gl{ padding:.75rem .85rem; background:var(--panel); min-width:0; }
+.gl .n{ display:block; font-family:var(--data); font-weight:600; font-size:1.2rem; color:var(--fg); font-variant-numeric:tabular-nums;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gl .n small{ font-size:.66rem; color:var(--fg3); font-weight:400; }
+.gl .k{ display:block; margin-top:.2rem; font-family:var(--data); font-size:.56rem; letter-spacing:.14em; text-transform:uppercase; color:var(--fg3); }
+.gl .s{ display:block; margin-top:.2rem; font-size:.74rem; color:var(--fg2); line-height:1.4; }
+.gl.ahead .n, .gl.in .n{ color:var(--g); } .gl.behind .n{ color:var(--r); } .gl.fee .n{ color:var(--y); }
+
+/* "of every 100 gold" */
+.split{ margin:0 0 1rem; padding:.9rem 1.1rem; border:1px solid var(--edge); background:var(--panel); }
+.split p{ margin:0 0 .6rem; font-size:1.02rem; line-height:1.5; color:var(--fg2); }
+.split b{ color:var(--fg); font-family:var(--data); }
+.splitbar{ display:flex; gap:2px; height:12px; }
+.splitbar span{ display:block; min-width:0; -webkit-mask:repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 6px); mask:repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 6px);
+  animation:grow .8s cubic-bezier(.2,.7,.2,1) both; transform-origin:left; }
+.splitbar.sm{ height:8px; margin:.55rem 0 .7rem; }
+
+/* one card per business */
+.bizcards{ display:grid; grid-template-columns:repeat(auto-fit, minmax(16rem, 1fr)); gap:1rem; margin-bottom:1rem; }
+.bizcard{ position:relative; padding:.95rem 1.05rem; border:1px solid var(--edge); border-top:3px solid var(--c); background:var(--panel); }
+.bizcard header{ display:flex; align-items:center; gap:.6rem; }
+.bizcard h4{ margin:0; font-family:var(--hud); font-size:.86rem; letter-spacing:.12em; text-transform:uppercase; color:var(--c); }
+.bizcard header .sp{ margin-left:auto; }
+.bizcard .big{ margin-top:.5rem; }
+.bizcard .big span{ font-family:var(--data); font-weight:600; font-size:1.45rem; color:var(--fg); }
+.bizcard .big small{ display:block; font-size:.7rem; color:var(--fg3); margin-top:.1rem; }
+.bizcard dl{ margin:0; }
+.bizcard dl div{ display:flex; justify-content:space-between; gap:.6rem; padding:.32rem 0; border-bottom:1px solid rgba(255,255,255,.04);
+  font-family:var(--data); font-size:.72rem; }
+.bizcard dt{ color:var(--fg2); } .bizcard dt i{ display:inline-block; width:.45rem; height:.45rem; margin-right:.45rem; }
+.bizcard dd{ margin:0; color:var(--fg); text-align:right; }
+.bizcard dl .sub dt{ padding-left:.9rem; color:var(--fg3); } .bizcard dl .sub dd{ color:var(--fg3); }
+.bizcard dl .sum{ border-bottom:0; border-top:1px solid var(--edge-hot); margin-top:.15rem; }
+.bizcard dl .sum dd{ font-weight:600; } .bizcard dd small{ color:var(--fg3); font-weight:400; }
+
+/* calendar: full width, no scrollbar */
+.cal .weeks{ overflow:visible; }
+.cal .days, .cal .months, .calkey{ font-size:.56rem; color:var(--fg3); }
+.cal .c{ background:rgba(255,255,255,.05); }
+.cal .c.today{ outline-color:var(--fg2); }
+
+/* warnings and incoming keep their colour */
+.warn{ font-size:.7rem; }
+.empty{ font-size:.74rem; color:var(--fg2); letter-spacing:.02em; }
+.empty b{ color:var(--fg); }
+.tag{ color:var(--fg2); border-color:var(--edge-hot); }
+.rec .what{ font-size:.92rem; color:var(--fg); } .rec .what small{ font-size:.62rem; color:var(--fg3); }
+.rec .val{ font-size:.86rem; }
+.day{ color:var(--fg2); border-bottom-color:var(--edge-hot); font-size:.6rem; }
+.status{ color:var(--fg3); } .status .clock{ color:var(--fg); }
+.back{ color:var(--fg3); }
+.top h1{ text-shadow:0 0 30px rgba(252,209,22,.16); }
+.top h1 small{ color:var(--y); }
+
+/* the floor's frame */
+.floorwrap{ border-color:var(--edge-hot); box-shadow:inset 0 0 40px rgba(0,0,0,.6); }
+.b-hit:hover{ stroke:#fff; stroke-width:.1; stroke-opacity:.9; }
+.b-sel{ stroke:#fff; }
+.floorkey{ font-size:.62rem; color:var(--fg2); }
+.fcard{ border-color:var(--edge-hot); border-left-color:var(--y); }
+.kv{ font-size:.7rem; }
+
+@media (max-width:720px){
+  .kpi .n{ font-size:1.3rem; } .kpi.hero .n{ font-size:1.7rem; }
+  .glance.two{ grid-template-columns:1fr 1fr; }
+  .gl .n{ font-size:1.05rem; }
+  .split p{ font-size:.92rem; }
+  .pay th:nth-child(4), .pay td:nth-child(4), .pay th:nth-child(5), .pay td:nth-child(5), .pay th:nth-child(8), .pay td:nth-child(8){ display:none; }
+  .biz th:nth-child(7), .biz td:nth-child(7), .biz th:nth-child(8), .biz td:nth-child(8){ display:none; }
+}
+.ph .hint{ margin-left:auto; }
 </style>
 </head>
 <body>
@@ -642,13 +823,22 @@ var pretty = function(id){
 };
 var itemName = function(s){ return /^[A-Z0-9_]+$/.test(String(s || '')) ? pretty(s) : String(s || ''); };
 
+/* The palette is the flag's: green, yellow and red, with the blue of the
+   emblem. Each colour has one job everywhere on the page, so it can be read
+   without a legend once it has been read once:
+     green   money coming in, and the shop
+     yellow  the company's income, and EMC Services
+     blue    payment for completing orders
+     red     costs and losses
+   The page's own chrome stays neutral, so the colour is all data. */
+var C = { in:'#22c55e', fee:'#fcd116', pay:'#4d8dff', cost:'#ef4444', profit:'#f5f1e8', ghost:'#8a8478', warn:'#f97316' };
 var SOURCES = {
-  emc:   { name:'EMC Services', hex:'#f2b632', shades:['#f2b632','#ffd77a','#c48d1c','#ffe9b3','#8f6812','#e5a93a'] },
-  shop:  { name:'Shop',         hex:'#1fbf5f', shades:['#1fbf5f','#5fe08f','#138a43','#a3efc0','#0d6631','#3ed176'] },
-  other: { name:'Other',        hex:'#5fa8ff', shades:['#5fa8ff','#9cc8ff','#2f7fe0','#cfe3ff','#1d5aa6','#7db7ff'] },
+  emc:   { name:'EMC Services', hex:'#fcd116', shades:['#fcd116','#ffe46b','#d4a90a','#fff0a8','#a8820a','#f2c230'] },
+  shop:  { name:'Shop',         hex:'#22c55e', shades:['#22c55e','#5fe08f','#16a34a','#a3efc0','#0f7a37','#3ed176'] },
+  other: { name:'Other',        hex:'#4d8dff', shades:['#4d8dff','#8db6ff','#2563eb','#c3d8ff','#1d4ed8','#6ea2ff'] },
 };
-var SPEND_COLORS = ['#ff4d55','#f2b632','#5fa8ff','#b48cff','#1fbf5f','#ff8a3d','#9a907e'];
-var TYPE_COLORS = ['#f2b632','#ff8a3d','#5fa8ff','#b48cff','#1fbf5f','#ffd77a','#9a907e'];
+var SPEND_COLORS = ['#ef4444','#f97316','#eab308','#a855f7','#ec4899','#14b8a6','#9a907e'];
+var TYPE_COLORS = ['#fcd116','#4d8dff','#f97316','#22c55e','#a855f7','#ec4899','#14b8a6'];
 var SERVICE_NAMES = { recruiting:'Recruiting', mapart:'Mapart creation', claimmap:'Claim map creation',
   media:'Media creation', bulk:'Bulk sales' };
 var SPEND_NAMES = { buybacks:'Buy-backs', restock:'Restocking', materials:'Materials', refunds:'Refunds' };
@@ -873,11 +1063,11 @@ function kpis(items){
   return '<div class="kpis">' + items.map(function(it){
     return (it.op ? '<span class="op" aria-hidden="true">' + it.op + '</span>' : '') +
       '<div class="kpi' + (it.hero ? ' hero' : '') + (it.hero && it.value < 0 ? ' neg' : '') + (it.pick ? ' pick' : '') +
-        (it.pick && state.paceKey === it.pick ? ' sel' : '') + '"' + (it.pick ? ' data-pick="' + it.pick + '" tabindex="0"' : '') +
+        (it.pick && state.paceKey === it.pick ? ' sel' : '') + '" style="--c:' + (it.color || C.fee) + '"' + (it.pick ? ' data-pick="' + it.pick + '" tabindex="0"' : '') +
         (it.hint ? ' title="' + esc(it.hint) + '"' : '') + '>' +
-      '<span class="k">' + esc(it.label) + '</span>' +
+      '<span class="k">' + esc(it.label) + (it.cap ? '<em>' + esc(it.cap) + '</em>' : '') + '</span>' +
       '<span class="n" data-count="' + Math.round(it.value || 0) + '">' + sgold(it.value) + '</span>' +
-      delta(it.value, it.prev, it.mode) + (it.spark ? sparkline(it.spark, it.color || '#ffbf3c') : '') + '</div>';
+      delta(it.value, it.prev, it.mode) + (it.spark ? sparkline(it.spark, it.hero ? (it.value < 0 ? C.cost : C.in) : (it.color || C.fee)) : '') + '</div>';
   }).join('') + '</div>';
 }
 function sparkline(vals, color, cls){
@@ -1070,7 +1260,7 @@ function chart(host, rows, parts, opts){
 function trace(out, f, rows, key, color, xAt, yAt, ghost, dots){
   if (!rows.length) return;
   var d = rows.map(function(r, i){ return (i ? 'L' : 'M') + xAt(i).toFixed(1) + ' ' + yAt(r[key] || 0).toFixed(1); }).join('');
-  if (ghost){ out.push('<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.3" stroke-dasharray="4 4" opacity=".55"/>'); return; }
+  if (ghost){ out.push('<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.4" stroke-dasharray="4 4" opacity=".75"/>'); return; }
   out.push('<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="4" opacity=".5" filter="url(#' + f.id + 'g)"/>' +
     '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round"/>');
   if (dots) rows.forEach(function(r, i){
@@ -1180,18 +1370,19 @@ function heat(vals, labels, color){
 }
 
 /* --- shared bits ---------------------------------------------------------------------------- */
-function panel(title, meta, body, cls, id){
-  return '<section class="panel' + (cls ? ' ' + cls : '') + '"' + (id ? ' id="' + id + '"' : '') + '><div class="ph"><h3>' + esc(title) + '</h3>' +
+function panel(title, meta, body, cls, id, color){
+  return '<section class="panel' + (cls ? ' ' + cls : '') + '"' + (id ? ' id="' + id + '"' : '') + (color ? ' style="--c:' + color + '"' : '') +
+    '><div class="ph"><h3>' + esc(title) + '</h3>' +
     (meta || '') + '</div>' + body + '</section>';
 }
 function metaText(t){ return '<span class="meta">' + esc(t) + '</span>'; }
-function rankList(rows, val, subHtml, metric, attr){
+function rankList(rows, val, subHtml, metric, attr, color){
   if (!rows.length) return '<p class="note">Nobody in this period.</p>';
   var top = Math.max.apply(null, rows.map(metric)) || 1;
   return rows.map(function(r, i){
     return '<div class="rank' + (attr ? ' click' : '') + '"' + (attr ? ' ' + attr(r) : '') + '><span class="r">' + String(i + 1).padStart(2, '0') +
       '</span><span class="nm">' + esc(r.who || 'Unknown') + '<small>' + subHtml(r) + '</small></span><span class="v">' + val(r) + '</span>' +
-      '<span class="bar"><span style="width:' + Math.round((metric(r) / top) * 100) + '%"></span></span></div>';
+      '<span class="bar"><span style="width:' + Math.round((metric(r) / top) * 100) + '%' + (color ? ';background:' + color : '') + '"></span></span></div>';
   }).join('');
 }
 function empty(title, text){ return '<div class="empty"><b>' + esc(title) + '</b>' + esc(text) + '</div>'; }
@@ -1301,63 +1492,73 @@ function looseWarning(){
     'They came from barrels not marked as a service, so they count as shop income. If they were EMC purchases, they are counted ' +
     'twice: once here and again on their orders. <button class="btn quiet" type="button" data-fix>Mark the barrels</button></div>';
 }
-var PACE = { gross:'Gross income', kept:'Kept', profit:'Profit', workers:'To workers', spend:'Spent' };
+var PACE = { gross:'Total value', kept:'Company income', profit:'Profit', workers:'Worker payment', spend:'Costs' };
+var PACE_COLOR = { gross:C.in, kept:C.fee, profit:C.profit, workers:C.pay, spend:C.cost };
+function modeSwitch(){
+  return '<div class="seg small" id="flowMode">' + [['flow','Flow'], ['total','Running total'], ['avg','7-day average']].map(function(m){
+    return '<button data-m="' + m[0] + '" class="' + (state.flowMode === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') +
+    '</div><button class="tbtn" id="cmpBtn" title="Lay the period before over this one as a dashed line">' + (state.compare ? '◉' : '○') + ' Compare</button>';
+}
+function flowTitle(word){ return state.flowMode === 'flow' ? grainly() + ' ' + word : state.flowMode === 'total' ? 'Running total' : '7-day average'; }
 function viewOverview(){
   var t = data.totals, p = prev ? prev.totals : {}, rows = flowRows();
   var col = function(k){ return rows.map(function(r){ return r[k]; }); };
   var out = kpis([
-    { label:'Gross income', value:t.gross, prev:p.gross, mode:'up', spark:col('gross'), pick:'gross', hint:'Everything the businesses took in. Click to follow it in the pace chart.' },
-    { op:'−', label:'To workers', value:t.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:'#9a907e', pick:'workers', hint:'What workers earn on these orders, paid or still owed' },
-    { op:'=', label:'Kept', value:kept(t), prev:prev ? kept(p) : null, mode:'up', spark:col('kept'), pick:'kept' },
-    { op:'−', label:'Spent', value:t.spend, prev:p.spend, mode:'down', spark:col('spend'), color:'#ff4d55', pick:'spend', hint:'Restocking, buy-backs, materials and refunds' },
-    { op:'=', label:'Profit', value:profit(t), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), color:'#1fbf5f', hero:true, pick:'profit' },
+    { label:'Total value', value:t.gross, prev:p.gross, mode:'up', spark:col('gross'), pick:'gross', color:C.in,
+      hint:'The full value of every order, plus shop sales and other income. Click to follow it in the pace chart.' },
+    { op:'−', label:'Worker payment', cap:'for completing orders', value:t.workers, prev:p.workers, mode:'flat', spark:col('paid'), pick:'workers', color:C.pay,
+      hint:'Paid to whoever completed each order, once it is done. Paid and still owed are both counted.' },
+    { op:'=', label:'Company income', value:kept(t), prev:prev ? kept(p) : null, mode:'up', spark:col('kept'), pick:'kept', color:C.fee,
+      hint:'The company\u2019s fee on each order, plus what the shop takes' },
+    { op:'−', label:'Costs', value:t.spend, prev:p.spend, mode:'down', spark:col('spend'), pick:'spend', color:C.cost, hint:'Restocking, buy-backs, materials and refunds' },
+    { op:'=', label:'Profit', value:profit(t), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), hero:true, pick:'profit', color:C.profit },
   ]) + looseWarning();
 
-  var label = { gross:'Income', kept:'Kept', spend:'Spent' }[state.mix];
+  var label = { gross:'Value', kept:'Income', spend:'Costs' }[state.mix];
   var groups = state.mix === 'spend' ? sourceGroups(function(c){ return c.spend; }, SPEND_COLORS)
     : sourceGroups(state.mix === 'kept' ? function(c){ return c.gross - c.workers; } : function(c){ return c.gross; });
-  var modes = [['flow','Flow'], ['total','Running total'], ['avg','7-day average']];
   out += '<div class="grid g-main">' +
-    panel(state.flowMode === 'flow' ? grainly() + ' flow' : state.flowMode === 'total' ? 'Running total' : '7-day average',
-      '<div class="seg small" id="flowMode">' + modes.map(function(m){
-        return '<button data-m="' + m[0] + '" class="' + (state.flowMode === m[0] ? 'on' : '') + '">' + m[1] + '</button>';
-      }).join('') + '</div><button class="tbtn" id="cmpBtn" title="Show the period before as a dashed line">' + (state.compare ? '◉' : '○') + ' Compare</button>',
-      '<div class="chart" id="cFlow"></div><div id="flowKey"></div>') +
-    panel('Where it comes from', '<div class="seg small" id="mixSwitch">' + [['gross','Income'], ['kept','Kept'], ['spend','Spent']].map(function(m){
-      return '<button data-m="' + m[0] + '" class="' + (state.mix === m[0] ? 'on' : '') + '">' + m[1] + '</button>';
-    }).join('') + '</div>', mixPanel(groups, label)) + '</div>';
+    panel(flowTitle('flow'), modeSwitch(), '<div class="chart" id="cFlow"></div><div id="flowKey"></div>', '', '', C.in) +
+    panel('Where it comes from', '<div class="seg small" id="mixSwitch">' + [['gross','Value'], ['kept','Company income'], ['spend','Costs']].map(function(m){
+      return '<button data-m="' + m[0] + '" class="' + (state.mix === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') + '</div>',
+      mixPanel(groups, label), '', '', C.fee) + '</div>';
 
   out += '<div class="grid g-main">' +
-    panel('Pace · ' + PACE[state.paceKey], metaText(state.period === 'mtd' ? 'this month so far, and where it is heading'
-      : 'how this period built up against the one before'), '<div class="chart" id="cPace"></div><div id="paceKey"></div>' +
-      '<div class="pacestats" id="paceStats"></div>') +
-    panel('Calendar', '<div class="seg small" id="heatKey">' + [['gross','Income'], ['profit','Profit'], ['spend','Spent']].map(function(m){
-      return '<button data-m="' + m[0] + '" class="' + (state.heatKey === m[0] ? 'on' : '') + '">' + m[1] + '</button>';
-    }).join('') + '</div>', '<div id="cal"></div>') + '</div>';
+    panel('Pace · ' + PACE[state.paceKey], metaText(state.period === 'mtd' ? 'this month so far, and where it is heading' : 'built up day by day, against the period before'),
+      '<div class="chart" id="cPace"></div><div id="paceKey"></div>', '', '', PACE_COLOR[state.paceKey]) +
+    panel('At a glance', metaText('click a figure tile to change'), '<div class="glance" id="paceStats"></div>', '', '', PACE_COLOR[state.paceKey]) + '</div>';
+
+  out += panel('Calendar', '<div class="seg small" id="heatKey">' + [['gross','Value'], ['profit','Profit'], ['spend','Costs']].map(function(m){
+      return '<button data-m="' + m[0] + '" class="' + (state.heatKey === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') + '</div>',
+    '<div id="cal"></div>', '', 'calPanel', C.in);
 
   var bp = prev ? prev.totals.bySource : {};
-  var body = '<div class="tw"><table class="biz"><thead><tr><th>Business</th><th>Gross</th><th>To workers</th><th>Kept</th><th>Spent</th>' +
-    '<th>Profit</th><th>Trend</th><th>Profit change</th></tr></thead><tbody>' + ['emc', 'shop', 'other'].map(function(s){
+  var body = '<div class="tw"><table class="biz"><thead><tr><th>Business</th><th>Total value</th><th>Worker payment</th><th>Company income</th><th>Costs</th>' +
+    '<th>Profit</th><th>Margin</th><th>Trend</th><th>Profit change</th></tr></thead><tbody>' + ['emc', 'shop', 'other'].map(function(s){
       var b = t.bySource[s] || { gross:0, workers:0, spend:0 }, pr = profit(b);
       var tr = flowRows(s).map(function(r){ return r.profit; });
       return '<tr class="' + (!b.gross && !b.spend ? 'mute ' : '') + 'click" data-go="' + (s === 'other' ? 'history' : s) + '"><td><i class="sw" style="background:' + SOURCES[s].hex + '"></i>' + SOURCES[s].name + '</td>' +
-        '<td>' + gold(b.gross) + '</td><td>' + gold(b.workers) + '</td><td>' + gold(kept(b)) + '</td><td>' + gold(b.spend) + '</td>' +
-        '<td class="' + (pr < 0 ? 'neg' : '') + '">' + sgold(pr) + '</td><td><span class="sp">' + sparkline(tr, SOURCES[s].hex, 'spk') + '</span></td>' +
-        '<td>' + (bp[s] ? delta(pr, profit(bp[s]), 'up') : '—') + '</td></tr>';
+        '<td>' + gold(b.gross) + '</td><td class="c-pay">' + gold(b.workers) + '</td><td class="c-fee">' + gold(kept(b)) + '</td><td class="c-cost">' + gold(b.spend) + '</td>' +
+        '<td class="' + (pr < 0 ? 'neg' : 'strong') + '">' + sgold(pr) + '</td><td>' + (b.gross ? Math.round((pr / b.gross) * 100) + '%' : '—') + '</td>' +
+        '<td><span class="sp">' + sparkline(tr, SOURCES[s].hex, 'spk') + '</span></td><td>' + (bp[s] ? delta(pr, profit(bp[s]), 'up') : '—') + '</td></tr>';
     }).join('') + '<tr class="total"><td>All</td><td>' + gold(t.gross) + '</td><td>' + gold(t.workers) + '</td><td>' + gold(kept(t)) + '</td>' +
-    '<td>' + gold(t.spend) + '</td><td>' + sgold(profit(t)) + '</td><td></td><td>' + (prev ? delta(profit(t), profit(p), 'up') : '—') + '</td></tr></tbody></table></div>' +
-    '<p class="note">Click a business to open its tab. The casino, the Discord casino and the bulk shop get their own line once they are running.</p>';
-  out += panel('By business', '<div class="tools"><button class="tbtn" id="csvBiz">CSV</button></div>', body);
+    '<td>' + gold(t.spend) + '</td><td>' + sgold(profit(t)) + '</td><td>' + (t.gross ? Math.round((profit(t) / t.gross) * 100) + '%' : '—') + '</td><td></td><td>' +
+    (prev ? delta(profit(t), profit(p), 'up') : '—') + '</td></tr></tbody></table></div>' +
+    '<p class="note">Margin is profit as a share of total value. Click a business to open its tab. The casino, the Discord casino and the bulk shop get their own line once they are running.</p>';
+  out += panel('By business', '<div class="tools"><button class="tbtn" id="csvBiz">CSV</button></div>', body, '', '', C.fee);
   return out;
+}
+function wireFlowControls(v){
+  v.querySelectorAll('#flowMode [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.flowMode = b.dataset.m; remember(); renderView(); }); });
+  if ($('cmpBtn')) $('cmpBtn').addEventListener('click', function(){ state.compare = !state.compare; remember(); renderView(); });
 }
 after.overview = function(v){
   v.querySelectorAll('#mixSwitch [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.mix = b.dataset.m; remember(); renderView(); }); });
-  v.querySelectorAll('#flowMode [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.flowMode = b.dataset.m; remember(); renderView(); }); });
   v.querySelectorAll('#heatKey [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.heatKey = b.dataset.m; remember(); renderView(); }); });
-  $('cmpBtn').addEventListener('click', function(){ state.compare = !state.compare; remember(); renderView(); });
+  wireFlowControls(v);
   v.querySelectorAll('tr[data-go]').forEach(function(tr){ tr.addEventListener('click', function(){ goTab(tr.dataset.go); }); });
   $('csvBiz').addEventListener('click', function(){
-    downloadCsv('economy-by-business', ['Business', 'Gross', 'To workers', 'Kept', 'Spent', 'Profit'], ['emc', 'shop', 'other'].map(function(s){
+    downloadCsv('economy-by-business', ['Business', 'Total value', 'Worker payment', 'Company income', 'Costs', 'Profit'], ['emc', 'shop', 'other'].map(function(s){
       var b = data.totals.bySource[s] || {}; return [SOURCES[s].name, b.gross || 0, b.workers || 0, kept(b), b.spend || 0, profit(b)];
     }));
   });
@@ -1368,147 +1569,119 @@ after.overview = function(v){
 /* The main chart, in whichever of its three modes is picked. Shared by the
    Overview, EMC and Shop tabs, so all three behave the same way. */
 function drawFlow(src, host, keyHost){
-  var rows = flowRows(src || null);
-  var pr = prevRange(), ghostRows = null;
+  var rows = flowRows(src || null), pr = prevRange(), ghostRows = null;
   var pick = function(k){ var s = bucketSpan(k); openDrawer(s.from, s.to); };
-  if (state.compare && prev && pr){
-    /* The period before, laid over this one bucket for bucket. Bucket
-       counts can differ by one at a month's edge, so it is trimmed. */
-    ghostRows = flowRows(src || null, prev, pr.from, pr.to).slice(0, rows.length);
-  }
-  var lineKey = src === 'emc' ? 'profit' : 'profit';
+  if (state.compare && prev && pr) ghostRows = flowRows(src || null, prev, pr.from, pr.to).slice(0, rows.length);
   if (state.flowMode === 'flow'){
     var parts = src === 'emc'
-      ? [{ key:'workers', name:'Workers', color:'#7a5a14' }, { key:'kept', name:'Company', color:'#ffbf3c' }, { key:'out', name:'Costs', color:'#ff4d55', flip:true }]
+      ? [{ key:'workers', name:'Worker payment', color:C.pay }, { key:'kept', name:'Company income', color:C.fee }, { key:'out', name:'Costs', color:C.cost, flip:true }]
       : src === 'shop'
-        ? [{ key:'gross', name:'Sales', color:'#1fbf5f' }, { key:'out', name:'Costs', color:'#ff4d55', flip:true }]
+        ? [{ key:'gross', name:'Sales', color:C.in }, { key:'out', name:'Costs', color:C.cost, flip:true }]
         : ['emc', 'shop', 'other'].filter(function(s){ return rows.some(function(r){ return r[s]; }); })
-            .map(function(s){ return { key:s, name:SOURCES[s].name, color:SOURCES[s].hex }; }).concat([{ key:'out', name:'Spent', color:'#ff4d55', flip:true }]);
-    var line = { key:lineKey, name:'Profit', color:src === 'shop' ? '#ffbf3c' : src === 'emc' ? '#1fbf5f' : '#ffbf3c' };
-    chart(host, rows, parts, { line:line, ghost:ghostRows ? { rows:ghostRows, key:lineKey, name:'Profit before', color:'#c9bfa8' } : null, pick:pick, zoom:zoomTo });
+            .map(function(s){ return { key:s, name:SOURCES[s].name, color:SOURCES[s].hex }; }).concat([{ key:'out', name:'Costs', color:C.cost, flip:true }]);
+    var line = { key:'profit', name:'Profit', color:C.profit };
+    chart(host, rows, parts, { line:line, ghost:ghostRows ? { rows:ghostRows, key:'profit', name:'Profit, period before', color:C.ghost } : null, pick:pick, zoom:zoomTo });
     keyHost.innerHTML = keyrow(parts.map(function(x){ return { name:x.name, color:x.color }; }).concat([{ name:'Profit', color:line.color, line:true }],
-      ghostRows ? [{ name:'Profit, period before', color:'#c9bfa8', dash:true }] : []));
+      ghostRows ? [{ name:'Profit, period before', color:C.ghost, dash:true }] : []));
     return;
   }
   var cum = function(list, k){ var a = 0; return list.map(function(r){ a += r[k] || 0; return a; }); };
-  var avg = function(list, k){
-    /* Always a seven-DAY window, whatever the bucket size, so "7-day
-       average" means the same thing on a week's view and a year's. */
-    return list.map(function(r, i){ var s = 0, n = 0; for (var j = Math.max(0, i - 6); j <= i; j++){ s += list[j][k] || 0; n++; } return s / n; });
-  };
+  var avg = function(list, k){ return list.map(function(r, i){ var s = 0, n = 0; for (var j = Math.max(0, i - 6); j <= i; j++){ s += list[j][k] || 0; n++; } return s / n; }); };
   var daily = dailyRows(src || null, data, spanFrom(), spanTo());
-  var keys = src === 'shop' ? [['gross', 'Sales', '#1fbf5f'], ['profit', 'Profit', '#ffbf3c']]
-    : [['gross', src === 'emc' ? 'Billed' : 'Gross', '#ffbf3c'], ['profit', 'Profit', '#1fbf5f'], ['spend', 'Spent', '#ff4d55']];
+  var keys = src === 'shop' ? [['gross', 'Sales', C.in], ['profit', 'Profit', C.profit]]
+    : src === 'emc' ? [['gross', 'Order value', C.in], ['workers', 'Worker payment', C.pay], ['kept', 'Company income', C.fee]]
+    : [['gross', 'Total value', C.in], ['kept', 'Company income', C.fee], ['profit', 'Profit', C.profit], ['spend', 'Costs', C.cost]];
   var fn = state.flowMode === 'total' ? cum : avg;
   var out = daily.map(function(r){ return { key:r.key, label:short(r.key) }; });
   keys.forEach(function(k){ fn(daily, k[0]).forEach(function(v, i){ out[i][k[0]] = v; }); });
-  var gh = null;
+  var gh = null, gk = src === 'emc' ? 'gross' : src === 'shop' ? 'gross' : 'profit';
   if (ghostRows && pr){
     var pd = dailyRows(src || null, prev, pr.from, pr.to).slice(0, daily.length);
-    var gv = fn(pd, 'profit');
-    gh = { rows:gv.map(function(v){ return { profit:v }; }), key:'profit', name:'Profit, period before', color:'#c9bfa8' };
+    gh = { rows:fn(pd, gk).map(function(v){ var o = {}; o[gk] = v; return o; }), key:gk, name:(gk === 'profit' ? 'Profit' : 'Value') + ', period before', color:C.ghost };
   }
   lineChart(host, out, keys.map(function(k){ return { key:k[0], name:k[1], color:k[2] }; }),
     { ghost:gh, pick:function(k){ openDrawer(k, ymd(t0(k) + DAY)); }, zoom:function(a, b){ state.period = 'custom'; state.from = a; state.to = ymd(t0(b) + DAY); load(); } });
-  keyHost.innerHTML = keyrow(keys.map(function(k){ return { name:k[1], color:k[2], line:true }; }).concat(gh ? [{ name:'Profit, period before', color:'#c9bfa8', dash:true }] : []));
+  keyHost.innerHTML = keyrow(keys.map(function(k){ return { name:k[1], color:k[2], line:true }; }).concat(gh ? [{ name:gh.name, color:C.ghost, dash:true }] : []));
 }
-/* Pace: the chosen figure, built up day by day, against the same days of
-   the period before. On "this month" it runs on to the month's end at the
-   current daily rate, so it says where the month is heading. */
+/* Pace: the chosen figure built up day by day, against the same days of the
+   period before. On "Month" it runs on to the month's end at today's rate. */
 function drawPace(){
-  var k = state.paceKey, name = PACE[k];
+  var k = state.paceKey, name = PACE[k], color = PACE_COLOR[k];
   var days = dailyRows(null, data, spanFrom(), spanTo());
   var run = 0, rows = days.map(function(r){ run += r[k] || 0; return { key:r.key, label:short(r.key), v:run }; });
   var pr = prevRange(), ghost = null;
-  if (prev && pr){
-    var pd = dailyRows(null, prev, pr.from, pr.to), g = 0;
-    ghost = { rows:pd.map(function(r){ g += r[k] || 0; return { v:g }; }), key:'v', name:name + ', period before', color:'#c9bfa8' };
-  }
+  if (prev && pr){ var pd = dailyRows(null, prev, pr.from, pr.to), g = 0; ghost = { rows:pd.map(function(r){ g += r[k] || 0; return { v:g }; }), key:'v', name:name + ', period before', color:C.ghost }; }
   var span = rows.length, projection = null, monthEnd = null;
   var elapsed = Math.max(1, Math.round((todayStart() + DAY - t0(spanFrom())) / DAY));
-  if (state.period === 'mtd'){
-    monthEnd = addMonths(t0(spanFrom()), 1);
-    span = Math.round((monthEnd - t0(spanFrom())) / DAY);
-    projection = { value: run + (run / elapsed) * (span - rows.length) };
-  }
-  var color = k === 'spend' ? '#ff4d55' : k === 'workers' ? '#c9bfa8' : '#ffbf3c';
-  lineChart($('cPace'), rows, [{ key:'v', name:name, color:color }], { ghost:ghost, span:span, projection:projection,
-    pick:function(key){ openDrawer(key, ymd(t0(key) + DAY)); } });
+  if (state.period === 'mtd'){ monthEnd = addMonths(t0(spanFrom()), 1); span = Math.round((monthEnd - t0(spanFrom())) / DAY); projection = { value:run + (run / elapsed) * (span - rows.length) }; }
+  lineChart($('cPace'), rows, [{ key:'v', name:name, color:color }], { ghost:ghost, span:span, projection:projection, pick:function(key){ openDrawer(key, ymd(t0(key) + DAY)); } });
   $('paceKey').innerHTML = keyrow([{ name:name + ' so far', color:color, line:true }]
-    .concat(ghost ? [{ name:'Same point, period before', color:'#c9bfa8', dash:true }] : [], projection ? [{ name:'At this rate, by month end', color:color, dash:true }] : []));
+    .concat(ghost ? [{ name:'Same point, period before', color:C.ghost, dash:true }] : [], projection ? [{ name:'At this rate, by month end', color:color, dash:true }] : []));
 
-  /* The figures that say whether things are going well, worked out from
-     the same daily rows the chart draws. */
-  var vals = days.map(function(r){ return r[k] || 0; });
   var best = -Infinity, bestDay = null;
   days.forEach(function(r){ if ((r[k] || 0) > best){ best = r[k] || 0; bestDay = r.key; } });
+  var active = days.filter(function(r){ return r.gross > 0; }).length;
   var profitable = days.filter(function(r){ return r.profit > 0; }).length;
   var streak = 0, longest = 0, cur = 0;
   days.forEach(function(r){ if (r.profit > 0){ cur++; longest = Math.max(longest, cur); } else cur = 0; });
   for (var i = days.length - 1; i >= 0 && days[i].profit > 0; i--) streak++;
   var perDay = run / Math.max(1, days.length);
-  var cells = [['n', sgold(perDay), name + ' per day']];
+  var cells = [];
+  var cell = function(cls, big, label, sub){ cells.push('<div class="gl ' + (cls || '') + '"><span class="n">' + big + '</span><span class="k">' + esc(label) + '</span>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</div>'); };
+  cell('', sgold(run), name + ' this period', perDay ? sgold(perDay) + ' a day on average' : '');
   if (ghost){
-    var at = ghost.rows[Math.min(ghost.rows.length, rows.length) - 1];
-    var then = at ? at.v : 0, diff = run - then;
+    var at = ghost.rows[Math.min(ghost.rows.length, rows.length) - 1], then = at ? at.v : 0, diff = run - then;
     var good = k === 'spend' ? diff <= 0 : diff >= 0;
-    cells.push(['n ' + (k === 'workers' ? '' : good ? 'ahead' : 'behind'), (diff >= 0 ? '+' : '−') + gold(Math.abs(diff)),
-      (diff >= 0 ? 'Ahead of' : 'Behind') + ' the period before']);
+    cell(k === 'workers' ? '' : good ? 'ahead' : 'behind', (diff >= 0 ? '+' : '−') + gold(Math.abs(diff)),
+      (diff >= 0 ? 'Ahead of' : 'Behind') + ' the period before', then ? 'it had ' + sgold(then) + ' by this point' : 'it had nothing by this point');
   }
-  if (projection) cells.push(['n', sgold(projection.value), 'By ' + short(ymd(monthEnd - DAY)) + ' at this rate']);
-  else cells.push(['n', sgold(perDay * rangeDays()), 'Next ' + rangeDays() + ' days at this rate']);
-  cells.push(['n', bestDay && best > 0 ? sgold(best) : '—', 'Best day' + (bestDay && best > 0 ? ' · ' + short(bestDay) : '')]);
-  cells.push(['n', profitable + ' / ' + days.length, 'Days in profit']);
-  cells.push(['n', streak + (longest > streak ? ' <small style="font-size:.6rem;color:var(--text-low)">best ' + longest + '</small>' : ''), 'Profitable days running']);
-  $('paceStats').innerHTML = cells.map(function(c){ return '<div><span class="' + c[0] + '">' + c[1] + '</span><span class="k">' + esc(c[2]) + '</span></div>'; }).join('');
+  if (projection) cell('', sgold(projection.value), 'By ' + short(ymd(monthEnd - DAY)), 'if the month carries on at this rate');
+  else cell('', sgold(perDay * rangeDays()), 'Next ' + rangeDays() + ' days', 'if things carry on at this rate');
+  cell('', bestDay && best > 0 ? sgold(best) : '—', 'Best day', bestDay && best > 0 ? esc(dayHead(bestDay)) : 'nothing yet');
+  cell('', num(active) + ' <small>of ' + num(days.length) + '</small>', 'Days with trade', num(profitable) + ' of them in profit');
+  cell('', num(streak) + ' <small>day' + (streak === 1 ? '' : 's') + '</small>', 'Profitable run', 'longest this period: ' + num(longest));
+  $('paceStats').innerHTML = cells.join('');
 }
-/* Every day as a cell, weeks across, Monday at the top. Long ranges show
-   the most recent year, which is all a calendar can usefully hold. */
+/* Every day as a cell, weeks across, Monday at the top, the period before
+   shown faded when there is room. Sized to the width it has, so a year fits
+   without a scrollbar. */
 function drawCalendar(){
   var k = state.heatKey, pr = prevRange();
   var end = t0(spanTo()), start = Math.max(t0(spanFrom()), end - 371 * DAY);
   var days = dailyRows(null, data, ymd(start), ymd(end));
-  /* The period before is shown too, dimmed, when there is room: a month on
-     its own is five columns, and the month before is what it is read against. */
   var withPrev = prev && pr && (end - t0(pr.from)) <= 371 * DAY;
-  if (withPrev){
-    var pd = dailyRows(null, prev, pr.from, pr.to);
-    pd.forEach(function(r){ r.before = true; });
-    days = pd.concat(days); start = t0(pr.from);
-  }
+  if (withPrev){ var pd = dailyRows(null, prev, pr.from, pr.to); pd.forEach(function(r){ r.before = true; }); days = pd.concat(days); start = t0(pr.from); }
   var byDay = {}; days.forEach(function(r){ byDay[r.key] = r; });
   var vals = days.map(function(r){ return Math.abs(r[k] || 0); }), max = Math.max.apply(null, vals.concat([1]));
   var first = start - ((new Date(start).getUTCDay() + 6) % 7) * DAY;
   var cells = [], months = [], lastMonth = null, today = ymd(todayStart());
-  for (var t = first, w = 0; t < end; t += 7 * DAY, w++){
+  for (var t = first; t < end; t += 7 * DAY){
     var m = new Date(t + 6 * DAY).getUTCMonth();
     months.push(m !== lastMonth ? new Date(t + 6 * DAY).toLocaleDateString('en-GB', { month:'short', timeZone:'UTC' }) : '');
     lastMonth = m;
     for (var d = 0; d < 7; d++){
       var day = ymd(t + d * DAY), r = byDay[day];
       if (!r){ cells.push('<span class="c out"></span>'); continue; }
-      var v = r[k] || 0, a = v ? 0.18 + 0.82 * Math.abs(v) / max : 0;
-      var color = k === 'spend' ? '#ff4d55' : v < 0 ? '#ff4d55' : k === 'profit' ? '#1fbf5f' : '#ffbf3c';
+      var v = r[k] || 0, a = v ? 0.25 + 0.75 * Math.abs(v) / max : 0;
+      var color = k === 'spend' || v < 0 ? C.cost : k === 'profit' ? C.in : C.in;
       cells.push('<button class="c' + (day === today ? ' today' : '') + (r.before ? ' pv' : '') + '" data-day="' + day + '" title="' + esc(dayHead(day) + (r.before ? ' (period before)' : '') + ' · ' +
-        { gross:'income', profit:'profit', spend:'spent' }[k] + ' ' + (v < 0 ? '−' : '') + goldText(Math.abs(v))) + '"' +
-        (v ? ' style="background:' + color + ';opacity:' + a.toFixed(2) + (Math.abs(v) === max ? ';box-shadow:0 0 8px ' + color : '') + '"' : '') + '></button>');
+        { gross:'value', profit:'profit', spend:'costs' }[k] + ' ' + (v < 0 ? '−' : '') + goldText(Math.abs(v))) + '"' +
+        (v ? ' style="background:' + color + ';opacity:' + a.toFixed(2) + (Math.abs(v) === max ? ';box-shadow:0 0 10px ' + color : '') + '"' : '') + '></button>');
     }
   }
   var host = $('cal'), weeks = months.length;
-  var cs = Math.max(7, Math.min(24, Math.floor(((host.clientWidth || 320) - 40) / weeks) - 3));
+  var cs = Math.max(8, Math.min(34, Math.floor(((host.clientWidth || 320) - 46) / weeks) - 4));
   var cols = 'grid-template-columns:repeat(' + weeks + ',' + cs + 'px)';
-  host.innerHTML = '<div class="cal"><span></span><div class="months" style="' + cols + '">' +
-    months.map(function(m){ return '<span>' + m + '</span>'; }).join('') + '</div>' +
+  var col = k === 'spend' ? C.cost : C.in;
+  host.innerHTML = '<div class="cal"><span></span><div class="months" style="' + cols + '">' + months.map(function(mm){ return '<span>' + mm + '</span>'; }).join('') + '</div>' +
     '<div class="days" style="grid-template-rows:repeat(7,' + cs + 'px)"><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span><span>Sun</span></div>' +
     '<div class="weeks" style="' + cols + ';grid-template-rows:repeat(7,' + cs + 'px)">' + cells.join('') + '</div></div>' +
-    '<div class="calkey">Less <i style="background:rgba(255,255,255,.05)"></i><i style="background:#ffbf3c;opacity:.35"></i><i style="background:#ffbf3c;opacity:.65"></i>' +
-    '<i style="background:#ffbf3c"></i> More' + (k === 'profit' ? ' · red is a loss' : '') + (withPrev ? ' · faded is the period before' : '') + ' · click a day to open it</div>';
-  $('cal').querySelectorAll('[data-day]').forEach(function(c){
-    c.addEventListener('click', function(){ openDrawer(c.dataset.day, ymd(t0(c.dataset.day) + DAY)); });
-  });
+    '<div class="calkey">Less <i style="background:rgba(255,255,255,.06)"></i><i style="background:' + col + ';opacity:.4"></i><i style="background:' + col + ';opacity:.7"></i>' +
+    '<i style="background:' + col + '"></i> More' + (k === 'profit' ? ' · red is a loss' : '') + (withPrev ? ' · faded is the period before' : '') + ' · click a day to open it</div>';
+  $('cal').querySelectorAll('[data-day]').forEach(function(c){ c.addEventListener('click', function(){ openDrawer(c.dataset.day, ymd(t0(c.dataset.day) + DAY)); }); });
 }
 
-/* --- EMC services --------------------------------------------------------------------------------- */
+/* --- EMC services ---------------------------------------------------------------------------------- */
 function viewEmc(){
   var b = data.totals.bySource.emc, p = prev ? prev.totals.bySource.emc : {}, rows = flowRows('emc');
   var col = function(k){ return rows.map(function(r){ return r[k]; }); };
@@ -1518,20 +1691,23 @@ function viewEmc(){
     var waiting = pend.reduce(function(a, x){ return a + (x.amount || 0); }, 0);
     out += panel('Bought in the shop', '<span class="meta">' + pend.length + ' waiting · ' + gold(waiting) + ' paid</span>',
       '<p class="note" style="margin:0 0 .4rem">Paid for at a service barrel and not yet a job. Add the town and post it, or link it to the ' +
-      'order a manager already entered. It counts in the figures once it is an order.</p>' + pend.map(pendingRow).join(''), 'incoming');
+      'order a manager already entered. It counts in the figures once it is an order.</p>' + pend.map(pendingRow).join(''), 'incoming', '', C.cost);
   }
   out += kpis([
-    { label:'Billed', value:b.gross, prev:p.gross, mode:'up', spark:col('gross'), color:'#f2b632', hint:'Every order placed. The customer has already paid, when they bought the paper.' },
-    { op:'−', label:'Workers\u2019 share', value:b.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:'#9a907e', hint:'What workers earn on these orders, paid or still owed' },
-    { op:'=', label:'Company keeps', value:kept(b), prev:prev ? kept(p) : null, mode:'up', spark:col('kept') },
-    { op:'−', label:'Costs', value:b.spend, prev:p.spend, mode:'down', spark:col('spend'), color:'#ff4d55', hint:'Materials and refunds' },
-    { op:'=', label:'Profit', value:profit(b), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), color:'#1fbf5f', hero:true },
+    { label:'Total order value', value:b.gross, prev:p.gross, mode:'up', spark:col('gross'), color:C.in,
+      hint:'The full value of every order placed. The customer paid it when they bought the paper.' },
+    { op:'−', label:'Worker payment', cap:'for completing the order', value:b.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:C.pay,
+      hint:'Paid to whoever completes each order, once it is done. Paid and still owed are both counted.' },
+    { op:'=', label:'Company income', value:kept(b), prev:prev ? kept(p) : null, mode:'up', spark:col('kept'), color:C.fee,
+      hint:'The company\u2019s fee on each order, for running the service and its infrastructure' },
+    { op:'−', label:'Costs', value:b.spend, prev:p.spend, mode:'down', spark:col('spend'), color:C.cost, hint:'Materials and refunds' },
+    { op:'=', label:'Profit', value:profit(b), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), color:C.profit, hero:true },
   ]);
   var ow = data.owed || {}, parts = [];
-  if (ow.done && ow.done.n) parts.push('<b>' + gold(ow.done.gold) + '</b> for ' + num(ow.done.n) + ' finished job' + (ow.done.n === 1 ? '' : 's') + ' not yet paid');
+  if (ow.done && ow.done.n) parts.push('<b>' + gold(ow.done.gold) + '</b> for ' + num(ow.done.n) + ' finished order' + (ow.done.n === 1 ? '' : 's'));
   if (ow.active && ow.active.n) parts.push('<b>' + gold(ow.active.gold) + '</b> for ' + num(ow.active.n) + ' in progress');
   if (ow.queued && ow.queued.n) parts.push('<b>' + gold(ow.queued.gold) + '</b> for ' + num(ow.queued.n) + ' not yet picked up');
-  if (parts.length) out += '<p class="footline">Workers are owed ' + parts.join(' · ') + '.</p>';
+  if (parts.length) out += '<p class="footline"><i class="dotc" style="background:' + C.pay + '"></i>Worker payments still owed: ' + parts.join(' · ') + '.</p>';
   if (!b.gross && !b.spend) return out + empty('No orders', 'No EMC Services orders were placed in this period.');
 
   var types = data.types || [];
@@ -1540,71 +1716,62 @@ function viewEmc(){
   var repeat = cust.filter(function(c){ return c.n > 1; }).length;
   var pri = types.filter(function(t){ return t.priority; }).reduce(function(a, t){ return a + t.n; }, 0);
   var open = (ow.active ? ow.active.n : 0) + (ow.queued ? ow.queued.n : 0);
-  var st = function(n, k){ return '<div class="stat"><span class="n">' + n + '</span><span class="k">' + esc(k) + '</span></div>'; };
+  var fee = b.gross ? kept(b) / b.gross : 0;
 
-  out += '<div class="grid g-main">' +
-    panel(state.flowMode === 'flow' ? grainly() + ' orders' : state.flowMode === 'total' ? 'Running total' : '7-day average',
-      '<div class="seg small" id="flowMode">' + [['flow','Flow'], ['total','Running total'], ['avg','7-day average']].map(function(m){
-        return '<button data-m="' + m[0] + '" class="' + (state.flowMode === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') +
-      '</div><button class="tbtn" id="cmpBtn">' + (state.compare ? '◉' : '○') + ' Compare</button>',
-      '<div class="chart" id="cSplit"></div><div id="splitKey"></div>') +
-    panel('Traffic', '', '<div class="stats">' + st(num(orders), 'Orders placed') + st(orders ? gold(b.gross / orders) : '—', 'Average order') +
-      st(num(cust.length), 'Customers') + st(cust.length ? Math.round((repeat / cust.length) * 100) + '%' : '—', 'Ordered again') +
-      st(orders ? Math.round((pri / orders) * 100) + '%' : '—', 'Priority') + st(num(open), 'Open jobs now') + '</div>' +
-      '<p class="note" style="margin:.7rem 0 .2rem">Orders per ' + grain() + '</p><div class="kpi" style="border:0;background:none;padding:0">' +
-      sparkline(col('orders'), '#f2b632') + '</div>') + '</div>';
+  out += '<div class="grid g-main">' + panel(flowTitle('orders'), modeSwitch(), '<div class="chart" id="cSplit"></div><div id="splitKey"></div>', '', '', C.fee) +
+    panel('Traffic', '', '<div class="glance">' +
+      glance('', num(orders), 'Orders placed', num(cust.length) + ' customer' + (cust.length === 1 ? '' : 's') + (cust.length ? ' · ' + Math.round((repeat / cust.length) * 100) + '% came back' : '')) +
+      glance('', orders ? gold(b.gross / orders) : '—', 'Average order', orders ? gold(b.workers / orders) + ' to the worker, ' + gold(kept(b) / orders) + ' to the company' : '') +
+      glance('fee', Math.round(fee * 100) + '%', 'Company fee rate', 'of total order value') +
+      glance('', orders ? Math.round((pri / orders) * 100) + '%' : '—', 'Priority orders', num(pri) + ' of ' + num(orders)) +
+      glance('', num(open), 'Open orders now', 'in progress or waiting for a worker') + '</div>', '', '', C.in) + '</div>';
 
-  /* Services, and inside each, every type it sold as. */
   var segs = list.map(function(c, i){ return { name:serviceName(c.cat), v:c.gross, color:SOURCES.emc.shades[i % 6] }; });
   var guessed = types.reduce(function(a, t){ return a + (t.guessed || 0); }, 0);
   var body = mixbar(segs) + '<div class="tw"><table class="svc"><thead><tr><th>Service and type</th><th>Orders</th><th>Units</th>' +
-    '<th>Billed</th><th>Company</th><th>Average</th><th>Share</th><th>Trend</th><th>Change</th></tr></thead><tbody>';
+    '<th>Order value</th><th>Company income</th><th>Fee rate</th><th>Average</th><th>Share</th><th>Trend</th><th>Change</th></tr></thead><tbody>';
   list.forEach(function(c, i){
     var mine = types.filter(function(t){ return t.service === c.cat; }).sort(function(a, z){ return z.gross - a.gross; });
-    var sized = mine.some(function(t){ return t.variant; });
-    var pn = mine.filter(function(t){ return t.priority; });
-    var priNote = pn.length ? 'priority ' + Math.round(sum(pn, 'n') / Math.max(1, c.n) * 100) + '% of orders, ' +
-      Math.round(sum(pn, 'gross') / Math.max(1, c.gross) * 100) + '% of billing' : '';
+    var sized = mine.some(function(t){ return t.variant; }), pn = mine.filter(function(t){ return t.priority; });
+    var priNote = pn.length ? 'priority ' + Math.round(sum(pn, 'n') / Math.max(1, c.n) * 100) + '% of orders, ' + Math.round(sum(pn, 'gross') / Math.max(1, c.gross) * 100) + '% of value' : '';
     body += '<tr class="svc-row click" data-hist="' + esc(c.cat) + '" title="Show these orders in History"><td><i class="sw" style="background:' + segs[i].color + '"></i>' +
       esc(segs[i].name) + (priNote ? '<small>' + esc(priNote) + '</small>' : '') + '</td><td>' + num(c.n) + '</td><td>' + unitOf(c.cat, c.qty) + '</td>' +
-      '<td>' + gold(c.gross) + '</td><td>' + gold(c.gross - c.workers) + '</td><td>' + (c.n ? gold(c.gross / c.n) : '—') + '</td>' +
-      '<td>' + (b.gross ? Math.round((c.gross / b.gross) * 100) : 0) + '%</td><td>' + catTrend('emc', c.cat, segs[i].color) + '</td>' +
-      '<td>' + delta(c.gross, prevCat('emc', c.cat), 'up', true) + '</td></tr>';
+      '<td>' + gold(c.gross) + '</td><td class="c-fee">' + gold(c.gross - c.workers) + '</td><td>' + (c.gross ? Math.round(((c.gross - c.workers) / c.gross) * 100) + '%' : '—') + '</td>' +
+      '<td>' + (c.n ? gold(c.gross / c.n) : '—') + '</td><td>' + (b.gross ? Math.round((c.gross / b.gross) * 100) : 0) + '%</td>' +
+      '<td>' + catTrend('emc', c.cat, segs[i].color) + '</td><td>' + delta(c.gross, prevCat('emc', c.cat), 'up', true) + '</td></tr>';
     if (mine.length > 1 || (mine.length === 1 && (mine[0].variant || mine[0].priority))){
-      mine.forEach(function(t){
-        var share = c.gross ? t.gross / c.gross : 0;
+      mine.forEach(function(t, j){
+        var share = c.gross ? t.gross / c.gross : 0, tc = TYPE_COLORS[j % TYPE_COLORS.length];
         var pt = prev ? (prev.types || []).find(function(x){ return x.service === t.service && (x.variant || '') === (t.variant || '') && x.priority === t.priority; }) : null;
-        body += '<tr class="type-row"><td>' + esc(typeName(t, sized)) + (t.guessed ? '<small>' + num(t.guessed) + ' read from title</small>' : '') +
-          '</td><td>' + num(t.n) + '</td><td>' + unitOf(t.service, t.qty) + '</td><td>' + gold(t.gross) + '</td><td>' + gold(t.gross - t.workers) + '</td>' +
-          '<td>' + gold(t.gross / t.n) + '</td><td><span class="mini"><span style="width:' + Math.round(share * 100) + '%;background:' + segs[i].color +
-          '"></span></span>' + Math.round(share * 100) + '%</td><td></td><td>' + (prev ? delta(t.gross, pt ? pt.gross : 0, 'up', true) : '') + '</td></tr>';
+        body += '<tr class="type-row"><td><i class="sw sm" style="background:' + tc + '"></i>' + esc(typeName(t, sized)) + (t.guessed ? '<small>' + num(t.guessed) + ' read from title</small>' : '') +
+          '</td><td>' + num(t.n) + '</td><td>' + unitOf(t.service, t.qty) + '</td><td>' + gold(t.gross) + '</td><td class="c-fee">' + gold(t.gross - t.workers) + '</td>' +
+          '<td>' + (t.gross ? Math.round(((t.gross - t.workers) / t.gross) * 100) + '%' : '—') + '</td><td>' + gold(t.gross / t.n) + '</td>' +
+          '<td><span class="mini"><span style="width:' + Math.round(share * 100) + '%;background:' + tc + '"></span></span>' + Math.round(share * 100) + '%</td><td></td>' +
+          '<td>' + (prev ? delta(t.gross, pt ? pt.gross : 0, 'up', true) : '') + '</td></tr>';
       });
     }
   });
-  body += '</tbody></table></div>' + (guessed ? '<p class="note">Sizes marked "read from title" were taken from the order\u2019s name because no ' +
-    'size was set on it. Set one in History if it is wrong.</p>' : '');
-  out += panel('Services', '<span class="meta">' + list.length + ' service' + (list.length === 1 ? '' : 's') + '</span><div class="tools">' +
-    '<button class="tbtn" id="csvSvc">CSV</button></div>', body);
+  body += '</tbody></table></div><p class="note">Fee rate is the company\u2019s income as a share of the order value.' + (guessed ? ' Sizes marked "read from title" were taken from the order\u2019s name because no size was set on it; set one in History if it is wrong.' : '') + '</p>';
+  out += panel('Services', '<span class="meta">' + list.length + ' service' + (list.length === 1 ? '' : 's') + '</span><div class="tools"><button class="tbtn" id="csvSvc">CSV</button></div>', body, '', '', C.fee);
 
-  /* How each service's mix of types moved: priority against regular week by
-     week, or which mapart sizes are rising. */
   var withTypes = list.filter(function(c){ return types.filter(function(t){ return t.service === c.cat; }).length > 1; }).map(function(c){ return c.cat; });
   if (withTypes.length){
     if (withTypes.indexOf(state.typeSvc) < 0) state.typeSvc = withTypes[0];
     out += panel('Type mix over time', '<div class="seg small" id="typeSvc">' + withTypes.map(function(s){
       return '<button data-s="' + s + '" class="' + (state.typeSvc === s ? 'on' : '') + '">' + esc(serviceName(s)) + '</button>'; }).join('') +
       '</div><div class="seg small" id="typeBy"><button data-b="n" class="' + (state.typeBy !== 'gross' ? 'on' : '') + '">Orders</button>' +
-      '<button data-b="gross" class="' + (state.typeBy === 'gross' ? 'on' : '') + '">Gold</button></div>',
-      '<div class="chart" id="cTypes"></div><div id="typesKey"></div>');
+      '<button data-b="gross" class="' + (state.typeBy === 'gross' ? 'on' : '') + '">Value</button></div>', '<div class="chart" id="cTypes"></div><div id="typesKey"></div>', '', '', C.pay);
   }
-
-  out += '<div class="grid g-2" style="margin-top:1rem">' +
+  out += '<div class="grid g-2">' +
     panel('Biggest customers', metaText('click to see their orders'), rankList(cust.slice(0, 8), function(c){ return gold(c.gross); },
-      function(c){ return c.n + ' order' + (c.n === 1 ? '' : 's'); }, function(c){ return c.gross; }, function(c){ return 'data-q="' + esc(c.who || '') + '"'; })) +
-    panel('Top-earning workers', '', rankList((data.workers || []).slice(0, 8), function(w){ return gold(w.earned); },
-      function(w){ return w.n + ' job' + (w.n === 1 ? '' : 's') + (w.owed ? ' · ' + gold(w.owed) + ' still owed' : ''); }, function(w){ return w.earned; })) +
+      function(c){ return c.n + ' order' + (c.n === 1 ? '' : 's'); }, function(c){ return c.gross; }, function(c){ return 'data-q="' + esc(c.who || '') + '"'; }, C.in), '', '', C.in) +
+    panel('Top-earning workers', metaText('worker payment earned'), rankList((data.workers || []).slice(0, 8), function(w){ return gold(w.earned); },
+      function(w){ return w.n + ' order' + (w.n === 1 ? '' : 's') + (w.owed ? ' · ' + gold(w.owed) + ' still owed' : ' · all paid'); }, function(w){ return w.earned; }, null, C.pay), '', '', C.pay) +
     '</div>';
   return out;
+}
+function glance(cls, big, label, sub){
+  return '<div class="gl ' + (cls || '') + '"><span class="n">' + big + '</span><span class="k">' + esc(label) + '</span>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</div>';
 }
 function pendingRow(p){
   var name = p.label || [serviceName(p.service), p.variant, p.priority ? 'Priority' : ''].filter(Boolean).join(' · ');
@@ -1620,8 +1787,7 @@ function pendingRow(p){
     '<span class="msg"></span></div>';
 }
 after.emc = function(v){
-  v.querySelectorAll('#flowMode [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.flowMode = b.dataset.m; remember(); renderView(); }); });
-  if ($('cmpBtn')) $('cmpBtn').addEventListener('click', function(){ state.compare = !state.compare; remember(); renderView(); });
+  wireFlowControls(v);
   if ($('cSplit')) drawFlow('emc', $('cSplit'), $('splitKey'));
   if ($('cTypes')){
     v.querySelectorAll('#typeSvc [data-s]').forEach(function(b){ b.addEventListener('click', function(){ state.typeSvc = b.dataset.s; remember(); renderView(); }); });
@@ -1645,7 +1811,7 @@ after.emc = function(v){
       out.push([serviceName(c.cat), 'All', c.n, c.qty, c.gross, c.gross - c.workers, c.workers]);
       mine.forEach(function(t){ out.push([serviceName(c.cat), typeName(t, sized), t.n, t.qty, t.gross, t.gross - t.workers, t.workers]); });
     });
-    downloadCsv('emc-services', ['Service', 'Type', 'Orders', 'Units', 'Billed', 'Company', 'Workers'], out);
+    downloadCsv('emc-services', ['Service', 'Type', 'Orders', 'Units', 'Total order value', 'Company income', 'Worker payment'], out);
   });
   v.querySelectorAll('.inrow').forEach(function(row){
     var id = Number(row.dataset.id), msg = row.querySelector('.msg');
@@ -1672,44 +1838,113 @@ after.emc = function(v){
   });
 };
 
-/* --- spending --------------------------------------------------------------------------------- */
-function spendCats(d){
+/* --- spending ----------------------------------------------------------------------------------
+   Where the money goes, business by business. The largest outgoing is
+   payment for completing orders, so it leads; costs follow. Everything here
+   is something that leaves the business. */
+function spendCats(d, src){
   var by = {};
-  cats(function(c){ return c.spend > 0; }, d).forEach(function(c){
+  cats(function(c){ return c.spend > 0 && (!src || c.source === src); }, d).forEach(function(c){
     var o = by[c.cat] || (by[c.cat] = { cat:c.cat, name:catName(c.source, c.cat, SPEND_NAMES[c.cat] ? null : c.label), spend:0, n:0 });
     o.spend += c.spend; o.n += c.n;
   });
   return Object.keys(by).map(function(k){ return by[k]; }).sort(function(a, z){ return z.spend - a.spend; });
 }
 function viewSpending(){
-  var t = data.totals, p = prev ? prev.totals : {}, list = spendCats();
-  var before = prev ? spendCats(prev) : [];
-  var col = flowRows().map(function(r){ return r.spend; });
-  var tiles = list.slice(0, 4).map(function(c, i){
-    var b = before.find(function(x){ return x.cat === c.cat; });
-    return { label:c.name, value:c.spend, prev:prev ? (b ? b.spend : 0) : null, mode:'down', color:SPEND_COLORS[i] };
-  });
-  tiles.push({ label:'Total spent', value:t.spend, prev:p.spend, mode:'down', spark:col, color:'#ff4d55', hero:true });
-  var out = kpis(tiles);
-  if (!t.spend) return out + empty('Nothing spent', 'No restocking, buy-backs, materials or refunds in this period. Hand-entered costs are added in History.');
-  var segs = list.map(function(c, i){ return { key:'s|' + c.cat, name:c.name, v:c.spend, color:SPEND_COLORS[i % SPEND_COLORS.length] }; });
-  out += '<div class="grid g-main">' + panel('Spending per ' + grain(), '<span class="hint">tap a bar to open it · drag to zoom</span>',
-      '<div class="chart" id="cSpend"></div>' + keyrow(segs)) +
-    panel('Where it goes', '', mixPanel([{ key:'s', name:'All spending', color:'#ff4d55', v:t.spend, children:segs }], 'Spent', true)) + '</div>' +
-    '<div class="grid g-2">' + panel('Largest outgoings', '', '<div id="bigSpend"><p class="note">Loading…</p></div>') +
-    panel('Losing ' + grain() + 's', '', '<div id="worst"></div>') + '</div>';
+  var t = data.totals, p = prev ? prev.totals : {}, rows = flowRows();
+  var col = function(k){ return rows.map(function(r){ return r[k]; }); };
+  var outflow = t.workers + t.spend, before = prev ? p.workers + p.spend : null;
+  var paidNow = (data.workerPay || []).reduce(function(a, x){ return a + x.paid; }, 0);
+  var out = kpis([
+    { label:'Worker payment', cap:'for completing orders', value:t.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:C.pay },
+    { op:'+', label:'Costs', value:t.spend, prev:p.spend, mode:'down', spark:col('spend'), color:C.cost },
+    { op:'=', label:'All money out', value:outflow, prev:before, mode:'flat', spark:rows.map(function(r){ return r.workers + r.spend; }), color:C.warn, hero:true },
+  ]);
+
+  /* The headline in plain words: of every 100 gold that came in, where it went. */
+  if (t.gross){
+    var pctW = t.workers / t.gross * 100, pctC = t.spend / t.gross * 100, pctP = Math.max(0, 100 - pctW - pctC);
+    var r1 = function(v){ return v < 1 && v > 0 ? '<1' : String(Math.round(v)); };
+    out += '<section class="split" aria-label="Where each 100 gold went"><p>Of every <b>100' + ING + '</b> that came in, <b class="c-pay">' + r1(pctW) + '</b> paid workers for ' +
+      'completing orders, <b class="c-cost">' + r1(pctC) + '</b> went on costs, and <b class="c-fee">' + r1(pctP) + '</b> was left as profit.</p>' +
+      '<div class="splitbar"><span style="flex:' + pctW + ';background:' + C.pay + '"></span><span style="flex:' + pctC + ';background:' + C.cost + '"></span>' +
+      '<span style="flex:' + pctP + ';background:' + C.fee + '"></span></div></section>';
+  }
+
+  /* One card per business: what came in, what went out and on what. */
+  out += '<div class="bizcards">' + ['emc', 'shop', 'other'].map(function(s){
+    var b = t.bySource[s] || { gross:0, workers:0, spend:0 }, pb = prev ? (p.bySource[s] || {}) : null;
+    var out2 = b.workers + b.spend, pr = profit(b), list = spendCats(data, s);
+    var tr = flowRows(s).map(function(r){ return r.workers + r.spend; });
+    var w = b.gross || 1;
+    return '<article class="bizcard" style="--c:' + SOURCES[s].hex + '"><header><h4>' + SOURCES[s].name + '</h4>' +
+      '<span class="sp">' + sparkline(tr, C.warn, 'spk') + '</span></header>' +
+      '<div class="big"><span>' + gold(out2) + '</span><small>money out of ' + gold(b.gross) + ' in</small></div>' +
+      '<div class="splitbar sm"><span style="flex:' + b.workers / w + ';background:' + C.pay + '"></span><span style="flex:' + b.spend / w + ';background:' + C.cost + '"></span>' +
+      '<span style="flex:' + Math.max(0, pr) / w + ';background:' + C.fee + '"></span></div>' +
+      '<dl>' + (s === 'emc' ? '<div><dt><i style="background:' + C.pay + '"></i>Worker payment</dt><dd>' + gold(b.workers) + '</dd></div>' : '') +
+      '<div><dt><i style="background:' + C.cost + '"></i>Costs</dt><dd>' + gold(b.spend) + (pb ? ' ' + delta(b.spend, pb.spend || 0, 'down', true) : '') + '</dd></div>' +
+      list.slice(0, 3).map(function(c){ return '<div class="sub"><dt>' + esc(c.name) + '</dt><dd>' + gold(c.spend) + '</dd></div>'; }).join('') +
+      '<div class="sum"><dt>Profit</dt><dd class="' + (pr < 0 ? 'neg' : '') + '">' + sgold(pr) + (b.gross ? ' <small>' + Math.round((pr / b.gross) * 100) + '% margin</small>' : '') + '</dd></div></dl>' +
+      (!b.gross && !out2 ? '<p class="note">Nothing in this period.</p>' : '') + '</article>';
+  }).join('') + '</div>';
+
+  /* Worker payment by service and type, and how much of it has been handed over. */
+  var wp = data.workerPay || [];
+  if (wp.length){
+    var bySvc = {};
+    wp.forEach(function(x){ var o = bySvc[x.service] || (bySvc[x.service] = { service:x.service, n:0, gross:0, pay:0, paid:0, owed:0, types:[] }); o.n += x.n; o.gross += x.gross; o.pay += x.pay; o.paid += x.paid; o.owed += x.owed; o.types.push(x); });
+    var svcs = Object.keys(bySvc).map(function(k){ return bySvc[k]; }).sort(function(a, z){ return z.pay - a.pay; });
+    var payTotal = svcs.reduce(function(a, x){ return a + x.pay; }, 0) || 1;
+    var body = '<div class="tw"><table class="pay"><thead><tr><th>Service and type</th><th>Orders</th><th>Worker payment</th><th>Per order</th><th>Pay rate</th>' +
+      '<th>Paid</th><th>Still owed</th><th>Paid so far</th></tr></thead><tbody>' + svcs.map(function(x, i){
+        var sized = x.types.some(function(tt){ return tt.variant; });
+        var row = function(o, name, sub, cls){
+          var paidPct = o.pay ? Math.round((o.paid / o.pay) * 100) : 0;
+          return '<tr class="' + cls + '"><td>' + name + '</td><td>' + num(o.n) + '</td><td class="c-pay">' + gold(o.pay) + '</td><td>' + gold(o.pay / Math.max(1, o.n)) + '</td>' +
+            '<td>' + (o.gross ? Math.round((o.pay / o.gross) * 100) + '%' : '—') + '</td><td>' + gold(o.paid) + '</td><td class="' + (o.owed ? 'owed' : '') + '">' + gold(o.owed) + '</td>' +
+            '<td><span class="mini wide"><span style="width:' + paidPct + '%;background:' + C.pay + '"></span></span>' + paidPct + '%</td></tr>';
+        };
+        var h = row(x, '<i class="sw" style="background:' + SOURCES.emc.shades[i % 6] + '"></i>' + esc(serviceName(x.service)), '', 'svc-row');
+        if (x.types.length > 1 || x.types[0].variant || x.types[0].priority) x.types.sort(function(a, z){ return z.pay - a.pay; }).forEach(function(tt, j){
+          h += row(tt, '<i class="sw sm" style="background:' + TYPE_COLORS[j % TYPE_COLORS.length] + '"></i>' + esc(typeName(tt, sized)), '', 'type-row');
+        });
+        return h;
+      }).join('') + '</tbody></table></div><p class="note">Pay rate is the worker payment as a share of the order\u2019s value. Paid and still owed are for the orders placed in this period.</p>';
+    out += panel('Worker payment by service', '<span class="meta">' + gold(paidNow) + ' paid · ' + gold(payTotal - paidNow) + ' still owed</span>', body, '', '', C.pay);
+  }
+
+  /* When the gold actually left: worker pay on the day it was handed over,
+     costs on the day they were spent. */
+  out += '<div class="grid g-main">' + panel('Money out per ' + grain(), '<span class="hint">tap a bar to open it · drag to zoom</span>',
+      '<div class="chart" id="cSpend"></div><div id="spendKey"></div>', '', '', C.warn) +
+    panel('Where it goes', '', '<div id="outMix"></div>', '', '', C.warn) + '</div>';
+  out += '<div class="grid g-2">' + panel('Largest costs', '', '<div id="bigSpend"><p class="note">Loading…</p></div>', '', '', C.cost) +
+    panel('Losing ' + grain() + 's', '', '<div id="worst"></div>', '', '', C.cost) + '</div>';
   return out;
 }
 after.spending = function(){
-  if (!$('cSpend')) return;
   var list = spendCats();
-  var rows = bucketed(data.spendSeries.map(function(r){ var o = { day:r.day }; o[r.cat] = r.spend; return o; }), null, list.map(function(c){ return c.cat; }));
-  chart($('cSpend'), rows, list.map(function(c, i){ return { key:c.cat, name:c.name, color:SPEND_COLORS[i % SPEND_COLORS.length] }; }),
-    { pick:function(k){ var s = bucketSpan(k); openDrawer(s.from, s.to); }, zoom:zoomTo });
+  var paid = (data.paidSeries || []).map(function(r){ return { day:r.day, paidOut:r.paid }; });
+  var rows = bucketed(paid.concat(data.spendSeries.map(function(r){ var o = { day:r.day }; o[r.cat] = r.spend; return o; })), null, ['paidOut'].concat(list.map(function(c){ return c.cat; })));
+  var parts = [{ key:'paidOut', name:'Worker payment handed over', color:C.pay }].concat(list.map(function(c, i){ return { key:c.cat, name:c.name, color:SPEND_COLORS[i % SPEND_COLORS.length] }; }));
+  chart($('cSpend'), rows, parts, { pick:function(k){ var s = bucketSpan(k); openDrawer(s.from, s.to); }, zoom:zoomTo });
+  $('spendKey').innerHTML = keyrow(parts);
+  /* The dial: worker payment split by service, and every cost by kind. */
+  var bySvc = {};
+  (data.workerPay || []).forEach(function(x){ bySvc[x.service] = (bySvc[x.service] || 0) + x.pay; });
+  var payKids = Object.keys(bySvc).sort(function(a, z){ return bySvc[z] - bySvc[a]; }).map(function(k, i){
+    return { key:'pay|' + k, name:serviceName(k), v:bySvc[k], color:['#4d8dff', '#8db6ff', '#2563eb', '#c3d8ff', '#1d4ed8'][i % 5] }; });
+  var groups = [];
+  var payV = payKids.reduce(function(a, x){ return a + x.v; }, 0), costV = list.reduce(function(a, x){ return a + x.spend; }, 0);
+  if (payV) groups.push({ key:'pay', name:'Worker payment', color:C.pay, v:payV, children:payKids });
+  if (costV) groups.push({ key:'cost', name:'Costs', color:C.cost, v:costV, children:list.map(function(c, i){ return { key:'cost|' + c.cat, name:c.name, v:c.spend, color:SPEND_COLORS[i % SPEND_COLORS.length] }; }) });
+  $('outMix').innerHTML = mixPanel(groups, 'Out');
+  wireMix($('outMix'));
   var worst = flowRows().filter(function(r){ return r.profit < 0; }).sort(function(a, z){ return a.profit - z.profit; }).slice(0, 6);
   $('worst').innerHTML = worst.length ? worst.map(function(r, i){
     return '<div class="rank click" data-k="' + r.key + '"><span class="r">' + String(i + 1).padStart(2, '0') + '</span><span class="nm">' + esc(bucketName(r.key)) +
-      '<small>spent ' + gold(r.spend) + '</small></span><span class="v neg">' + sgold(r.profit) + '</span></div>';
+      '<small>costs ' + gold(r.spend) + '</small></span><span class="v neg">' + sgold(r.profit) + '</span></div>';
   }).join('') : '<p class="note">No ' + grain() + ' in this period made a loss.</p>';
   $('worst').querySelectorAll('[data-k]').forEach(function(r){ r.addEventListener('click', function(){ var s = bucketSpan(r.dataset.k); openDrawer(s.from, s.to); }); });
   api('/api/economy/records' + q(state.from, state.to) + (state.from ? '&' : '?') + 'type=spend&limit=200').then(function(r){
@@ -1718,9 +1953,9 @@ after.spending = function(){
     var top = big.length ? big[0].spend : 1;
     $('bigSpend').innerHTML = big.length ? big.map(function(x, i){
       return '<div class="rank click" data-day="' + String(x.at).slice(0, 10) + '"><span class="r">' + String(i + 1).padStart(2, '0') + '</span><span class="nm">' +
-        esc(catName(x.source, x.cat, x.type === 'entry' ? null : x.label)) + '<small>' + esc(short(x.at)) + (x.note ? ' · ' + esc(x.note) : '') +
-        '</small></span><span class="v">' + gold(x.spend) + '</span><span class="bar"><span style="width:' + Math.round((x.spend / top) * 100) + '%;background:#ff4d55"></span></span></div>';
-    }).join('') : '<p class="note">Nothing spent in this period.</p>';
+        esc(x.cat === 'buybacks' ? 'Buy-back · ' + itemName(x.label || '') : catName(x.source, x.cat, x.type === 'entry' ? null : x.label)) + '<small>' + esc(short(x.at)) + ' · ' + esc(SOURCES[x.source] ? SOURCES[x.source].name : '') + (x.note ? ' · ' + esc(x.note) : '') +
+        '</small></span><span class="v">' + gold(x.spend) + '</span><span class="bar"><span style="width:' + Math.round((x.spend / top) * 100) + '%;background:' + C.cost + '"></span></span></div>';
+    }).join('') : '<p class="note">No costs in this period. Restocking and materials are added by hand in History.</p>';
     $('bigSpend').querySelectorAll('[data-day]').forEach(function(r){ r.addEventListener('click', function(){ openDrawer(r.dataset.day, ymd(t0(r.dataset.day) + DAY)); }); });
   }).catch(function(e){ if ($('bigSpend')) $('bigSpend').innerHTML = '<p class="msg err">' + esc(e.message) + '</p>'; });
 };
@@ -1744,7 +1979,7 @@ async function openDrawer(from, to){
     var inn = live.reduce(function(a, x){ return a + (x.gross || 0); }, 0), outg = live.reduce(function(a, x){ return a + (x.spend || 0); }, 0);
     var wk = live.reduce(function(a, x){ return a + (x.workers || 0); }, 0);
     $('dSum').innerHTML = '<div><span class="n" style="color:var(--shop);font-family:var(--data);font-weight:600">' + gold(inn) + '</span><span class="k" style="display:block;font-family:var(--data);font-size:.5rem;letter-spacing:.14em;color:var(--text-low)">IN</span></div>' +
-      '<div><span class="n" style="color:#ff8a90;font-family:var(--data);font-weight:600">' + gold(outg + wk) + '</span><span class="k" style="display:block;font-family:var(--data);font-size:.5rem;letter-spacing:.14em;color:var(--text-low)">WORKERS AND COSTS</span></div>' +
+      '<div><span class="n" style="color:#ff8a90;font-family:var(--data);font-weight:600">' + gold(outg + wk) + '</span><span class="k" style="display:block;font-family:var(--data);font-size:.5rem;letter-spacing:.14em;color:var(--text-low)">WORKER PAYMENT AND COSTS</span></div>' +
       '<div><span class="n" style="color:var(--amber);font-family:var(--data);font-weight:600">' + sgold(inn - wk - outg) + '</span><span class="k" style="display:block;font-family:var(--data);font-size:.5rem;letter-spacing:.14em;color:var(--text-low)">PROFIT</span></div>';
     $('dBody').innerHTML = (r.records || []).length ? (r.records || []).map(recordRow).join('') +
       (r.total > 200 ? '<p class="note">Showing 200 of ' + num(r.total) + '. Narrow it in History for the rest.</p>' : '')
@@ -1795,15 +2030,14 @@ function viewShop(){
   var spendOf = function(cat, d){ return sum(cats(function(c){ return c.source === 'shop' && c.cat === cat; }, d), 'spend'); };
   var buy = spendOf('buybacks'), restock = spendOf('restock'), other = b.spend - buy - restock;
   var tiles = [
-    { label:'Sales', value:b.gross, prev:p.gross, mode:'up', spark:col('gross'), color:'#1fbf5f' },
-    { op:'−', label:'Bought back', value:buy, prev:prev ? spendOf('buybacks', prev) : null, mode:'down', color:'#ff4d55' },
-    { op:'−', label:'Restocking', value:restock, prev:prev ? spendOf('restock', prev) : null, mode:'down', color:'#ff4d55', hint:'Entered by hand in History' },
+    { label:'Sales', value:b.gross, prev:p.gross, mode:'up', spark:col('gross'), color:C.in },
+    { op:'−', label:'Bought back', value:buy, prev:prev ? spendOf('buybacks', prev) : null, mode:'down', color:C.cost },
+    { op:'−', label:'Restocking', value:restock, prev:prev ? spendOf('restock', prev) : null, mode:'down', color:C.warn, hint:'Entered by hand in History' },
   ];
-  if (other > 0) tiles.push({ op:'−', label:'Other costs', value:other, mode:'down' });
-  tiles.push({ op:'=', label:'Profit', value:profit(b), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), color:'#1fbf5f', hero:true });
+  if (other > 0) tiles.push({ op:'−', label:'Other costs', value:other, mode:'down', color:C.cost });
+  tiles.push({ op:'=', label:'Profit', value:profit(b), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), color:C.profit, hero:true });
   var out = kpis(tiles) + looseWarning();
 
-  /* The floor, first: it is what this tab is for. */
   var modes = [['status','What it is'], ['sales','What sells'], ['stock','What is left']];
   var levels = shop.layout ? [['all','Everything']].concat((shop.layout.levels || []).map(function(l){ return [String(l.y), l.label]; })) : [];
   out += panel('The floor', '<div class="seg small" id="fMode">' + modes.map(function(m){
@@ -1816,57 +2050,102 @@ function viewShop(){
       '<span class="found" id="ffound"></span>' +
       '<span class="zoom"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="zfit" title="Fit the floor">◻</button></span></div>' +
       '<div class="floorwrap" id="floorwrap"></div><div class="floorkey" id="fkey"></div>' +
-      '<p class="hint" style="margin:.4rem 0 0">Drag to move · scroll or pinch to zoom · double-click to zoom in · click a barrel for its figures</p>', '', 'floorPanel');
+      '<p class="hint" style="margin:.4rem 0 0">Drag to move · scroll or pinch to zoom · double-click to zoom in · click a barrel for its figures</p>', '', 'floorPanel', C.in);
 
-  if (!b.gross && !b.spend && !shop.shops.length){
+  /* What sells, and the shop at a glance: the two questions most people
+     opening this tab actually have. Both work from stock alone when nothing
+     has sold yet, so the panel is never just an empty ring. */
+  var items = cats(function(c){ return c.source === 'shop' && c.gross > 0; });
+  var mode = items.length ? (state.shopMix || 'sales') : 'stock';
+  out += '<div class="grid g-2">' +
+    panel(mode === 'sales' ? 'What sells' : 'What is on the shelves', '<div class="seg small" id="shopMix"><button data-m="sales" class="' + (mode === 'sales' ? 'on' : '') + '"' +
+      (items.length ? '' : ' disabled title="Nothing sold in this period"') + '>Sales</button><button data-m="stock" class="' + (mode === 'stock' ? 'on' : '') + '">Stock value</button></div>',
+      '<div id="shopDial"></div>', '', '', C.in) +
+    panel('At a glance', metaText(shop.stats ? 'stock as of the last shop check' : ''), '<div class="glance two" id="shopGlance"></div>', '', '', C.fee) + '</div>';
+
+  if (b.gross || b.spend){
+    var sales = sum(items, 'n'), buyers = (data.customers.shop || []).length;
+    var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], dayMax = Math.max.apply(null, data.byWeekday);
+    out += '<div class="grid g-main">' + panel(flowTitle('sales'), modeSwitch(), '<div class="chart" id="cShop"></div><div id="shopKey"></div>', '', '', C.in) +
+      panel('When people buy', metaText('UTC'), heat(data.byHour, data.byHour.map(function(_, h){ return String(h).padStart(2, '0') + ':00'; }), C.in) +
+        '<div class="heatlab" style="grid-template-columns:repeat(24,1fr)">' + data.byHour.map(function(_, h){ return '<span>' + (h % 6 ? '' : String(h).padStart(2, '0')) + '</span>'; }).join('') + '</div>' +
+        heat(data.byWeekday, days, C.in) + '<div class="heatlab" style="grid-template-columns:repeat(7,1fr)">' + days.map(function(d, i){
+          return '<span' + (dayMax && data.byWeekday[i] === dayMax ? ' style="color:' + C.in + '"' : '') + '>' + d + '</span>'; }).join('') + '</div>' +
+        '<p class="note">' + num(sales) + ' sale' + (sales === 1 ? '' : 's') + ' to ' + num(buyers) + ' buyer' + (buyers === 1 ? '' : 's') + ' in this period.</p>', '', '', C.in) + '</div>';
+  } else {
     var since = data.first && data.first.shop;
-    out += empty('No trades', 'The shop recorded no sales or buy-backs in this period.' + (since ? ' The feed has been recording since ' + short(since) + '.' : ''));
-    return out + barrelSetup();
+    out += empty('No trades this period', 'The shop recorded no sales or buy-backs in this period' + (since ? '. The feed has been recording since ' + short(since) + '.' : '.') +
+      ' Try a longer period with the buttons above.');
   }
 
-  var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  var items = cats(function(c){ return c.source === 'shop' && c.gross > 0; });
-  var sales = sum(items, 'n'), buyers = (data.customers.shop || []).length;
-  var hourMax = Math.max.apply(null, data.byHour), busiest = hourMax ? data.byHour.indexOf(hourMax) : null;
-  var dayMax = Math.max.apply(null, data.byWeekday);
-  var st = function(n, k){ return '<div class="stat"><span class="n">' + n + '</span><span class="k">' + esc(k) + '</span></div>'; };
-
-  out += '<div class="grid g-main">' +
-    panel(state.flowMode === 'flow' ? grainly() + ' flow' : state.flowMode === 'total' ? 'Running total' : '7-day average',
-      '<div class="seg small" id="flowMode">' + [['flow','Flow'], ['total','Running total'], ['avg','7-day average']].map(function(m){
-        return '<button data-m="' + m[0] + '" class="' + (state.flowMode === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') +
-      '</div><button class="tbtn" id="cmpBtn">' + (state.compare ? '◉' : '○') + ' Compare</button>',
-      '<div class="chart" id="cShop"></div><div id="shopKey"></div>') +
-    panel('When people buy', metaText('UTC'), '<div class="stats" style="margin-bottom:.8rem">' + st(num(sales), 'Sales') +
-      st(sales ? gold(b.gross / sales) : '—', 'Average sale') + st(num(buyers), 'Buyers') +
-      st(busiest == null ? '—' : String(busiest).padStart(2, '0') + ':00', 'Busiest hour') + '</div>' +
-      heat(data.byHour, data.byHour.map(function(_, h){ return String(h).padStart(2, '0') + ':00'; }), '#1fbf5f') +
-      '<div class="heatlab" style="grid-template-columns:repeat(24,1fr)">' + data.byHour.map(function(_, h){ return '<span>' + (h % 6 ? '' : String(h).padStart(2, '0')) + '</span>'; }).join('') + '</div>' +
-      heat(data.byWeekday, days, '#1fbf5f') + '<div class="heatlab" style="grid-template-columns:repeat(7,1fr)">' + days.map(function(d, i){
-        return '<span' + (dayMax && data.byWeekday[i] === dayMax ? ' style="color:var(--shop)"' : '') + '>' + d + '</span>'; }).join('') + '</div>') + '</div>';
-
-  /* What needs doing: what is running out, and what the shop itself has
-     complained about. Click either to find it on the floor. */
-  var stats = shop.stats;
-  var restockList = stats ? stats.restock || [] : [];
-  var warn = stats ? stats.warnings || [] : [];
+  var stats = shop.stats, restockList = stats ? stats.restock || [] : [], warn = stats ? stats.warnings || [] : [];
   out += '<div class="grid g-2">' +
     panel('Restock', '<div class="seg small" id="rst">' + [8, 16, 32, 64].map(function(v){
       return '<button data-r="' + v + '" class="' + (restockAt === v ? 'on' : '') + '">≤' + v + '</button>'; }).join('') + '</div>',
       !stats ? '<p class="note">' + (shop.key ? 'Stock levels need the Treasurer, Viceroy or Emperor role.' : 'Loading…') + '</p>'
       : restockList.length ? restockList.slice(0, 12).map(function(r){
-          return '<div class="rank click" data-find="' + esc(r.item) + '"><span class="r">' + num(r.stock) + '</span><span class="nm">' + itemImg(r.item) + esc(pretty(r.item)) +
+          return '<div class="rank click" data-find="' + esc(r.item) + '"><span class="r ' + (r.stock === 0 ? 'neg' : 'warnc') + '">' + num(r.stock) + '</span><span class="nm">' + itemImg(r.item) + esc(pretty(r.item)) +
             '<small>' + dealHtml(r) + (r.row_location ? ' · ' + esc(r.row_location) : '') + '</small></span><span class="v">' + (r.stock === 0 ? '<span class="neg">empty</span>' : 'left') + '</span></div>';
         }).join('') + (restockList.length > 12 ? '<p class="note">and ' + (restockList.length - 12) + ' more</p>' : '')
-      : '<p class="note">Every sell barrel has more than ' + restockAt + ' left.</p>') +
+      : '<p class="note">Every sell barrel has more than ' + restockAt + ' left.</p>', '', '', C.warn) +
     panel('Shop warnings', metaText('from the shop itself'), !stats ? '<p class="note">—</p>' : warn.length ? warn.slice(0, 10).map(function(w){
-        return '<div class="rank click" data-find="' + esc(w.item || '') + '"><span class="r">' + num(w.times) + '×</span><span class="nm">' + itemImg(w.item) + esc(pretty(w.item)) +
+        return '<div class="rank click" data-find="' + esc(w.item || '') + '"><span class="r neg">' + num(w.times) + '×</span><span class="nm">' + itemImg(w.item) + esc(pretty(w.item)) +
           '<small>' + esc(pretty(w.kind)) + ' · last ' + esc(short(w.last_seen)) + '</small></span><span class="v"></span></div>';
-      }).join('') : '<p class="note">No out-of-stock, out-of-space or out-of-gold warnings in this period.</p>') + '</div>';
+      }).join('') : '<p class="note">No out-of-stock, out-of-space or out-of-gold warnings in this period.</p>', '', '', C.cost) + '</div>';
 
   out += panel('Items', '<div class="tools"><input class="fld" id="iq" placeholder="Search items" value="' + esc(floor.itemQ || '') + '">' +
-    '<button class="tbtn" id="csvItems">CSV</button></div>', '<div id="itemsTable"></div>');
+    '<button class="tbtn" id="csvItems">CSV</button></div>', '<div id="itemsTable"></div>', '', '', C.in);
   return out + barrelSetup();
+}
+/* Stock value: what every sell barrel would bring in if it sold out at its
+   sign price. The one figure that says how much is sitting on the shelves. */
+function shelfItems(){
+  var by = {};
+  shop.shops.forEach(function(s){
+    if (s.shop_type === 'buy' || s.stock == null || !s.amount || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
+    var v = Math.floor(s.stock / s.amount) * (s.price || 0);
+    var o = by[s.item] || (by[s.item] = { item:s.item, value:0, stock:0, barrels:0 });
+    o.value += v; o.stock += s.stock; o.barrels++;
+  });
+  return Object.keys(by).map(function(k){ return by[k]; }).sort(function(a, z){ return z.value - a.value; });
+}
+function drawShopDial(){
+  var host = $('shopDial'); if (!host) return;
+  var items = cats(function(c){ return c.source === 'shop' && c.gross > 0; }).sort(function(a, z){ return z.gross - a.gross; });
+  var mode = items.length ? (state.shopMix || 'sales') : 'stock';
+  var list = mode === 'sales' ? items.map(function(c){ return { name:catName('shop', c.cat, c.label), v:c.gross, item:c.cat }; })
+    : shelfItems().map(function(x){ return { name:pretty(x.item), v:x.value, item:x.item }; });
+  var top = list.slice(0, 7), rest = list.slice(7).reduce(function(a, x){ return a + x.v; }, 0);
+  var kids = top.map(function(x, i){ return { key:'shop|' + x.item, name:x.name, v:x.v, color:SOURCES.shop.shades[i % 6] }; });
+  if (rest) kids.push({ key:'shop|rest', name:'Everything else (' + (list.length - 7) + ')', v:rest, color:'#5d574c' });
+  var total = kids.reduce(function(a, x){ return a + x.v; }, 0);
+  host.innerHTML = total ? mixPanel([{ key:'shop', name:'Shop', color:C.in, v:total, children:kids }], mode === 'sales' ? 'Sales' : 'On shelves', true)
+    : '<p class="note">' + (shop.key ? 'Stock levels are not visible to this account.' : 'Loading…') + '</p>';
+  wireMix(host);
+}
+function drawShopGlance(){
+  var host = $('shopGlance'); if (!host) return;
+  var sold = itemSales(), items = Object.keys(sold).map(function(k){ return sold[k]; });
+  var best = items.slice().sort(function(a, z){ return z.gross - a.gross; })[0];
+  var most = items.slice().sort(function(a, z){ return z.qty - a.qty; })[0];
+  var sells = shop.shops.filter(function(s){ return s.shop_type !== 'buy' && !(mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service); });
+  var seeStock = sells.some(function(s){ return s.stock != null; });
+  var shelf = shelfItems(), value = shelf.reduce(function(a, x){ return a + x.value; }, 0);
+  var empty = sells.filter(function(s){ return s.stock === 0; }).length, low = sells.filter(function(s){ return s.stock != null && s.stock <= restockAt; }).length;
+  var onSale = {}; sells.forEach(function(s){ if (s.stock == null || s.stock > 0) onSale[s.item] = 1; });
+  var b = data.totals.bySource.shop, buy = sum(cats(function(c){ return c.source === 'shop' && c.cat === 'buybacks'; }), 'spend');
+  var buyers = data.customers.shop || [], repeat = buyers.filter(function(x){ return x.n > 1; }).length;
+  var days = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'];
+  var dMax = Math.max.apply(null, data.byWeekday), hMax = Math.max.apply(null, data.byHour);
+  host.innerHTML =
+    glance('in', best ? esc(pretty(best.cat)) : '—', 'Best seller', best ? gold(best.gross) + ' from ' + num(best.n) + ' sale' + (best.n === 1 ? '' : 's') : 'nothing sold this period') +
+    glance('', most ? esc(pretty(most.cat)) : '—', 'Most units moved', most ? num(most.qty) + ' units' : '') +
+    glance('fee', seeStock ? gold(value) : '—', 'Stock value', seeStock ? 'if every sell barrel sold out' : 'needs the stock figures') +
+    glance('', num(Object.keys(onSale).length), 'Items on sale', num(sells.length) + ' sell barrels') +
+    glance(empty ? 'behind' : '', seeStock ? num(empty) : '—', 'Barrels empty', seeStock ? num(low) + ' at or under ' + restockAt : '') +
+    glance('', b.gross ? Math.round((buy / b.gross) * 100) + '%' : '—', 'Bought back', b.gross ? gold(buy) + ' paid out against ' + gold(b.gross) + ' of sales' : 'no sales to compare') +
+    glance('', buyers.length ? Math.round((repeat / buyers.length) * 100) + '%' : '—', 'Came back', num(buyers.length) + ' buyer' + (buyers.length === 1 ? '' : 's')) +
+    glance('', dMax ? days[data.byWeekday.indexOf(dMax)] : '—', 'Busiest', hMax ? 'around ' + String(data.byHour.indexOf(hMax)).padStart(2, '0') + ':00 UTC' : '');
 }
 function dealText(s){ var a = s.amount; return a == null || a === 1 ? goldText(s.price) : num(a) + ' for ' + goldText(s.price); }
 function dealHtml(s){ var a = s.amount; return a == null || a === 1 ? gold(s.price) : num(a) + ' for ' + gold(s.price); }
@@ -1972,20 +2251,20 @@ var floor = { view:null, sel:null, find:'', zoomedIcons:null };
 function shopAt(x, y, z){ return shopIndex[x + ',' + y + ',' + z] || null; }
 function floorLevels(){ var ys = (shop.layout.levels || []).map(function(l){ return l.y; }); return state.floorLevel === 'all' ? ys : [Number(state.floorLevel)]; }
 function barrelFill(s, sold, maxGold){
-  if (!s) return '#2a241c';
+  if (!s) return null;
   var m = mapBy[String(s.shop_id)];
   if (state.floorMode === 'sales'){
-    var c = sold[s.item]; if (!c || !c.gross || (m && m.service)) return '#2a241c';
-    return 'rgba(255,191,60,' + (0.22 + 0.78 * c.gross / maxGold).toFixed(2) + ')';
+    var c = sold[s.item]; if (!c || !c.gross || (m && m.service)) return null;
+    return 'rgba(34,197,94,' + (0.3 + 0.7 * c.gross / maxGold).toFixed(2) + ')';
   }
   if (state.floorMode === 'stock'){
-    if (s.stock == null || s.shop_type === 'buy') return '#2a241c';
-    return s.stock === 0 ? '#ff4d55' : s.stock <= restockAt ? '#ff8a3d' : '#1fbf5f';
+    if (s.stock == null || s.shop_type === 'buy') return null;
+    return s.stock === 0 ? C.cost : s.stock <= restockAt ? C.warn : C.in;
   }
-  if (m && m.service) return '#ffbf3c';
-  if (s.shop_type === 'buy') return '#2f7fe0';
-  if (s.stock != null && s.stock <= restockAt) return '#ff4d55';
-  return '#1fbf5f';
+  if (m && m.service) return C.fee;
+  if (s.shop_type === 'buy') return C.pay;
+  if (s.stock != null && s.stock <= restockAt) return C.cost;
+  return C.in;
 }
 function floorMatches(s){
   if (!floor.find || !s) return false;
@@ -1993,10 +2272,17 @@ function floorMatches(s){
   return pretty(s.item).toLowerCase().indexOf(needle) >= 0 || String(s.item).toLowerCase().indexOf(needle) >= 0 ||
     (m && m.label && m.label.toLowerCase().indexOf(needle) >= 0);
 }
+/* The floor, drawn with depth. Everything above the ground casts a soft
+   shadow down and to the right, as if lit from the upper left; the ground
+   gets faint block seams so it reads as blocks rather than a printed sheet;
+   barrels show their wood under a tint, bevelled like the tops of real
+   barrels; and a pool of light falls down the middle of the hall. All of it
+   is plain shapes — no filters — so panning stays smooth. */
 function drawFloor(){
   var L = shop.layout, bnd = L.bounds, w = bnd.maxX - bnd.minX + 1, h = bnd.maxZ - bnd.minZ + 1;
   if (!floor.view) floor.view = { x:bnd.minX, z:bnd.minZ, w:w, h:h };
-  var v = floor.view, levels = floorLevels(), out = [], used = {};
+  var v = floor.view, levels = floorLevels(), out = [], used = { barrel:1 };
+  var ground = Math.min.apply(null, (L.levels || []).map(function(l){ return l.y; }).concat([Infinity]));
   var sold = itemSales(), maxGold = Math.max.apply(null, Object.keys(sold).map(function(k){ return sold[k].gross; }).concat([1]));
   out.push('<svg id="floor" viewBox="' + v.x + ' ' + v.z + ' ' + v.w + ' ' + v.h + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Shop floor plan"><defs>');
   levels.forEach(function(y){ Object.keys(L.cells[String(y)] || {}).forEach(function(k){ used[k] = 1; }); });
@@ -2004,28 +2290,52 @@ function drawFloor(){
     if (BLOCK_TEX[k]) out.push('<pattern id="t-' + k + '" patternUnits="userSpaceOnUse" width="1" height="1"><image href="' + TEX + 'block/' + BLOCK_TEX[k] +
       '.png" width="1" height="1" preserveAspectRatio="none"/></pattern>');
   });
-  out.push('</defs><rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="#0b0a08"/>');
+  out.push('<pattern id="seam" patternUnits="userSpaceOnUse" width="1" height="1"><path d="M1 0V1H0" fill="none" stroke="#000" stroke-opacity=".38" stroke-width=".06"/>' +
+    '<path d="M0 1V0H1" fill="none" stroke="#fff" stroke-opacity=".06" stroke-width=".05"/></pattern>');
+  out.push('<linearGradient id="bevel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/>' +
+    '<stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".42"/></linearGradient>');
+  out.push('<radialGradient id="hall" cx=".5" cy=".5" r=".72"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".1"/><stop offset=".55" stop-color="#000" stop-opacity="0"/>' +
+    '<stop offset="1" stop-color="#000" stop-opacity=".5"/></radialGradient></defs>');
+  out.push('<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="#0b0a08"/>');
   levels.forEach(function(y){
-    var cells = L.cells[String(y)] || {};
+    var cells = L.cells[String(y)] || {}, raised = y !== ground, shadow = '';
+    if (raised){
+      /* One shadow shape for the whole level, offset from what casts it. */
+      CELL_ORDER.forEach(function(k){ (cells[k] || []).forEach(function(c){ shadow += 'M' + (c[0] + .2) + ' ' + (c[1] + .28) + 'h1v1h-1z'; }); });
+      if (shadow) out.push('<path d="' + shadow + '" fill="#000" fill-opacity=".5"/>');
+    }
     CELL_ORDER.forEach(function(k){
       var list = cells[k]; if (!list || !list.length) return;
       var d = ''; for (var i = 0; i < list.length; i++) d += 'M' + list[i][0] + ' ' + list[i][1] + 'h1v1h-1z';
       out.push('<path d="' + d + '" fill="' + (CELL_STYLE[k] || '#241f19') + '"/>');
       if (BLOCK_TEX[k]) out.push('<path d="' + d + '" fill="url(#t-' + k + ')"' + (k.indexOf('glass') >= 0 ? ' fill-opacity=".42"' : '') + '/>');
+      if (raised) out.push('<path d="' + d + '" fill="url(#bevel)" opacity=".55"/>');
     });
+    if (!raised) out.push('<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="url(#seam)" pointer-events="none"/>' +
+      '<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="#0b0a08" opacity=".22" pointer-events="none"/>');
   });
-  /* The building is dimmed so the barrels — the only live part — carry the colour. */
-  out.push('<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="#0b0a08" opacity=".42" pointer-events="none"/>');
-  var zoomed = v.w < 40, found = 0;
+  var zoomed = v.w < 40, found = 0, bshadow = '', btiles = [];
   levels.forEach(function(y){
     (L.barrels || []).forEach(function(p){
       if (p[1] !== y) return;
-      var s = shopAt(p[0], p[1], p[2]);
-      out.push('<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" rx=".12" fill="' + barrelFill(s, sold, maxGold) + '"/>');
+      var s = shopAt(p[0], p[1], p[2]), fill = barrelFill(s, sold, maxGold);
+      bshadow += 'M' + (p[0] + .16) + ' ' + (p[2] + .24) + 'h1v1h-1z';
+      btiles.push('<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="url(#t-barrel)"/>' +
+        (fill ? '<rect x="' + (p[0] + .06) + '" y="' + (p[2] + .06) + '" width=".88" height=".88" rx=".1" fill="' + fill + '" fill-opacity=".8"/>'
+              : '<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="#000" fill-opacity=".3"/>') +
+        '<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="url(#bevel)"/>');
+    });
+  });
+  if (bshadow) out.push('<path d="' + bshadow + '" fill="#000" fill-opacity=".55"/>');
+  out.push(btiles.join(''));
+  out.push('<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="url(#hall)" pointer-events="none"/>');
+  levels.forEach(function(y){
+    (L.barrels || []).forEach(function(p){
+      if (p[1] !== y) return;
+      var s = shopAt(p[0], p[1], p[2]), m = s && mapBy[String(s.shop_id)];
       if (zoomed && s) out.push('<image class="icon" href="' + itemTexCandidates(s.item)[0] + '" data-try="0" data-item="' + esc(s.item) +
-        '" x="' + (p[0] + .14) + '" y="' + (p[2] + .14) + '" width=".72" height=".72"/>');
-      if (floorMatches(s)){ found++; out.push('<rect class="b-find" x="' + (p[0] - .1) + '" y="' + (p[2] - .1) + '" width="1.2" height="1.2" rx=".2"/>'); }
-      var m = s && mapBy[String(s.shop_id)];
+        '" x="' + (p[0] + .16) + '" y="' + (p[2] + .16) + '" width=".68" height=".68"/>');
+      if (floorMatches(s)){ found++; out.push('<rect class="b-find" x="' + (p[0] - .12) + '" y="' + (p[2] - .12) + '" width="1.24" height="1.24" rx=".2"/>'); }
       out.push('<rect class="b-hit" data-x="' + p[0] + '" data-y="' + p[1] + '" data-z="' + p[2] + '" x="' + p[0] + '" y="' + p[2] +
         '" width="1" height="1" tabindex="0"><title>' + esc(s ? (m && m.label ? m.label : pretty(s.item)) + ' · ' + dealText(s) : 'Barrel, no shop sign') + '</title></rect>');
     });
@@ -2045,11 +2355,11 @@ function floorKey(){
   });
   var it = function(c, t, n){ return '<span><i style="background:' + c + '"></i>' + t + (n != null ? ' <b>' + num(n) + '</b>' : '') + '</span>'; };
   var keys = state.floorMode === 'sales'
-    ? [it('rgba(255,191,60,.25)', 'Sold a little'), it('#ffbf3c', 'Sold the most'), it('#2a241c', 'Nothing sold this period')]
+    ? [it('rgba(34,197,94,.35)', 'Sold a little'), it(C.in, 'Sold the most'), it('#6b5236', 'Nothing sold this period')]
     : state.floorMode === 'stock'
-      ? [it('#1fbf5f', 'Stocked'), it('#ff8a3d', 'At or under ' + restockAt), it('#ff4d55', 'Empty'), it('#2a241c', 'Buy barrel or no sign')]
-      : [it('#1fbf5f', 'Selling', counts.sell), it('#2f7fe0', 'Buying', counts.buy), it('#ff4d55', 'Low stock', counts.low),
-         it('#ffbf3c', 'EMC service', counts.service), it('#2a241c', 'No sign yet', total - withShop)];
+      ? [it(C.in, 'Stocked'), it(C.warn, 'At or under ' + restockAt), it(C.cost, 'Empty'), it('#6b5236', 'Buy barrel or no sign')]
+      : [it(C.in, 'Selling', counts.sell), it(C.pay, 'Buying', counts.buy), it(C.cost, 'Low stock', counts.low),
+         it(C.fee, 'EMC service', counts.service), it('#6b5236', 'No sign yet', total - withShop)];
   return keys.join('') + '<span>' + num(total) + ' barrels · ' + num(withShop) + ' with a shop</span>';
 }
 function floorCard(){
@@ -2209,9 +2519,11 @@ after.shop = function(v){
   v.querySelectorAll('#fMode [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.floorMode = b.dataset.m; remember(); renderView(); }); });
   v.querySelectorAll('#fLevel [data-l]').forEach(function(b){ b.addEventListener('click', function(){ state.floorLevel = b.dataset.l; floor.sel = null; remember(); renderView(); }); });
   v.querySelectorAll('#rst [data-r]').forEach(function(b){ b.addEventListener('click', function(){ restockAt = Number(b.dataset.r); shop.key = null; loadShop(); }); });
-  v.querySelectorAll('#flowMode [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.flowMode = b.dataset.m; remember(); renderView(); }); });
-  if ($('cmpBtn')) $('cmpBtn').addEventListener('click', function(){ state.compare = !state.compare; remember(); renderView(); });
+  wireFlowControls(v);
   if ($('cShop')) drawFlow('shop', $('cShop'), $('shopKey'));
+  v.querySelectorAll('#shopMix [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.shopMix = b.dataset.m; drawShopDial();
+    v.querySelectorAll('#shopMix [data-m]').forEach(function(x){ x.classList.toggle('on', x === b); }); }); });
+  drawShopDial(); drawShopGlance();
   if (shop.layout){
     paintFloor();
     var t = null;
@@ -2311,7 +2623,7 @@ function entryForm(rec){
     '<div class="f"><label>What for</label><input class="fld" name="category" list="catlist" value="' + esc(rec ? rec.cat : 'restock') + '">' +
       '<datalist id="catlist">' + CATEGORY_SUGGESTIONS.map(function(c){ return '<option value="' + c + '">'; }).join('') + '</datalist></div>' +
     '<div class="f"><label>Gold</label><input class="fld" name="amount" type="number" min="1" value="' + esc(rec ? (rec.spend || rec.gross) : '') + '"></div>' +
-    '<div class="f"><label>Of which to workers</label><input class="fld" name="workers" type="number" min="0" value="' + esc(rec ? rec.workers || 0 : 0) + '" title="Only for money that came in"></div>' +
+    '<div class="f"><label>Of which worker payment</label><input class="fld" name="workers" type="number" min="0" value="' + esc(rec ? rec.workers || 0 : 0) + '" title="Only for money that came in"></div>' +
     '<div class="f wide"><label>Note</label><input class="fld" name="note" value="' + esc(rec ? rec.note || '' : '') + '"></div>' +
     '</div><div class="actions"><button class="btn" data-save>' + (rec ? 'Save correction' : 'Add record') + '</button><button class="btn quiet" data-cancel>Cancel</button><span class="msg"></span></div>';
 }
@@ -2339,7 +2651,7 @@ function recordRow(x){
     name = serviceName(x.cat) + (type ? ' · ' + type : '') + (x.label ? ' — ' + x.label : '');
     if (x.who) T(x.who);
     T(unitOf(x.cat, x.qty));
-    sub.push(gold(x.workers) + ' to the worker, ' + gold(x.gross - x.workers) + ' kept');
+    sub.push(gold(x.workers) + ' worker payment, ' + gold(x.gross - x.workers) + ' company income');
     T(orderStage(x));
     if (x.guessed) T('size read from title');
     if (x.link) T('bought in the shop');
@@ -2356,7 +2668,7 @@ function recordRow(x){
   } else {
     tag = '<span class="tag hand">By hand</span>';
     name = catName(x.source, x.cat, null) + ' · ' + (SOURCES[x.source] ? SOURCES[x.source].name : x.source);
-    if (x.workers) sub.push(gold(x.workers) + ' to workers');
+    if (x.workers) sub.push(gold(x.workers) + ' worker payment');
     if (x.note) T(x.note);
     if (x.who) T('entered by ' + x.who);
   }
@@ -2464,7 +2776,7 @@ after.history = function(v){
         if (!(r.records || []).length) break;
       }
     } catch (e){ toast(esc(e.message), true); return; }
-    downloadCsv('economy-history', ['Date', 'Kind', 'Business', 'What', 'Who', 'Units', 'In', 'Out', 'To workers', 'Counted', 'Voided', 'Note'], all.map(function(x){
+    downloadCsv('economy-history', ['Date', 'Kind', 'Business', 'What', 'Who', 'Units', 'In', 'Out', 'Worker payment', 'Counted', 'Voided', 'Note'], all.map(function(x){
       return [String(x.at).slice(0, 10), x.type, x.source, x.type === 'order' ? serviceName(x.cat) + (x.variant ? ' ' + x.variant : '') + (x.priority ? ' priority' : '') : itemName(x.label || x.cat),
         x.who || '', x.qty || '', x.gross || 0, x.spend || 0, x.workers || 0, x.counted === 0 ? 'no' : 'yes', x.voided ? 'yes' : '', x.note || ''];
     }));

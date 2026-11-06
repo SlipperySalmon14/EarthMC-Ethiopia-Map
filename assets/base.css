@@ -1,4 +1,14 @@
 /* ===========================================================================
+   Ethiopia Ecosystem — shared design system  (v4)
+   ---------------------------------------------------------------------------
+   v4 adds one line: the console theme below, which gives every page the look
+   of the Economy page. It is imported here rather than linked from each page
+   so that every page — including any not edited since — picks it up from
+   this one file. Everything else in this file is exactly as it was in v3.
+   =========================================================================== */
+@import url('theme.css?v=1');
+
+/* ===========================================================================
    Ethiopia Ecosystem — shared design system  (v3)
    ---------------------------------------------------------------------------
    WHAT THIS IS FOR

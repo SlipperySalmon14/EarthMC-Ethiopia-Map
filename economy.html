@@ -2227,8 +2227,12 @@ function viewShop(){
 function shelfItems(){
   var by = {};
   shop.shops.forEach(function(s){
-    if (s.shop_type === 'buy' || s.stock == null || !s.amount || !inWalls(s) || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
-    var v = Math.floor(s.stock / s.amount) * (s.price || 0);
+    if (s.shop_type === 'buy' || s.stock == null || !inWalls(s) || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
+    /* A barrel that sells one item at a time has no "items per sale" in the
+       shop feed at all. Reading that as unknown and skipping the barrel is
+       what left out every single-item shop — player heads, ingots — and
+       kept only the stacks. A missing figure means one per sale. */
+    var v = Math.floor(s.stock / perSale(s)) * (s.price || 0);
     var o = by[s.item] || (by[s.item] = { item:s.item, value:0, stock:0, barrels:0 });
     o.value += v; o.stock += s.stock; o.barrels++;
   });
@@ -2240,6 +2244,7 @@ function drawShopDial(){
   var mode = items.length ? (state.shopMix || 'sales') : 'stock';
   var list = mode === 'sales' ? items.map(function(c){ return { name:catName('shop', c.cat, c.label), v:c.gross, item:c.cat }; })
     : shelfItems().map(function(x){ return { name:pretty(x.item), v:x.value, item:x.item }; });
+  list = list.filter(function(x){ return x.v > 0; });
   var top = list.slice(0, 7), rest = list.slice(7).reduce(function(a, x){ return a + x.v; }, 0);
   var kids = top.map(function(x, i){ return { key:'shop|' + x.item, name:x.name, v:x.v, color:SOURCES.shop.shades[i % 6] }; });
   if (rest) kids.push({ key:'shop|rest', name:'Everything else (' + (list.length - 7) + ')', v:rest, color:'#5d574c' });
@@ -2272,6 +2277,7 @@ function drawShopGlance(){
     glance('', buyers.length ? Math.round((repeat / buyers.length) * 100) + '%' : '—', 'Came back', num(buyers.length) + ' buyer' + (buyers.length === 1 ? '' : 's')) +
     glance('', dMax ? days[data.byWeekday.indexOf(dMax)] : '—', 'Busiest', hMax ? 'around ' + String(data.byHour.indexOf(hMax)).padStart(2, '0') + ':00 UTC' : '');
 }
+function perSale(s){ return s && s.amount > 0 ? s.amount : 1; }
 function dealText(s){ var a = s.amount; return a == null || a === 1 ? goldText(s.price) : num(a) + ' for ' + goldText(s.price); }
 function dealHtml(s){ var a = s.amount; return a == null || a === 1 ? gold(s.price) : num(a) + ' for ' + gold(s.price); }
 
@@ -2287,7 +2293,9 @@ function itemRows(){
     var r = by[s.item] || (by[s.item] = { item:s.item, barrels:0, stock:0, hasStock:false, price:null, amount:null });
     r.barrels++;
     if (s.stock != null){ r.stock += s.stock; r.hasStock = true; }
-    if (s.shop_type !== 'buy' && (r.price == null || s.price < r.price)){ r.price = s.price; r.amount = s.amount; }
+    /* The cheapest deal per item, compared per item rather than per sign —
+       "64 for 1" is cheaper than "1 for 1", though its price reads the same. */
+    if (s.shop_type !== 'buy' && (r.price == null || s.price / perSale(s) < r.price / perSale(r))){ r.price = s.price; r.amount = s.amount; }
   });
   Object.keys(sold).forEach(function(k){ if (!by[k]) by[k] = { item:k, barrels:0, stock:0, hasStock:false, price:null, amount:null }; });
   return Object.keys(by).map(function(k){
@@ -2500,7 +2508,7 @@ function floorCard(){
   kv(s.shop_type === 'buy' ? 'Paying' : 'Price', dealHtml(s));
   if (s.amount > 1) kv('Each', (s.price / s.amount).toFixed(2) + ING);
   if (s.stock != null) kv('In stock', '<span class="' + (s.stock <= restockAt ? 'neg' : '') + '">' + num(s.stock) + '</span>' +
-    (s.amount ? ' · ' + num(Math.floor(s.stock / s.amount)) + ' sales left' : ''));
+    ' · ' + num(Math.floor(s.stock / perSale(s))) + ' sale' + (Math.floor(s.stock / perSale(s)) === 1 ? '' : 's') + ' left');
   if (m.service){
     kv('Sells', esc([serviceName(m.service), m.variant, m.priority ? 'Priority' : ''].filter(Boolean).join(' · ')));
     kv('Counted', 'on the orders it pays for');

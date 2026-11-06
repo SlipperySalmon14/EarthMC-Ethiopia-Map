@@ -1,0 +1,245 @@
+/* ===========================================================================
+   Ethiopia Ecosystem — console theme  (v1)
+   ---------------------------------------------------------------------------
+   The look of the Economy page, for every other page.
+
+   Loaded AFTER a page's own <style> block, so it wins wherever the two name
+   the same thing without anyone having to edit the page's CSS. base.css stays
+   underneath it untouched: anything this file does not mention renders as it
+   always did, so a page can never come out half-styled because of it.
+
+   It is pulled in by base.css itself, so every page that links base.css
+   gets it without being edited. Imported files load BEFORE the rules of the
+   file that imports them, so on its own this would lose to base.css and to
+   each page's <style> block. Every rule is therefore scoped under
+   html:not(#_), which matches the same element as before but counts as an id
+   for specificity — enough to win over any class-based rule a page has,
+   while a page's inline style="" attributes still win over it.
+
+   The colours each keep one job, as on the Economy page:
+     green   money in, growth, the land, healthy
+     yellow  gold, the company, the headline figure
+     red     money out, losses, a problem
+     blue    people, and the state itself (the emblem's blue)
+   The frame is neutral so the colour is all meaning.
+   =========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap');
+
+html:not(#_){
+  /* The flag, tuned for a dark ground — the same values the Economy page uses,
+     so one gold is one gold everywhere. Every page's var(--gold) and friends
+     pick these up without being edited. */
+  --green:#22c55e; --green-dim:#15803d;
+  --gold:#fcd116;  --gold-dim:#a8820a;
+  --red:#ef4444;   --red-dim:#991b1b;
+  --blue:#4d8dff;
+  --orange:#f97316;
+
+  --ink:#0f0d0b; --ink-raised:#151311; --ink-high:#1c1915;
+  --surface:#151311; --surface-2:#1b1815;
+  --line:rgba(255,255,255,.07); --line-hot:rgba(245,241,232,.2);
+  --rule:#2a251f; --rule-soft:#1f1b17;
+  --text:#f5f1e8; --text-mid:#cfc8b8; --text-low:#958d7d;
+  --hud:'Chakra Petch', 'Karla', system-ui, sans-serif;
+  --r-lg:14px; --r-md:12px; --r-sm:8px;
+  --tibeb:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='7'%3E%3Cpath d='M0 3.5 3.5 0 7 3.5 3.5 7Z' fill='%2322c55e'/%3E%3Cpath d='M7 3.5 10.5 0 14 3.5 10.5 7Z' fill='%23fcd116'/%3E%3Cpath d='M14 3.5 17.5 0 21 3.5 17.5 7Z' fill='%23ef4444'/%3E%3Crect x='22.5' y='3' width='4' height='1' fill='%23fcd116'/%3E%3C/svg%3E");
+  --tri:linear-gradient(90deg, var(--green) 0 33.3%, var(--gold) 33.3% 66.6%, var(--red) 66.6% 100%);
+}
+
+/* --- the ground: a faint drafting grid under a warm light from above ------ */
+html:not(#_) body{
+  background-color:var(--ink);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -8%, rgba(252,209,22,.07), transparent 62%),
+    linear-gradient(rgba(252,209,22,.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(252,209,22,.026) 1px, transparent 1px);
+  background-size:auto, 32px 32px, 32px 32px;
+  background-attachment:fixed;
+  color:var(--text);
+}
+html:not(#_) .shell{ max-width:76rem; }
+
+/* --- top bar and masthead ------------------------------------------------- */
+html:not(#_) .topbar{ margin-bottom:1rem; }
+html:not(#_) .back{ font-family:var(--data); font-size:.62rem; letter-spacing:.16em; text-transform:uppercase; color:var(--text-low); }
+html:not(#_) .back:hover{ color:var(--gold); }
+
+html:not(#_) .masthead, html:not(#_) .pagehead{ position:relative; border-bottom:0 !important; padding-bottom:1.1rem; margin-bottom:1.6rem; }
+html:not(#_) .masthead::after, html:not(#_) .pagehead::after{
+  content:''; position:absolute; left:0; right:0; bottom:0; height:7px; background:var(--tibeb) repeat-x;
+  -webkit-mask-image:linear-gradient(90deg, #000 45%, transparent); mask-image:linear-gradient(90deg, #000 45%, transparent);
+}
+html:not(#_) .masthead h1, html:not(#_) .pagehead h1{
+  font-family:var(--hud); font-weight:700; font-size:clamp(2rem, 1.4rem + 2.4vw, 3rem); line-height:1;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--text); text-shadow:0 0 30px rgba(252,209,22,.2);
+  font-variation-settings:normal;
+}
+html:not(#_) .masthead .sub, html:not(#_) .formal{
+  margin:.45rem 0 0; font-family:var(--hud); font-style:normal; font-weight:600; font-size:.78rem;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--gold); text-shadow:0 0 14px rgba(252,209,22,.25);
+}
+html:not(#_) .masthead p:not(.sub), html:not(#_) .pagehead .says{ color:var(--text-mid); font-size:1rem; line-height:1.55; }
+
+/* --- buttons: quiet pills; the pressed one lights up --------------------- */
+html:not(#_) .btn{
+  border-radius:9px; border:1px solid var(--line-hot); background:rgba(255,255,255,.04); color:var(--text-mid);
+  font-family:var(--body); font-weight:600; font-size:.82rem; padding:.48rem .9rem;
+  transition:background .15s, color .15s, border-color .15s, box-shadow .15s;
+}
+html:not(#_) .btn:hover{ color:var(--text); border-color:rgba(245,241,232,.35); background:rgba(255,255,255,.08); }
+html:not(#_) .btn[aria-pressed="true"]{ background:var(--gold); color:#141006; border-color:var(--gold); box-shadow:0 0 16px rgba(252,209,22,.35); }
+html:not(#_) .btn:disabled{ opacity:.4; cursor:default; }
+html:not(#_) .lang{ display:inline-flex; gap:2px; padding:2px; border-radius:10px; background:rgba(255,255,255,.045); }
+html:not(#_) .lang .btn{ border:0; background:none; padding:.38rem .7rem; }
+html:not(#_) .lang .btn[aria-pressed="true"]{ background:var(--gold); color:#141006; }
+html:not(#_) #authSlot .btn, html:not(#_) #authSlot a.btn{ background:rgba(255,255,255,.04); color:var(--text); }
+
+/* --- section headings: a plain title with the flag under it --------------- */
+html:not(#_) .section-head, html:not(#_) .band{ border-bottom:1px solid var(--line); }
+html:not(#_) .section-head::after, html:not(#_) .band::after{ height:3px; border-radius:2px; box-shadow:0 0 10px rgba(252,209,22,.35); }
+html:not(#_) .section-head h2, html:not(#_) .band h2{ font-family:var(--body); font-weight:600; font-size:clamp(1.15rem, 1rem + .5vw, 1.45rem); letter-spacing:0; }
+html:not(#_) .section-head .meta, html:not(#_) .band .note{ font-family:var(--body); font-size:.82rem; letter-spacing:0; color:var(--text-low); }
+
+/* --- cards: a wash of their colour from one corner, and a lit top edge ---- */
+html:not(#_) .panel, html:not(#_) .chartwrap, html:not(#_) .branch, html:not(#_) .region, html:not(#_) .chamber, html:not(#_) .contest, html:not(#_) .regmap, html:not(#_) .admin, html:not(#_) .tpanel, html:not(#_) .headline, html:not(#_) .recon, html:not(#_) .phase, html:not(#_) .receipt, html:not(#_) .party-chip, html:not(#_) .way{
+  position:relative; border-radius:var(--r-md); border:1px solid var(--line);
+  background:radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--c, #fcd116) 8%, transparent), transparent 62%), var(--surface);
+}
+html:not(#_) .panel::before, html:not(#_) .chartwrap::before, html:not(#_) .branch::before, html:not(#_) .chamber::before, html:not(#_) .tpanel::before, html:not(#_) .regmap::before{
+  content:''; position:absolute; left:1.1rem; top:-1px; width:4.5rem; height:2px; border-radius:2px;
+  background:linear-gradient(90deg, var(--c, var(--gold)), transparent); box-shadow:0 0 12px var(--c, var(--gold)); pointer-events:none;
+}
+html:not(#_) .chartwrap{ --c:var(--green); padding:1rem 1.1rem 1.05rem; }
+html:not(#_) .chartwrap h3, html:not(#_) .panel > h3, html:not(#_) .chamber h3, html:not(#_) .tpanel h3{
+  display:flex; align-items:center; gap:.5rem; font-family:var(--body); font-weight:600; font-size:1.02rem; letter-spacing:0;
+}
+html:not(#_) .chartwrap h3::before, html:not(#_) .panel > h3::before, html:not(#_) .chamber h3::before{
+  content:''; width:.5rem; height:.5rem; border-radius:50%; background:var(--c, var(--gold)); box-shadow:0 0 10px var(--c, var(--gold)); flex:none;
+}
+html:not(#_) .chartwrap .cap, html:not(#_) .chamber .cap, html:not(#_) .panel > .says{ font-family:var(--body); font-size:.82rem; letter-spacing:0; color:var(--text-low); }
+
+/* --- figure tiles -------------------------------------------------------- */
+html:not(#_) .stats{ gap:.75rem; }
+html:not(#_) .stat{
+  position:relative; border-radius:var(--r-md); border:1px solid var(--line); border-left:1px solid var(--line);
+  border-top:2px solid var(--accent, var(--line-hot));
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent, #fcd116) 11%, transparent), transparent 72%), var(--surface);
+  padding:.9rem 1rem .8rem;
+}
+html:not(#_) .stat .k{
+  display:flex; align-items:center; gap:.4rem; font-family:var(--body); font-size:.84rem; font-weight:600; letter-spacing:0;
+  text-transform:none; color:var(--text-mid); margin-top:.3rem;
+}
+html:not(#_) .stat .k::before{ content:''; width:.45rem; height:.45rem; border-radius:50%; background:var(--accent, var(--text-low)); box-shadow:0 0 8px var(--accent, transparent); }
+html:not(#_) .stat .n{ font-family:var(--data); font-size:clamp(1.3rem, 1.1rem + .8vw, 1.7rem); text-shadow:0 0 18px color-mix(in srgb, var(--accent, #fcd116) 30%, transparent); }
+html:not(#_) .stat .d{ font-family:var(--body); font-size:.78rem; }
+html:not(#_) .stat.in, html:not(#_) .stat.res, html:not(#_) .stat.good{ --accent:var(--green); }
+html:not(#_) .stat.out, html:not(#_) .stat.bad{ --accent:var(--red); }
+html:not(#_) .stat.twn{ --accent:var(--blue); } html:not(#_) .stat.twn .n{ color:var(--blue); }
+html:not(#_) .stat.chk{ --accent:var(--green); } html:not(#_) .stat.chk .n{ color:var(--green); }
+html:not(#_) .stat.bal, html:not(#_) .stat.warn{ --accent:var(--gold); }
+
+/* The one headline figure of a page — the treasury balance — gets the
+   profit tile's treatment: the flag across its top, a gold glow. */
+html:not(#_) .headline{
+  border-top:0; padding:1.2rem 1.3rem;
+  background:radial-gradient(120% 90% at 50% 0%, rgba(252,209,22,.14), transparent 70%), #18150e;
+  box-shadow:0 0 0 1px rgba(252,209,22,.22), 0 10px 40px rgba(252,209,22,.05);
+}
+html:not(#_) .headline::after{ content:''; position:absolute; left:0; right:0; top:0; height:3px; border-radius:var(--r-md) var(--r-md) 0 0; background:var(--tri); box-shadow:0 0 14px rgba(252,209,22,.45); }
+/* The treasury sets this size as clamp(1.9rem,1.2rem+2.6vw,3rem): without
+   spaces around the + that is not valid CSS, so browsers dropped it and the
+   balance — the figure the page exists for — rendered at body size. */
+html:not(#_) .headline .big{ font-family:var(--data); font-size:clamp(2rem, 1.3rem + 2.6vw, 3.2rem); color:var(--gold); text-shadow:0 0 26px rgba(252,209,22,.45); }
+html:not(#_) .headline .label{ font-family:var(--body); font-size:.9rem; font-weight:600; letter-spacing:0; text-transform:none; color:var(--text-mid); }
+
+/* Home page figures sit on rules, as before, but glow in their colour. */
+html:not(#_) .figure .n{ font-family:var(--data); font-weight:600; text-shadow:0 0 22px color-mix(in srgb, currentColor 35%, transparent); }
+html:not(#_) .figure .k{ font-size:.9rem; }
+html:not(#_) .figure.people .n{ color:var(--blue); } html:not(#_) .figure.land .n{ color:var(--green); } html:not(#_) .figure.money .n{ color:var(--gold); }
+
+/* --- destinations (home page) ---------------------------------------------- */
+html:not(#_) .way{ --c:var(--mark, var(--gold)); border-top:2px solid var(--mark, var(--line-hot)); padding:1.25rem 1.35rem 1.35rem; }
+html:not(#_) .way:hover{ border-color:var(--line-hot); border-top-color:var(--mark, var(--gold)); box-shadow:0 0 30px color-mix(in srgb, var(--mark, #fcd116) 16%, transparent); }
+html:not(#_) .way h3{ font-family:var(--hud); font-weight:700; letter-spacing:.04em; text-transform:uppercase; font-size:1.05rem; text-shadow:0 0 16px color-mix(in srgb, var(--mark, #fcd116) 35%, transparent); }
+html:not(#_) .way p{ font-size:.88rem; }
+html:not(#_) .ways-list a{ border-radius:10px; }
+html:not(#_) .ways-list a:hover{ background:var(--surface-2); }
+html:not(#_) .ways-list .nm{ font-family:var(--body); font-weight:600; }
+
+/* --- status lines ---------------------------------------------------------- */
+html:not(#_) .recon{ border-left:1px solid var(--line); border-top:2px solid var(--c, var(--text-low)); }
+html:not(#_) .recon.match{ --c:var(--green); } html:not(#_) .recon.drift{ --c:var(--red); } html:not(#_) .recon.unknown{ --c:var(--gold); }
+html:not(#_) .recon .rmain{ font-family:var(--body); font-weight:700; font-size:1.05rem; }
+html:not(#_) .recon.drift .rmain{ text-shadow:0 0 16px rgba(239,68,68,.35); }
+html:not(#_) .recon .rdetail{ font-family:var(--body); font-size:.9rem; }
+html:not(#_) .phase{ border-left:1px solid var(--line); border-top:2px solid var(--accent, var(--text-low)); --c:var(--accent, var(--gold)); }
+html:not(#_) .phase .ph{ font-family:var(--body); font-weight:700; font-size:1.1rem; }
+html:not(#_) .phase .det{ font-family:var(--body); font-size:.86rem; }
+
+/* --- tables ---------------------------------------------------------------- */
+html:not(#_) table th{ font-family:var(--body); font-size:.76rem; font-weight:600; letter-spacing:0; text-transform:none; color:var(--text-low); border-bottom:1px solid var(--line); }
+html:not(#_) table td{ border-bottom:1px solid rgba(255,255,255,.04); }
+html:not(#_) tr:hover td{ background:rgba(255,255,255,.025); }
+html:not(#_) td.amt.pos{ color:var(--green); } html:not(#_) td.amt.neg{ color:var(--red); }
+html:not(#_) .kind, html:not(#_) .mark{ border-radius:999px; font-family:var(--body); font-size:.72rem; letter-spacing:0; text-transform:none; }
+
+/* --- government ------------------------------------------------------------ */
+html:not(#_) .branch{ border-top:2px solid var(--accent); --c:var(--accent); }
+html:not(#_) .branch h2{ font-family:var(--hud); font-weight:700; letter-spacing:.05em; text-transform:uppercase; font-size:1.25rem; text-shadow:0 0 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+html:not(#_) .branch .kind{ font-family:var(--body); font-size:.86rem; letter-spacing:0; text-transform:none; color:var(--text-low); border:0; padding:0; }
+html:not(#_) .office{ border-bottom-color:rgba(255,255,255,.05); }
+html:not(#_) .office-name{ font-family:var(--body); font-size:.82rem; font-weight:600; letter-spacing:0; text-transform:none; color:var(--text-mid); }
+html:not(#_) .person{ border-radius:9px; border-color:var(--line); background:var(--surface-2); font-family:var(--body); font-size:.86rem; max-height:2.3rem; }
+html:not(#_) .person.head{ border-color:var(--gold); box-shadow:0 0 14px rgba(252,209,22,.25); }
+html:not(#_) .region{ border-top:2px solid var(--line-hot); }
+html:not(#_) .region.short{ border-top-color:var(--red); --c:var(--red); }
+html:not(#_) .region-head .rn{ font-family:var(--body); font-weight:700; }
+html:not(#_) .region-head .seats{ font-family:var(--data); font-size:.72rem; letter-spacing:0; text-transform:none; }
+html:not(#_) .chamber{ --c:var(--gold); }
+html:not(#_) .chamber .readout b{ font-family:var(--body); }
+html:not(#_) .party-chip{ border-left:1px solid var(--line); border-top:2px solid var(--party, var(--line-hot)); }
+
+/* --- elections -------------------------------------------------------------- */
+html:not(#_) .contest{ border-left:1px solid var(--line); border-top:2px solid var(--accent, var(--line-hot)); --c:var(--accent, var(--gold)); }
+html:not(#_) .contest-head h3{ font-family:var(--body); font-weight:700; font-size:1.02rem; }
+html:not(#_) .contest-head .seats{ font-family:var(--body); font-size:.8rem; letter-spacing:0; text-transform:none; }
+html:not(#_) .cand{ border-radius:9px; background:var(--surface-2); border-color:var(--line); }
+html:not(#_) .cand.on{ border-color:var(--green); background:rgba(34,197,94,.1); box-shadow:0 0 16px rgba(34,197,94,.18); }
+html:not(#_) .cand .nm{ font-family:var(--body); font-size:.9rem; font-weight:600; }
+html:not(#_) .receipt{ border-left:1px solid var(--line); border-top:2px solid var(--green); --c:var(--green); }
+html:not(#_) .receipt .code{ text-shadow:0 0 22px rgba(34,197,94,.45); }
+html:not(#_) .tabs .tab{ border-radius:9px; font-family:var(--body); font-weight:600; }
+html:not(#_) .tabs .tab.on{ background:var(--gold); border-color:var(--gold); box-shadow:0 0 14px rgba(252,209,22,.3); }
+
+/* --- forms and admin --------------------------------------------------------
+   Inputs are named by element as well as class: ".in" is also what the
+   treasury calls its money-in tile, and a bare .in rule restyled that tile
+   as a text box. */
+html:not(#_) .admin{ border-style:solid; --c:var(--red); }
+html:not(#_) .admin h2{ font-family:var(--hud); font-weight:700; letter-spacing:.05em; text-transform:uppercase; font-size:1rem; }
+html:not(#_) .admin legend{ font-family:var(--body); font-size:.86rem; font-weight:700; letter-spacing:0; text-transform:none; }
+html:not(#_) .f label, html:not(#_) .admin .hint{ font-family:var(--body); font-size:.8rem; letter-spacing:0; }
+html:not(#_) .f input, html:not(#_) .f select, html:not(#_) input.in, html:not(#_) select.in, html:not(#_) textarea.in, html:not(#_) .rangebar input[type=date]{ border-radius:8px; border-color:var(--line-hot); background:rgba(0,0,0,.3); }
+html:not(#_) .f input:focus, html:not(#_) .f select:focus, html:not(#_) input.in:focus, html:not(#_) select.in:focus, html:not(#_) textarea.in:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(252,209,22,.12); }
+html:not(#_) .mrow{ border-radius:9px; background:var(--surface-2); border-color:var(--line); }
+
+/* --- growth ----------------------------------------------------------------- */
+html:not(#_) .tpanel{ border-left:1px solid var(--line); border-top:2px solid var(--gold); --c:var(--gold); }
+html:not(#_) .sweep-head{ font-family:var(--body); font-size:.82rem; border-bottom-color:var(--line); }
+html:not(#_) .ev{ font-size:.9rem; }
+html:not(#_) .rangebar{ font-family:var(--body); font-size:.82rem; }
+
+/* --- notices ---------------------------------------------------------------- */
+html:not(#_) .empty{ border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); color:var(--text-mid); font-size:.92rem; }
+html:not(#_) .note, html:not(#_) .hint{ font-family:var(--body); letter-spacing:0; }
+html:not(#_) .msg{ font-family:var(--body); font-size:.86rem; }
+html:not(#_) footer{ font-family:var(--data); font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; border-top-color:var(--line); }
+
+/* --- the flag edge glows faintly, like the Economy page's ------------------ */
+html:not(#_) .flag-edge{ box-shadow:0 0 18px rgba(252,209,22,.18); }
+
+@media (max-width:720px){
+  html:not(#_) .masthead h1, html:not(#_) .pagehead h1{ font-size:2rem; }
+  html:not(#_) .stat .n{ font-size:1.25rem; }
+}

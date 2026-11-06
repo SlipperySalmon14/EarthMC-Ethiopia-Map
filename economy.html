@@ -938,6 +938,67 @@ table.margins td:first-child{ font-size:.88rem; }
 .bizcard .say b.c-pay{ color:#8db6ff; } .bizcard .say b.c-fee{ color:var(--y); } .bizcard .say b.c-cost{ color:#ff8a8a; } .bizcard .say b.c-in{ color:var(--g); } .bizcard .say b.neg{ color:var(--r); }
 .bizcard .splitbar.sm{ margin:0 0 .8rem; }
 .kpis .op{ align-self:center; }
+
+/* ---------------------------------------------------------------------------
+   v9 theme
+
+   The calm layout keeps its rounded cards and plain labels; the light comes
+   back. Each card carries its colour as a soft wash from one corner and a
+   short lit edge, figures glow in their own colour, the dial has its bezel
+   again, and the flag's three colours run under the active tab and across
+   the profit tile. Colour still means one thing each — it just shines now.
+   --------------------------------------------------------------------------- */
+
+/* cards: a wash of their colour from the top-left, and a lit top edge */
+.panel{ background:radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--c, #fcd116) 9%, transparent), transparent 62%), var(--surface); }
+.panel::after{ display:block !important; content:''; position:absolute; left:1.2rem; top:-1px; width:5rem; height:2px; border-radius:2px;
+  background:linear-gradient(90deg, var(--c, #fcd116), transparent); box-shadow:0 0 12px var(--c, #fcd116); pointer-events:none; }
+.ph h3::before{ box-shadow:0 0 10px var(--c, var(--y)), 0 0 2px var(--c, var(--y)); }
+
+/* figure tiles: colour at the top, a glow on the number's colour */
+.kpi{ border-top:2px solid var(--c); background:linear-gradient(180deg, color-mix(in srgb, var(--c) 11%, transparent), transparent 70%), var(--surface); }
+.kpi .k::before{ box-shadow:0 0 8px var(--c); }
+.kpi .n{ text-shadow:0 0 18px color-mix(in srgb, var(--c) 35%, transparent); }
+.kpi.hero{ border-top:0; background:radial-gradient(120% 90% at 50% 0%, rgba(252,209,22,.16), transparent 70%), #18150e; box-shadow:0 0 0 1px rgba(252,209,22,.25), 0 10px 40px rgba(252,209,22,.06); }
+.kpi.hero::after{ box-shadow:0 0 14px rgba(252,209,22,.5); }
+.kpi.hero .n{ text-shadow:0 0 26px rgba(252,209,22,.45); }
+.kpi.hero.neg .n{ text-shadow:0 0 26px rgba(239,68,68,.45); }
+.kpi .spark polyline:last-child{ filter:drop-shadow(0 0 3px currentColor); }
+.kpi.sel{ box-shadow:0 0 0 1px var(--c) inset, 0 0 24px color-mix(in srgb, var(--c) 18%, transparent); }
+
+/* the businesses */
+.system{ border-top:2px solid var(--c); background:radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--c) 12%, transparent), transparent 65%), var(--surface); }
+.system:hover, .system:focus-visible{ box-shadow:0 0 30px color-mix(in srgb, var(--c) 14%, transparent); }
+.system header i{ box-shadow:0 0 10px var(--c); }
+.system .lead span{ text-shadow:0 0 18px color-mix(in srgb, var(--c) 30%, transparent); }
+.bizcard{ border-top:2px solid var(--c); background:radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--c) 10%, transparent), transparent 65%), var(--surface); }
+.bizcard h4::before{ box-shadow:0 0 10px var(--c); }
+
+/* tabs and controls */
+.tab.on::after{ height:3px; box-shadow:0 0 12px rgba(252,209,22,.45); }
+.chip.on{ box-shadow:0 0 16px rgba(252,209,22,.35); }
+#bfilt .chip.on{ box-shadow:0 0 14px rgba(252,209,22,.3); }
+.ph .seg button.on, .floorbar .seg button.on{ background:color-mix(in srgb, var(--c, #fcd116) 18%, transparent); color:var(--fg); }
+.led.live, .status .led.live{ box-shadow:0 0 10px var(--g); }
+.top h1{ text-shadow:0 0 34px rgba(252,209,22,.22); }
+
+/* bars and lists */
+.mixbar span, .splitbar span{ box-shadow:0 0 10px color-mix(in srgb, currentColor 0%, transparent); filter:saturate(1.1); }
+.splitbar span, .mixbar span{ filter:drop-shadow(0 0 4px rgba(255,255,255,.06)); }
+.barrow .track span{ background:linear-gradient(90deg, #16a34a, var(--g)); box-shadow:0 0 10px rgba(34,197,94,.45); }
+.rank .bar span{ box-shadow:0 0 8px rgba(255,255,255,.08); }
+.gl{ background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)); border:1px solid rgba(255,255,255,.05); }
+.gl.fee .n{ text-shadow:0 0 16px rgba(252,209,22,.35); } .gl.in .n, .gl.ahead .n{ text-shadow:0 0 16px rgba(34,197,94,.35); } .gl.behind .n{ text-shadow:0 0 16px rgba(239,68,68,.35); }
+
+/* the dial */
+.dial .tick{ stroke:rgba(245,241,232,.14); } .dial .tick.major{ stroke:rgba(245,241,232,.38); }
+.dial-total{ text-shadow:0 0 14px rgba(252,209,22,.3); }
+
+/* calendar: the busiest days light up */
+.cal .c[style*="box-shadow"]{ z-index:1; }
+
+/* the floor's frame */
+.floorwrap{ box-shadow:inset 0 0 40px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04), 0 12px 40px rgba(0,0,0,.35); }
 </style>
 </head>
 <body>
@@ -1061,7 +1122,7 @@ var SERVICE_NAMES = { recruiting:'Recruiting', mapart:'Mapart creation', claimma
   media:'Media creation', bulk:'Bulk sales' };
 var SPEND_NAMES = { buybacks:'Buy-backs', restock:'Restocking', materials:'Materials', refunds:'Refunds' };
 var TABS = [['overview','Overview'], ['emc','EMC<span class="long"> Services</span>'], ['shop','Shop'], ['spending','Spending'], ['history','History']];
-var PERIODS = [['7','7D'], ['30','30D'], ['mtd','Month'], ['90','90D'], ['year','1Y'], ['todate','To date'], ['custom','Custom']];
+var PERIODS = [['7','7D'], ['30','30D'], ['90','90D'], ['year','1Y'], ['todate','To date'], ['custom','Custom']];
 var HIST_FILTERS = [['all','Everything'], ['hand','By hand'], ['emc','EMC orders'], ['shop','Shop'], ['spend','Spending']];
 var SIZE_HINTS = ['1x1', '1x2', '2x2', '2x3', '3x3', '3x4', '4x4', '5x5'];
 
@@ -1112,6 +1173,7 @@ try {
   KEEP.forEach(function(k){ if (saved[k] !== undefined) state[k] = saved[k]; });
   if (saved.period === 'custom' && saved.from && saved.to){ state.from = saved.from; state.to = saved.to; }
   if (state.period === 'all') state.period = 'todate';
+  if (state.period === 'mtd') state.period = '30';
   if (state.flowMode === 'total') state.flowMode = 'flow';
 } catch (e) {}
 function remember(){
@@ -1344,7 +1406,15 @@ function countUp(root){
 function dial(groups, label){
   var S = 260, c = S / 2, out = [];
   var total = groups.reduce(function(a, g){ return a + g.v; }, 0);
-  out.push('<svg class="dial" viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="' + esc(label) + '">');
+  out.push('<svg class="dial" viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="' + esc(label) + '"><defs><filter id="dg' + (++chartSeq) +
+    '" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/><feColorMatrix in="b" type="matrix" ' +
+    'values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .5 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>');
+  var glowId = 'dg' + chartSeq;
+  for (var i = 0; i < 60; i++){
+    var a = (i * 6 - 90) * Math.PI / 180, major = i % 5 === 0, r2 = major ? 119 : 122;
+    out.push('<line class="tick' + (major ? ' major' : '') + '" x1="' + (c + 127 * Math.cos(a)).toFixed(1) + '" y1="' + (c + 127 * Math.sin(a)).toFixed(1) +
+      '" x2="' + (c + r2 * Math.cos(a)).toFixed(1) + '" y2="' + (c + r2 * Math.sin(a)).toFixed(1) + '"/>');
+  }
   function band(segs, r, w){
     var circ = 2 * Math.PI * r, at = 0, gap = segs.length > 1 ? 3 : 0;
     var whole = segs.reduce(function(s, x){ return s + x.v; }, 0) || 1;
@@ -1362,7 +1432,7 @@ function dial(groups, label){
     band(groups.length > 1 ? groups : [], 76, 8);
     var outer = [];
     groups.forEach(function(g){ (g.children && g.children.length ? g.children : [g]).forEach(function(ch){ outer.push(ch); }); });
-    band(outer, 100, 26);
+    out.push('<g filter="url(#' + glowId + ')">'); band(outer, 100, 24); out.push('</g>');
   } else out.push('<circle class="track" cx="' + c + '" cy="' + c + '" r="81" fill="none" stroke-width="34"/>');
 
   out.push(total
@@ -1462,7 +1532,10 @@ function xLabels(f, rows, out, xAt, labels){
   });
 }
 function glowDefs(f){
-  return '<filter id="' + f.id + 'g" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>';
+  return '<filter id="' + f.id + 'g" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="3.2"/></filter>' +
+    '<filter id="' + f.id + 'h" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>' +
+    '<feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .55 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="' + f.id + 's" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>';
 }
 function chart(host, rows, parts, opts){
   opts = opts || {};
@@ -1481,7 +1554,7 @@ function chart(host, rows, parts, opts){
     '<pattern id="' + f.id + 'p" width="8" height="5" patternUnits="userSpaceOnUse"><rect width="8" height="3.6" fill="#fff"/></pattern>' +
     '<mask id="' + f.id + 'm"><rect width="' + f.w + '" height="' + f.h + '" fill="url(#' + f.id + 'p)"/></mask>' + glowDefs(f) + '</defs>');
   axes(f, sc, out);
-  out.push('<g class="bars">');
+  out.push('<g class="bars" filter="url(#' + f.id + 'h)">');
   rows.forEach(function(r, i){
     var up = 0, down = 0;
     parts.forEach(function(p){
@@ -1503,7 +1576,8 @@ function trace(out, f, rows, key, color, xAt, yAt, ghost, dots){
   if (!rows.length) return;
   var d = rows.map(function(r, i){ return (i ? 'L' : 'M') + xAt(i).toFixed(1) + ' ' + yAt(r[key] || 0).toFixed(1); }).join('');
   if (ghost){ out.push('<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.4" stroke-dasharray="4 4" opacity=".75"/>'); return; }
-  out.push('<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>');
+  out.push('<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="5" opacity=".45" filter="url(#' + f.id + 'g)"/>' +
+    '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>');
   if (dots) rows.forEach(function(r, i){
     if (!r[key]) return;
     out.push('<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(r[key]).toFixed(1) + '" r="2.6" fill="' + color + '" stroke="#131110" stroke-width="1.2"/>');
@@ -2389,13 +2463,14 @@ function viewShop(){
   var warn = stats ? (stats.warnings || []).filter(function(w){ return idInWalls(w.shop_id); }) : [];
   out += '<div class="grid g-2">' +
     panel('Restock', '<div class="seg small" id="rst">' + [8, 16, 32, 64].map(function(v){
-      return '<button data-r="' + v + '" class="' + (restockAt === v ? 'on' : '') + '">≤' + v + '</button>'; }).join('') + '</div>',
+      return '<button data-r="' + v + '" class="' + (restockAt === v ? 'on' : '') + '" title="' + v + ' sales left or fewer">≤' + v + '</button>'; }).join('') + '</div>',
       !stats ? '<p class="note">' + (shop.key ? 'Stock levels need the Treasurer, Viceroy or Emperor role.' : 'Loading…') + '</p>'
       : restockList.length ? restockList.slice(0, 12).map(function(r){
           return '<div class="rank click" data-find="' + esc(r.item) + '"><span class="r ' + (r.stock === 0 ? 'neg' : 'warnc') + '">' + num(r.stock) + '</span><span class="nm">' + itemImg(r.item) + esc(pretty(r.item)) +
-            '<small>' + dealHtml(r) + (r.row_location ? ' · ' + esc(r.row_location) : '') + '</small></span><span class="v">' + (r.stock === 0 ? '<span class="neg">empty</span>' : 'left') + '</span></div>';
+            '<small>' + dealHtml(r) + ' · ' + num(itemsLeft(r)) + ' items' + (r.row_location ? ' · ' + esc(r.row_location) : '') + '</small></span><span class="v">' +
+            (r.stock === 0 ? '<span class="neg">empty</span>' : 'sale' + (r.stock === 1 ? '' : 's') + ' left') + '</span></div>';
         }).join('') + (restockList.length > 12 ? '<p class="note">and ' + (restockList.length - 12) + ' more</p>' : '')
-      : '<p class="note">Every sell barrel has more than ' + restockAt + ' left.</p>', '', '', C.warn) +
+      : '<p class="note">Every sell barrel has more than ' + restockAt + ' sales left.</p>', '', '', C.warn) +
     panel('Shop warnings', metaText('from the shop itself'), !stats ? '<p class="note">—</p>' : warn.length ? warn.slice(0, 10).map(function(w){
         return '<div class="rank click" data-find="' + esc(w.item || '') + '"><span class="r neg">' + num(w.times) + '×</span><span class="nm">' + itemImg(w.item) + esc(pretty(w.item)) +
           '<small>' + esc(pretty(w.kind)) + ' · last ' + esc(short(w.last_seen)) + '</small></span><span class="v"></span></div>';
@@ -2410,15 +2485,15 @@ function sellBarrels(){
   return shop.shops.filter(function(s){ return s.shop_type !== 'buy' && inWalls(s) && !(mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service); });
 }
 /* Stock value: what every sell barrel would bring in if it sold out at its
-   sign price, per item. Every stocked barrel counts — a barrel that sells
+   sign price, per item: sales left times the price. Every stocked barrel counts — a barrel that sells
    one item at a time carries no "items per sale" in the feed, and that
    means one, not unknown. */
 function shelfItems(){
   var by = {};
   sellBarrels().forEach(function(s){
     if (s.stock == null) return;
-    var o = by[s.item] || (by[s.item] = { item:s.item, value:0, stock:0, barrels:0, stocked:0 });
-    o.value += Math.floor(s.stock / perSale(s)) * (s.price || 0); o.stock += s.stock; o.barrels++;
+    var o = by[s.item] || (by[s.item] = { item:s.item, value:0, stock:0, sales:0, barrels:0, stocked:0 });
+    o.value += salesLeft(s) * (s.price || 0); o.stock += itemsLeft(s); o.sales += salesLeft(s); o.barrels++;
     if (s.stock > 0) o.stocked++;
   });
   return Object.keys(by).map(function(k){ return by[k]; }).sort(function(a, z){ return z.value - a.value || z.stock - a.stock; });
@@ -2438,7 +2513,8 @@ function drawShelves(){
   /* The ring shows the split; the list below names every item, so the ring
      carries no legend of its own to repeat it. */
   host.innerHTML = '<div class="mix">' + (kids.length ? dial([{ key:'stock', name:'Stock', color:C.in, v:value, children:kids }], 'Stock value') : '') +
-    '<div class="facts col"><span><b>' + gold(value) + '</b> if every sell barrel sold out</span><span><b>' + num(units) + '</b> units of <b>' + num(list.length) + '</b> items</span>' +
+    '<div class="facts col"><span><b>' + gold(value) + '</b> if every sell barrel sold out</span><span><b>' + num(units) + '</b> items across <b>' + num(list.length) + '</b> kinds</span>' +
+    '<span><b>' + num(sum(list, 'sales')) + '</b> sales left in the barrels</span>' +
     '<span><b>' + num(stocked) + '</b> of ' + num(sells.length) + ' sell barrels stocked</span>' +
     (withValue[0] ? '<span>Most valuable: <b>' + esc(pretty(withValue[0].item)) + '</b>, ' + Math.round(withValue[0].value / Math.max(1, value) * 100) + '% of it</span>' : '') + '</div></div>' +
     '<div class="listhead"><span>Every item</span><div class="seg small" id="shelfBy"><button data-b="value" class="' + (by === 'value' ? 'on' : '') + '">By value</button>' +
@@ -2447,7 +2523,7 @@ function drawShelves(){
       var v = by === 'units' ? x.stock : x.value;
       return '<div class="barrow click" data-find="' + esc(x.item) + '"><span class="nm">' + itemImg(x.item) + esc(pretty(x.item)) + '</span>' +
         '<span class="track"><span style="width:' + Math.max(1, Math.round(v / max * 100)) + '%"></span></span>' +
-        '<span class="v">' + (by === 'units' ? num(x.stock) : gold(x.value)) + '<small>' + (by === 'units' ? gold(x.value) : num(x.stock) + ' units') + '</small></span></div>';
+        '<span class="v">' + (by === 'units' ? num(x.stock) + ' items' : gold(x.value)) + '<small>' + (by === 'units' ? gold(x.value) : num(x.stock) + ' items · ' + num(x.sales) + ' sale' + (x.sales === 1 ? '' : 's')) + '</small></span></div>';
     }).join('') + '</div>' + (ranked.length > 10 && !floor.allShelves ? '<div class="actions"><button class="btn quiet" id="allShelves">Show all ' + ranked.length + '</button></div>' : '');
   wireMix(host);
   host.querySelectorAll('#shelfBy [data-b]').forEach(function(btn){ btn.addEventListener('click', function(){ floor.shelfBy = btn.dataset.b; drawShelves(); }); });
@@ -2508,7 +2584,7 @@ function drawShopGlance(){
   var days = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'];
   var dMax = Math.max.apply(null, data.byWeekday), hMax = Math.max.apply(null, data.byHour);
   host.innerHTML =
-    glance(empty ? 'behind' : '', seeStock ? num(empty) : '—', 'Barrels empty', seeStock ? num(low) + ' at or under ' + restockAt + ', of ' + num(sells.length) : '') +
+    glance(empty ? 'behind' : '', seeStock ? num(empty) : '—', 'Barrels empty', seeStock ? num(low) + ' with ' + restockAt + ' sales left or fewer, of ' + num(sells.length) : '') +
     glance('in', gold(b.gross + buy), 'Gold traded', gold(b.gross) + ' in sales, ' + gold(buy) + ' bought back') +
     glance('', num(unitsSold), 'Units sold', most ? 'most: ' + esc(pretty(most.cat)) + ', ' + num(most.qty) : 'nothing sold') +
     glance('', best ? esc(pretty(best.cat)) : '—', 'Best seller', best ? gold(best.gross) + ' from ' + num(best.n) + ' sale' + (best.n === 1 ? '' : 's') : 'nothing sold') +
@@ -2516,6 +2592,13 @@ function drawShopGlance(){
     glance('', dMax ? days[data.byWeekday.indexOf(dMax)] : '—', 'Busiest', hMax ? 'around ' + String(data.byHour.indexOf(hMax)).padStart(2, '0') + ':00 UTC' : 'no sales yet');
 }
 function perSale(s){ return s && s.amount > 0 ? s.amount : 1; }
+/* QuickShop reports a barrel's stock as how many SALES it has left, not how
+   many items are in it: a "64 for 1" barrel showing 54 can sell 54 more
+   times, which is 3,456 items. Reading 54 as items made a full barrel of
+   logs look like less than one sale, worth nothing. These two say it once,
+   so nothing else has to know. */
+function salesLeft(s){ return s && s.stock != null ? s.stock : null; }
+function itemsLeft(s){ return s && s.stock != null ? s.stock * perSale(s) : null; }
 function dealText(s){ var a = s.amount; return a == null || a === 1 ? goldText(s.price) : num(a) + ' for ' + goldText(s.price); }
 function dealHtml(s){ var a = s.amount; return a == null || a === 1 ? gold(s.price) : num(a) + ' for ' + gold(s.price); }
 
@@ -2528,14 +2611,14 @@ function itemRows(){
   var by = {}, sold = itemSales(), total = data.totals.bySource.shop.gross || 0;
   shop.shops.forEach(function(s){
     if (!s.item || !inWalls(s) || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
-    var r = by[s.item] || (by[s.item] = { item:s.item, barrels:0, stock:0, hasStock:false, price:null, amount:null });
+    var r = by[s.item] || (by[s.item] = { item:s.item, barrels:0, stock:0, sales:0, hasStock:false, price:null, amount:null });
     r.barrels++;
-    if (s.stock != null){ r.stock += s.stock; r.hasStock = true; }
+    if (s.stock != null){ r.stock += itemsLeft(s); r.sales += salesLeft(s); r.hasStock = true; }
     /* The cheapest deal per item, compared per item rather than per sign —
        "64 for 1" is cheaper than "1 for 1", though its price reads the same. */
     if (s.shop_type !== 'buy' && (r.price == null || s.price / perSale(s) < r.price / perSale(r))){ r.price = s.price; r.amount = s.amount; }
   });
-  Object.keys(sold).forEach(function(k){ if (!by[k]) by[k] = { item:k, barrels:0, stock:0, hasStock:false, price:null, amount:null }; });
+  Object.keys(sold).forEach(function(k){ if (!by[k]) by[k] = { item:k, barrels:0, stock:0, sales:0, hasStock:false, price:null, amount:null }; });
   return Object.keys(by).map(function(k){
     var r = by[k], c = sold[k] || {};
     r.n = c.n || 0; r.qty = c.qty || 0; r.gross = c.gross || 0; r.share = total ? r.gross / total : 0;
@@ -2560,9 +2643,9 @@ function renderItems(){
     var can = c[0] !== 'trend';
     return '<th' + (can ? ' class="sort' + (k === c[0] ? ' on' : '') + '" data-k="' + c[0] + '"' : '') + '>' + c[1] + (k === c[0] ? (dir < 0 ? ' ↓' : ' ↑') : '') + '</th>';
   }).join('') + '</tr></thead><tbody>' + rows.slice(0, floor.allItems ? 999 : 40).map(function(r){
-    var low = r.hasStock && r.stock <= restockAt;
+    var low = r.hasStock && r.sales <= restockAt;
     return '<tr class="click" data-find="' + esc(r.item) + '" title="Find on the floor"><td>' + itemImg(r.item) + esc(pretty(r.item)) + '</td>' +
-      '<td>' + (r.price == null ? '—' : dealHtml(r)) + '</td><td class="' + (low ? 'neg' : '') + '">' + (r.hasStock ? num(r.stock) : '—') + '</td>' +
+      '<td>' + (r.price == null ? '—' : dealHtml(r)) + '</td><td class="' + (low ? 'neg' : '') + '" title="' + (r.hasStock ? num(r.sales) + ' sales left' : '') + '">' + (r.hasStock ? num(r.stock) : '—') + '</td>' +
       '<td>' + num(r.barrels) + '</td><td>' + (r.n ? num(r.n) : '—') + '</td><td>' + (r.qty ? num(r.qty) : '—') + '</td>' +
       '<td>' + (r.gross ? gold(r.gross) : '—') + '</td><td>' + (r.gross ? Math.round(r.share * 100) + '%' : '—') + '</td>' +
       '<td>' + (r.gross ? catTrend('shop', r.item, '#1fbf5f') : '') + '</td><td>' + (prev && (r.gross || r.before) ? delta(r.gross, r.before, 'up', true) : '') + '</td></tr>';
@@ -2728,7 +2811,7 @@ function floorKey(){
   var keys = state.floorMode === 'sales'
     ? [it('rgba(34,197,94,.35)', 'Sold a little'), it(C.in, 'Sold the most'), it('#6b5236', 'Nothing sold this period')]
     : state.floorMode === 'stock'
-      ? [it(C.in, 'Stocked'), it(C.warn, 'At or under ' + restockAt), it(C.cost, 'Empty'), it('#6b5236', 'Buy barrel or no sign')]
+      ? [it(C.in, 'Stocked'), it(C.warn, restockAt + ' sales left or fewer'), it(C.cost, 'Empty'), it('#6b5236', 'Buy barrel or no sign')]
       : [it(C.in, 'Selling', counts.sell), it(C.pay, 'Buying', counts.buy), it(C.cost, 'Low stock', counts.low),
          it(C.fee, 'EMC service', counts.service), it('#6b5236', 'No sign yet', total - withShop)];
   return keys.join('') + '<span>' + num(total) + ' barrels · ' + num(withShop) + ' with a shop</span>';
@@ -2745,8 +2828,10 @@ function floorCard(){
   var kv = function(k, v){ out += '<div class="kv"><dt>' + k + '</dt><dd>' + v + '</dd></div>'; };
   kv(s.shop_type === 'buy' ? 'Paying' : 'Price', dealHtml(s));
   if (s.amount > 1) kv('Each', (s.price / s.amount).toFixed(2) + ING);
-  if (s.stock != null) kv('In stock', '<span class="' + (s.stock <= restockAt ? 'neg' : '') + '">' + num(s.stock) + '</span>' +
-    ' · ' + num(Math.floor(s.stock / perSale(s))) + ' sale' + (Math.floor(s.stock / perSale(s)) === 1 ? '' : 's') + ' left');
+  if (s.stock != null){
+    kv('Sales left', '<span class="' + (s.stock <= restockAt ? 'neg' : '') + '">' + num(salesLeft(s)) + '</span>' + (perSale(s) > 1 ? ' · ' + num(itemsLeft(s)) + ' items' : ''));
+    kv('Worth', gold(salesLeft(s) * (s.price || 0)) + ' <small style="color:var(--fg3)">if it sells out</small>');
+  }
   if (m.service){
     kv('Sells', esc([serviceName(m.service), m.variant, m.priority ? 'Priority' : ''].filter(Boolean).join(' · ')));
     kv('Counted', 'on the orders it pays for');
@@ -2893,8 +2978,8 @@ after.shop = function(v){
   if ($('iq')){ var t2 = null; $('iq').addEventListener('input', function(){ clearTimeout(t2); var val = this.value; t2 = setTimeout(function(){ floor.itemQ = val; renderItems(); }, 200); }); }
   renderItems();
   if ($('csvItems')) $('csvItems').addEventListener('click', function(){
-    downloadCsv('shop-items', ['Item', 'Price', 'Per', 'Stock', 'Barrels', 'Sales', 'Units', 'Gold'], itemRows().map(function(r){
-      return [pretty(r.item), r.price == null ? '' : r.price, r.amount || 1, r.hasStock ? r.stock : '', r.barrels, r.n, r.qty, r.gross]; }));
+    downloadCsv('shop-items', ['Item', 'Price', 'Per sale', 'Items in stock', 'Sales left', 'Barrels', 'Sales', 'Units sold', 'Gold'], itemRows().map(function(r){
+      return [pretty(r.item), r.price == null ? '' : r.price, r.amount || 1, r.hasStock ? r.stock : '', r.hasStock ? r.sales : '', r.barrels, r.n, r.qty, r.gross]; }));
   });
   /* The barrel list stays open across redraws — saving a barrel reloads the
      figures, and a list that snapped shut after every save would be

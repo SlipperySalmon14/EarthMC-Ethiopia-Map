@@ -546,6 +546,8 @@ section.panel + section.panel, section.panel + details.panel, .grid + section.pa
 }
 
 
+
+
 /* ---------------------------------------------------------------------------
    v6 theme
 
@@ -725,6 +727,40 @@ td i.sw.sm{ width:.42rem; height:.42rem; }
   .biz th:nth-child(7), .biz td:nth-child(7), .biz th:nth-child(8), .biz td:nth-child(8){ display:none; }
 }
 .ph .hint{ margin-left:auto; }
+
+/* tracked tile */
+.kpi .tracked{ position:absolute; top:.55rem; right:.6rem; padding:.08rem .32rem; border:1px solid var(--c); font-family:var(--data); font-size:.5rem;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--c); }
+.kpi.sel .k::after{ content:none; }
+/* legend names on one line */
+.lg .nm .t{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* the To date picker shares the custom-range row */
+#asofBox{ display:none; } #asofBox.show{ display:flex; }
+
+/* the barrel list: one line each until opened */
+#bfilt .chip small{ color:var(--fg3); margin-left:.2rem; }
+#bfilt .chip.on small{ color:#141006; }
+.brow{ border-bottom:1px solid rgba(255,255,255,.05); }
+.bhead{ display:grid; grid-template-columns:1.2rem minmax(0, 1fr) auto 1.2rem; gap:.6rem; align-items:center; width:100%; padding:.55rem .3rem;
+  border:0; background:none; color:inherit; text-align:left; cursor:pointer; }
+.bhead:hover{ background:rgba(255,255,255,.03); }
+.bhead .ticon{ margin:0; }
+.bhead .it{ font-size:.9rem; color:var(--fg); min-width:0; }
+.bhead .it small{ display:block; font-family:var(--data); font-size:.6rem; color:var(--fg3); }
+.bhead .it small b{ color:#ff8a8a; font-weight:400; }
+.bstate{ font-family:var(--data); font-size:.6rem; letter-spacing:.06em; color:var(--fg3); padding:.15rem .45rem; border:1px solid var(--edge); white-space:nowrap; }
+.bstate.svc{ color:var(--y); border-color:rgba(252,209,22,.4); }
+.chev{ font-family:var(--data); color:var(--fg3); text-align:center; }
+.brow.open{ background:rgba(255,255,255,.02); }
+.bbody{ padding:.2rem .3rem .9rem 2rem; }
+.svcform .sf1{ display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin-bottom:.6rem; }
+.svcform .q{ font-family:var(--data); font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--fg3); }
+.svcform .seg button{ padding:.36rem .65rem; font-family:var(--data); font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; color:var(--fg2); }
+.svcform .seg button.on{ background:rgba(255,255,255,.08); color:var(--fg); box-shadow:0 -2px 0 var(--y) inset; }
+.svcform .yn button[data-yn="1"].on{ box-shadow:0 -2px 0 var(--y) inset; color:var(--y); }
+.svcform .factors{ display:contents; }
+.fcard .mark .svcform .form{ grid-template-columns:1fr 1fr; }
+@media (max-width:720px){ .bbody{ padding-left:.3rem; } .bhead{ grid-template-columns:1.2rem minmax(0, 1fr) 1.2rem; } .bhead .bstate{ display:none; } }
 </style>
 </head>
 <body>
@@ -767,6 +803,11 @@ td i.sw.sm{ width:.42rem; height:.42rem; }
         <input type="date" id="cTo" aria-label="To">
         <button class="btn" type="button" id="cGo">Show</button>
       </div>
+      <div class="custom" id="asofBox">
+        <span class="msg">Everything up to</span>
+        <input type="date" id="asOf" aria-label="Up to">
+        <button class="btn" type="button" id="asOfGo">Show</button>
+      </div>
     </div>
     <div id="view"></div>
   </div>
@@ -791,7 +832,7 @@ td i.sw.sm{ width:.42rem; height:.42rem; }
     <h3>Shortcuts</h3>
     <dl>
       <dt><kbd>1</kbd>&ndash;<kbd>5</kbd></dt><dd>Switch tab</dd>
-      <dt><kbd>&#8592;</kbd> <kbd>&#8594;</kbd></dt><dd>The period before or after</dd>
+      <dt><kbd>&#8592;</kbd> <kbd>&#8594;</kbd></dt><dd>The period before or after (on To date: a month earlier or later)</dd>
       <dt><kbd>R</kbd></dt><dd>Refresh the figures</dd>
       <dt><kbd>/</kbd></dt><dd>Search History</dd>
       <dt><kbd>F</kbd></dt><dd>Find an item on the shop floor</dd>
@@ -843,10 +884,22 @@ var SERVICE_NAMES = { recruiting:'Recruiting', mapart:'Mapart creation', claimma
   media:'Media creation', bulk:'Bulk sales' };
 var SPEND_NAMES = { buybacks:'Buy-backs', restock:'Restocking', materials:'Materials', refunds:'Refunds' };
 var TABS = [['overview','Overview'], ['emc','EMC<span class="long"> Services</span>'], ['shop','Shop'], ['spending','Spending'], ['history','History']];
-var PERIODS = [['7','7D'], ['30','30D'], ['mtd','Month'], ['90','90D'], ['year','1Y'], ['all','All'], ['custom','Custom']];
+var PERIODS = [['7','7D'], ['30','30D'], ['mtd','Month'], ['90','90D'], ['year','1Y'], ['todate','To date'], ['custom','Custom']];
 var HIST_FILTERS = [['all','Everything'], ['hand','By hand'], ['emc','EMC orders'], ['shop','Shop'], ['spend','Spending']];
 var SIZE_HINTS = ['1x1', '1x2', '2x2', '2x3', '3x3', '3x4', '4x4', '5x5'];
 
+/* What tells one order of a service from another. Picked per service, so a
+   recruiting barrel asks only regular or priority, a mapart barrel asks its
+   size, and a media barrel what kind of piece it is. A service added later
+   gets a plain "type" until it is described here. */
+var SERVICE_FACTORS = {
+  recruiting: { priority:true },
+  mapart:     { priority:true, variant:{ label:'Size', options:SIZE_HINTS, placeholder:'2x2' } },
+  claimmap:   { priority:true, variant:{ label:'Size', options:SIZE_HINTS, placeholder:'2x2' } },
+  media:      { priority:true, variant:{ label:'Kind', options:['LARP document', 'Banner', 'Poster', 'Video'], placeholder:'e.g. LARP document' } },
+  bulk:       { priority:false, variant:{ label:'What is sold', placeholder:'e.g. a stack of logs' } },
+};
+function factorsOf(svc){ return SERVICE_FACTORS[svc] || { priority:true, variant:{ label:'Type', placeholder:'if it comes in kinds' } }; }
 function serviceName(s){
   if (SERVICE_NAMES[s]) return SERVICE_NAMES[s];
   var r = data && (data.rates || []).find(function(x){ return x.service === s && !x.priority; });
@@ -871,7 +924,7 @@ function typeName(t, sized){
 /* --- state, remembered between visits ----------------------------------------
    The choices a treasurer makes — which tab, which period, which chart mode —
    are kept on this device, so the page opens the way it was left. */
-var KEEP = ['tab', 'period', 'mix', 'flowMode', 'compare', 'paceKey', 'heatKey', 'typeSvc', 'floorMode', 'floorLevel', 'auto', 'hist'];
+var KEEP = ['tab', 'period', 'mix', 'flowMode', 'compare', 'paceKey', 'heatKey', 'typeSvc', 'floorMode', 'floorLevel', 'auto', 'hist', 'asOf'];
 var state = {
   tab:'overview', period:'30', from:null, to:null, mix:'gross', flowMode:'flow', compare:true, paceKey:'profit',
   heatKey:'gross', typeSvc:null, floorMode:'status', floorLevel:'all', auto:false, hist:'all', q:'',
@@ -881,6 +934,8 @@ try {
   var saved = JSON.parse(localStorage.getItem('economy.v5') || '{}');
   KEEP.forEach(function(k){ if (saved[k] !== undefined) state[k] = saved[k]; });
   if (saved.period === 'custom' && saved.from && saved.to){ state.from = saved.from; state.to = saved.to; }
+  if (state.period === 'all') state.period = 'todate';
+  if (state.flowMode === 'total') state.flowMode = 'flow';
 } catch (e) {}
 function remember(){
   try {
@@ -937,7 +992,13 @@ function addMonths(t, n){ var d = new Date(t); return Date.UTC(d.getUTCFullYear(
 function setRange(){
   var end = todayStart() + DAY;
   if (state.period === 'custom' && state.from) return;
-  if (state.period === 'all'){ state.from = state.to = null; return; }
+  if (state.period === 'all') state.period = 'todate';
+  if (state.period === 'todate'){
+    /* Everything from the first record up to the chosen day, today unless
+       another is picked: what the business had made by that date. */
+    var asOf = state.asOf && state.asOf <= ymd(todayStart()) ? state.asOf : ymd(todayStart());
+    state.from = null; state.to = ymd(t0(asOf) + DAY); return;
+  }
   if (state.period === 'mtd'){ state.from = ymd(monthStart(todayStart())); state.to = ymd(end); return; }
   var days = state.period === 'year' ? 365 : Number(state.period) || 30;
   state.from = ymd(end - days * DAY); state.to = ymd(end);
@@ -953,6 +1014,13 @@ function prevRange(){
 }
 /* ◀ ▶ move the window by its own length. Forward stops at today. */
 function stepRange(dir){
+  if (state.period === 'todate'){
+    /* Stepping a to-date view moves the day it runs up to, a month at a time. */
+    var cur = new Date(t0(state.to) - DAY);
+    var t = Math.min(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + dir, Math.min(cur.getUTCDate(), 28)), todayStart());
+    var fd = firstDay(); if (fd) t = Math.max(t, t0(fd));
+    state.asOf = ymd(t); setRange(); load(); return;
+  }
   if (!state.from) return;
   var len = t0(state.to) - t0(state.from), end = todayStart() + DAY;
   var f, t;
@@ -974,7 +1042,9 @@ function firstDay(){
 function spanFrom(){ return state.from || firstDay() || ymd(todayStart()); }
 function spanTo(){ return state.to || ymd(todayStart() + DAY); }
 function rangeDays(){ return Math.max(1, Math.round((t0(spanTo()) - t0(spanFrom())) / DAY)); }
-function q(from, to){ return from ? '?from=' + from + '&to=' + to : ''; }
+function q(from, to){ return from ? '?from=' + from + '&to=' + to : to ? '?to=' + to : ''; }
+/* The current period as query parameters, for routes that take more after it. */
+function rangeQS(){ return state.from ? 'from=' + state.from + '&to=' + state.to + '&' : state.to ? 'to=' + state.to + '&' : ''; }
 function grain(){ var n = rangeDays(); return n <= 45 ? 'day' : n <= 200 ? 'week' : 'month'; }
 function grainly(){ return { day:'Daily', week:'Weekly', month:'Monthly' }[grain()]; }
 
@@ -1065,6 +1135,7 @@ function kpis(items){
       '<div class="kpi' + (it.hero ? ' hero' : '') + (it.hero && it.value < 0 ? ' neg' : '') + (it.pick ? ' pick' : '') +
         (it.pick && state.paceKey === it.pick ? ' sel' : '') + '" style="--c:' + (it.color || C.fee) + '"' + (it.pick ? ' data-pick="' + it.pick + '" tabindex="0"' : '') +
         (it.hint ? ' title="' + esc(it.hint) + '"' : '') + '>' +
+      (it.pick && state.paceKey === it.pick ? '<span class="tracked" title="Shown in the pace chart">Pace</span>' : '') +
       '<span class="k">' + esc(it.label) + (it.cap ? '<em>' + esc(it.cap) + '</em>' : '') + '</span>' +
       '<span class="n" data-count="' + Math.round(it.value || 0) + '">' + sgold(it.value) + '</span>' +
       delta(it.value, it.prev, it.mode) + (it.spark ? sparkline(it.spark, it.hero ? (it.value < 0 ? C.cost : C.in) : (it.color || C.fee)) : '') + '</div>';
@@ -1136,7 +1207,7 @@ function legend(groups, flat){
   var pct = function(v, of){ return of ? Math.round((v / of) * 100) : 0; };
   var row = function(g, note){
     return '<div class="lg" data-k="' + esc(g.key) + '"><i style="background:' + g.color + '"></i>' +
-      '<span class="nm">' + esc(g.name) + (note ? '<small>' + esc(note) + '</small>' : '') + '</span>' +
+      '<span class="nm"><span class="t" title="' + esc(g.name) + '">' + esc(g.name) + '</span>' + (note ? '<small>' + esc(note) + '</small>' : '') + '</span>' +
       '<span class="v">' + sgold(g.v) + '</span><span class="p">' + pct(g.v, total) + '%</span></div>';
   };
   if (flat) return groups.map(function(g){ return (g.children || []).map(function(x){ return row(x); }).join(''); }).join('');
@@ -1408,11 +1479,16 @@ function renderControls(){
     return '<button class="chip' + (state.period === p[0] ? ' on' : '') + '" data-p="' + p[0] + '">' + p[1] + '</button>';
   }).join('');
   $('custom').classList.toggle('show', state.period === 'custom');
+  $('asofBox').classList.toggle('show', state.period === 'todate');
   if (state.period === 'custom' && state.from){ $('cFrom').value = state.from; $('cTo').value = ymd(t0(state.to) - DAY); }
-  $('stepBack').disabled = !state.from;
-  $('stepFwd').disabled = !state.from || state.to >= ymd(todayStart() + DAY);
+  if (state.period === 'todate' && state.to){ $('asOf').value = ymd(t0(state.to) - DAY); $('asOf').max = ymd(todayStart()); }
+  $('stepBack').disabled = !state.from && state.period !== 'todate';
+  $('stepFwd').disabled = (!state.from && state.period !== 'todate') || !state.to || state.to >= ymd(todayStart() + DAY);
   var r;
-  if (!state.from){ var fd = firstDay(); r = fd ? '<b>Everything</b> since ' + esc(short(fd)) : '<b>Everything</b> on record'; }
+  if (!state.from){
+    var fd = firstDay(), upto = state.to ? ymd(t0(state.to) - DAY) : ymd(todayStart());
+    r = '<b>To ' + (upto === ymd(todayStart()) ? 'date' : esc(dayHead(upto))) + '</b>' + (fd ? ' · everything since ' + esc(short(fd)) : '');
+  }
   else {
     r = '<b>' + esc(short(state.from)) + ' – ' + esc(short(ymd(t0(state.to) - DAY))) + '</b>';
     var pr = prevRange();
@@ -1430,6 +1506,7 @@ function renderControls(){
         renderControls();
         return;
       }
+      if (state.period === 'todate' && !state.asOf) state.asOf = ymd(todayStart());
       state.from = null; setRange(); load();
     });
   });
@@ -1495,21 +1572,21 @@ function looseWarning(){
 var PACE = { gross:'Total value', kept:'Company income', profit:'Profit', workers:'Worker payment', spend:'Costs' };
 var PACE_COLOR = { gross:C.in, kept:C.fee, profit:C.profit, workers:C.pay, spend:C.cost };
 function modeSwitch(){
-  return '<div class="seg small" id="flowMode">' + [['flow','Flow'], ['total','Running total'], ['avg','7-day average']].map(function(m){
+  return '<div class="seg small" id="flowMode">' + [['flow','Flow'], ['avg','7-day average']].map(function(m){
     return '<button data-m="' + m[0] + '" class="' + (state.flowMode === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') +
     '</div><button class="tbtn" id="cmpBtn" title="Lay the period before over this one as a dashed line">' + (state.compare ? '◉' : '○') + ' Compare</button>';
 }
-function flowTitle(word){ return state.flowMode === 'flow' ? grainly() + ' ' + word : state.flowMode === 'total' ? 'Running total' : '7-day average'; }
+function flowTitle(word){ return state.flowMode === 'avg' ? '7-day average' : grainly() + ' ' + word; }
 function viewOverview(){
   var t = data.totals, p = prev ? prev.totals : {}, rows = flowRows();
   var col = function(k){ return rows.map(function(r){ return r[k]; }); };
   var out = kpis([
     { label:'Total value', value:t.gross, prev:p.gross, mode:'up', spark:col('gross'), pick:'gross', color:C.in,
       hint:'The full value of every order, plus shop sales and other income. Click to follow it in the pace chart.' },
-    { op:'−', label:'Worker payment', cap:'for completing orders', value:t.workers, prev:p.workers, mode:'flat', spark:col('paid'), pick:'workers', color:C.pay,
-      hint:'Paid to whoever completed each order, once it is done. Paid and still owed are both counted.' },
+    { op:'−', label:'Worker payment', cap:'held in escrow until each order is done', value:t.workers, prev:p.workers, mode:'flat', spark:col('paid'), pick:'workers', color:C.pay,
+      hint:'Each order\u2019s payment for completing it. Held in escrow when the order is placed and released to the worker once it is completed.' },
     { op:'=', label:'Company income', value:kept(t), prev:prev ? kept(p) : null, mode:'up', spark:col('kept'), pick:'kept', color:C.fee,
-      hint:'The company\u2019s fee on each order, plus what the shop takes' },
+      hint:'The company\u2019s cut of each order, added to the bank when the order is placed, plus what the shop takes' },
     { op:'−', label:'Costs', value:t.spend, prev:p.spend, mode:'down', spark:col('spend'), pick:'spend', color:C.cost, hint:'Restocking, buy-backs, materials and refunds' },
     { op:'=', label:'Profit', value:profit(t), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), hero:true, pick:'profit', color:C.profit },
   ]) + looseWarning();
@@ -1517,14 +1594,20 @@ function viewOverview(){
   var label = { gross:'Value', kept:'Income', spend:'Costs' }[state.mix];
   var groups = state.mix === 'spend' ? sourceGroups(function(c){ return c.spend; }, SPEND_COLORS)
     : sourceGroups(state.mix === 'kept' ? function(c){ return c.gross - c.workers; } : function(c){ return c.gross; });
-  out += '<div class="grid g-main">' +
+  /* A dial with one business in it says "100%", which says nothing. With a
+     single business it shows that business's own lines instead; with a
+     single line as well, there is nothing to divide and the flow chart takes
+     the whole row. */
+  var single = groups.length === 1, lines = single ? (groups[0].children || []).length : 0;
+  var showMix = !(state.mix === 'gross' && single && lines < 2);
+  var mixHtml = mixPanel(groups, label, single);
+  out += '<div class="grid ' + (showMix ? 'g-main' : '') + '">' +
     panel(flowTitle('flow'), modeSwitch(), '<div class="chart" id="cFlow"></div><div id="flowKey"></div>', '', '', C.in) +
-    panel('Where it comes from', '<div class="seg small" id="mixSwitch">' + [['gross','Value'], ['kept','Company income'], ['spend','Costs']].map(function(m){
-      return '<button data-m="' + m[0] + '" class="' + (state.mix === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') + '</div>',
-      mixPanel(groups, label), '', '', C.fee) + '</div>';
+    (showMix ? panel(single ? 'Inside ' + groups[0].name : 'Where it comes from', '<div class="seg small" id="mixSwitch">' + [['gross','Value'], ['kept','Company income'], ['spend','Costs']].map(function(m){
+      return '<button data-m="' + m[0] + '" class="' + (state.mix === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') + '</div>', mixHtml, '', '', C.fee) : '') + '</div>';
 
   out += '<div class="grid g-main">' +
-    panel('Pace · ' + PACE[state.paceKey], metaText(state.period === 'mtd' ? 'this month so far, and where it is heading' : 'built up day by day, against the period before'),
+    panel('Pace · ' + PACE[state.paceKey], metaText(state.period === 'mtd' ? 'this month so far, and where it is heading' : prevRange() ? 'built up day by day, against the period before' : 'built up day by day'),
       '<div class="chart" id="cPace"></div><div id="paceKey"></div>', '', '', PACE_COLOR[state.paceKey]) +
     panel('At a glance', metaText('click a figure tile to change'), '<div class="glance" id="paceStats"></div>', '', '', PACE_COLOR[state.paceKey]) + '</div>';
 
@@ -1532,19 +1615,26 @@ function viewOverview(){
       return '<button data-m="' + m[0] + '" class="' + (state.heatKey === m[0] ? 'on' : '') + '">' + m[1] + '</button>'; }).join('') + '</div>',
     '<div id="cal"></div>', '', 'calPanel', C.in);
 
+  /* Only businesses that did something get a row, and the "All" row only
+     when there is more than one — a total that repeats its single row is
+     noise. The figure tiles above already give the totals. */
   var bp = prev ? prev.totals.bySource : {};
+  var active = ['emc', 'shop', 'other'].filter(function(s){ var b = t.bySource[s] || {}; return b.gross || b.spend || (bp[s] && (bp[s].gross || bp[s].spend)); });
+  var idle = ['emc', 'shop', 'other'].filter(function(s){ return active.indexOf(s) < 0; }).map(function(s){ return SOURCES[s].name; });
   var body = '<div class="tw"><table class="biz"><thead><tr><th>Business</th><th>Total value</th><th>Worker payment</th><th>Company income</th><th>Costs</th>' +
-    '<th>Profit</th><th>Margin</th><th>Trend</th><th>Profit change</th></tr></thead><tbody>' + ['emc', 'shop', 'other'].map(function(s){
+    '<th>Profit</th><th>Margin</th><th>Trend</th><th>Profit change</th></tr></thead><tbody>' + active.map(function(s){
       var b = t.bySource[s] || { gross:0, workers:0, spend:0 }, pr = profit(b);
       var tr = flowRows(s).map(function(r){ return r.profit; });
-      return '<tr class="' + (!b.gross && !b.spend ? 'mute ' : '') + 'click" data-go="' + (s === 'other' ? 'history' : s) + '"><td><i class="sw" style="background:' + SOURCES[s].hex + '"></i>' + SOURCES[s].name + '</td>' +
+      return '<tr class="click" data-go="' + (s === 'other' ? 'history' : s) + '"><td><i class="sw" style="background:' + SOURCES[s].hex + '"></i>' + SOURCES[s].name + '</td>' +
         '<td>' + gold(b.gross) + '</td><td class="c-pay">' + gold(b.workers) + '</td><td class="c-fee">' + gold(kept(b)) + '</td><td class="c-cost">' + gold(b.spend) + '</td>' +
         '<td class="' + (pr < 0 ? 'neg' : 'strong') + '">' + sgold(pr) + '</td><td>' + (b.gross ? Math.round((pr / b.gross) * 100) + '%' : '—') + '</td>' +
         '<td><span class="sp">' + sparkline(tr, SOURCES[s].hex, 'spk') + '</span></td><td>' + (bp[s] ? delta(pr, profit(bp[s]), 'up') : '—') + '</td></tr>';
-    }).join('') + '<tr class="total"><td>All</td><td>' + gold(t.gross) + '</td><td>' + gold(t.workers) + '</td><td>' + gold(kept(t)) + '</td>' +
+    }).join('') + (active.length > 1 ? '<tr class="total"><td>All</td><td>' + gold(t.gross) + '</td><td>' + gold(t.workers) + '</td><td>' + gold(kept(t)) + '</td>' +
     '<td>' + gold(t.spend) + '</td><td>' + sgold(profit(t)) + '</td><td>' + (t.gross ? Math.round((profit(t) / t.gross) * 100) + '%' : '—') + '</td><td></td><td>' +
-    (prev ? delta(profit(t), profit(p), 'up') : '—') + '</td></tr></tbody></table></div>' +
-    '<p class="note">Margin is profit as a share of total value. Click a business to open its tab. The casino, the Discord casino and the bulk shop get their own line once they are running.</p>';
+    (prev ? delta(profit(t), profit(p), 'up') : '—') + '</td></tr>' : '') + '</tbody></table></div>' +
+    (active.length ? '' : '<p class="note">Nothing happened in this period.</p>') +
+    '<p class="note">Margin is profit as a share of total value. Click a business to open its tab.' +
+    (idle.length ? ' ' + idle.join(' and ') + ' had nothing in this period.' : '') + ' The casino, the Discord casino and the bulk shop get their own line once they are running.</p>';
   out += panel('By business', '<div class="tools"><button class="tbtn" id="csvBiz">CSV</button></div>', body, '', '', C.fee);
   return out;
 }
@@ -1572,7 +1662,7 @@ function drawFlow(src, host, keyHost){
   var rows = flowRows(src || null), pr = prevRange(), ghostRows = null;
   var pick = function(k){ var s = bucketSpan(k); openDrawer(s.from, s.to); };
   if (state.compare && prev && pr) ghostRows = flowRows(src || null, prev, pr.from, pr.to).slice(0, rows.length);
-  if (state.flowMode === 'flow'){
+  if (state.flowMode !== 'avg'){
     var parts = src === 'emc'
       ? [{ key:'workers', name:'Worker payment', color:C.pay }, { key:'kept', name:'Company income', color:C.fee }, { key:'out', name:'Costs', color:C.cost, flip:true }]
       : src === 'shop'
@@ -1591,7 +1681,7 @@ function drawFlow(src, host, keyHost){
   var keys = src === 'shop' ? [['gross', 'Sales', C.in], ['profit', 'Profit', C.profit]]
     : src === 'emc' ? [['gross', 'Order value', C.in], ['workers', 'Worker payment', C.pay], ['kept', 'Company income', C.fee]]
     : [['gross', 'Total value', C.in], ['kept', 'Company income', C.fee], ['profit', 'Profit', C.profit], ['spend', 'Costs', C.cost]];
-  var fn = state.flowMode === 'total' ? cum : avg;
+  var fn = avg;
   var out = daily.map(function(r){ return { key:r.key, label:short(r.key) }; });
   keys.forEach(function(k){ fn(daily, k[0]).forEach(function(v, i){ out[i][k[0]] = v; }); });
   var gh = null, gk = src === 'emc' ? 'gross' : src === 'shop' ? 'gross' : 'profit';
@@ -1628,7 +1718,7 @@ function drawPace(){
   var perDay = run / Math.max(1, days.length);
   var cells = [];
   var cell = function(cls, big, label, sub){ cells.push('<div class="gl ' + (cls || '') + '"><span class="n">' + big + '</span><span class="k">' + esc(label) + '</span>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</div>'); };
-  cell('', sgold(run), name + ' this period', perDay ? sgold(perDay) + ' a day on average' : '');
+  cell('', sgold(perDay), name + ' per day', 'on average across ' + num(days.length) + ' day' + (days.length === 1 ? '' : 's'));
   if (ghost){
     var at = ghost.rows[Math.min(ghost.rows.length, rows.length) - 1], then = at ? at.v : 0, diff = run - then;
     var good = k === 'spend' ? diff <= 0 : diff >= 0;
@@ -1696,18 +1786,21 @@ function viewEmc(){
   out += kpis([
     { label:'Total order value', value:b.gross, prev:p.gross, mode:'up', spark:col('gross'), color:C.in,
       hint:'The full value of every order placed. The customer paid it when they bought the paper.' },
-    { op:'−', label:'Worker payment', cap:'for completing the order', value:b.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:C.pay,
-      hint:'Paid to whoever completes each order, once it is done. Paid and still owed are both counted.' },
+    { op:'−', label:'Worker payment', cap:'held in escrow until the order is done', value:b.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:C.pay,
+      hint:'Each order\u2019s payment for completing it. Held in escrow when the order is placed, released to the worker once it is completed.' },
     { op:'=', label:'Company income', value:kept(b), prev:prev ? kept(p) : null, mode:'up', spark:col('kept'), color:C.fee,
-      hint:'The company\u2019s fee on each order, for running the service and its infrastructure' },
+      hint:'The company\u2019s cut of each order, added to the bank when the order is placed, for running the service and its infrastructure' },
     { op:'−', label:'Costs', value:b.spend, prev:p.spend, mode:'down', spark:col('spend'), color:C.cost, hint:'Materials and refunds' },
     { op:'=', label:'Profit', value:profit(b), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), color:C.profit, hero:true },
   ]);
+  /* Escrow right now, whatever the period: every worker payment on an order
+     not yet completed and released. */
   var ow = data.owed || {}, parts = [];
-  if (ow.done && ow.done.n) parts.push('<b>' + gold(ow.done.gold) + '</b> for ' + num(ow.done.n) + ' finished order' + (ow.done.n === 1 ? '' : 's'));
-  if (ow.active && ow.active.n) parts.push('<b>' + gold(ow.active.gold) + '</b> for ' + num(ow.active.n) + ' in progress');
-  if (ow.queued && ow.queued.n) parts.push('<b>' + gold(ow.queued.gold) + '</b> for ' + num(ow.queued.n) + ' not yet picked up');
-  if (parts.length) out += '<p class="footline"><i class="dotc" style="background:' + C.pay + '"></i>Worker payments still owed: ' + parts.join(' · ') + '.</p>';
+  var held = (ow.active ? ow.active.gold : 0) + (ow.queued ? ow.queued.gold : 0) + (ow.done ? ow.done.gold : 0);
+  if (ow.active && ow.active.n) parts.push(gold(ow.active.gold) + ' for ' + num(ow.active.n) + ' in progress');
+  if (ow.queued && ow.queued.n) parts.push(gold(ow.queued.gold) + ' for ' + num(ow.queued.n) + ' waiting for a worker');
+  if (ow.done && ow.done.n) parts.push(gold(ow.done.gold) + ' for ' + num(ow.done.n) + ' completed, not yet released');
+  if (held) out += '<p class="footline"><i class="dotc" style="background:' + C.pay + '"></i><b>' + gold(held) + '</b> held in escrow now: ' + parts.join(' · ') + '.</p>';
   if (!b.gross && !b.spend) return out + empty('No orders', 'No EMC Services orders were placed in this period.');
 
   var types = data.types || [];
@@ -1766,7 +1859,7 @@ function viewEmc(){
     panel('Biggest customers', metaText('click to see their orders'), rankList(cust.slice(0, 8), function(c){ return gold(c.gross); },
       function(c){ return c.n + ' order' + (c.n === 1 ? '' : 's'); }, function(c){ return c.gross; }, function(c){ return 'data-q="' + esc(c.who || '') + '"'; }, C.in), '', '', C.in) +
     panel('Top-earning workers', metaText('worker payment earned'), rankList((data.workers || []).slice(0, 8), function(w){ return gold(w.earned); },
-      function(w){ return w.n + ' order' + (w.n === 1 ? '' : 's') + (w.owed ? ' · ' + gold(w.owed) + ' still owed' : ' · all paid'); }, function(w){ return w.earned; }, null, C.pay), '', '', C.pay) +
+      function(w){ return w.n + ' order' + (w.n === 1 ? '' : 's') + (w.owed ? ' · ' + gold(w.owed) + ' in escrow' : ' · all released'); }, function(w){ return w.earned; }, null, C.pay), '', '', C.pay) +
     '</div>';
   return out;
 }
@@ -1853,20 +1946,29 @@ function spendCats(d, src){
 function viewSpending(){
   var t = data.totals, p = prev ? prev.totals : {}, rows = flowRows();
   var col = function(k){ return rows.map(function(r){ return r[k]; }); };
-  var outflow = t.workers + t.spend, before = prev ? p.workers + p.spend : null;
   var paidNow = (data.workerPay || []).reduce(function(a, x){ return a + x.paid; }, 0);
+  var escrow = Math.max(0, t.workers - paidNow);
+  /* Worker payment is only released when an order is completed; until then
+     it sits in escrow. So "out" here is what has actually left — released
+     pay and costs — and escrow is shown beside it, not inside it. */
+  var paidPrev = prev ? (prev.workerPay || []).reduce(function(a, x){ return a + x.paid; }, 0) : null;
+  var paidCol = bucketed((data.paidSeries || []).map(function(r){ return { day:r.day, paid:r.paid }; }), null, ['paid']).map(function(r){ return r.paid; });
   var out = kpis([
-    { label:'Worker payment', cap:'for completing orders', value:t.workers, prev:p.workers, mode:'flat', spark:col('paid'), color:C.pay },
+    { label:'Released to workers', cap:'for completed orders', value:paidNow, prev:paidPrev, mode:'flat', spark:paidCol, color:C.pay,
+      hint:'Worker payments on this period\u2019s orders that have been released from escrow' },
     { op:'+', label:'Costs', value:t.spend, prev:p.spend, mode:'down', spark:col('spend'), color:C.cost },
-    { op:'=', label:'All money out', value:outflow, prev:before, mode:'flat', spark:rows.map(function(r){ return r.workers + r.spend; }), color:C.warn, hero:true },
+    { op:'=', label:'Money out', value:paidNow + t.spend, prev:prev ? paidPrev + p.spend : null, mode:'flat', color:C.warn, hero:true },
+    { label:'Held in escrow', cap:'until those orders are done', value:escrow, mode:'flat', color:'#8db6ff',
+      hint:'Worker payments on this period\u2019s orders that are not completed yet' },
   ]);
 
   /* The headline in plain words: of every 100 gold that came in, where it went. */
   if (t.gross){
     var pctW = t.workers / t.gross * 100, pctC = t.spend / t.gross * 100, pctP = Math.max(0, 100 - pctW - pctC);
     var r1 = function(v){ return v < 1 && v > 0 ? '<1' : String(Math.round(v)); };
-    out += '<section class="split" aria-label="Where each 100 gold went"><p>Of every <b>100' + ING + '</b> that came in, <b class="c-pay">' + r1(pctW) + '</b> paid workers for ' +
-      'completing orders, <b class="c-cost">' + r1(pctC) + '</b> went on costs, and <b class="c-fee">' + r1(pctP) + '</b> was left as profit.</p>' +
+    var pctE = t.workers ? pctW * (escrow / t.workers) : 0;
+    out += '<section class="split" aria-label="Where each 100 gold went"><p>Of every <b>100' + ING + '</b> that came in, <b class="c-pay">' + r1(pctW) + '</b> is worker payment for ' +
+      'completing orders' + (pctE >= 0.5 ? ' (<b class="c-pay">' + r1(pctE) + '</b> of it still in escrow)' : '') + ', <b class="c-cost">' + r1(pctC) + '</b> went on costs, and <b class="c-fee">' + r1(pctP) + '</b> is profit.</p>' +
       '<div class="splitbar"><span style="flex:' + pctW + ';background:' + C.pay + '"></span><span style="flex:' + pctC + ';background:' + C.cost + '"></span>' +
       '<span style="flex:' + pctP + ';background:' + C.fee + '"></span></div></section>';
   }
@@ -1882,7 +1984,8 @@ function viewSpending(){
       '<div class="big"><span>' + gold(out2) + '</span><small>money out of ' + gold(b.gross) + ' in</small></div>' +
       '<div class="splitbar sm"><span style="flex:' + b.workers / w + ';background:' + C.pay + '"></span><span style="flex:' + b.spend / w + ';background:' + C.cost + '"></span>' +
       '<span style="flex:' + Math.max(0, pr) / w + ';background:' + C.fee + '"></span></div>' +
-      '<dl>' + (s === 'emc' ? '<div><dt><i style="background:' + C.pay + '"></i>Worker payment</dt><dd>' + gold(b.workers) + '</dd></div>' : '') +
+      '<dl>' + (s === 'emc' ? '<div><dt><i style="background:' + C.pay + '"></i>Worker payment</dt><dd>' + gold(b.workers) + '</dd></div>' +
+        (escrow ? '<div class="sub"><dt>still in escrow</dt><dd>' + gold(escrow) + '</dd></div>' : '') : '') +
       '<div><dt><i style="background:' + C.cost + '"></i>Costs</dt><dd>' + gold(b.spend) + (pb ? ' ' + delta(b.spend, pb.spend || 0, 'down', true) : '') + '</dd></div>' +
       list.slice(0, 3).map(function(c){ return '<div class="sub"><dt>' + esc(c.name) + '</dt><dd>' + gold(c.spend) + '</dd></div>'; }).join('') +
       '<div class="sum"><dt>Profit</dt><dd class="' + (pr < 0 ? 'neg' : '') + '">' + sgold(pr) + (b.gross ? ' <small>' + Math.round((pr / b.gross) * 100) + '% margin</small>' : '') + '</dd></div></dl>' +
@@ -1897,7 +2000,7 @@ function viewSpending(){
     var svcs = Object.keys(bySvc).map(function(k){ return bySvc[k]; }).sort(function(a, z){ return z.pay - a.pay; });
     var payTotal = svcs.reduce(function(a, x){ return a + x.pay; }, 0) || 1;
     var body = '<div class="tw"><table class="pay"><thead><tr><th>Service and type</th><th>Orders</th><th>Worker payment</th><th>Per order</th><th>Pay rate</th>' +
-      '<th>Paid</th><th>Still owed</th><th>Paid so far</th></tr></thead><tbody>' + svcs.map(function(x, i){
+      '<th>Released</th><th>In escrow</th><th>Released so far</th></tr></thead><tbody>' + svcs.map(function(x, i){
         var sized = x.types.some(function(tt){ return tt.variant; });
         var row = function(o, name, sub, cls){
           var paidPct = o.pay ? Math.round((o.paid / o.pay) * 100) : 0;
@@ -1910,8 +2013,8 @@ function viewSpending(){
           h += row(tt, '<i class="sw sm" style="background:' + TYPE_COLORS[j % TYPE_COLORS.length] + '"></i>' + esc(typeName(tt, sized)), '', 'type-row');
         });
         return h;
-      }).join('') + '</tbody></table></div><p class="note">Pay rate is the worker payment as a share of the order\u2019s value. Paid and still owed are for the orders placed in this period.</p>';
-    out += panel('Worker payment by service', '<span class="meta">' + gold(paidNow) + ' paid · ' + gold(payTotal - paidNow) + ' still owed</span>', body, '', '', C.pay);
+      }).join('') + '</tbody></table></div><p class="note">Pay rate is the worker payment as a share of the order\u2019s value. Released and in escrow are for the orders placed in this period: pay is released once an order is completed.</p>';
+    out += panel('Worker payment by service', '<span class="meta">' + gold(paidNow) + ' released · ' + gold(payTotal - paidNow) + ' in escrow</span>', body, '', '', C.pay);
   }
 
   /* When the gold actually left: worker pay on the day it was handed over,
@@ -1927,7 +2030,7 @@ after.spending = function(){
   var list = spendCats();
   var paid = (data.paidSeries || []).map(function(r){ return { day:r.day, paidOut:r.paid }; });
   var rows = bucketed(paid.concat(data.spendSeries.map(function(r){ var o = { day:r.day }; o[r.cat] = r.spend; return o; })), null, ['paidOut'].concat(list.map(function(c){ return c.cat; })));
-  var parts = [{ key:'paidOut', name:'Worker payment handed over', color:C.pay }].concat(list.map(function(c, i){ return { key:c.cat, name:c.name, color:SPEND_COLORS[i % SPEND_COLORS.length] }; }));
+  var parts = [{ key:'paidOut', name:'Released to workers', color:C.pay }].concat(list.map(function(c, i){ return { key:c.cat, name:c.name, color:SPEND_COLORS[i % SPEND_COLORS.length] }; }));
   chart($('cSpend'), rows, parts, { pick:function(k){ var s = bucketSpan(k); openDrawer(s.from, s.to); }, zoom:zoomTo });
   $('spendKey').innerHTML = keyrow(parts);
   /* The dial: worker payment split by service, and every cost by kind. */
@@ -1947,7 +2050,7 @@ after.spending = function(){
       '<small>costs ' + gold(r.spend) + '</small></span><span class="v neg">' + sgold(r.profit) + '</span></div>';
   }).join('') : '<p class="note">No ' + grain() + ' in this period made a loss.</p>';
   $('worst').querySelectorAll('[data-k]').forEach(function(r){ r.addEventListener('click', function(){ var s = bucketSpan(r.dataset.k); openDrawer(s.from, s.to); }); });
-  api('/api/economy/records' + q(state.from, state.to) + (state.from ? '&' : '?') + 'type=spend&limit=200').then(function(r){
+  api('/api/economy/records?' + rangeQS() + 'type=spend&limit=200').then(function(r){
     if (!$('bigSpend')) return;
     var big = (r.records || []).filter(function(x){ return !x.voided; }).sort(function(a, z){ return z.spend - a.spend; }).slice(0, 6);
     var top = big.length ? big[0].spend : 1;
@@ -2013,6 +2116,26 @@ async function loadShop(){
   if (state.tab === 'shop') renderView();
 }
 var shopIndex = {}, mapBy = {};
+/* A barrel is the shop only if it stands inside the floor plan's walls —
+   the same rule the Worker uses for the money. Barrels elsewhere, like the
+   EMC Services paper for now, are left out of the shop's stock and lists. */
+function inWalls(s){
+  var b = data && data.shopBounds;
+  if (!b || !s || s.x == null) return true;
+  return s.x >= b.minX && s.x <= b.maxX && s.z >= b.minZ && s.z <= b.maxZ && s.y >= b.minY && s.y <= b.maxY;
+}
+function idInWalls(id){
+  var s = shop.shops.find(function(x){ return String(x.shop_id) === String(id); });
+  return !s || inWalls(s);
+}
+function outsideNote(){
+  var o = data.outside;
+  if (!o || !o.barrels) return '';
+  return '<p class="footline"><i class="dotc" style="background:var(--fg3)"></i>' + num(o.barrels) + ' barrel' + (o.barrels === 1 ? ' stands' : 's stand') +
+    ' outside the shop\u2019s walls, such as the EMC Services paper, and ' + (o.barrels === 1 ? 'is' : 'are') + ' left out of these figures.' +
+    (o.sales ? ' Their ' + num(o.sales) + ' sale' + (o.sales === 1 ? '' : 's') + ' this period (' + gold(o.gold) + ') count on the orders they paid for.' : '') +
+    ' <button class="tbtn" type="button" data-outside>See them</button></p>';
+}
 function indexShops(){
   shopIndex = {};
   shop.shops.forEach(function(s){ if (s.x != null) shopIndex[s.x + ',' + s.y + ',' + s.z] = s; });
@@ -2036,7 +2159,7 @@ function viewShop(){
   ];
   if (other > 0) tiles.push({ op:'−', label:'Other costs', value:other, mode:'down', color:C.cost });
   tiles.push({ op:'=', label:'Profit', value:profit(b), prev:prev ? profit(p) : null, mode:'up', spark:col('profit'), color:C.profit, hero:true });
-  var out = kpis(tiles) + looseWarning();
+  var out = kpis(tiles) + looseWarning() + outsideNote();
 
   var modes = [['status','What it is'], ['sales','What sells'], ['stock','What is left']];
   var levels = shop.layout ? [['all','Everything']].concat((shop.layout.levels || []).map(function(l){ return [String(l.y), l.label]; })) : [];
@@ -2078,7 +2201,9 @@ function viewShop(){
       ' Try a longer period with the buttons above.');
   }
 
-  var stats = shop.stats, restockList = stats ? stats.restock || [] : [], warn = stats ? stats.warnings || [] : [];
+  var stats = shop.stats;
+  var restockList = stats ? (stats.restock || []).filter(function(r){ return idInWalls(r.shop_id); }) : [];
+  var warn = stats ? (stats.warnings || []).filter(function(w){ return idInWalls(w.shop_id); }) : [];
   out += '<div class="grid g-2">' +
     panel('Restock', '<div class="seg small" id="rst">' + [8, 16, 32, 64].map(function(v){
       return '<button data-r="' + v + '" class="' + (restockAt === v ? 'on' : '') + '">≤' + v + '</button>'; }).join('') + '</div>',
@@ -2102,7 +2227,7 @@ function viewShop(){
 function shelfItems(){
   var by = {};
   shop.shops.forEach(function(s){
-    if (s.shop_type === 'buy' || s.stock == null || !s.amount || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
+    if (s.shop_type === 'buy' || s.stock == null || !s.amount || !inWalls(s) || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
     var v = Math.floor(s.stock / s.amount) * (s.price || 0);
     var o = by[s.item] || (by[s.item] = { item:s.item, value:0, stock:0, barrels:0 });
     o.value += v; o.stock += s.stock; o.barrels++;
@@ -2128,7 +2253,7 @@ function drawShopGlance(){
   var sold = itemSales(), items = Object.keys(sold).map(function(k){ return sold[k]; });
   var best = items.slice().sort(function(a, z){ return z.gross - a.gross; })[0];
   var most = items.slice().sort(function(a, z){ return z.qty - a.qty; })[0];
-  var sells = shop.shops.filter(function(s){ return s.shop_type !== 'buy' && !(mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service); });
+  var sells = shop.shops.filter(function(s){ return s.shop_type !== 'buy' && inWalls(s) && !(mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service); });
   var seeStock = sells.some(function(s){ return s.stock != null; });
   var shelf = shelfItems(), value = shelf.reduce(function(a, x){ return a + x.value; }, 0);
   var empty = sells.filter(function(s){ return s.stock === 0; }).length, low = sells.filter(function(s){ return s.stock != null && s.stock <= restockAt; }).length;
@@ -2158,7 +2283,7 @@ var ITEM_COLS = [
 function itemRows(){
   var by = {}, sold = itemSales(), total = data.totals.bySource.shop.gross || 0;
   shop.shops.forEach(function(s){
-    if (!s.item || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
+    if (!s.item || !inWalls(s) || (mapBy[String(s.shop_id)] && mapBy[String(s.shop_id)].service)) return;
     var r = by[s.item] || (by[s.item] = { item:s.item, barrels:0, stock:0, hasStock:false, price:null, amount:null });
     r.barrels++;
     if (s.stock != null){ r.stock += s.stock; r.hasStock = true; }
@@ -2290,43 +2415,43 @@ function drawFloor(){
     if (BLOCK_TEX[k]) out.push('<pattern id="t-' + k + '" patternUnits="userSpaceOnUse" width="1" height="1"><image href="' + TEX + 'block/' + BLOCK_TEX[k] +
       '.png" width="1" height="1" preserveAspectRatio="none"/></pattern>');
   });
-  out.push('<pattern id="seam" patternUnits="userSpaceOnUse" width="1" height="1"><path d="M1 0V1H0" fill="none" stroke="#000" stroke-opacity=".38" stroke-width=".06"/>' +
-    '<path d="M0 1V0H1" fill="none" stroke="#fff" stroke-opacity=".06" stroke-width=".05"/></pattern>');
+  out.push('<pattern id="seam" patternUnits="userSpaceOnUse" width="1" height="1"><path d="M1 0V1H0" fill="none" stroke="#000" stroke-opacity=".2" stroke-width=".05"/></pattern>');
   out.push('<linearGradient id="bevel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/>' +
     '<stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".42"/></linearGradient>');
-  out.push('<radialGradient id="hall" cx=".5" cy=".5" r=".72"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".1"/><stop offset=".55" stop-color="#000" stop-opacity="0"/>' +
-    '<stop offset="1" stop-color="#000" stop-opacity=".5"/></radialGradient></defs>');
+  out.push('<radialGradient id="hall" cx=".5" cy=".5" r=".75"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset=".6" stop-color="#000" stop-opacity="0"/>' +
+    '<stop offset="1" stop-color="#000" stop-opacity=".32"/></radialGradient></defs>');
   out.push('<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="#0b0a08"/>');
   levels.forEach(function(y){
     var cells = L.cells[String(y)] || {}, raised = y !== ground, shadow = '';
     if (raised){
       /* One shadow shape for the whole level, offset from what casts it. */
-      CELL_ORDER.forEach(function(k){ (cells[k] || []).forEach(function(c){ shadow += 'M' + (c[0] + .2) + ' ' + (c[1] + .28) + 'h1v1h-1z'; }); });
-      if (shadow) out.push('<path d="' + shadow + '" fill="#000" fill-opacity=".5"/>');
+      CELL_ORDER.forEach(function(k){ (cells[k] || []).forEach(function(c){ shadow += 'M' + (c[0] + .14) + ' ' + (c[1] + .2) + 'h1v1h-1z'; }); });
+      if (shadow) out.push('<path d="' + shadow + '" fill="#000" fill-opacity=".32"/>');
     }
     CELL_ORDER.forEach(function(k){
       var list = cells[k]; if (!list || !list.length) return;
       var d = ''; for (var i = 0; i < list.length; i++) d += 'M' + list[i][0] + ' ' + list[i][1] + 'h1v1h-1z';
       out.push('<path d="' + d + '" fill="' + (CELL_STYLE[k] || '#241f19') + '"/>');
       if (BLOCK_TEX[k]) out.push('<path d="' + d + '" fill="url(#t-' + k + ')"' + (k.indexOf('glass') >= 0 ? ' fill-opacity=".42"' : '') + '/>');
-      if (raised) out.push('<path d="' + d + '" fill="url(#bevel)" opacity=".55"/>');
     });
     if (!raised) out.push('<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="url(#seam)" pointer-events="none"/>' +
-      '<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="#0b0a08" opacity=".22" pointer-events="none"/>');
+      '<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="#0b0a08" opacity=".18" pointer-events="none"/>');
   });
   var zoomed = v.w < 40, found = 0, bshadow = '', btiles = [];
   levels.forEach(function(y){
     (L.barrels || []).forEach(function(p){
       if (p[1] !== y) return;
       var s = shopAt(p[0], p[1], p[2]), fill = barrelFill(s, sold, maxGold);
-      bshadow += 'M' + (p[0] + .16) + ' ' + (p[2] + .24) + 'h1v1h-1z';
+      bshadow += 'M' + (p[0] + .12) + ' ' + (p[2] + .18) + 'h1v1h-1z';
+      /* The barrel's own wood, with its state laid over it as a flat tint —
+         matte, so it reads as a painted barrel rather than a glossy tile. */
       btiles.push('<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="url(#t-barrel)"/>' +
-        (fill ? '<rect x="' + (p[0] + .06) + '" y="' + (p[2] + .06) + '" width=".88" height=".88" rx=".1" fill="' + fill + '" fill-opacity=".8"/>'
-              : '<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="#000" fill-opacity=".3"/>') +
-        '<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="url(#bevel)"/>');
+        (fill ? '<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="' + fill + '" fill-opacity=".58"/>' +
+                '<rect x="' + (p[0] + .05) + '" y="' + (p[2] + .05) + '" width=".9" height=".9" fill="none" stroke="' + fill + '" stroke-width=".1" stroke-opacity=".9"/>'
+              : '<rect x="' + p[0] + '" y="' + p[2] + '" width="1" height="1" fill="#000" fill-opacity=".22"/>'));
     });
   });
-  if (bshadow) out.push('<path d="' + bshadow + '" fill="#000" fill-opacity=".55"/>');
+  if (bshadow) out.push('<path d="' + bshadow + '" fill="#000" fill-opacity=".3"/>');
   out.push(btiles.join(''));
   out.push('<rect x="' + bnd.minX + '" y="' + bnd.minZ + '" width="' + w + '" height="' + h + '" fill="url(#hall)" pointer-events="none"/>');
   levels.forEach(function(y){
@@ -2385,17 +2510,8 @@ function floorCard(){
   } else kv('Sold this period', '—');
   if (s.first_seen) kv('First seen', esc(short(s.first_seen)));
   out += '</dl><div class="actions"><button class="btn quiet" id="ffindItem">Find all ' + esc(pretty(s.item)) + '</button></div>';
-  if (s.shop_type !== 'buy'){
-    out += '<div class="mark"><p class="note" style="margin:0 0 .45rem">' + (String(s.item).toUpperCase() === 'PAPER' && !m.service
-      ? '<b style="color:#ff8a90;font-weight:400">Paper, not marked.</b> If this sells a service, say which:' : 'Sells an EMC service?') + '</p>' +
-      '<div class="form"><div class="f"><label>Service</label><select class="fld" id="mSvc"><option value="">Shop item</option>' + (data.services || []).map(function(sv){
-        return '<option value="' + sv + '"' + (m.service === sv ? ' selected' : '') + '>' + esc(serviceName(sv)) + '</option>'; }).join('') + '</select></div>' +
-      '<div class="f"><label>Type</label><input class="fld" id="mVar" list="sizes3" placeholder="2x2" value="' + esc(m.variant || '') + '"></div>' +
-      '<div class="f"><label>Name on the paper</label><input class="fld" id="mLabel" value="' + esc(m.label || '') + '"></div>' +
-      '<div class="f"><label>&nbsp;</label><label class="chk"><input type="checkbox" id="mPri"' + (m.priority ? ' checked' : '') + '> Priority</label></div></div>' +
-      '<datalist id="sizes3">' + SIZE_HINTS.map(function(x){ return '<option value="' + x + '">'; }).join('') + '</datalist>' +
-      '<div class="actions"><button class="btn" id="mSave">Save</button><span class="msg" id="mMsg"></span></div></div>';
-  }
+  if (s.shop_type !== 'buy') out += '<div class="mark">' + (String(s.item).toUpperCase() === 'PAPER' && !m.service
+    ? '<p class="note" style="margin:0 0 .4rem"><b style="color:#ff8a8a;font-weight:400">Paper, not marked.</b> Is it EMC Services paper?</p>' : '') + svcForm(m) + '</div>';
   return out + '</div>';
 }
 function paintFloor(){
@@ -2501,16 +2617,11 @@ function wireFloor(){
   });
   if ($('fclose')) $('fclose').addEventListener('click', function(){ floor.sel = null; paintFloor(); });
   if ($('ffindItem')) $('ffindItem').addEventListener('click', function(){ var s = shopAt(floor.sel.x, floor.sel.y, floor.sel.z); findOnFloor(s ? pretty(s.item) : ''); });
-  if ($('mSave')) $('mSave').addEventListener('click', async function(){
-    var s = shopAt(floor.sel.x, floor.sel.y, floor.sel.z);
-    $('mMsg').textContent = 'Saving…';
-    try {
-      var r = await post('/api/economy/barrels', { shopId:s.shop_id, service:$('mSvc').value, variant:$('mVar').value, priority:$('mPri').checked, label:$('mLabel').value });
-      state.barrels = r.barrels; indexBarrels();
-      toast($('mSvc').value ? 'Barrel ' + esc(s.shop_id) + ' now sells ' + esc(serviceName($('mSvc').value)) : 'Barrel ' + esc(s.shop_id) + ' is a shop item again');
-      shop.key = null; load(true);
-    } catch (e){ $('mMsg').className = 'msg err'; $('mMsg').textContent = e.message; }
-  });
+  var card = $('floorwrap') && $('floorwrap').querySelector('.fcard .mark');
+  if (card){
+    var sel = shopAt(floor.sel.x, floor.sel.y, floor.sel.z);
+    wireSvcForm(card, String(sel.shop_id), mapBy[String(sel.shop_id)], function(){ shop.key = null; load(true); });
+  }
 }
 
 after.shop = function(v){
@@ -2520,6 +2631,8 @@ after.shop = function(v){
   v.querySelectorAll('#fLevel [data-l]').forEach(function(b){ b.addEventListener('click', function(){ state.floorLevel = b.dataset.l; floor.sel = null; remember(); renderView(); }); });
   v.querySelectorAll('#rst [data-r]').forEach(function(b){ b.addEventListener('click', function(){ restockAt = Number(b.dataset.r); shop.key = null; loadShop(); }); });
   wireFlowControls(v);
+  v.querySelectorAll('[data-outside]').forEach(function(b){ b.addEventListener('click', function(){
+    barrelView.filter = 'outside'; state.setupOpen = true; var dd = $('setup'); if (dd){ dd.open = true; loadBarrels(); dd.scrollIntoView({ behavior:'smooth', block:'start' }); } }); });
   if ($('cShop')) drawFlow('shop', $('cShop'), $('shopKey'));
   v.querySelectorAll('#shopMix [data-m]').forEach(function(b){ b.addEventListener('click', function(){ state.shopMix = b.dataset.m; drawShopDial();
     v.querySelectorAll('#shopMix [data-m]').forEach(function(x){ x.classList.toggle('on', x === b); }); }); });
@@ -2539,23 +2652,18 @@ after.shop = function(v){
     downloadCsv('shop-items', ['Item', 'Price', 'Per', 'Stock', 'Barrels', 'Sales', 'Units', 'Gold'], itemRows().map(function(r){
       return [pretty(r.item), r.price == null ? '' : r.price, r.amount || 1, r.hasStock ? r.stock : '', r.barrels, r.n, r.qty, r.gross]; }));
   });
+  /* The barrel list stays open across redraws — saving a barrel reloads the
+     figures, and a list that snapped shut after every save would be
+     maddening with a dozen barrels to mark. */
   var d = $('setup');
   if (d){
-    d.addEventListener('toggle', function(){ if (d.open) loadBarrels(); });
-    if (state.openSetup){ state.openSetup = false; d.open = true; setTimeout(function(){ d.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); }
+    if (state.setupOpen || state.openSetup) d.open = true;
+    d.addEventListener('toggle', function(){ state.setupOpen = d.open; if (d.open) loadBarrels(); });
+    if (d.open) loadBarrels();
+    if (state.openSetup && shop.key){ state.openSetup = false; setTimeout(function(){ d.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60); }
   }
   if ($('planup')) $('planup').addEventListener('click', uploadPlan);
 };
-function barrelSetup(){
-  return '<details class="panel" id="setup" style="margin-top:1rem"><summary><div class="ph"><h3>Service barrels</h3>' +
-    metaText('setup · or click a barrel on the floor') + '</div></summary>' +
-    '<p class="note" style="margin:0 0 .6rem">Mark which barrels sell an EMC service, and what kind: a size for mapart, Priority for priority recruitment. ' +
-    'Their paper is then counted once, on the order it pays for, and each new sale waits on the EMC tab to be posted as a job of the right type.</p>' +
-    '<div id="barrels"><p class="note">Loading…</p></div>' +
-    (shop.canEdit ? '<div class="form" style="margin-top:1rem;padding-top:.8rem;border-top:1px dashed var(--edge)"><div class="f wide"><label>Floor plan · ' +
-      'only needed when the building changes</label><input class="fld" type="file" id="planfile" accept="application/json"></div></div>' +
-      '<div class="actions"><button class="btn quiet" id="planup">Upload floor plan</button><span class="msg" id="planmsg"></span></div>' : '') + '</details>';
-}
 async function uploadPlan(){
   var file = $('planfile').files[0], msg = $('planmsg');
   if (!file){ msg.textContent = 'Choose a shop-layout.json file first.'; return; }
@@ -2566,36 +2674,144 @@ async function uploadPlan(){
     shop.layout = null; shop.key = null; floor.view = null; loadShop();
   } catch (e){ msg.className = 'msg err'; msg.textContent = 'Could not save it: ' + e.message; }
 }
-async function loadBarrels(){
-  var host = $('barrels'); if (!host) return;
-  try { if (!state.barrels) state.barrels = (await api('/api/economy/barrels')).barrels || []; }
-  catch (e){ host.innerHTML = '<p class="msg err">Could not load the barrels: ' + esc(e.message) + '</p>'; return; }
-  var list = state.barrels.filter(function(x){ return x.shop_type !== 'buy'; });
-  if (!list.length){ host.innerHTML = '<p class="note">The shop has not reported any sell barrels yet.</p>'; return; }
-  host.innerHTML = '<div class="barrel head"><span>Barrel</span><span>Sells</span><span>Type</span><span>Priority</span><span>Name</span><span></span></div>' +
-    list.map(function(x){
-      var loose = !x.service && String(x.item).toUpperCase() === 'PAPER';
-      return '<div class="barrel' + (loose ? ' loose' : '') + '" data-shop="' + esc(x.shop_id) + '"><span class="it">' + esc(x.label || pretty(x.item)) +
-        '<small>' + (loose ? '<b>Paper · probably a service</b> · ' : esc(pretty(x.item)) + ' · ') + gold(x.price) + (x.amount > 1 ? ' for ' + num(x.amount) : '') +
-        ' · barrel ' + esc(x.shop_id) + '</small></span><select class="fld" name="service" aria-label="Sells"><option value="">Shop item</option>' +
-        (data.services || []).map(function(s){ return '<option value="' + s + '"' + (x.service === s ? ' selected' : '') + '>' + esc(serviceName(s)) + '</option>'; }).join('') +
-        '</select><input class="fld" name="variant" list="sizes2" aria-label="Type, such as a size" placeholder="2x2" value="' + esc(x.variant || '') + '">' +
-        '<label class="chk"><input type="checkbox" name="priority"' + (x.priority ? ' checked' : '') + '> Priority</label>' +
-        '<input class="fld" name="label" aria-label="Name" placeholder="Name on the paper" value="' + esc(x.label || '') + '">' +
-        '<button class="btn quiet" type="button">Save</button></div>';
-    }).join('') + '<datalist id="sizes2">' + SIZE_HINTS.map(function(s){ return '<option value="' + s + '">'; }).join('') + '</datalist>';
-  host.querySelectorAll('.barrel[data-shop]').forEach(function(row){
-    var btn = row.querySelector('button'), f = function(n){ return row.querySelector('[name="' + n + '"]'); };
-    btn.addEventListener('click', async function(){
-      btn.textContent = 'Saving…';
-      try {
-        var r = await post('/api/economy/barrels', { shopId:row.dataset.shop, service:f('service').value, variant:f('variant').value, priority:f('priority').checked, label:f('label').value });
-        state.barrels = r.barrels; state.openSetup = true; shop.key = null;
-        toast('Barrel ' + esc(row.dataset.shop) + ' saved');
-        load(true);
-      } catch (e){ btn.textContent = 'Retry'; toast(esc(e.message), true); }
+/* --- marking a barrel as a service ---------------------------------------------------------
+   Two steps, so a shop item never sees fields it does not need: first, is
+   this a service barrel at all; only then, which service — and only that
+   service's own factors appear (priority for recruiting, size for mapart,
+   kind for media). Used in the barrel list and on the floor's barrel card. */
+function svcForm(m){
+  m = m || {};
+  var on = !!m.service;
+  return '<div class="svcform" data-on="' + (on ? 1 : 0) + '">' +
+    '<div class="sf1"><span class="q">Service barrel?</span><div class="seg small yn">' +
+      '<button type="button" data-yn="0" class="' + (on ? '' : 'on') + '">No, a shop item</button>' +
+      '<button type="button" data-yn="1" class="' + (on ? 'on' : '') + '">Yes, EMC Services</button></div></div>' +
+    '<div class="sf2"' + (on ? '' : ' hidden') + '><div class="form"><div class="f"><label>Which service</label><select class="fld" name="svc">' +
+      '<option value="">Pick one…</option>' + (data.services || []).map(function(sv){
+        return '<option value="' + sv + '"' + (m.service === sv ? ' selected' : '') + '>' + esc(serviceName(sv)) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="factors">' + factorFields(m.service, m) + '</div>' +
+      '<div class="f wide"><label>Name on the paper (optional)</label><input class="fld" name="label" value="' + esc(m.label || '') + '" placeholder="e.g. Priority recruitment"></div></div></div>' +
+    '<div class="actions"><button class="btn" type="button" data-save' + (on ? '' : ' hidden') + '>Save</button><span class="msg"></span></div></div>';
+}
+function factorFields(svc, m){
+  if (!svc) return '';
+  var f = factorsOf(svc), out = '';
+  if (f.variant){
+    var id = 'dl' + (++chartSeq);
+    out += '<div class="f"><label>' + esc(f.variant.label) + '</label><input class="fld" name="variant" list="' + id + '" placeholder="' + esc(f.variant.placeholder || '') +
+      '" value="' + esc(m && m.service === svc ? m.variant || '' : '') + '">' + (f.variant.options ? '<datalist id="' + id + '">' +
+      f.variant.options.map(function(o){ return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>' : '') + '</div>';
+  }
+  if (f.priority){
+    var pri = m && m.service === svc && m.priority;
+    out += '<div class="f"><label>Order type</label><div class="seg small pri"><button type="button" data-pri="0" class="' + (pri ? '' : 'on') + '">Regular</button>' +
+      '<button type="button" data-pri="1" class="' + (pri ? 'on' : '') + '">Priority</button></div></div>';
+  }
+  return out;
+}
+function wireSvcForm(box, shopId, current, done){
+  var form = box.querySelector('.svcform'), step2 = form.querySelector('.sf2'), save = form.querySelector('[data-save]'), msg = form.querySelector('.msg');
+  var on = !!(current && current.service);
+  form.querySelectorAll('[data-yn]').forEach(function(b){
+    b.addEventListener('click', function(){
+      on = b.dataset.yn === '1';
+      form.querySelectorAll('[data-yn]').forEach(function(x){ x.classList.toggle('on', x === b); });
+      step2.hidden = !on;
+      /* Saying "no" to a barrel that is marked takes it back to the shop, so
+         that is the one time Save shows without a service picked. */
+      save.hidden = !on && !(current && current.service);
+      save.textContent = on ? 'Save' : 'Save as a shop item';
     });
   });
+  var wirePri = function(){
+    form.querySelectorAll('[data-pri]').forEach(function(b){
+      b.addEventListener('click', function(){ form.querySelectorAll('[data-pri]').forEach(function(x){ x.classList.toggle('on', x === b); }); });
+    });
+  };
+  wirePri();
+  form.querySelector('[name="svc"]').addEventListener('change', function(){
+    form.querySelector('.factors').innerHTML = factorFields(this.value, current);
+    wirePri();
+  });
+  save.addEventListener('click', async function(){
+    var svc = on ? form.querySelector('[name="svc"]').value : '';
+    if (on && !svc){ msg.className = 'msg err'; msg.textContent = 'Pick the service first.'; return; }
+    var v = form.querySelector('[name="variant"]'), pri = form.querySelector('[data-pri].on');
+    msg.className = 'msg'; msg.textContent = 'Saving…';
+    try {
+      var r = await post('/api/economy/barrels', { shopId:shopId, service:svc, variant:on && v ? v.value : '', priority:!!(on && pri && pri.dataset.pri === '1'),
+        label:on ? form.querySelector('[name="label"]').value : '' });
+      state.barrels = r.barrels; indexBarrels();
+      toast(svc ? 'Barrel ' + esc(shopId) + ' sells ' + esc(serviceName(svc)) : 'Barrel ' + esc(shopId) + ' is a shop item');
+      if (done) done();
+    } catch (e){ msg.className = 'msg err'; msg.textContent = e.message; }
+  });
+}
+
+/* --- the barrel list ---------------------------------------------------------------------------
+   Opens on what needs attention, not on every barrel in the building: the
+   service barrels, and any paper nobody has marked. Each barrel is one
+   line until it is opened. */
+function barrelSetup(){
+  return '<details class="panel" id="setup" style="margin-top:1rem;--c:' + C.fee + '"><summary><div class="ph"><h3>Service barrels</h3>' +
+    metaText('setup · or click a barrel on the floor') + '</div></summary>' +
+    '<p class="note" style="margin:0 0 .7rem">Mark the barrels that sell EMC Services paper. Their sales are then counted once, on the order each one pays for, ' +
+    'and every new sale waits on the EMC tab to be posted as a job of the right type.</p>' +
+    '<div class="hbar"><div class="seg" id="bfilt"></div><input class="fld hsearch" id="bq" placeholder="Search barrels" aria-label="Search barrels"></div>' +
+    '<div id="barrels"><p class="note">Loading…</p></div>' +
+    (shop.canEdit ? '<div class="form" style="margin-top:1rem;padding-top:.8rem;border-top:1px dashed var(--edge)"><div class="f wide"><label>Floor plan · ' +
+      'only needed when the building changes</label><input class="fld" type="file" id="planfile" accept="application/json"></div></div>' +
+      '<div class="actions"><button class="btn quiet" id="planup">Upload floor plan</button><span class="msg" id="planmsg"></span></div>' : '') + '</details>';
+}
+var barrelView = { filter:null, q:'', open:null, more:false };
+async function loadBarrels(){
+  var host = $('barrels'); if (!host) return;
+  try { if (!state.barrels || state.barrels.length && state.barrels[0].outside === undefined) state.barrels = (await api('/api/economy/barrels')).barrels || []; }
+  catch (e){ host.innerHTML = '<p class="msg err">Could not load the barrels: ' + esc(e.message) + '</p>'; return; }
+  indexBarrels();
+  var all = state.barrels.filter(function(x){ return x.shop_type !== 'buy'; });
+  var isPaper = function(x){ return String(x.item).toUpperCase() === 'PAPER'; };
+  var groups = {
+    services: all.filter(function(x){ return x.service; }),
+    paper: all.filter(function(x){ return !x.service && isPaper(x); }),
+    outside: all.filter(function(x){ return x.outside; }),
+    all: all,
+  };
+  if (!barrelView.filter) barrelView.filter = groups.paper.length ? 'paper' : groups.services.length ? 'services' : 'all';
+  var F = [['paper', 'Paper not marked'], ['services', 'Service barrels'], ['outside', 'Outside the shop'], ['all', 'Every barrel']];
+  $('bfilt').innerHTML = F.map(function(f){
+    return '<button class="chip' + (barrelView.filter === f[0] ? ' on' : '') + '" data-f="' + f[0] + '">' + f[1] + ' <small>' + groups[f[0]].length + '</small></button>';
+  }).join('');
+  $('bfilt').querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click', function(){ barrelView.filter = b.dataset.f; barrelView.more = false; loadBarrels(); }); });
+  var qq = barrelView.q.toLowerCase();
+  var list = groups[barrelView.filter].filter(function(x){
+    return !qq || pretty(x.item).toLowerCase().indexOf(qq) >= 0 || String(x.shop_id).indexOf(qq) >= 0 || (x.label || '').toLowerCase().indexOf(qq) >= 0;
+  });
+  if (!list.length){ host.innerHTML = '<p class="note">' + (qq ? 'No barrel matches.' : barrelView.filter === 'paper' ? 'Every paper barrel is marked.' : 'Nothing here.') + '</p>'; return; }
+  var shown = barrelView.more ? list : list.slice(0, 40);
+  host.innerHTML = shown.map(function(x){
+    var what = x.service ? [serviceName(x.service), x.variant, x.priority ? 'Priority' : ''].filter(Boolean).join(' · ') : 'Shop item';
+    return '<div class="brow' + (barrelView.open === String(x.shop_id) ? ' open' : '') + '" data-shop="' + esc(x.shop_id) + '">' +
+      '<button class="bhead" type="button">' + itemImg(x.item) + '<span class="it">' + esc(x.label || pretty(x.item)) + '<small>' +
+        (!x.service && isPaper(x) ? '<b>paper, not marked</b> · ' : '') + gold(x.price) + (x.amount > 1 ? ' for ' + num(x.amount) : '') +
+        ' · barrel ' + esc(x.shop_id) + (x.outside ? ' · outside the shop' : '') + '</small></span>' +
+        '<span class="bstate' + (x.service ? ' svc' : '') + '">' + esc(what) + '</span><span class="chev">' + (barrelView.open === String(x.shop_id) ? '−' : '+') + '</span></button>' +
+      (barrelView.open === String(x.shop_id) ? '<div class="bbody">' + svcForm(x) + '</div>' : '') + '</div>';
+  }).join('') + (list.length > shown.length ? '<div class="actions"><button class="btn quiet" id="bmore">Show all ' + list.length + '</button></div>' : '');
+  host.querySelectorAll('.brow').forEach(function(row){
+    var id = row.dataset.shop;
+    row.querySelector('.bhead').addEventListener('click', function(){ barrelView.open = barrelView.open === id ? null : id; loadBarrels(); });
+    if (row.querySelector('.svcform')){
+      var cur = state.barrels.find(function(x){ return String(x.shop_id) === id; });
+      wireSvcForm(row, id, cur, function(){ barrelView.open = null; state.openSetup = true; shop.key = null; load(true); });
+    }
+  });
+  if ($('bmore')) $('bmore').addEventListener('click', function(){ barrelView.more = true; loadBarrels(); });
+  var bq = $('bq');
+  if (bq && !bq.dataset.wired){
+    bq.dataset.wired = 1; bq.value = barrelView.q;
+    var t = null; bq.addEventListener('input', function(){ clearTimeout(t); var v = this.value; t = setTimeout(function(){ barrelView.q = v; barrelView.more = false; loadBarrels(); }, 200); });
+  }
 }
 
 /* --- history ------------------------------------------------------------------------------------
@@ -2635,10 +2851,10 @@ function saleForm(rec){
 }
 function amountOf(x){ return x.gross > 0 ? x.gross : -(x.spend || 0); }
 function orderStage(x){
-  if (x.paid_at) return 'worker paid ' + short(x.paid_at);
-  if (x.status === 'done') return 'done · worker not paid yet';
-  if (x.status === 'active') return 'in progress';
-  return 'waiting for a worker';
+  if (x.paid_at) return 'completed · payment released ' + short(x.paid_at);
+  if (x.status === 'done') return 'completed · payment being released';
+  if (x.status === 'active') return 'in progress · payment in escrow';
+  return 'waiting for a worker · payment in escrow';
 }
 /* Every part of a record's second line is escaped on its own, so a gold
    figure can carry its ingot while a customer's name can carry nothing. */
@@ -2655,6 +2871,14 @@ function recordRow(x){
     T(orderStage(x));
     if (x.guessed) T('size read from title');
     if (x.link) T('bought in the shop');
+  } else if (x.type === 'sale' && x.outside){
+    /* Outside the shop's walls: listed so it can be found, not counted,
+       because it is not the shop. */
+    tag = '<span class="tag">Outside</span>';
+    name = (x.label && !/^[A-Z0-9_]+$/.test(x.label) ? x.label : itemName(x.label || x.cat));
+    if (x.who) T(x.who);
+    T('sold outside the shop\u2019s walls · counted on its order if one was entered');
+    if (x.note) T(x.note);
   } else if (x.type === 'sale'){
     var paper = !counted;
     tag = '<span class="tag' + (amt < 0 ? ' out' : '') + '">' + (amt < 0 ? 'Buy-back' : paper ? 'Paper' : 'Sale') + '</span>';
@@ -2692,7 +2916,7 @@ function recordRow(x){
   }
   return '<div class="rec' + (x.voided ? ' void' : '') + '" data-key="' + esc(key) + '">' + tag +
     '<span class="what">' + esc(name) + (sub.length ? '<small>' + sub.join(' · ') + '</small>' : '') + '</span><span class="ops">' + ops + '</span>' +
-    '<span class="val ' + (!counted ? 'muted' : amt >= 0 ? 'plus' : 'minus') + '"' + (!counted ? ' title="Not counted here: the gold is on the order it paid for"' : '') + '>' +
+    '<span class="val ' + (!counted ? 'muted' : amt >= 0 ? 'plus' : 'minus') + '"' + (!counted ? ' title="' + (x.outside ? 'Not counted: outside the shop\u2019s walls' : 'Not counted here: the gold is on the order it paid for') + '"' : '') + '>' +
     (amt >= 0 ? '+' : '−') + gold(Math.abs(amt)) + was + '</span>' + form + '</div>';
 }
 var shutDays = {};
@@ -2751,7 +2975,7 @@ function wireForm(box, rec){
 }
 async function loadRecords(more){
   if (!more) state.histRecords = [];
-  var qs = (state.from ? 'from=' + state.from + '&to=' + state.to + '&' : '') + 'type=' + state.hist + '&limit=50&offset=' + state.histRecords.length +
+  var qs = rangeQS() + 'type=' + state.hist + '&limit=50&offset=' + state.histRecords.length +
     (state.q ? '&q=' + encodeURIComponent(state.q) : '');
   try {
     var r = await api('/api/economy/records?' + qs);
@@ -2770,7 +2994,7 @@ after.history = function(v){
     var all = [], off = 0, total = 1;
     try {
       while (off < total && off < 5000){
-        var r = await api('/api/economy/records?' + (state.from ? 'from=' + state.from + '&to=' + state.to + '&' : '') + 'type=' + state.hist + '&limit=200&offset=' + off +
+        var r = await api('/api/economy/records?' + rangeQS() + 'type=' + state.hist + '&limit=200&offset=' + off +
           (state.q ? '&q=' + encodeURIComponent(state.q) : ''));
         all = all.concat(r.records || []); total = r.total || 0; off += 200;
         if (!(r.records || []).length) break;
@@ -2837,6 +3061,11 @@ $('cGo').addEventListener('click', function(){
   state.period = 'custom'; state.from = f; state.to = ymd(t0(t) + DAY); load();
 });
 $('stepBack').addEventListener('click', function(){ stepRange(-1); });
+$('asOfGo').addEventListener('click', function(){
+  var v = $('asOf').value;
+  if (!v){ toast('Pick a day.', true); return; }
+  state.period = 'todate'; state.asOf = v > ymd(todayStart()) ? ymd(todayStart()) : v; setRange(); load();
+});
 $('stepFwd').addEventListener('click', function(){ stepRange(1); });
 $('autoBtn').addEventListener('click', function(){ state.auto = !state.auto; autoLeft = 60; remember(); autoLabel(); toast(state.auto ? 'Refreshing every minute' : 'Auto-refresh off'); });
 $('helpBtn').addEventListener('click', function(){ $('help').classList.add('on'); });

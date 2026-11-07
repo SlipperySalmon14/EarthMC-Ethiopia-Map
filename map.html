@@ -8,7 +8,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Karla:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.19.0/dist/leaflet-geoman.css">
@@ -1194,6 +1194,175 @@ input[type="range"]{
   .sidebar{ flex: 1 1 auto; max-width: 100%; }
   .topbar-brand .tagline{ display:none; }
 }
+
+/* =========================================================================
+   CONSOLE THEME — the Economy page's look, on the map
+   -------------------------------------------------------------------------
+   The rest of the site gets this from assets/theme.css. The map does not load
+   that file: its controls share class names with it (.btn, .panel, .tag) but
+   not their meaning, so the shared rules would restyle the wrong things. The
+   same look is set here instead, in the map's own terms.
+
+   Colours keep one job each, as everywhere else:
+     green   land, growth, healthy, in range
+     yellow  gold, the headline figure, what is selected
+     red     a problem, a warning, removal
+     blue    people and the state
+   The frame is neutral, so colour is always meaning.
+   ========================================================================= */
+:root{
+  --ink:#0f0d0b; --ink-2:#13110e; --panel:#151311; --panel-2:#1b1815; --raised:#221e19;
+  --line:#2a251f; --line-soft:#1f1b17; --line-hot:rgba(245,241,232,.2);
+  --parchment:#f5f1e8; --muted:#a59d8c; --muted-dim:#857d6e;
+  --brass:#fcd116; --brass-hi:#ffe066; --brass-dim:#a8820a;
+  --terracotta:#ef4444; --terracotta-hi:#f87171;
+  --sage:#22c55e; --sage-hi:#4ade80;
+  --danger:#ef4444; --danger-hi:#f87171;
+  --flag-blue:#4d8dff; --blue:#4d8dff;
+  --font-display:'Chakra Petch','Karla',system-ui,sans-serif;
+  --font-hud:'Chakra Petch','Karla',system-ui,sans-serif;
+  --radius-sm:8px; --radius-md:12px;
+  --shadow-panel:0 1px 0 rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  --tibeb:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='7'%3E%3Cpath d='M0 3.5 3.5 0 7 3.5 3.5 7Z' fill='%2322c55e'/%3E%3Cpath d='M7 3.5 10.5 0 14 3.5 10.5 7Z' fill='%23fcd116'/%3E%3Cpath d='M14 3.5 17.5 0 21 3.5 17.5 7Z' fill='%23ef4444'/%3E%3Crect x='22.5' y='3' width='4' height='1' fill='%23fcd116'/%3E%3C/svg%3E");
+}
+
+/* the ground: a faint drafting grid under a warm light from above */
+body, .sidebar{
+  background-color:var(--ink);
+  background-image:
+    radial-gradient(ellipse 90% 40% at 50% -10%, rgba(252,209,22,.06), transparent 62%),
+    linear-gradient(rgba(252,209,22,.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(252,209,22,.024) 1px, transparent 1px);
+  background-size:auto, 32px 32px, 32px 32px;
+}
+h1,h2,h3{ letter-spacing:0; }
+
+/* --- top bar ------------------------------------------------------------ */
+.topbar{ background:linear-gradient(180deg, #17140f, #12100d); border-bottom:0; padding:.7rem 1.1rem .85rem; }
+.topbar::after{
+  height:7px; bottom:-4px; background:var(--tibeb) repeat-x;
+  -webkit-mask-image:linear-gradient(90deg, #000 40%, transparent); mask-image:linear-gradient(90deg, #000 40%, transparent);
+}
+.topbar-brand h1{
+  font-family:var(--font-hud); font-weight:700; font-size:1.2rem; letter-spacing:.08em;
+  text-transform:uppercase; text-shadow:0 0 22px rgba(252,209,22,.22);
+}
+.topbar-brand .locus{ color:var(--brass); }
+.topbar-brand .tagline{ font-family:var(--font-hud); font-weight:600; font-size:.66rem; letter-spacing:.18em; color:var(--muted-dim); }
+.home-link{ font-family:var(--font-hud); letter-spacing:.16em; }
+.topbar-pill{ border-radius:999px; background:rgba(255,255,255,.04); border-color:var(--line-hot); font-family:var(--font-body); font-weight:600; font-size:.74rem; letter-spacing:0; }
+
+/* --- the save indicator --------------------------------------------------- */
+.save-pill{
+  display:none; align-items:center; gap:.45rem; cursor:pointer;
+  font-family:var(--font-body); font-weight:600; font-size:.74rem; color:var(--parchment);
+  padding:.3rem .75rem; border-radius:999px; border:1px solid var(--line-hot); background:rgba(255,255,255,.04);
+  transition:border-color .15s, background .15s, box-shadow .15s;
+}
+.admin-mode .save-pill.admin-only{ display:inline-flex; }
+.save-dot{ width:.5rem; height:.5rem; border-radius:50%; background:var(--muted-dim); flex:none; }
+.save-pill[data-state="saved"] .save-dot{ background:var(--sage); box-shadow:0 0 8px var(--sage); }
+.save-pill[data-state="saving"] .save-dot,
+.save-pill[data-state="unsaved"] .save-dot{ background:var(--brass); box-shadow:0 0 8px var(--brass); animation:pulse-dot 1s ease-in-out infinite; }
+.save-pill[data-state="warn"]{ border-color:rgba(252,209,22,.5); }
+.save-pill[data-state="warn"] .save-dot{ background:var(--brass); box-shadow:0 0 8px var(--brass); }
+.save-pill[data-state="error"], .save-pill[data-state="conflict"]{
+  border-color:var(--danger); background:rgba(239,68,68,.14); color:#fecaca; box-shadow:0 0 16px rgba(239,68,68,.28);
+}
+.save-pill[data-state="error"] .save-dot, .save-pill[data-state="conflict"] .save-dot{ background:var(--danger); box-shadow:0 0 8px var(--danger); }
+
+/* --- view tabs: quiet pills, the open one lit -------------------------------- */
+.view-switcher{ background:rgba(15,13,11,.92); backdrop-filter:blur(6px); border-bottom-color:var(--line); }
+.view-tab{
+  border-radius:9px; background:rgba(255,255,255,.04); border-color:transparent; color:var(--muted);
+  font-family:var(--font-body); font-weight:600; font-size:.8rem; letter-spacing:0; padding:.38rem .85rem;
+}
+.view-tab:hover{ color:var(--parchment); border-color:var(--line-hot); }
+.view-tab.is-active{ background:var(--brass); border-color:var(--brass); color:#141006; box-shadow:0 0 16px rgba(252,209,22,.3); }
+
+/* --- panels: a wash of their colour from one corner, and a lit top edge ---- */
+.panel{
+  position:relative; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,.07);
+  background:radial-gradient(130% 70% at 0% 0%, color-mix(in srgb, var(--c, #fcd116) 8%, transparent), transparent 62%), var(--panel);
+  box-shadow:var(--shadow-panel); padding:.95rem 1rem 1.05rem;
+}
+.panel::before{
+  content:''; position:absolute; left:1.1rem; top:-1px; width:4.5rem; height:2px; border-radius:2px;
+  background:linear-gradient(90deg, var(--c, var(--brass)), transparent); box-shadow:0 0 12px var(--c, var(--brass)); pointer-events:none;
+}
+#panel-eth-overview, #panel-eth-economy, #panel-plan, #panel-ops{ --c:var(--brass); }
+#panel-eth-health, #panel-nations{ --c:var(--sage); }
+#panel-eth-regions, #panel-eth-highways, #panel-sync, #panel-inspector{ --c:var(--blue); }
+#panel-nation-claims, #panel-nc-ops, #panel-hw-ops, #panel-log, #panel-export{ --c:var(--danger); }
+#panel-settings{ --c:var(--muted); }
+.panel-head{ margin-bottom:.75rem; }
+.eyebrow{
+  font-family:var(--font-hud); font-weight:600; font-size:.6rem; letter-spacing:.2em;
+  color:var(--c, var(--brass)); text-shadow:0 0 12px color-mix(in srgb, var(--c, #fcd116) 40%, transparent);
+}
+.panel-head h2{ font-family:var(--font-body); font-weight:700; font-size:1.02rem; letter-spacing:0; }
+.hint, .empty-hint{ font-family:var(--font-body); letter-spacing:0; }
+
+/* --- figure tiles --------------------------------------------------------- */
+.stat-grid{ gap:.55rem; }
+.stat-grid > div{
+  border-radius:10px; border:1px solid rgba(255,255,255,.06); border-top:2px solid var(--c, var(--line-hot));
+  background:linear-gradient(180deg, color-mix(in srgb, var(--c, #fcd116) 10%, transparent), transparent 75%), var(--panel-2);
+  padding:.5rem .65rem .55rem;
+}
+.stat-grid dt{ font-family:var(--font-body); font-weight:600; font-size:.72rem; letter-spacing:0; text-transform:none; color:var(--muted); }
+.stat-grid dd{ font-weight:600; font-size:1rem; text-shadow:0 0 16px color-mix(in srgb, var(--c, #fcd116) 28%, transparent); }
+.econ-value{ font-family:var(--font-mono); font-weight:600; color:var(--brass); text-shadow:0 0 22px rgba(252,209,22,.4); letter-spacing:-.03em; }
+.econ-label{ font-family:var(--font-body); font-size:.78rem; letter-spacing:0; }
+.econ-row{ border-bottom-color:rgba(255,255,255,.05); }
+.econ-tab{ border-radius:8px; font-family:var(--font-body); font-weight:600; font-size:.74rem; letter-spacing:0; background:rgba(255,255,255,.04); border-color:transparent; }
+.econ-tab.is-active{ background:var(--brass); color:#141006; box-shadow:0 0 12px rgba(252,209,22,.3); }
+
+/* --- rows and lists ---------------------------------------------------------- */
+.region-row, .region-card, .hw-row, .nc-row, .nation-row, .hw-admin-row, .falling-row, .eth-capital{
+  border-radius:9px; border-color:rgba(255,255,255,.06); background:var(--panel-2);
+}
+.region-row:hover, .region-card:hover, .hw-row:hover, .nc-row:hover, .nation-row:hover{ border-color:var(--line-hot); background:var(--raised); }
+.region-row.active, .region-card.is-active, .hw-row.is-active, .nc-row.is-active, .nation-row.is-active{
+  border-color:var(--brass); box-shadow:0 0 14px rgba(252,209,22,.16);
+}
+.town-table-wrap, .econ-detail, .audit-log{ border-radius:10px; border-color:rgba(255,255,255,.06); }
+.town-table thead th{ font-family:var(--font-body); font-size:.68rem; letter-spacing:0; text-transform:none; color:var(--muted); }
+.eth-alert{ border-radius:9px; background:rgba(239,68,68,.12); }
+.region-town-list span{ border-radius:6px; }
+
+/* --- buttons ----------------------------------------------------------------- */
+.btn{ border-radius:9px; font-family:var(--font-body); }
+.btn-primary{ background:rgba(255,255,255,.05); border-color:var(--line-hot); color:var(--parchment); }
+.btn-primary:hover{ border-color:var(--brass); color:var(--brass-hi); background:rgba(252,209,22,.06); }
+.btn-accent{ background:var(--brass); border-color:var(--brass); color:#141006; box-shadow:0 0 14px rgba(252,209,22,.25); }
+.btn-accent:hover{ background:var(--brass-hi); }
+.btn-ghost{ border-color:rgba(252,209,22,.35); color:var(--brass-hi); }
+.btn-primary.armed{ color:#fff; box-shadow:0 0 14px rgba(239,68,68,.35); }
+.hw-mini{ border-radius:7px; font-family:var(--font-body); font-weight:600; font-size:.66rem; letter-spacing:0; }
+.chip{ border-radius:999px; }
+
+/* --- inputs ------------------------------------------------------------------ */
+input[type="text"], textarea, select, .hw-route-controls select, .town-table-controls select{
+  border-radius:8px; border-color:var(--line-hot); background:rgba(0,0,0,.3);
+}
+input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass); box-shadow:0 0 0 3px rgba(252,209,22,.12); outline:none; }
+.toggle-switch[aria-checked="true"]{ background:rgba(252,209,22,.25); border-color:var(--brass); box-shadow:0 0 12px rgba(252,209,22,.25); }
+.field > span{ font-family:var(--font-body); font-weight:600; font-size:.74rem; letter-spacing:0; text-transform:none; }
+
+/* --- over the map -------------------------------------------------------------- */
+.coord-readout, .map-layers-toggle, #publicNotice, .hw-readout{
+  border-radius:10px !important; background:rgba(15,13,11,.82) !important; backdrop-filter:blur(6px);
+  border-color:rgba(255,255,255,.1) !important;
+}
+.map-layers-toggle{ font-family:var(--font-body); font-size:.76rem; letter-spacing:0; }
+.map-layers-toggle .layers-title{ font-family:var(--font-hud); font-weight:600; letter-spacing:.18em; color:var(--brass); }
+.split-banner{ border-radius:999px; font-family:var(--font-body); }
+.leaflet-popup-content-wrapper{ border-radius:12px; border-color:rgba(255,255,255,.1); }
+.mc-popup h4{ font-family:var(--font-body); font-weight:700; font-size:1rem; }
+.leaflet-bar, .leaflet-pm-toolbar{ border-radius:10px !important; overflow:hidden; }
+.claim-tooltip{ border-radius:8px !important; font-family:var(--font-body) !important; font-size:.76rem !important; letter-spacing:0; }
+.map-open{ background:var(--brass); color:#141006; font-family:var(--font-body); box-shadow:0 0 22px rgba(252,209,22,.35), 0 6px 18px rgba(0,0,0,.5); }
 </style>
 </head>
 <body>
@@ -1210,6 +1379,10 @@ input[type="range"]{
       <span class="tagline">MAP PROJECTION — TERRA NOSTRA · LIVE TOWNY DATA</span>
     </div>
     <div style="display: flex; gap: 1rem; align-items: center;">
+      <button type="button" class="save-pill admin-only" id="savePill" data-state="idle"
+              title="Whether your edits are saved">
+        <i class="save-dot" aria-hidden="true"></i><span class="save-text">Not loaded yet</span>
+      </button>
       <div class="topbar-pill">
         <span class="status-dot" id="topStatusDot"></span>
         <span id="topStatusText">Idle</span>
@@ -1227,7 +1400,7 @@ input[type="range"]{
       <button type="button" id="mapCloseBtn" class="map-close" title="Back to panels" aria-label="Close map">✕</button>
       <div id="map"></div>
       <div style="position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(16,14,11,.88); border: 1px solid var(--line); color: var(--muted); font-family: var(--font-mono); font-size: .72rem; padding: .3rem .6rem; border-radius: var(--radius-sm); box-shadow: var(--shadow-panel); pointer-events: none; z-index: 14;" id="publicNotice">
-        <span class="public-only">🔒 Public view — unlock admin console to edit regions</span>
+        <span class="public-only" id="publicNoticeText">🔒 Public view — unlock admin console to edit regions</span>
         <span class="admin-only" style="color: var(--brass-hi);">🔓 Admin mode active</span>
       </div>
       <div class="hw-readout" id="hwReadout" hidden></div>
@@ -1767,8 +1940,11 @@ const CONFIG = {
 // layers draw with, and CSS variables aren't readable from a canvas context.
 const COLORS = {
   ink: '#100e0b', ink2: '#16130f', line: '#2f2a23', lineSoft: '#221e19',
-  brass: '#edb912', brassHi: '#f5cd3d', terracotta: '#cf2029', sage: '#189d4d',
-  danger: '#cf2029', parchment: '#f2ece0', muted: '#756c5d',
+  brass: '#fcd116', brassHi: '#ffe066', terracotta: '#ef4444', sage: '#22c55e',
+  /* sageHi was read by the nation-range layer but never defined, so the
+     "in range" rings were drawn with no stroke colour at all. */
+  sageHi: '#4ade80',
+  danger: '#ef4444', parchment: '#f5f1e8', muted: '#857d6e',
 };
 
 // Declared this early (before MapController is ever instantiated) because
@@ -3759,7 +3935,9 @@ class RegionManager{
         });
         count++;
       } catch(err){
-        this.auditLog.log(`Skipped a saved region that failed to load: ${err.message}`, 'warn');
+        // Kept and saved back untouched, so it is not lost by the next save.
+        persistKeepFeature(feature);
+        this.auditLog.log(`A saved region could not be loaded (${err.message}) — it is kept as stored`, 'warn');
       }
     });
     return count;
@@ -9101,7 +9279,8 @@ function ncLoadFromFeatures(features){
         fillColor: p.fillColor || null, strokeColor: p.strokeColor || null, ring,
       });
     } catch(err){
-      auditLog.log(`Skipped a saved nation claim: ${err.message}`, 'warn');
+      persistKeepFeature(f);
+      auditLog.log(`A saved nation claim could not be loaded (${err.message}) — it is kept as stored`, 'warn');
     }
   });
   nationClaimState.nextId = Math.max(nationClaimState.nextId, maxId + 1);
@@ -9583,6 +9762,30 @@ if (btnSaveNow){
   });
 }
 
+/* The save indicator doubles as the way out of whatever it is reporting. */
+const savePill = document.getElementById('savePill');
+if (savePill){
+  savePill.addEventListener('click', () => {
+    const st = savePill.dataset.state;
+    if (st === 'error' && !persistLoaded){ location.reload(); return; }
+    if (st === 'error'){ clearTimeout(saveDebounceTimer); saveRegionsToBackend(); return; }
+    if (st === 'conflict' && persistConflict){
+      if (window.confirm(persistConflict.detail + '\n\nOK reloads the map with their changes. ' +
+          'Anything unsaved on this page is lost.\nCancel keeps this page as it is.')){
+        location.reload();
+        return;
+      }
+      if (window.confirm('Save your copy over theirs instead?\n\nEverything they changed since you ' +
+          'loaded the map will be undone.')){
+        persistBase = persistConflict.savedAt != null ? String(persistConflict.savedAt) : persistBase;
+        persistConflict = null;
+        clearTimeout(saveDebounceTimer);
+        saveRegionsToBackend();
+      }
+    }
+  });
+}
+
 dom.btnExport.addEventListener('click', () => {
   if (!regionManager.regions.size && !highwayState.lines.size && !highwayState.stations.size && !nationClaimState.claims.size){
     auditLog.log('Nothing to export yet — draw at least one region or highway first', 'warn');
@@ -9925,6 +10128,26 @@ let saveInFlight = false;
 let persistLoaded = false;
 let persistVersion = 0;  // bumped on every save attempt, to detect a superseded one
 
+/* Which stored version this page is editing — sent with every save, so the
+   Worker can refuse it if someone else has saved since. null means the Worker
+   predates the check, and saves go through unchecked as they always did. */
+let persistBase = null;
+let persistConflict = null;       // the Worker's answer when a save was refused as stale
+
+/* What the store held, by kind, and anything that would not load.
+ *
+ * This is the other half of "my edits do not save". Loading used to run as one
+ * block, and persistLoaded was only set at its very end — so if drawing any one
+ * layer threw, every layer already on screen looked fine while the page stayed
+ * marked as not loaded, and every save after that was refused. Each kind now
+ * loads on its own. A kind that fails is saved back exactly as it was stored,
+ * and a single item that fails is kept and saved back untouched, so a bad entry
+ * can never take the rest down with it, nor be silently dropped by a save. */
+let persistRaw = { regions: [], highways: [], claims: [], plans: [] };
+const persistFailedKinds = new Set();
+let persistKeep = [];             // individual stored features that failed to load
+function persistKeepFeature(f){ if (f && !persistKeep.includes(f)) persistKeep.push(f); }
+
 function regionsEndpoint(){
   return CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/regions';
 }
@@ -9936,7 +10159,20 @@ function setSaveStatus(text, isError){
   dom.saveStatus.style.fontSize = '.7rem';
 }
 
+/* The save state, on the map itself. It used to live only as a line in the
+   admin console, so a save that was refused or failed looked exactly like one
+   that worked unless you went and read that line. Shown only while the admin
+   console is unlocked, since nothing saves otherwise. */
+function setSavePill(kind, text, title){
+  const pill = document.getElementById('savePill');
+  if (!pill) return;
+  pill.dataset.state = kind;
+  pill.querySelector('.save-text').textContent = text;
+  pill.title = title || text;
+}
+
 async function loadRegionsFromBackend(){
+  let fc;
   try{
     // credentials: 'include' is REQUIRED. /regions is gated to verified
     // citizens, and without this the session cookie is never sent, so even a
@@ -9947,61 +10183,122 @@ async function loadRegionsFromBackend(){
       err.needsAuth = true;
       throw err;
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const fc = await res.json();
-    // One document holds both. Anything without an hw- kind is a region, which
-    // is what every previously saved feature looks like.
-    const all = Array.isArray(fc.features) ? fc.features : [];
-    const hwFeatures = all.filter(hwIsHighwayFeature);
-    const ncFeatures = all.filter(ncIsClaimFeature);
-    const expFeatures = all.filter(expIsPlanFeature);
-    expLoadFromFeatures(expFeatures);
-    if (expFeatures.length){
-      auditLog.log(`Loaded ${expansionState.saved.length} expansion plan(s)`, 'success');
-      if (typeof renderExpansionPanel === 'function') renderExpansionPanel();
+    if (!res.ok){
+      let why = '';
+      try { const d = await res.json(); why = d && (d.detail || d.error) ? ' — ' + (d.detail || d.error) : ''; } catch(_e){}
+      throw new Error(`HTTP ${res.status}${why}`);
     }
-    ncLoadFromFeatures(ncFeatures);
-    renderNationClaimAreas();
-    renderNationClaimPanel();
-    renderNationClaimAdmin();
-    if (ncFeatures.length){
-      auditLog.log(`Loaded ${nationClaimState.claims.size} nation claim area(s)`, 'success');
-      ncEnsureNationDetails();
-    }
-    if (fc.iceHighway && typeof fc.iceHighway.speedBps === 'number'){
-      boatSpeedBps = fc.iceHighway.speedBps;
-    }
-    if (fc.iceHighway && typeof fc.iceHighway.snapToChunks === 'boolean'){
-      hwSnapToChunks = fc.iceHighway.snapToChunks;
-    }
-    hwLoadFromFeatures(hwFeatures);
-    hwRefreshAll();
-    if (hwFeatures.length){
-      auditLog.log(`Loaded ${highwayState.lines.size} ice highway line(s) and ${highwayState.stations.size} station(s)`, 'success');
-    }
-    const count = regionManager.rehydrateFromFeatureCollection({
-      type: 'FeatureCollection',
-      features: all.filter(f =>
-        !hwIsHighwayFeature(f) && !ncIsClaimFeature(f) && !expIsPlanFeature(f)),
-    });
-    if (count){
-      auditLog.log(`Loaded ${count} saved region(s) from the shared store`, 'success');
-      renderAll();
-    } else{
-      auditLog.log('Shared store reachable — no saved regions yet', 'info');
-    }
-    persistLoaded = true;   // from here on it is safe to write back
-    setSaveStatus(count ? `Loaded ${count} saved region(s)` : 'No saved regions yet');
+    fc = await res.json();
   } catch(err){
     if (err.needsAuth){
       // Not a failure — Ethiopia's regions, highways and claims are private to
       // its citizens. Say that, rather than implying the store is broken.
       auditLog.log("Ethiopia's regions are private — sign in as a verified citizen to load them", 'info');
       setSaveStatus('Sign in to load Ethiopia\u2019s regions');
+      setSavePill('error', 'Not loaded', 'Sign in as a verified citizen to load the map');
       return;
     }
     auditLog.log(`Could not load saved regions: ${err.message} — starting empty`, 'warn');
     setSaveStatus('Could not reach shared store — regions will not persist', true);
+    setSavePill('error', 'Not loaded — reload',
+      `The saved map could not be loaded (${err.message}). Nothing will be saved until it is, ` +
+      'so an empty map can never overwrite the real one. Click to reload.');
+    return;
+  }
+
+  /* The fetch worked, so the page knows exactly what is stored. From here on
+     nothing can stop it saving: whatever fails below is kept as stored. */
+  persistBase = fc._store ? String(fc._store.savedAt || '') : null;
+  persistConflict = null;
+  persistFailedKinds.clear();
+  persistKeep = [];
+  const all = Array.isArray(fc.features) ? fc.features : [];
+  persistRaw = {
+    plans:    all.filter(expIsPlanFeature),
+    claims:   all.filter(ncIsClaimFeature),
+    highways: all.filter(hwIsHighwayFeature),
+    regions:  all.filter(f => !hwIsHighwayFeature(f) && !ncIsClaimFeature(f) && !expIsPlanFeature(f)),
+  };
+  persistRaw.iceHighway = fc.iceHighway || null;
+
+  const LABEL = { plans: 'expansion plans', claims: 'nation claims', highways: 'ice highways', regions: 'regions' };
+  const load = (kind, fn) => {
+    try { fn(); }
+    catch (err){
+      persistFailedKinds.add(kind);
+      auditLog.log(`Could not load the ${LABEL[kind]}: ${err.message}. They are kept exactly as ` +
+        `stored and saving will not change them.`, 'error');
+      try { console.error('[map] loading ' + kind, err); } catch (_e) {}
+    }
+  };
+  /* Drawing is separate from loading. If a layer loads but will not draw, its
+     data is still right and still saves — only the picture is missing. */
+  const draw = (kind, fn) => {
+    try { fn(); }
+    catch (err){
+      auditLog.log(`The ${LABEL[kind]} loaded but could not be drawn: ${err.message}`, 'error');
+      try { console.error('[map] drawing ' + kind, err); } catch (_e) {}
+    }
+  };
+
+  load('plans', () => expLoadFromFeatures(persistRaw.plans));
+  draw('plans', () => {
+    if (persistRaw.plans.length){
+      auditLog.log(`Loaded ${expansionState.saved.length} expansion plan(s)`, 'success');
+      if (typeof renderExpansionPanel === 'function') renderExpansionPanel();
+    }
+  });
+
+  load('claims', () => ncLoadFromFeatures(persistRaw.claims));
+  draw('claims', () => {
+    renderNationClaimAreas();
+    renderNationClaimPanel();
+    renderNationClaimAdmin();
+    if (persistRaw.claims.length){
+      auditLog.log(`Loaded ${nationClaimState.claims.size} nation claim area(s)`, 'success');
+      ncEnsureNationDetails();
+    }
+  });
+
+  load('highways', () => {
+    if (fc.iceHighway && typeof fc.iceHighway.speedBps === 'number'){
+      boatSpeedBps = fc.iceHighway.speedBps;
+    }
+    if (fc.iceHighway && typeof fc.iceHighway.snapToChunks === 'boolean'){
+      hwSnapToChunks = fc.iceHighway.snapToChunks;
+    }
+    hwLoadFromFeatures(persistRaw.highways);
+  });
+  draw('highways', () => {
+    hwRefreshAll();
+    if (persistRaw.highways.length){
+      auditLog.log(`Loaded ${highwayState.lines.size} ice highway line(s) and ${highwayState.stations.size} station(s)`, 'success');
+    }
+  });
+
+  let count = 0;
+  load('regions', () => {
+    count = regionManager.rehydrateFromFeatureCollection({ type: 'FeatureCollection', features: persistRaw.regions });
+  });
+  draw('regions', () => {
+    if (count){
+      auditLog.log(`Loaded ${count} saved region(s) from the shared store`, 'success');
+      renderAll();
+    } else if (!persistRaw.regions.length){
+      auditLog.log('Shared store reachable — no saved regions yet', 'info');
+    }
+  });
+
+  persistLoaded = true;   // from here on it is safe to write back
+  const problems = persistFailedKinds.size + persistKeep.length;
+  if (problems){
+    setSaveStatus(`Loaded, with ${problems} problem(s) — see the log. Those are kept as stored.`, true);
+    setSavePill('warn', 'Loaded with problems',
+      'Some saved items could not be loaded. They are kept exactly as stored and every save ' +
+      'carries them along unchanged. The audit log in the Admin tab names them.');
+  } else {
+    setSaveStatus(count ? `Loaded ${count} saved region(s)` : 'No saved regions yet');
+    setSavePill('saved', 'All saved', 'Everything on the map matches the saved copy');
   }
 }
 
@@ -10022,8 +10319,13 @@ async function saveRegionsToBackend(){
        immediately — the alternative is them working for an hour on something
        that was never going to persist. */
     setSaveStatus('Not saved — the shared store never loaded. Reload before editing.', true);
+    setSavePill('error', 'Not saved — reload', 'The saved map never loaded, so saving would overwrite it with an empty one. Click to reload.');
     auditLog.log('Save refused: nothing was loaded from the shared store, so saving ' +
       'now would overwrite it with an empty document. Reload the page.', 'error');
+    return;
+  }
+  if (persistConflict){
+    setSavePill('conflict', 'Not saved — newer copy', persistConflict.detail || 'Someone else saved since this page loaded.');
     return;
   }
   if (saveInFlight){
@@ -10035,6 +10337,7 @@ async function saveRegionsToBackend(){
   }
   saveInFlight = true;
   setSaveStatus('Saving…');
+  setSavePill('saving', 'Saving…');
   const attemptedVersion = ++persistVersion;
   try{
     const fc = buildPersistPayload();
@@ -10049,6 +10352,7 @@ async function saveRegionsToBackend(){
     const kb = Math.round(body.length / 1024);
     if (kb > 4096){
       setSaveStatus(`Not saved — the document is ${CoordUtils.fmt(kb)} KB, too large to send.`, true);
+      setSavePill('error', 'Not saved — too large', `The map has grown to ${CoordUtils.fmt(kb)} KB. See the audit log.`);
       auditLog.log(`Save refused: the saved document has grown to ${CoordUtils.fmt(kb)} KB ` +
         `(${fc.features.length} features). Something is storing far more than it should — ` +
         `most likely an expansion plan holding tens of thousands of chunk keys. ` +
@@ -10060,21 +10364,44 @@ async function saveRegionsToBackend(){
         `— large, but within limits`, 'warn');
     }
 
-    const res = await fetch(regionsEndpoint(), {
+    /* The version this page is editing goes in the address rather than a
+       header: a new header would need the Worker's permission first, and a
+       page deployed before the Worker would then fail every save. */
+    const url = regionsEndpoint() + (persistBase !== null ? '?base=' + encodeURIComponent(persistBase) : '');
+    const res = await fetch(url, {
       method: 'POST',
       credentials: 'include',   // this alone is the whole of the auth now
       headers: { 'Content-Type': 'application/json' },
       body,
     });
+    if (res.status === 409){
+      let d = null;
+      try { d = await res.json(); } catch (_e) {}
+      persistConflict = d || { detail: 'Someone else saved the map since this page loaded.' };
+      setSaveStatus('Not saved — ' + persistConflict.detail, true);
+      setSavePill('conflict', 'Not saved — newer copy', persistConflict.detail);
+      auditLog.log('Save refused: ' + persistConflict.detail, 'error');
+      return;
+    }
     if (!res.ok){
       let bodyText = '';
       try{ bodyText = await res.text(); } catch(_e){ /* ignore */ }
-      throw new Error(`HTTP ${res.status}${bodyText ? ' — ' + bodyText.slice(0,140) : ''}`);
+      let why = bodyText;
+      try { const d = JSON.parse(bodyText); why = d.detail || d.error || bodyText; } catch (_e) {}
+      throw new Error(`HTTP ${res.status}${why ? ' — ' + String(why).slice(0,160) : ''}`);
     }
+    let saved = null;
+    try { saved = await res.json(); } catch (_e) {}
+    if (saved && saved.savedAt) persistBase = saved.savedAt;
     // A newer save may have queued and already run while this one was on the
     // wire — don't let this response's success message overwrite that.
     if (attemptedVersion === persistVersion){
       setSaveStatus(`Saved — synced ${relTime(Date.now())}`);
+      if (!saveQueuedWhileInFlight){
+        const t = new Date();
+        setSavePill('saved', 'Saved ' + String(t.getHours()).padStart(2, '0') + ':' +
+          String(t.getMinutes()).padStart(2, '0'), 'Everything on the map is saved');
+      }
     }
     auditLog.log('Regions saved to the shared store', 'success');
   } catch(err){
@@ -10088,6 +10415,7 @@ async function saveRegionsToBackend(){
         `${JSON.parse(probe).features.length} features)`;
     } catch (_e) { /* if even measuring fails, the plain message stands */ }
     setSaveStatus(`Save failed: ${err.message}${extra}`, true);
+    setSavePill('error', 'Save failed — retry', `Save failed: ${err.message}${extra}. Click to try again.`);
     auditLog.log(`Save failed: ${err.message}`, 'error');
   } finally{
     saveInFlight = false;
@@ -10147,6 +10475,7 @@ function pushTownRegions(){
 function scheduleSave(){
   if (!state.adminMode) return;
   setSaveStatus('Unsaved changes…');
+  if (!persistConflict) setSavePill('unsaved', 'Saving soon…', 'Unsaved changes — saving in a moment');
   clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(saveRegionsToBackend, 1000);
 }
@@ -10679,7 +11008,8 @@ function hwLoadFromFeatures(features){
         });
       }
     } catch(err){
-      auditLog.log(`Skipped a saved highway feature: ${err.message}`, 'warn');
+      persistKeepFeature(f);
+      auditLog.log(`A saved highway item could not be loaded (${err.message}) — it is kept as stored`, 'warn');
     }
   });
   highwayState.nextId = Math.max(highwayState.nextId, maxId + 1);
@@ -10735,7 +11065,8 @@ function expLoadFromFeatures(features){
         })),
       });
     } catch (err){
-      auditLog.log(`Skipped a saved expansion plan: ${err.message}`, 'warn');
+      persistKeepFeature(f);
+      auditLog.log(`A saved expansion plan could not be loaded (${err.message}) — it is kept as stored`, 'warn');
     }
   });
   expansionState.nextSavedId = maxId + 1;
@@ -10747,8 +11078,17 @@ function expLoadFromFeatures(features){
 
 function buildPersistPayload(){
   const fc = regionManager.exportGeoJSON();
-  fc.features = fc.features.concat(hwToFeatures(), ncToFeatures(), expToFeatures());
-  fc.iceHighway = { speedBps: boatSpeedBps, snapBlocks: HW_SNAP_BLOCKS, snapToChunks: hwSnapToChunks };
+  /* A kind that would not load is written back exactly as it was stored —
+     what is in memory for it may be partial, and saving that would lose the
+     rest. Single items that would not load ride along unchanged too. */
+  const kind = (k, live) => (persistFailedKinds.has(k) ? persistRaw[k] : live());
+  fc.features = [].concat(
+    persistFailedKinds.has('regions') ? persistRaw.regions : fc.features,
+    kind('highways', hwToFeatures), kind('claims', ncToFeatures), kind('plans', expToFeatures),
+    persistKeep);
+  fc.iceHighway = persistFailedKinds.has('highways') && persistRaw.iceHighway
+    ? persistRaw.iceHighway
+    : { speedBps: boatSpeedBps, snapBlocks: HW_SNAP_BLOCKS, snapToChunks: hwSnapToChunks };
   return fc;
 }
 

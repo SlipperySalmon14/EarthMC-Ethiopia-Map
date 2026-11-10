@@ -1143,7 +1143,7 @@ input[type="range"]{
 
 #btnAdminToggle{ position: relative; }
 #btnAdminToggle.unlocked::after{
-  content: '🔓';
+  content: '';
   position: absolute;
   top: -4px;
   right: -6px;
@@ -1294,6 +1294,7 @@ h1,h2,h3{ letter-spacing:0; }
 #panel-eth-health, #panel-nations{ --c:var(--sage); }
 #panel-eth-regions, #panel-eth-highways, #panel-sync, #panel-inspector{ --c:var(--blue); }
 #panel-nation-claims, #panel-nc-ops, #panel-hw-ops, #panel-log, #panel-export{ --c:var(--danger); }
+#panel-county-ops{ --c:var(--blue); }
 #panel-settings{ --c:var(--muted); }
 .panel-head{ margin-bottom:.75rem; }
 .eyebrow{
@@ -1363,6 +1364,38 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 .leaflet-bar, .leaflet-pm-toolbar{ border-radius:10px !important; overflow:hidden; }
 .claim-tooltip{ border-radius:8px !important; font-family:var(--font-body) !important; font-size:.76rem !important; letter-spacing:0; }
 .map-open{ background:var(--brass); color:#141006; font-family:var(--font-body); box-shadow:0 0 22px rgba(252,209,22,.35), 0 6px 18px rgba(0,0,0,.5); }
+
+/* --- the planner's three modes, the forecast, the watch list ---------------- */
+.exp-modes{ display:flex; gap:.3rem; margin-bottom:.8rem; flex-wrap:wrap; }
+.exp-modes .btn{ flex:1 1 auto; white-space:nowrap; }
+.fc-chart{ width:100%; height:auto; display:block; margin-top:.5rem; border-radius:10px;
+  background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.06); }
+.fc-chart text{ font-family:var(--font-mono); font-size:8.5px; fill:var(--muted); letter-spacing:-.02em; }
+.fc-key{ display:flex; flex-wrap:wrap; gap:.3rem .8rem; margin-top:.35rem; font-size:.72rem; color:var(--muted); }
+.fc-key i{ display:inline-block; width:10px; height:3px; border-radius:2px; margin-right:.3rem; vertical-align:middle; }
+.watch-sum{ display:grid; grid-template-columns:1fr 1fr; gap:.4rem; margin-bottom:.7rem; }
+.watch-sum .ws{ border-radius:9px; padding:.45rem .6rem; font-size:.74rem; color:var(--muted);
+  background:var(--panel-2); border:1px solid rgba(255,255,255,.06); border-top:2px solid var(--c); }
+.watch-sum .ws b{ display:block; font-family:var(--font-mono); font-size:1rem; color:var(--c); }
+.ws.now{ --c:var(--danger); } .ws.soon{ --c:#f59e0b; } .ws.fall{ --c:var(--danger-hi); } .ws.land{ --c:var(--brass); }
+.watch-list{ display:flex; flex-direction:column; gap:.25rem; max-height:22rem; overflow-y:auto; }
+.watch-row{ display:grid; grid-template-columns:1fr auto; gap:.1rem .6rem; text-align:left; cursor:pointer;
+  padding:.45rem .6rem; border-radius:9px; background:var(--panel-2); border:1px solid rgba(255,255,255,.06);
+  color:var(--parchment); font-family:var(--font-body); }
+.watch-row:hover{ border-color:var(--line-hot); }
+.watch-row.on{ border-color:var(--brass); box-shadow:0 0 12px rgba(252,209,22,.15); }
+.wr-name{ font-weight:600; font-size:.84rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wr-meta{ font-family:var(--font-mono); font-size:.66rem; color:var(--muted); text-align:right; }
+.wr-st{ grid-column:1 / -1; font-size:.74rem; }
+.wr-st.now, .wd-st.now{ color:var(--danger-hi); } .wr-st.soon, .wd-st.soon{ color:#fbbf24; }
+.wr-st.holds, .wd-st.holds{ color:var(--muted); }
+.watch-detail{ border-radius:11px; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.2);
+  padding:.75rem .8rem; margin-bottom:.8rem; }
+.wd-head{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+.wd-head b{ font-size:1rem; }
+.wd-st{ font-size:.78rem; }
+.region-card.region-outside{ border-style:dashed; background:transparent; cursor:default; color:var(--muted); }
+.region-check{ margin-top:.5rem; }
 </style>
 </head>
 <body>
@@ -1376,7 +1409,7 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
            lands on the hub rather than the site root. -->
       <a class="home-link" href="index.html" title="Ethiopia Ecosystem">&#8592; Ecosystem</a>
       <h1><span class="locus">EarthMC</span> · Ethiopia</h1>
-      <span class="tagline">MAP PROJECTION — TERRA NOSTRA · LIVE TOWNY DATA</span>
+      <span class="tagline">Terra Nostra · live town data</span>
     </div>
     <div style="display: flex; gap: 1rem; align-items: center;">
       <button type="button" class="save-pill admin-only" id="savePill" data-state="idle"
@@ -1387,11 +1420,11 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
         <span class="status-dot" id="topStatusDot"></span>
         <span id="topStatusText">Idle</span>
       </div>
-      <button id="btnAdminToggle" class="btn btn-ghost btn-small" title="Unlock admin console" style="font-size: .75rem;">🔒 Admin</button>
+      <button id="btnAdminToggle" class="btn btn-ghost btn-small" title="Edit the map" style="font-size: .75rem;">Edit</button>
     </div>
   </header>
 
-  <button type="button" id="mapOpenBtn" class="map-open">🗺 Open map</button>
+  <button type="button" id="mapOpenBtn" class="map-open">Open the map</button>
   <button type="button" id="guiRestoreBtn" class="gui-restore" title="Show the interface again">Show UI</button>
 
   <div class="workspace">
@@ -1400,8 +1433,8 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
       <button type="button" id="mapCloseBtn" class="map-close" title="Back to panels" aria-label="Close map">✕</button>
       <div id="map"></div>
       <div style="position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(16,14,11,.88); border: 1px solid var(--line); color: var(--muted); font-family: var(--font-mono); font-size: .72rem; padding: .3rem .6rem; border-radius: var(--radius-sm); box-shadow: var(--shadow-panel); pointer-events: none; z-index: 14;" id="publicNotice">
-        <span class="public-only" id="publicNoticeText">🔒 Public view — unlock admin console to edit regions</span>
-        <span class="admin-only" style="color: var(--brass-hi);">🔓 Admin mode active</span>
+        <span class="public-only" id="publicNoticeText">View only</span>
+        <span class="admin-only" style="color: var(--brass-hi);">Editing — changes save automatically</span>
       </div>
       <div class="hw-readout" id="hwReadout" hidden></div>
       <div class="split-banner hw-banner" id="hwBanner">
@@ -1422,27 +1455,25 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
         <button type="button" class="view-tab is-active" id="viewTabEthiopia" role="tab" aria-selected="true">Ethiopia</button>
         <button type="button" class="view-tab" id="viewTabGlobal" role="tab" aria-selected="false">Global</button>
         <button type="button" class="view-tab" id="viewTabSettings" role="tab" aria-selected="false">Settings</button>
-        <button type="button" class="view-tab" id="viewTabAdmin" role="tab" aria-selected="false" hidden>Admin</button>
+        <button type="button" class="view-tab" id="viewTabAdmin" role="tab" aria-selected="false" hidden>Edit</button>
       </div>
 
 
       <section class="panel public-only view-ethiopia" style="background: linear-gradient(135deg, var(--raised), var(--panel));">
         <div class="panel-head">
-          <h2 style="color: var(--brass-hi);">Welcome to Ethiopia</h2>
+          <h2 style="color: var(--brass-hi);">Ethiopia's map</h2>
         </div>
-        <p style="color: var(--parchment); line-height: 1.6; margin-bottom: 1rem;">
-          This regional overlay displays the political boundaries and town data for the Ethiopian nation on EarthMC. Admins can unlock the console to manage regions, sync data, and perform topological operations.
-        </p>
-        <p style="color: var(--muted); font-size: .8rem;">
-          <strong>Features visible to all:</strong> Interactive map with town markers, region boundaries, population stats. Click regions to inspect them. Export boundary data as GeoJSON.
+        <p style="color: var(--parchment); line-height: 1.6; margin-bottom: .4rem;">
+          Our regions, borders and ice highways, drawn over live town data from EarthMC.
+          Click a town, a region or a highway for its details.
         </p>
       </section>
 
 
       <section class="panel view-admin" id="panel-sync">
         <div class="panel-head">
-          <span class="eyebrow">SYNC.STATUS</span>
-          <h2>EarthMC Connection</h2>
+          <span class="eyebrow">Live data</span>
+          <h2>Connection to EarthMC</h2>
         </div>
         <div class="sync-status-row">
           <span class="status-dot" id="statusDot"></span>
@@ -1464,7 +1495,7 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-settings" id="panel-settings">
         <div class="panel-head">
-          <span class="eyebrow">DISPLAY</span>
+          <span class="eyebrow">Display</span>
           <h2>Settings</h2>
         </div>
         <div class="setting-row">
@@ -1493,7 +1524,7 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-ethiopia" id="panel-eth-overview">
         <div class="panel-head">
-          <span class="eyebrow">NATION.STATE</span>
+          <span class="eyebrow">Overview</span>
           <h2>State of Ethiopia</h2>
         </div>
         <dl class="stat-grid">
@@ -1508,8 +1539,8 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-ethiopia" id="panel-eth-economy">
         <div class="panel-head">
-          <span class="eyebrow">NATION.ECONOMY</span>
-          <h2>Economy</h2>
+          <span class="eyebrow">Money</span>
+          <h2>Wealth</h2>
         </div>
         <div class="econ-tabs" id="econTabs">
           <button type="button" class="econ-tab is-active" data-econ="gdp">GDP</button>
@@ -1528,8 +1559,8 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-ethiopia" id="panel-eth-health">
         <div class="panel-head">
-          <span class="eyebrow">NATION.HEALTH</span>
-          <h2>Activity &amp; Inactivity</h2>
+          <span class="eyebrow">Activity</span>
+          <h2>Who is still playing</h2>
         </div>
         <dl class="stat-grid">
           <div><dt>Active (7d)</dt><dd id="ethActive7">—</dd></div>
@@ -1568,7 +1599,7 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-ethiopia" id="panel-eth-regions">
         <div class="panel-head">
-          <span class="eyebrow">REGION.VIEW</span>
+          <span class="eyebrow">Regions</span>
           <h2>Regions of Ethiopia</h2>
         </div>
         <div class="region-cards" id="ethRegionCards">
@@ -1581,27 +1612,31 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
             <div><dt>Capital</dt><dd id="ethRegionCapital">—</dd></div>
             <div><dt>Towns</dt><dd id="ethRegionTowns">—</dd></div>
             <div><dt>Residents</dt><dd id="ethRegionPop">—</dd></div>
+            <div><dt>Claimed chunks</dt><dd id="ethRegionChunks">—</dd></div>
           </dl>
+          <p class="hint" id="ethRegionLandFrom" hidden></p>
+          <div id="ethRegionCounties" style="margin-top:.5rem"></div>
           <div class="region-town-list" id="ethRegionTownList"></div>
         </div>
       </section>
 
       <section class="panel view-ethiopia" id="panel-plan">
         <div class="panel-head">
-          <span class="eyebrow">EXPANSION</span>
-          <h2>Expansion</h2>
+          <span class="eyebrow">Planning</span>
+          <h2>Expansion and overclaims</h2>
         </div>
         <p class="hint" style="margin-top:0">
-          What more land would do to a town, and what more towns would do to a
-          nation. Nothing is saved or sent anywhere.
+          Plan new land for our towns, including land taken from towns over
+          their limit; model towns joining or leaving a nation; and forecast
+          which towns are about to go over their claim limit.
         </p>
         <div id="planPanel"></div>
       </section>
 
       <section class="panel view-anydata" id="panel-nation-claims">
         <div class="panel-head">
-          <span class="eyebrow">NATION.CLAIMS</span>
-          <h2>Nation Claims</h2>
+          <span class="eyebrow">Borders</span>
+          <h2>Nation borders</h2>
         </div>
         <div class="nc-list" id="ncList"></div>
         <div class="nc-detail" id="ncDetail" hidden>
@@ -1618,8 +1653,8 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-ethiopia" id="panel-eth-highways">
         <div class="panel-head">
-          <span class="eyebrow">NETWORK.TRANSIT</span>
-          <h2>Ice Highway Network</h2>
+          <span class="eyebrow">Transport</span>
+          <h2>Ice highways</h2>
         </div>
         <dl class="stat-grid">
           <div><dt>Lines</dt><dd id="hwLineCount">—</dd></div>
@@ -1637,7 +1672,7 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
           <p class="hint" id="hwDetailNotes" hidden style="margin-top:.4rem"></p>
         </div>
         <div class="region-detail">
-          <span class="eyebrow">ROUTE.PLANNER</span>
+          <span class="eyebrow">Route planner</span>
           <div class="hw-route-controls">
             <button type="button" class="btn btn-ghost btn-small" id="hwByNameToggle" style="flex:1 1 auto">Plan by station name ▾</button>
             <button type="button" class="btn btn-primary btn-small" id="hwRouteClear">Clear</button>
@@ -1658,8 +1693,8 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-global" id="panel-nations">
         <div class="panel-head">
-          <span class="eyebrow">NATION.INDEX</span>
-          <h2>Nation Tracker</h2>
+          <span class="eyebrow">Other nations</span>
+          <h2>Nations on the map</h2>
         </div>
         <form class="inline-form" id="publicTrackForm">
           <input type="text" id="publicTrackInput" placeholder="Track another nation…" autocomplete="off">
@@ -1701,8 +1736,8 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-admin" id="panel-inspector">
         <div class="panel-head">
-          <span class="eyebrow">REGION.DATA</span>
-          <h2>Region Inspector</h2>
+          <span class="eyebrow">Regions</span>
+          <h2>Edit a region</h2>
         </div>
         <div class="region-list" id="regionList">
           <p class="empty-hint">No regions drawn yet. Use the drawing tools in the map's top-left corner to draw your first regional boundary.</p>
@@ -1748,24 +1783,38 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-admin" id="panel-ops">
         <div class="panel-head">
-          <span class="eyebrow">REGION.OPS</span>
-          <h2>Topological Control Hub</h2>
+          <span class="eyebrow">Regions</span>
+          <h2>Merge, split and save</h2>
         </div>
         <div class="btn-row">
           <button id="btnMerge" class="btn btn-primary" disabled>Merge selected regions</button>
           <button id="btnSplit" class="btn btn-primary">Split region</button>
-          <button id="btnSync" class="btn btn-accent">⟳ Sync / refresh live API data</button>
-          <button id="btnSaveNow" class="btn btn-primary">💾 Save everything now</button>
+          <button id="btnSync" class="btn btn-accent">Refresh live data now</button>
+          <button id="btnSaveNow" class="btn btn-primary">Save now</button>
         </div>
-        <p class="hint admin-only">Admin-only: manage regions, sync data, and perform topological operations.</p>
-        <p class="hint" id="opsHint">Select two or more regions in the list above (checkboxes) to enable merging.</p>
+                <p class="hint" id="opsHint">Select two or more regions in the list above (checkboxes) to enable merging.</p>
         <p class="hint" id="saveStatus" style="font-family: var(--font-mono); font-size: .7rem;">—</p>
+      </section>
+
+      <section class="panel view-admin" id="panel-county-ops">
+        <div class="panel-head">
+          <span class="eyebrow">Counties</span>
+          <h2>Draw counties</h2>
+        </div>
+        <div class="hw-route-controls">
+          <select id="countyRegion" aria-label="The region the county is in"><option value="">Region…</option></select>
+          <input type="text" id="countyName" placeholder="County name" autocomplete="off" style="flex:1 1 auto">
+          <button type="button" class="btn btn-primary btn-small" id="countyDraw">Draw</button>
+        </div>
+        <p class="hint">Pick the region, name the county, then draw it on the map. Anything past the region's
+          edge is trimmed off. A town belongs to the county holding most of its land.</p>
+        <div class="hw-admin-list" id="countyAdminList"></div>
       </section>
 
       <section class="panel view-admin" id="panel-nc-ops">
         <div class="panel-head">
-          <span class="eyebrow">CLAIMS.OPS</span>
-          <h2>Nation Claim Editor</h2>
+          <span class="eyebrow">Borders</span>
+          <h2>Draw nation borders</h2>
         </div>
         <div class="inline-form">
           <input type="text" id="ncNationInput" placeholder="Nation name, e.g. Ethiopia" autocomplete="off">
@@ -1814,8 +1863,8 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-admin" id="panel-hw-ops">
         <div class="panel-head">
-          <span class="eyebrow">NETWORK.OPS</span>
-          <h2>Ice Highway Editor</h2>
+          <span class="eyebrow">Transport</span>
+          <h2>Draw ice highways</h2>
         </div>
         <div class="hw-route-controls">
           <button type="button" class="btn btn-primary btn-small" id="hwAddStation" style="flex:1 1 auto">Add station</button>
@@ -1840,19 +1889,19 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <section class="panel view-admin" id="panel-log">
         <div class="panel-head">
-          <span class="eyebrow">SYS.LOG</span>
-          <h2>Live System Audit Log</h2>
+          <span class="eyebrow">Log</span>
+          <h2>What the map has done</h2>
         </div>
         <div class="audit-log" id="auditLog"></div>
       </section>
 
       <section class="panel view-admin" id="panel-export">
         <div class="panel-head">
-          <span class="eyebrow">DATA.OUT</span>
-          <h2>Export Utility</h2>
+          <span class="eyebrow">Download</span>
+          <h2>Take a copy</h2>
         </div>
-        <p class="hint">Compiles every custom region's boundary and live-aggregated stats into one downloadable file.</p>
-        <button id="btnExport" class="btn btn-accent btn-block">Export regions as .geojson</button>
+        <p class="hint">Every region, border, highway and saved plan in one GeoJSON file, with each region's current figures.</p>
+        <button id="btnExport" class="btn btn-accent btn-block">Download as GeoJSON</button>
       </section>
 
     </aside>
@@ -1987,6 +2036,7 @@ let colorByActivity = false;
 let showRegions = true;      // region polygons layer (Ethiopia view only)
 let showHighways = true;     // ice highway lines + stations
 let showNationClaims = true; // admin-drawn nation border areas
+let showCounties = false;    // counties inside each region — their own view, off until asked for
 /* Which world the map shows. Not a layer toggle — the two worlds share a
    coordinate plane, so they can never both be drawn without one lying on top
    of the other. */
@@ -2034,6 +2084,7 @@ function drawModeArmed(){
   try{
     return !!(nationClaimState.drawArmed || nationClaimState.editing || nationClaimState.proposal ||
               highwayState.drawTarget || highwayState.stationTarget || highwayState.editing ||
+              countyState.drawArmed || countyState.editing ||
               state.splitArmed || expActive());
   } catch(_notReadyYet){
     return false;   // called before those exist — nothing can be armed yet
@@ -2533,6 +2584,10 @@ const expansionState = {
      are the one thing guaranteed not to be there in reality. */
   finished: false,
 
+  /* Overclaiming: a plan may take chunks from other towns. Off by default, so
+     a stray stroke over a neighbour still does nothing. */
+  overclaim: false,
+
   painting: false,       // a drag is in progress
   paintMode: 'add',      // what the drag is doing, fixed at pointerdown
   panMode: false,        // dragging pans instead of painting
@@ -2566,6 +2621,70 @@ function chunkOwnerIndex(){
 }
 
 function chunkOwnerAt(cx, cz){ return chunkOwnerIndex().get(expKey(cx, cz)) || null; }
+
+/* A town's home block can never be overclaimed. */
+function isHomeChunk(t, cx, cz){
+  return !!t && typeof t.homeX === 'number' &&
+    Math.floor(t.homeX / 16) === cx && Math.floor(t.homeZ / 16) === cz;
+}
+
+/* How far over its claim limit a town is today. The real limit when the API
+   gives it, otherwise residents plus the estimated nation bonus. */
+function townLimitNow(t){
+  return (typeof t.maxTownBlocks === 'number' && t.maxTownBlocks > 0)
+    ? t.maxTownBlocks
+    : PLAN_BASE_CLAIMS + (t.population || 0) * PLAN_PER_RESIDENT + nationBonusFor(t);
+}
+function townOverNow(t){ return Math.max(0, (t.townBlocks || 0) - townLimitNow(t)); }
+
+/* Which chunks finished plans take from each town. A chunk planned by one town
+   but claimed today by another is an overclaim of that other town. Kept per
+   victim so its outline can lose exactly those chunks. Rebuilt only when the
+   finished plans or the shown groups change. */
+let expTakenMemo = null, expTakenSig = '';
+function expTakenFrom(name){
+  chunkOwnerIndex();
+  const sig = [...expansionState.plans.values()].filter(p => p.locked)
+      .map(p => p.town.name + ':' + p.added.size + ':' + p.removed.size).join('|') +
+    '#' + [...expansionState.showing].join(',') + '#' + expansionState.saved.length + '#' + chunkOwnerSig;
+  if (!expTakenMemo || sig !== expTakenSig){
+    expTakenMemo = new Map();
+    const take = (taker, keys) => keys.forEach(k => {
+      const [x, z] = k.split(',').map(Number);
+      const owner = chunkOwnerAt(x, z);
+      if (!owner || owner.name === taker) return;
+      if (!expTakenMemo.has(owner.name)) expTakenMemo.set(owner.name, new Set());
+      expTakenMemo.get(owner.name).add(k);
+    });
+    expansionState.plans.forEach(p => { if (p.locked) take(p.town.name, p.added); });
+    expansionState.saved.forEach(g => {
+      if (expansionState.showing.has(g.id)) g.towns.forEach(t => take(t.name, t.added));
+    });
+    expTakenSig = sig;
+  }
+  return expTakenMemo.get(name) || null;
+}
+
+/* The towns one plan takes land from, with whether each can actually lose it.
+   Overclaiming works only while the victim is over its limit, and every chunk
+   taken brings it one closer to the limit — so a town 6 over can lose 6. */
+function expVictims(plan){
+  const by = new Map();
+  plan.added.forEach(k => {
+    const [x, z] = k.split(',').map(Number);
+    const owner = chunkOwnerAt(x, z);
+    if (!owner || owner.name === plan.town.name) return;
+    if (!by.has(owner.name)) by.set(owner.name, { town: owner, keys: [] });
+    by.get(owner.name).keys.push(k);
+  });
+  return [...by.values()].map(v => {
+    const over = townOverNow(v.town);
+    const fc = watchState.forecasts.get(v.town.name) || null;
+    const need = v.keys.length;
+    return { town: v.town, taken: need, overNow: over, fc,
+      readyDay: over >= need ? 0 : forecastDayFor(fc, need) };
+  }).sort((a, b) => b.taken - a.taken);
+}
 function expActive(){ return !!(expansionState.editing || expansionState.mode === 'nation'); }
 
 /* The nation bonus, read from the town's OWN numbers rather than recomputed.
@@ -2679,25 +2798,25 @@ function expFillRect(a, b){
       `(cap ${CoordUtils.fmt(EXP_RECT_CAP)}). Zoom in and take it in pieces.`, 'warn');
     return;
   }
-  /* Chunks already claimed by ANY town are skipped, not just this one. Painting
-     over a neighbour's land would produce a plan that cannot happen. */
-  const takenByOthers = new Set();
-  ncAllTowns().forEach(t => {
-    if (t.name === plan.town.name) return;
-    (t.claimChunks || []).forEach(([x, z]) => takenByOthers.add(expKey(x, z)));
-  });
+  /* Other towns' land is skipped unless overclaiming is on; home blocks are
+     skipped always. */
   const own = new Set((plan.town.claimChunks || []).map(([x, z]) => expKey(x, z)));
-  let skipped = 0;
+  let skipped = 0, taken = 0;
   for (let cx = x0; cx <= x1; cx++){
     for (let cz = z0; cz <= z1; cz++){
       const k = expKey(cx, cz);
       if (own.has(k)) continue;
-      if (takenByOthers.has(k)){ skipped++; continue; }
+      const other = chunkOwnerAt(cx, cz);
+      if (other && other.name !== plan.town.name){
+        if (!expansionState.overclaim || isHomeChunk(other, cx, cz)){ skipped++; continue; }
+        taken++;
+      }
       plan.added.add(k);
     }
   }
   auditLog.log(`Added ${CoordUtils.fmt(count - skipped)} chunk(s)` +
-    (skipped ? `, skipped ${CoordUtils.fmt(skipped)} already claimed by another town` : ''), 'info');
+    (taken ? `, ${CoordUtils.fmt(taken)} of them overclaimed from other towns` : '') +
+    (skipped ? `, skipped ${CoordUtils.fmt(skipped)} held by other towns` : ''), 'info');
   renderExpansionOverlay(); renderExpansionPanel();
 }
 
@@ -2750,11 +2869,14 @@ function expPaintAt(cx, cz){
   else if (mode === 'remove'){ if (owned) plan.removed.add(k); }
   else {
     if (owned) return;                       // cannot add what is already held
-    /* Another town's land cannot be planned onto. One index lookup rather
-       than a scan of every town — this runs per chunk during a drag. Silently
-       skipped rather than refused, because a warning per chunk is noise. */
+    /* Another town's land is off limits unless overclaiming is switched on,
+       and its home block is off limits always. One index lookup rather than a
+       scan of every town — this runs per chunk during a drag. Silently skipped
+       rather than refused, because a warning per chunk is noise. */
     const other = chunkOwnerAt(cx, cz);
-    if (other && other.name !== plan.town.name) return;
+    if (other && other.name !== plan.town.name){
+      if (!expansionState.overclaim || isHomeChunk(other, cx, cz)) return;
+    }
     plan.added.add(k);
   }
   renderExpansionOverlay();
@@ -2912,6 +3034,255 @@ function expStop(){
   refreshMapLayers();
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
+
+
+/* =========================================================================
+   THE 42-DAY FORECAST
+
+   EarthMC removes a resident 42 days after their last login. Each one that
+   goes takes 12 chunks off their town's claim limit, and shrinks the nation,
+   which can lower the nation bonus every member town gets. Once a town holds
+   more chunks than its limit, the excess can be overclaimed by anyone.
+
+   This works out, day by day, what happens to a town if none of its residents
+   logs in again: residents left, nation bonus, claim limit, and how far over
+   the limit the town will be. It is the worst case for the town and the best
+   case for anyone waiting to take its land — every login pushes that
+   resident's date back, so the forecast is a ceiling on what could open up,
+   never a promise. A resident whose activity is hidden is assumed to stay.
+   ========================================================================= */
+const FORECAST_HORIZONS = [7, 14, 30, 42, 60];
+/* "1 town", "3 towns" — counts read as words, not as code. */
+function plural(n, word, many){ return `${CoordUtils.fmt(n)} ${n === 1 ? word : (many || word + 's')}`; }
+
+const watchState = {
+  nation: '',
+  towns: [],
+  forecasts: new Map(),     // town name -> forecast
+  horizon: 42,
+  loading: false,
+  error: '',
+  selected: null,
+  model: null,              // the nation's resident decay, for the bonus
+  showAll: false,
+};
+
+/* Days from now until a resident is removed, or null when their activity is
+   hidden. Someone already past 42 days is due now (0). */
+function residentDropDay(name, now){
+  const p = activityCache.players.get(name);
+  if (!p || p.lastOnline == null) return null;
+  return Math.max(0, (p.lastOnline + FALL_DAYS * DAY_MS - now) / DAY_MS);
+}
+
+/* Day 0 is today as it stands — everyone still listed counts, even someone
+   overdue. From day 1 on, a resident counts until their day passes. */
+function stillThere(day, d){ return day === null || (d === 0 ? true : day > d); }
+
+/* How many residents a whole nation keeps, day by day — the input to its
+   bonus. Built from every resident whose activity is known; the nation's own
+   resident count is the starting point, so hidden residents count as staying. */
+function nationDecayModel(towns, nationName){
+  const now = Date.now();
+  const names = [...new Set((towns || []).flatMap(t => t.residents || []))];
+  const days = names.map(n => residentDropDay(n, now));
+  const stats = nationStatsFor(nationName);
+  const base = stats && typeof stats.numResidents === 'number' ? stats.numResidents : names.length;
+  return {
+    base,
+    countAt(d){ return d === 0 ? base : base - days.filter(x => x !== null && x <= d).length; },
+  };
+}
+
+function forecastTown(town, horizon, model){
+  const now = Date.now();
+  const names = town.residents && town.residents.length ? town.residents : (town.mayor ? [town.mayor] : []);
+  const drops = names.map(n => ({ name: n, day: residentDropDay(n, now) }));
+  const unknown = drops.filter(x => x.day === null).length;
+  const pop0 = town.population || names.length;
+  const extra = Math.max(0, pop0 - names.length);        // listed in the count but not by name
+  const bonus0 = town.nationName ? nationBonusFor(town) : 0;
+  const nat0 = model && town.nationName ? model.countAt(0) : null;
+  const chunks = town.townBlocks || (town.claimChunks || []).length;
+
+  const series = [];
+  for (let d = 0; d <= horizon; d++){
+    const res = extra + drops.filter(x => stillThere(x.day, d)).length;
+    let bonus = bonus0;
+    if (nat0 !== null){
+      bonus = Math.max(0, bonus0 + bonusFromResidents(model.countAt(d)) - bonusFromResidents(nat0));
+    }
+    const limit = res > 0 ? PLAN_BASE_CLAIMS + res * PLAN_PER_RESIDENT + bonus : 0;
+    series.push({ d, res, bonus, limit, over: Math.max(0, chunks - limit) });
+  }
+  const firstOver = series.find(x => x.over > 0);
+  const fell = series.find(x => x.res === 0);
+  return {
+    town, chunks, series, horizon,
+    drops: drops.filter(x => x.day !== null && x.day <= horizon).sort((a, b) => a.day - b.day),
+    unknown,
+    overNow: series[0].over,
+    overEnd: series[horizon].over,
+    firstOverDay: firstOver ? firstOver.d : null,
+    fellDay: fell ? fell.d : null,
+    bonusModelled: nat0 !== null,
+    bonusStart: series[0].bonus, bonusEnd: series[horizon].bonus,
+    limitExact: typeof town.maxTownBlocks === 'number' && town.maxTownBlocks > 0,
+  };
+}
+
+/* The first day a town is at least `need` chunks over, from a forecast. */
+function forecastDayFor(fc, need){
+  const hit = fc && fc.series.find(x => x.over >= need);
+  return hit ? hit.d : null;
+}
+
+function dayDate(d){
+  return new Date(Date.now() + d * DAY_MS).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+/* The forecast as a picture: the claim limit falling as residents go, the
+   town's land flat across it, and the gap where the land is over the limit
+   filled red. Residents underneath, on their own scale. */
+function forecastChart(fc){
+  const W = 320, H = 150, L = 34, R = 8, T = 10, B = 24, RH = 34;
+  const top = H - B - RH - 8;
+  const n = fc.series.length - 1 || 1;
+  const maxY = Math.max(fc.chunks, ...fc.series.map(x => x.limit), 1) * 1.08;
+  const X = (d) => L + (d / n) * (W - L - R);
+  const Y = (v) => T + (1 - v / maxY) * (top - T);
+  const maxRes = Math.max(...fc.series.map(x => x.res), 1);
+  const RY = (v) => top + 8 + (1 - v / maxRes) * RH;
+  const step = (get, yf) => fc.series.map((p, i) =>
+    (i ? `H${X(p.d).toFixed(1)}V${yf(get(p)).toFixed(1)}` : `M${X(p.d).toFixed(1)},${yf(get(p)).toFixed(1)}`)).join('');
+  // red where the land is over the limit
+  let over = '';
+  fc.series.forEach((p, i) => {
+    if (i === fc.series.length - 1 || p.over <= 0) return;
+    over += `<rect x="${X(p.d).toFixed(1)}" y="${Y(fc.chunks).toFixed(1)}" width="${(X(p.d + 1) - X(p.d)).toFixed(1)}" ` +
+      `height="${Math.max(0, Y(p.limit) - Y(fc.chunks)).toFixed(1)}" fill="rgba(239,68,68,.35)"/>`;
+  });
+  const ticks = [0, Math.round(n / 2), n].map(d =>
+    `<text x="${X(d).toFixed(1)}" y="${H - 6}" text-anchor="${d === 0 ? 'start' : d === n ? 'end' : 'middle'}">` +
+    `${d === 0 ? 'today' : dayDate(d)}</text>`).join('');
+  const fall = fc.fellDay !== null
+    ? `<line x1="${X(fc.fellDay)}" x2="${X(fc.fellDay)}" y1="${T}" y2="${H - B}" stroke="#ef4444" stroke-dasharray="3 3"/>` +
+      `<text x="${X(fc.fellDay) - 3}" y="${T + 9}" text-anchor="end" fill="#f87171">falls</text>` : '';
+  return `<svg class="fc-chart" viewBox="0 0 ${W} ${H}" role="img" ` +
+    `aria-label="Claim limit against land over the next ${n} days">` +
+    over +
+    `<path d="M${L},${Y(fc.chunks).toFixed(1)}H${W - R}" stroke="#f5f1e8" stroke-dasharray="4 3" fill="none" opacity=".8"/>` +
+    `<path d="${step(p => p.limit, Y)}" stroke="#fcd116" stroke-width="2" fill="none"/>` +
+    `<path d="${step(p => p.res, RY)}" stroke="#4d8dff" stroke-width="1.5" fill="none"/>` +
+    fall +
+    `<text x="${L - 4}" y="${(Y(fc.chunks) + 3).toFixed(1)}" text-anchor="end">${CoordUtils.fmt(fc.chunks)}</text>` +
+    `<text x="${L - 4}" y="${(top + 14).toFixed(1)}" text-anchor="end" fill="#8fb5ff">${maxRes}</text>` +
+    ticks + `</svg>` +
+    `<div class="fc-key"><span><i style="background:#fcd116"></i>claim limit</span>` +
+    `<span><i style="background:#f5f1e8"></i>land held</span><span><i style="background:rgba(239,68,68,.6)"></i>over the limit</span>` +
+    `<span><i style="background:#4d8dff"></i>residents</span></div>`;
+}
+
+/* Loads a nation for the watch: its towns (from what is already loaded when
+   that is all of them) and the last login of every resident. */
+async function watchLoad(nationName){
+  const wanted = String(nationName || '').trim();
+  if (!wanted) return;
+  watchState.loading = true; watchState.error = ''; watchState.selected = null;
+  renderExpansionPanel();
+  try {
+    let towns = ncAllTowns().filter(t => !t.isMoon && (t.nationName || '').toLowerCase() === wanted.toLowerCase());
+    let name = towns.length ? towns[0].nationName : wanted;
+    let stats = nationStatsFor(name);
+    if (!towns.length || !stats || (typeof stats.numTowns === 'number' && towns.length < stats.numTowns)){
+      const nations = await client.getNationDetails([wanted]);
+      const n = nations[0];
+      if (!n) throw new Error(`there is no nation called "${wanted}"`);
+      ncStoreNation(n);
+      name = n.name;
+      const refs = (Array.isArray(n.towns) ? n.towns : []).map(t => t.uuid || t.name).filter(Boolean);
+      towns = (await client.getTownDetailsBatched(refs)).filter(t => !t.isMoon);
+    }
+    const names = [...new Set(towns.flatMap(t => t.residents || []))];
+    const missing = names.filter(n => !activityCache.players.has(n));
+    if (missing.length){
+      const got = await client.getPlayerActivity(missing);
+      got.forEach((v, k) => activityCache.players.set(k, v));
+      activityMemo.clear();
+    }
+    watchState.nation = name;
+    watchState.towns = towns;
+    watchRecompute();
+    auditLog.log(`Forecast for ${name}: ${towns.length} town(s), ${names.length} resident(s) checked`, 'success');
+  } catch (err){
+    watchState.error = err.message;
+    auditLog.log(`Forecast failed — ${err.message}`, 'warn');
+  } finally {
+    watchState.loading = false;
+    refreshMapLayers();
+    renderExpansionOverlay(); renderExpansionPanel();
+  }
+}
+
+function watchRecompute(){
+  watchState.model = nationDecayModel(watchState.towns, watchState.nation);
+  watchState.forecasts = new Map(watchState.towns.map(t =>
+    [t.name, forecastTown(t, watchState.horizon, watchState.model)]));
+}
+
+/* Orders the watch: towns over their limit now first, then by how soon they
+   go over, then those that fall, then the ones that hold. */
+function watchSorted(){
+  return [...watchState.forecasts.values()].sort((a, b) => {
+    const ka = a.overNow > 0 ? 0 : a.firstOverDay !== null ? 1 : a.fellDay !== null ? 2 : 3;
+    const kb = b.overNow > 0 ? 0 : b.firstOverDay !== null ? 1 : b.fellDay !== null ? 2 : 3;
+    if (ka !== kb) return ka - kb;
+    if (ka === 0) return b.overNow - a.overNow;
+    if (ka === 1) return a.firstOverDay - b.firstOverDay || b.overEnd - a.overEnd;
+    if (ka === 2) return a.fellDay - b.fellDay;
+    const ha = a.series[a.horizon].limit - a.chunks, hb = b.series[b.horizon].limit - b.chunks;
+    return ha - hb;
+  });
+}
+
+function watchStatus(fc){
+  const n = CoordUtils.fmt;
+  if (fc.overNow > 0) return { cls: 'now', text: `${n(fc.overNow)} over now` +
+    (fc.overEnd > fc.overNow ? ` · ${n(fc.overEnd)} by ${dayDate(fc.horizon)}` : '') };
+  if (fc.firstOverDay !== null) return { cls: 'soon', text: `over from ${dayDate(fc.firstOverDay)} · ` +
+    `${n(fc.overEnd)} by ${dayDate(fc.horizon)}` + (fc.fellDay !== null ? ` · falls ${dayDate(fc.fellDay)}` : '') };
+  if (fc.fellDay !== null) return { cls: 'soon', text: `falls ${dayDate(fc.fellDay)}` };
+  return { cls: 'holds', text: `holds · ${n(fc.series[fc.horizon].limit - fc.chunks)} to spare on ${dayDate(fc.horizon)}` };
+}
+
+/* From a town's popup: forecast it, loading its nation if needed. */
+window.forecastFromPopup = function(name){
+  const town = ncAllTowns().find(t => t.name === name);
+  if (!town){ auditLog.log(`Town "${name}" is no longer loaded`, 'warn'); return; }
+  mapController.map.closePopup();
+  expansionState.mode = 'watch';
+  expansionState.editing = null;
+  const nation = town.nationName;
+  const panel = document.getElementById('panel-plan');
+  if (panel && activeView !== 'ethiopia' && viewerIsCitizen()) setSidebarView('ethiopia');
+  if (nation && watchState.nation.toLowerCase() === nation.toLowerCase() && watchState.forecasts.has(name)){
+    watchState.selected = name;
+    renderExpansionOverlay(); renderExpansionPanel();
+  } else if (nation){
+    watchLoad(nation).then(() => { watchState.selected = name; renderExpansionOverlay(); renderExpansionPanel(); });
+  } else {
+    /* Nationless: just this town, with no nation bonus to lose. */
+    watchState.nation = town.name; watchState.towns = [town];
+    const missing = (town.residents || []).filter(r => !activityCache.players.has(r));
+    const done = () => { watchRecompute(); watchState.selected = name; renderExpansionOverlay(); renderExpansionPanel(); };
+    if (missing.length) client.getPlayerActivity(missing).then(m => { m.forEach((v, k) => activityCache.players.set(k, v)); done(); })
+      .catch(err => { watchState.error = err.message; renderExpansionPanel(); });
+    else done();
+  }
+  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setExpandedMode();
+};
+function setExpandedMode(){ refreshMapLayers(); refreshInteractivity(); expSetDragging(); }
 
 /* Resolved by NAME, not by holding the town object: the sync loop replaces
    every town object every 90 seconds, so a captured reference would go stale
@@ -3188,6 +3559,10 @@ class EarthMCClient{
       mayor: raw.mayor && raw.mayor.name ? raw.mayor.name : null,
       population: raw.stats && typeof raw.stats.numResidents === 'number' ? raw.stats.numResidents : 0,
       townBlocks: raw.stats && typeof raw.stats.numTownBlocks === 'number' ? raw.stats.numTownBlocks : 0,
+      /* The town's real claim limit, residents and nation bonus included. The
+         planner and the forecast both read it; without it they estimate the
+         nation bonus from a curve EarthMC only publishes the ends of. */
+      maxTownBlocks: raw.stats && typeof raw.stats.maxTownBlocks === 'number' ? raw.stats.maxTownBlocks : null,
       // claimChunks: the actual [cx,cz] chunk coordinates this town has claimed
       // (distinct from `townBlocks` above, which is just the numeric count) —
       // used to trace real territory outlines on the map, not just a marker dot.
@@ -3256,6 +3631,9 @@ function expPlannedChunksFor(name){
     const entry = g.towns.find(t => t.name === name);
     if (entry) take(entry.added, entry.removed);
   });
+  // land other towns' plans overclaim from this one
+  const lost = expTakenFrom(name);
+  if (lost && lost.size) take([], lost);
   if (!added || (!added.size && !removed.size)) return null;
   return { added, removed };
 }
@@ -3357,6 +3735,42 @@ function traceChunkOutlines(chunkList){
     if (ring.length >= 4) rings.push(ring);
   }
   return rings;
+}
+
+/* ---- point in polygon, on the block plane ----
+   Region counting tests every claimed chunk, so it uses a plain ray cast on
+   the polygon's own coordinates rather than turf, which assumes degrees and is
+   far slower per point. Holes are honoured. */
+function ringContains(ring, x, y){
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+function planeShape(geometry){
+  if (!geometry) return null;
+  const polys = geometry.type === 'MultiPolygon' ? geometry.coordinates
+    : geometry.type === 'Polygon' ? [geometry.coordinates] : [];
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  polys.forEach(p => (p && p[0] || []).forEach(([x, y]) => {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }));
+  return polys.length && minX <= maxX ? { polys, minX, maxX, minY, maxY } : null;
+}
+
+function shapeContains(s, x, y){
+  if (!s || x < s.minX || x > s.maxX || y < s.minY || y > s.maxY) return false;
+  for (const p of s.polys){
+    if (!p || !p[0] || !ringContains(p[0], x, y)) continue;
+    let hole = false;
+    for (let i = 1; i < p.length; i++) if (ringContains(p[i], x, y)){ hole = true; break; }
+    if (!hole) return true;
+  }
+  return false;
 }
 
 function checkNoKinks(feature){
@@ -3554,8 +3968,7 @@ class RegionManager{
     // keeps basic viewing working for everyone, not just admins.
     layer.bindPopup(() => this._buildRegionPopupHtml(region));
 
-    this.recalcStats(region);
-    this.resolveOverlaps();
+    this.recount();
     return region;
   }
 
@@ -3603,10 +4016,8 @@ class RegionManager{
       return;
     }
     region.lastValidLatLngs = cloneLatLngs(region.layer.getLatLngs());
-    this.recalcStats(region);
-    // An edit can push a border over a town that another region already
-    // holds, so overlaps have to be settled again after the reshape.
-    this.resolveOverlaps();
+    // Every region is recounted: moving one border moves land between two.
+    this.recount();
     this.auditLog.log(`Region "${region.name}" geometry updated (${region.stats.townCount} towns inside)`, 'success');
     this.onChange();
     scheduleSave();
@@ -3646,123 +4057,135 @@ class RegionManager{
     return this.activeId ? this.regions.get(this.activeId) : null;
   }
 
-  recalcStats(region){
-    const feature = region.layer.toGeoJSON();
-    // Cheap rejection first: most towns are nowhere near most regions, and a
-    // bounds check is far cheaper than booleanPointInPolygon against a
-    // polygon traced from chunk outlines. Without this, every sync ran one
-    // full polygon test per town per region.
-    const b = region.layer.getBounds();
-    const west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
-    const contained = this.currentTowns.filter(t => {
-      const lat = -t.mcZ, lng = t.mcX;
-      if (lng < west || lng > east || lat < south || lat > north) return false;
-      // Region polygons are in map space, so scale the town's raw block
-      // coordinates before testing containment.
-      try{ return turf.booleanPointInPolygon(turf.point(CoordUtils.mcToPlane(t.mcX, t.mcZ)), feature); }
-      catch(_err){ return false; }
+  /* ---- counting: every chunk once ----
+     A town's land is counted chunk by chunk, each in the region it actually
+     lies in, so the regions plus the land outside every region always add up
+     to Ethiopia's whole. A town — and its residents, who cannot be split —
+     belongs to the region that holds most of its land; a tie goes to the
+     region its spawn is in.
+
+     Before this a town was counted wherever its spawn point sat, with ALL of
+     its land, and a town whose spawn was outside every region was not counted
+     anywhere. So a town straddling a border gave one region land it does not
+     have, and the regions never summed to the nation's totals. */
+  recalcStats(_region){ this.recount(); }
+  resolveOverlaps(){ this.recount(); }
+
+  recount(){
+    const shapes = [];
+    this.regions.forEach(r => {
+      let sh = null;
+      try { sh = planeShape(r.layer.toGeoJSON().geometry); } catch (_e) { sh = null; }
+      if (sh) shapes.push({ r, s: sh });
     });
-    // rawTowns is every town whose spawn point falls inside this polygon,
-    // BEFORE overlaps are resolved. Kept separately so resolveOverlaps() can
-    // be re-run from scratch without needing a fresh point-in-polygon pass.
-    region.rawTowns = contained;
-    this._applyStats(region, contained);
-  }
+    const per = new Map();
+    this.regions.forEach(r => per.set(r.id, { towns: [], chunks: 0, land: new Set(), rest: { towns: [], chunks: 0 } }));
+    const outside = { towns: [], residents: 0, chunks: 0 };
+    let split = 0;
+    /* Counties, counted the same way one level down. Each lies inside one
+       region, so a chunk's county is simply the county containing it. */
+    let cshapes = [];
+    try {
+      cshapes = [...countyState.counties.values()].map(c => ({ c, s: planeShape(c.geometry) })).filter(x => x.s);
+    } catch (_notReadyYet) { cshapes = []; }
+    const cper = new Map(cshapes.map(({ c }) => [c.id, { towns: [], chunks: 0, land: new Set() }]));
 
-  _applyStats(region, towns){
-    region.containedTowns = towns;
-    region.stats.population = towns.reduce((s,t) => s + (t.population || 0), 0);
-    region.stats.townCount = towns.length;
-    region.stats.claimChunks = towns.reduce((s,t) => s + (t.townBlocks || 0), 0);
-  }
-
-  // Regions are drawn by hand, so their borders overlap slightly. A town in
-  // the overlap was previously counted by BOTH regions, which is why the
-  // region cards summed to more towns and residents than the nation totals.
-  // Each town now belongs to exactly one region: whichever holds the majority
-  // of its claimed chunks. Idempotent — always recomputed from rawTowns.
-  resolveOverlaps(){
-    const claims = new Map();          // town name -> [regions claiming it]
-    this.regions.forEach(region => {
-      (region.rawTowns || []).forEach(t => {
-        if (!claims.has(t.name)) claims.set(t.name, []);
-        claims.get(t.name).push(region);
+    this.currentTowns.forEach(t => {
+      const list = Array.isArray(t.claimChunks) ? t.claimChunks : [];
+      /* No chunk list for a town means no shape to divide, so all of it goes
+         where its spawn is — the old rule, kept only for this case. */
+      const pts = list.length ? list.map(([cx, cz]) => [cx * 16 + 8, -(cz * 16 + 8)]) : [[t.mcX, -t.mcZ]];
+      const weight = list.length ? 1 : (t.townBlocks || 0);
+      const hits = [], tally = new Map();
+      pts.forEach(([x, y]) => {
+        const ids = [];
+        for (const { r, s } of shapes) if (shapeContains(s, x, y)) ids.push(r.id);
+        hits.push(ids);
+        ids.forEach(id => tally.set(id, (tally.get(id) || 0) + weight));
       });
-    });
 
-    const dropped = new Map();         // region id -> Set of town names it loses
-    const decisions = [];
-    claims.forEach((regions, townName) => {
-      if (regions.length < 2) return;
-      const town = regions[0].rawTowns.find(t => t.name === townName);
-      if (!town) return;
-      const winner = this._bestRegionFor(town, regions);
-      regions.forEach(r => {
-        if (r === winner) return;
-        if (!dropped.has(r.id)) dropped.set(r.id, new Set());
-        dropped.get(r.id).add(townName);
-      });
-      decisions.push(`${townName}->${winner.name}`);
-    });
-
-    this.regions.forEach(region => {
-      const lose = dropped.get(region.id);
-      const kept = lose
-        ? (region.rawTowns || []).filter(t => !lose.has(t.name))
-        : (region.rawTowns || []);
-      this._applyStats(region, kept);
-    });
-
-    // Logged only when the outcome actually changes, so a 90s sync loop
-    // doesn't fill the audit log with the same line forever.
-    const sig = decisions.sort().join('|');
-    if (sig !== this._lastOverlapSig){
-      this._lastOverlapSig = sig;
-      if (decisions.length){
-        this.auditLog.log(`${decisions.length} town(s) sat in more than one region — assigned by majority of claimed land`, 'info');
-      }
-    }
-  }
-
-  // Which of these overlapping regions owns most of the town's claimed land.
-  _bestRegionFor(town, regions){
-    const chunks = town.claimChunks || [];
-    if (chunks.length){
-      // Sampled, not exhaustive: a 500-chunk town against several regions is
-      // thousands of point tests, and a majority doesn't need every chunk.
-      const step = Math.max(1, Math.ceil(chunks.length / 200));
-      let best = null, bestCount = -1;
-      regions.forEach(r => {
-        const feature = r.layer.toGeoJSON();
-        let count = 0;
-        for (let i = 0; i < chunks.length; i += step){
-          const bx = chunks[i][0] * 16 + 8, bz = chunks[i][1] * 16 + 8;
-          try{
-            if (turf.booleanPointInPolygon(turf.point(CoordUtils.mcToPlane(bx, bz)), feature)) count++;
-          } catch(_err){ /* malformed chunk — ignore it */ }
+      let home = null, best = 0;
+      tally.forEach((n, id) => { if (n > best){ best = n; home = id; } });
+      if (home !== null){
+        const tied = [...tally.entries()].filter(([, n]) => n === best).map(([id]) => id);
+        if (tied.length > 1){
+          const spawnIn = shapes.find(({ r, s }) => tied.includes(r.id) && shapeContains(s, t.mcX, -t.mcZ));
+          home = spawnIn ? spawnIn.r.id : tied[0];
         }
-        if (count > bestCount){ bestCount = count; best = r; }
+      }
+
+      /* Each chunk once. Where two hand-drawn regions overlap, the chunk goes
+         to the town's own region if that is one of them. */
+      const touched = new Set();
+      const ctally = new Map(), cTouched = new Set();
+      hits.forEach((ids, i) => {
+        if (!ids.length){ outside.chunks += weight; return; }
+        const id = ids.includes(home) ? home : ids[0];
+        per.get(id).chunks += weight;
+        touched.add(id);
+        const [x, y] = pts[i];
+        const cnt = cshapes.find(({ s }) => shapeContains(s, x, y));
+        if (cnt){
+          cper.get(cnt.c.id).chunks += weight;
+          cTouched.add(cnt.c.id);
+          ctally.set(cnt.c.id, (ctally.get(cnt.c.id) || 0) + weight);
+        } else {
+          per.get(id).rest.chunks += weight;          // in the region, in no county
+        }
       });
-      if (best && bestCount > 0) return best;
-    }
-    // No claims, or no sampled chunk landed inside any of them: fall back to
-    // whichever region's centre is nearest. Plain Euclidean distance on the
-    // block plane — latlng.distanceTo() assumes a globe and is meaningless
-    // for CRS.Simple coordinates this large.
-    let best = regions[0], bestDist = Infinity;
-    regions.forEach(r => {
-      const c = r.layer.getBounds().getCenter();
-      const dx = c.lng - town.mcX, dy = c.lat - (-town.mcZ);
-      const d = dx*dx + dy*dy;
-      if (d < bestDist){ bestDist = d; best = r; }
+      cTouched.forEach(id => cper.get(id).land.add(t.name));
+      /* The town's county: the one holding most of its land within its own
+         region. None means it counts as the region's "not in a county". */
+      if (home !== null){
+        const homeName = this.regions.get(home) && this.regions.get(home).name;
+        let cHome = null, cBest = 0;
+        ctally.forEach((n, id) => {
+          const c = countyState.counties.get(id);
+          if (c && c.region === homeName && n > cBest){ cBest = n; cHome = id; }
+        });
+        if (cHome) cper.get(cHome).towns.push(t);
+        else per.get(home).rest.towns.push(t);
+        t._county = cHome ? countyState.counties.get(cHome).name : null;
+      } else t._county = null;
+      touched.forEach(id => per.get(id).land.add(t.name));
+      if (touched.size > 1 || (touched.size && hits.some(ids => !ids.length))) split++;
+      if (home === null){ outside.towns.push(t); outside.residents += t.population || 0; }
+      else per.get(home).towns.push(t);
     });
-    return best;
+
+    this.regions.forEach(r => {
+      const p = per.get(r.id);
+      const own = new Set(p.towns.map(t => t.name));
+      r.containedTowns = p.towns;
+      r.rawTowns = p.towns;
+      r.stats.townCount = p.towns.length;
+      r.stats.population = p.towns.reduce((sum, t) => sum + (t.population || 0), 0);
+      r.stats.claimChunks = p.chunks;
+      // towns based in another region (or none) that still have land in this one
+      r.stats.landFrom = [...p.land].filter(n => !own.has(n));
+      r.stats.rest = { towns: p.rest.towns.length, residents: p.rest.towns.reduce((a, t) => a + (t.population || 0), 0),
+        chunks: p.rest.chunks, townNames: p.rest.towns.map(t => t.name) };
+    });
+    cper.forEach((p, id) => {
+      const c = countyState.counties.get(id);
+      if (!c) return;
+      const own = new Set(p.towns.map(t => t.name));
+      c.stats = { towns: p.towns.length, residents: p.towns.reduce((a, t) => a + (t.population || 0), 0),
+        chunks: p.chunks, townNames: p.towns.map(t => t.name), landFrom: [...p.land].filter(n => !own.has(n)) };
+    });
+    this.outside = outside;
+    this.splitTowns = split;
+    this.totals = {
+      towns: this.currentTowns.length,
+      residents: this.currentTowns.reduce((sum, t) => sum + (t.population || 0), 0),
+      chunks: this.currentTowns.reduce((sum, t) =>
+        sum + ((t.claimChunks && t.claimChunks.length) || t.townBlocks || 0), 0),
+    };
   }
 
   recalcAll(towns){
-    this.currentTowns = towns || [];
-    this.regions.forEach(region => this.recalcStats(region));
-    this.resolveOverlaps();
+    this.currentTowns = (towns || []).filter(t => !t.isMoon);
+    this.recount();
     this.onChange();
     /* The map is the only thing that knows where a town physically is — the
        Worker has no polygons and no coordinates — so once overlaps are
@@ -4053,6 +4476,8 @@ class MapController{
     // admin can see what would change before anything is written.
     this.ncProposalLayerGroup = L.layerGroup().addTo(this.map);
     this.regionsLayerGroup = L.layerGroup().addTo(this.map);
+    // Counties above their regions: a finer subdivision drawn on top.
+    this.countiesLayerGroup = L.layerGroup().addTo(this.map);
     // Ice highways sit above the region fills so routes stay legible, with
     // stations above the lines and the planned-route highlight above both.
     this.highwayLayerGroup = L.layerGroup().addTo(this.map);
@@ -4112,6 +4537,8 @@ class MapController{
       // Ethiopia's own political regions. Hidden from this box in the Global
       // view, where regions aren't drawn at all — `when` controls that.
       { label: 'Regions', get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
+        when: () => currentScope() !== 'global' },
+      { label: 'Counties', get: () => showCounties, set: (v) => setShowCounties(v),
         when: () => currentScope() !== 'global' },
       { label: 'Ice highways', get: () => showHighways, set: (v) => {
           showHighways = v; renderHighways(); renderHighwayRoute();
@@ -4320,6 +4747,13 @@ const dom = {
   ethRegionCapital: document.getElementById('ethRegionCapital'),
   ethRegionTowns: document.getElementById('ethRegionTowns'),
   ethRegionPop: document.getElementById('ethRegionPop'),
+  ethRegionChunks: document.getElementById('ethRegionChunks'),
+  ethRegionLandFrom: document.getElementById('ethRegionLandFrom'),
+  ethRegionCounties: document.getElementById('ethRegionCounties'),
+  countyRegion: document.getElementById('countyRegion'),
+  countyName: document.getElementById('countyName'),
+  countyDraw: document.getElementById('countyDraw'),
+  countyAdminList: document.getElementById('countyAdminList'),
   ethRegionTownList: document.getElementById('ethRegionTownList'),
   regionGovernorInput: document.getElementById('regionGovernorInput'),
   regionCapitalSelect: document.getElementById('regionCapitalSelect'),
@@ -4515,6 +4949,9 @@ function buildTownPopupHtml(t){
       <button type="button" class="btn btn-ghost btn-small"
         onclick="window.planFromPopup('${escapeHtml(t.name).replace(/'/g, "\\'")}')">
         Plan expansion</button>
+      <button type="button" class="btn btn-ghost btn-small"
+        onclick="window.forecastFromPopup('${escapeHtml(t.name).replace(/'/g, "\\'")}')">
+        42-day forecast</button>
     </div>
   </div>`;
 }
@@ -4729,7 +5166,14 @@ function townsForActiveView(towns){
   // Admin edits Ethiopia's regions, so it shows the same towns Ethiopia does.
   // Settings inherits the last data view — see currentScope().
   if (currentScope() !== 'global'){
-    return list.filter(t => (t.nationName || '') === HOME_NATION);
+    const home = list.filter(t => (t.nationName || '') === HOME_NATION);
+    /* The watched nation is drawn alongside, so its towns can be seen and
+       clicked while forecasting them. */
+    if (expansionState.mode === 'watch' && watchState.towns.length){
+      const seen = new Set(home.map(t => t.name));
+      return home.concat(watchState.towns.filter(t => !seen.has(t.name)));
+    }
+    return home;
   }
   const tracked = list.filter(t => {
     const n = t.nationName || '';
@@ -5005,6 +5449,25 @@ function renderExpansionOverlay(){
     shape(keys, style);
   };
 
+  /* ---- overclaim watch ----
+     Red for towns over their limit now, amber for those that will be within
+     the window, white around the one selected. */
+  if (expansionState.mode === 'watch'){
+    watchState.forecasts.forEach(fc => {
+      const sel = watchState.selected === fc.town.name;
+      const colour = fc.overNow > 0 ? '#ef4444' : fc.firstOverDay !== null ? '#f59e0b' : null;
+      if (!colour && !sel) return;
+      const rings = tracedOutlinesFor(fc.town);
+      if (!rings) return;
+      rings.forEach(ring => L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
+        color: sel ? '#ffffff' : colour, weight: sel ? 5 : 3, opacity: .9,
+        dashArray: fc.overNow > 0 || sel ? null : '6 4',
+        fill: false, interactive: false, pmIgnore: true,
+      }).addTo(group));
+    });
+    return;
+  }
+
   /* ---- town mode ---- */
   if (expansionState.mode === 'town'){
     expansionState.plans.forEach((plan, name) => {
@@ -5015,9 +5478,20 @@ function renderExpansionOverlay(){
            removed are opposite decisions and must never be mistaken for each
            other at a glance. Each traced as one shape so the selection reads
            as an area rather than a grid. */
-        shape(plan.added, {
+        const fresh = new Set(), over = new Set();
+        plan.added.forEach(k => {
+          const [x, z] = k.split(',').map(Number);
+          const o = chunkOwnerAt(x, z);
+          (o && o.name !== plan.town.name ? over : fresh).add(k);
+        });
+        shape(fresh, {
           color: COLORS.sage, weight: 2, opacity: 1,
           fillColor: COLORS.sage, fillOpacity: .30 });
+        /* Taken from another town: its own colour, so an overclaim is never
+           mistaken for empty ground. */
+        shape(over, {
+          color: '#f97316', weight: 2.5, opacity: 1,
+          fillColor: '#f97316', fillOpacity: .38 });
         shape(plan.removed, {
           color: COLORS.danger, weight: 2, opacity: 1,
           fillColor: COLORS.danger, fillOpacity: .22, dashArray: '4 3' });
@@ -5099,11 +5573,11 @@ function renderExpansionPanel(){
   const n = CoordUtils.fmt;
   const mode = expansionState.mode;
 
-  let out = '<div class="tabs" style="display:flex;gap:.3rem;margin-bottom:.7rem">' +
-    ['town', 'nation'].map(m =>
+  const MODES = { town: 'Town land', nation: 'Nation membership', watch: 'Overclaim watch' };
+  let out = '<div class="tabs exp-modes">' +
+    Object.keys(MODES).map(m =>
       `<button type="button" class="btn ${m === mode ? 'btn-accent' : 'btn-primary'} btn-small" ` +
-      `data-expmode="${m}" style="flex:1 1 0">` +
-      (m === 'town' ? 'Town land' : 'Nation membership') + '</button>').join('') + '</div>';
+      `data-expmode="${m}">${MODES[m]}</button>`).join('') + '</div>';
 
   if (mode === 'town'){
     const plans = [...expansionState.plans.values()];
@@ -5152,7 +5626,29 @@ function renderExpansionPanel(){
           `${n(plan.removed.size)} removed · limit is ${PLAN_BASE_CLAIMS} + ` +
           `${PLAN_PER_RESIDENT}/resident + ${n(f.bonus)} nation bonus` +
           `${f.bonusEstimated ? ' (estimated)' : ''}</p>` +
+        (() => {
+          const vs = expVictims(plan);
+          if (!vs.length) return '';
+          return '<div class="nc-officer-label" style="margin-top:.7rem">Overclaimed from · ' + vs.length + '</div>' +
+            vs.map(v => {
+              const okNow = v.readyDay === 0;
+              const when = okNow ? 'takeable now'
+                : v.readyDay !== null ? `takeable from ${dayDate(v.readyDay)}`
+                : v.fc ? `not over by ${n(v.taken)} within ${v.fc.horizon} days`
+                : (v.overNow ? `only ${n(v.overNow)} over today` : 'not over its limit today');
+              return `<div class="econ-row"><span>${escapeHtml(v.town.name)} &middot; ${n(v.taken)} chunk` +
+                `${v.taken === 1 ? '' : 's'}</span><span class="econ-num" style="color:${okNow ? 'var(--sage-hi)'
+                  : v.readyDay !== null ? 'var(--brass-hi)' : 'var(--danger-hi)'}">${when}</span></div>` +
+                (!okNow && !v.fc ? `<p class="hint" style="margin:.1rem 0 .3rem"><a href="#" data-expforecast=` +
+                  `"${escapeHtml(v.town.name)}">Forecast ${escapeHtml(v.town.name)}</a> to see when it goes far enough over.</p>` : '');
+            }).join('');
+        })() +
         '<div class="hw-route-controls" style="margin-top:.6rem">' +
+          `<button type="button" class="btn ${expansionState.overclaim ? 'btn-accent' : 'btn-primary'} btn-small" ` +
+            'id="expOverclaim" title="Let this plan take chunks from other towns">' +
+            (expansionState.overclaim ? 'Overclaiming: on' : 'Overclaiming: off') + '</button>' +
+        '</div>' +
+        '<div class="hw-route-controls" style="margin-top:.4rem">' +
           '<button type="button" class="btn btn-primary btn-small" id="expMinus">&minus; res</button>' +
           '<button type="button" class="btn btn-primary btn-small" id="expPlus">+ res</button>' +
           '<button type="button" class="btn btn-primary btn-small" id="expClearOne">Clear</button>' +
@@ -5167,7 +5663,9 @@ function renderExpansionPanel(){
           'Shift-click two corners still fills a rectangle. Finishing draws it as part ' +
           'of the town, colours and all, so you can judge the shape.<br>' +
           'Dragging paints rather than pans while a town is open &mdash; scroll still ' +
-          'zooms, and <b>Pan</b> hands dragging back.</p>';
+          'zooms, and <b>Pan</b> hands dragging back.<br>' +
+          'With <b>overclaiming</b> on, painting over another town takes its land (shown orange). A town can only ' +
+          'lose chunks while it is over its limit, never its home block, and the chunks taken must touch your land.</p>';
     }
 
     const locked = plans.filter(p => p.locked);
@@ -5186,6 +5684,8 @@ function renderExpansionPanel(){
               `<span class="hw-meta" style="margin-left:.4rem">+${n(p.added.size)}` +
               (p.removed.size ? ` &minus;${n(p.removed.size)}` : '') +
               ` · ${n(f.next)}/${n(f.limitNext)}` +
+              (() => { const t2 = expVictims(p).reduce((a, v) => a + v.taken, 0);
+                return t2 ? ` <span style="color:#fb923c">${n(t2)} overclaimed</span>` : ''; })() +
               (bad ? ' <span style="color:var(--danger-hi)">over</span>' : '') +
             '</span></span>' +
             `<button type="button" class="hw-mini" data-expedit="${escapeHtml(p.town.name)}">edit</button>` +
@@ -5237,6 +5737,80 @@ function renderExpansionPanel(){
           }
           return block;
         }).join('') + '</div>';
+    }
+
+  } else if (mode === 'watch'){
+    /* ---- overclaim watch ---- */
+    out += '<div class="hw-route-controls" style="margin-bottom:.5rem">' +
+      `<input type="text" id="watchNation" placeholder="Nation, e.g. Ethiopia" ` +
+      `value="${escapeHtml(watchState.nation || HOME_NATION)}" style="flex:1 1 auto">` +
+      '<select id="watchHorizon" aria-label="How far ahead" style="flex:0 0 6.2rem">' + FORECAST_HORIZONS.map(h =>
+        `<option value="${h}"${h === watchState.horizon ? ' selected' : ''}>${h} days</option>`).join('') + '</select>' +
+      `<button type="button" class="btn btn-accent btn-small" id="watchGo"${watchState.loading ? ' disabled' : ''}>` +
+      (watchState.loading ? 'Loading…' : 'Forecast') + '</button></div>' +
+      '<p class="hint" style="margin:0 0 .6rem">Assumes nobody logs in again &mdash; each resident goes 42 days ' +
+      'after their last login, taking 12 chunks off their town\u2019s limit. Every login pushes their date back, ' +
+      'so this is the most that could open up, not a promise.</p>';
+    if (watchState.error) out += `<div class="eth-alert" style="margin-bottom:.6rem">${escapeHtml(watchState.error)}</div>`;
+
+    if (watchState.forecasts.size){
+      const all = watchSorted();
+      const nowN = all.filter(f => f.overNow > 0).length;
+      const soonN = all.filter(f => f.overNow === 0 && f.firstOverDay !== null).length;
+      const fallN = all.filter(f => f.fellDay !== null).length;
+      const openable = all.reduce((s2, f) => s2 + f.overEnd, 0);
+      out += '<div class="watch-sum">' +
+        `<span class="ws now"><b>${nowN}</b> over now</span>` +
+        `<span class="ws soon"><b>${soonN}</b> go over within ${watchState.horizon} days</span>` +
+        `<span class="ws fall"><b>${fallN}</b> fall</span>` +
+        `<span class="ws land"><b>${n(openable)}</b> chunks overclaimable by ${dayDate(watchState.horizon)}</span></div>`;
+
+      const sel = watchState.selected ? watchState.forecasts.get(watchState.selected) : null;
+      if (sel){
+        const t = sel.town, s0 = sel.series[0];
+        const st = watchStatus(sel);
+        out += '<div class="watch-detail">' +
+          `<div class="wd-head"><b>${escapeHtml(t.name)}</b><span class="wd-st ${st.cls}">${escapeHtml(st.text)}</span></div>` +
+          forecastChart(sel) +
+          '<div class="econ-breakdown" style="margin-top:.5rem">' +
+            `<div class="econ-row"><span>Today</span><span class="econ-num">${plural(s0.res, 'resident')} · ` +
+              `limit ${n(s0.limit)}${sel.limitExact ? '' : ' (est.)'} · ${n(sel.chunks)} chunks</span></div>` +
+            `<div class="econ-row"><span>${dayDate(sel.horizon)}</span><span class="econ-num">` +
+              `${plural(sel.series[sel.horizon].res, 'resident')} · limit ${n(sel.series[sel.horizon].limit)} · ` +
+              `${n(sel.overEnd)} over</span></div>` +
+            (sel.bonusModelled && sel.bonusStart !== sel.bonusEnd
+              ? `<div class="econ-row"><span>Nation bonus</span><span class="econ-num">${n(sel.bonusStart)} &#8594; ` +
+                `${n(sel.bonusEnd)} as ${escapeHtml(t.nationName)} shrinks (est.)</span></div>` : '') +
+            (sel.fellDay !== null ? `<div class="econ-row"><span>Falls</span><span class="econ-num" ` +
+              `style="color:var(--danger-hi)">${dayDate(sel.fellDay)} — every resident gone</span></div>` : '') +
+          '</div>' +
+          (sel.drops.length ? '<div class="nc-officer-label" style="margin-top:.6rem">Leaving · ' + sel.drops.length + '</div>' +
+            '<div class="region-town-list">' + sel.drops.slice(0, 24).map(x =>
+              `<span title="Last login ${Math.round(FALL_DAYS - x.day)} days ago">${escapeHtml(x.name)} · ` +
+              `${x.day < 1 ? 'now' : dayDate(Math.ceil(x.day))}</span>`).join('') +
+            (sel.drops.length > 24 ? `<span>+${sel.drops.length - 24} more</span>` : '') + '</div>' : '') +
+          (sel.unknown ? `<p class="hint">${sel.unknown} resident${sel.unknown === 1 ? ' hides their' : 's hide their'} ` +
+            'activity and are assumed to stay.</p>' : '') +
+          '<div class="hw-route-controls" style="margin-top:.5rem">' +
+            `<button type="button" class="btn btn-primary btn-small" data-watchfind="${escapeHtml(t.name)}">Find on map</button>` +
+            `<button type="button" class="btn btn-primary btn-small" data-watchclose="1">Back to the list</button>` +
+          '</div></div>';
+      }
+
+      const shown = watchState.showAll ? all : all.slice(0, 40);
+      out += '<div class="watch-list">' + shown.map(f => {
+        const st = watchStatus(f);
+        return `<button type="button" class="watch-row${watchState.selected === f.town.name ? ' on' : ''}" ` +
+          `data-watchtown="${escapeHtml(f.town.name)}"><span class="wr-name">${escapeHtml(f.town.name)}</span>` +
+          `<span class="wr-meta">${n(f.series[0].res)} res · ${n(f.chunks)}/${n(f.series[0].limit)}</span>` +
+          `<span class="wr-st ${st.cls}">${escapeHtml(st.text)}</span></button>`;
+      }).join('') + '</div>' +
+      (all.length > shown.length ? `<button type="button" class="btn btn-ghost btn-small" id="watchAll" ` +
+        `style="margin-top:.4rem">Show all ${all.length}</button>` : '');
+    } else if (!watchState.loading){
+      out += '<p class="empty-hint">Pick a nation and press Forecast. Its towns are drawn on the map with the ones ' +
+        'going over their limit outlined — red now, amber within the window. Any town\u2019s popup has a ' +
+        '42-day forecast button too.</p>';
     }
 
   } else {
@@ -5345,6 +5919,46 @@ function renderExpansionPanel(){
     renderExpansionOverlay(); renderExpansionPanel();
   });
   bind('expLock', expLockIn);
+  bind('expOverclaim', () => {
+    expansionState.overclaim = !expansionState.overclaim;
+    auditLog.log(expansionState.overclaim
+      ? 'Overclaiming on — painting over another town takes its land'
+      : 'Overclaiming off', 'info');
+    renderExpansionPanel();
+  });
+  on('[data-expforecast]', (e) => {
+    e.preventDefault();
+    const name = e.currentTarget.dataset.expforecast;
+    const t = ncAllTowns().find(x => x.name === name);
+    if (!t || !t.nationName) return;
+    /* Forecast the victim's nation without leaving the plan: the plan is kept,
+       and the panel reads the forecast as soon as it lands. */
+    const keepMode = expansionState.mode;
+    watchLoad(t.nationName).then(() => { expansionState.mode = keepMode; renderExpansionPanel(); });
+  });
+  bind('watchGo', () => {
+    const el = document.getElementById('watchNation');
+    const h = document.getElementById('watchHorizon');
+    if (h) watchState.horizon = Number(h.value) || 42;
+    watchLoad(el ? el.value : HOME_NATION);
+  });
+  const hz = document.getElementById('watchHorizon');
+  if (hz) hz.addEventListener('change', () => {
+    watchState.horizon = Number(hz.value) || 42;
+    if (watchState.towns.length){ watchRecompute(); renderExpansionOverlay(); renderExpansionPanel(); }
+  });
+  bind('watchAll', () => { watchState.showAll = true; renderExpansionPanel(); });
+  on('[data-watchtown]', (e) => {
+    const name = e.currentTarget.dataset.watchtown;
+    watchState.selected = watchState.selected === name ? null : name;
+    renderExpansionOverlay(); renderExpansionPanel();
+  });
+  on('[data-watchclose]', () => { watchState.selected = null; renderExpansionOverlay(); renderExpansionPanel(); });
+  on('[data-watchfind]', (e) => {
+    const fc = watchState.forecasts.get(e.currentTarget.dataset.watchfind);
+    if (fc) mapController.map.setView(CoordUtils.mcToLatLng(fc.town.mcX, fc.town.mcZ), 1);
+  });
+
   bind('expClearAll', () => {
     expansionState.plans.clear(); expansionState.editing = null;
     /* The claim layer holds the fused shape now, so a plan change has to
@@ -6774,11 +7388,20 @@ function hwUpdateBanner(){
   if (!dom.hwBanner) return;
   const drawing = !!highwayState.drawTarget;
   const editing = !!highwayState.editing;
-  const ncDrawing = !!nationClaimState.drawArmed;
-  const ncEditing = !!nationClaimState.editing;
+  const ncDrawing = !!nationClaimState.drawArmed || !!countyState.drawArmed;
+  const ncEditing = !!nationClaimState.editing || !!countyState.editing;
   dom.hwBanner.classList.toggle('active', drawing || editing || ncDrawing || ncEditing);
   if (dom.hwBannerUndo) dom.hwBannerUndo.style.display = (drawing || ncDrawing) ? '' : 'none';
   if (!dom.hwBannerText) return;
+  if (countyState.drawArmed){
+    dom.hwBannerText.textContent = `Drawing the county "${countyState.pendingName}" in ${countyState.pendingRegion} — click the corners`;
+    return;
+  }
+  if (countyState.editing){
+    const c = countyState.counties.get(countyState.editing.id);
+    dom.hwBannerText.textContent = c ? `Editing the county "${c.name}" — drag a point, or click a midpoint to add one` : 'Editing county';
+    return;
+  }
   if (ncDrawing){
     dom.hwBannerText.textContent = `Drawing a border for "${nationClaimState.pendingNation}" — click the corners`;
     return;
@@ -7147,6 +7770,7 @@ function setSidebarView(view){
   });
   applyRegionVisibility();
   renderNationClaimAreas();
+  renderCounties();
   renderHighways();
   renderHighwayRoute();
   if (mapController && typeof mapController.syncLayerToggles === 'function'){
@@ -7163,6 +7787,7 @@ function setSidebarView(view){
 
   if (view === 'admin' || view === 'settings'){
     renderAll();
+    renderCountyAdmin();
     renderHighwayAdmin();
     renderNationClaimAdmin();
     syncSettingsToggles();
@@ -7291,7 +7916,8 @@ function renderEthRegions(){
     }
     const meta = document.createElement('span');
     meta.className = 'rc-meta';
-    meta.textContent = `${CoordUtils.fmt(region.stats.townCount)} towns · ${CoordUtils.fmt(region.stats.population)} res`;
+    meta.textContent = `${plural(region.stats.townCount, 'town')} · ` +
+      `${plural(region.stats.population, 'resident')} · ${plural(region.stats.claimChunks, 'chunk')}`;
     card.append(name, meta);
     card.addEventListener('click', () => {
       activeEthRegionId = activeEthRegionId === region.id ? null : region.id;
@@ -7300,6 +7926,41 @@ function renderEthRegions(){
     });
     host.appendChild(card);
   });
+
+  /* The land no region covers, and proof that everything adds up. A region
+     total that silently drops land is worse than no total, because it looks
+     authoritative. */
+  const o = regionManager.outside, tot = regionManager.totals;
+  if (o && tot && tot.towns){
+    const card = document.createElement('div');
+    card.className = 'region-card region-outside';
+    const nm = document.createElement('span');
+    nm.textContent = 'Outside every region';
+    const meta = document.createElement('span');
+    meta.className = 'rc-meta';
+    meta.textContent = `${plural(o.towns.length, 'town')} · ${plural(o.residents, 'resident')} · ` +
+      `${plural(o.chunks, 'chunk')}`;
+    card.title = o.towns.length ? 'Based outside every region: ' + o.towns.map(t => t.name).join(', ') : '';
+    card.append(nm, meta);
+    host.appendChild(card);
+
+    const sumChunks = regions.reduce((s, r) => s + (r.stats.claimChunks || 0), 0) + o.chunks;
+    const sumTowns = regions.reduce((s, r) => s + (r.stats.townCount || 0), 0) + o.towns.length;
+    const sumRes = regions.reduce((s, r) => s + (r.stats.population || 0), 0) + o.residents;
+    const check = document.createElement('p');
+    check.className = 'hint region-check';
+    const ok = sumChunks === tot.chunks && sumTowns === tot.towns && sumRes === tot.residents;
+    check.textContent = (ok
+      ? `Adds up: ${plural(tot.towns, 'town')}, ${plural(tot.residents, 'resident')} and ` +
+        `${plural(tot.chunks, 'chunk')} across the regions and outside them — all of Ethiopia.`
+      : `Does not add up: ${CoordUtils.fmt(sumChunks)} of ${CoordUtils.fmt(tot.chunks)} chunks counted. Reload the map.`) +
+      (regionManager.splitTowns
+        ? ` ${CoordUtils.fmt(regionManager.splitTowns)} town${regionManager.splitTowns === 1 ? ' has' : 's have'} land ` +
+          `in more than one place — each chunk is counted where it lies, each town where most of its land is.`
+        : '');
+    if (!ok) check.classList.add('warn');
+    host.appendChild(check);
+  }
 
   const active = activeEthRegionId ? regionManager.regions.get(activeEthRegionId) : null;
   if (!dom.ethRegionDetail) return;
@@ -7326,6 +7987,35 @@ function renderEthRegions(){
   set(dom.ethRegionCapital, active.capitalTown ? '★ ' + active.capitalTown : '—');
   set(dom.ethRegionTowns, CoordUtils.fmt(active.stats.townCount));
   set(dom.ethRegionPop, CoordUtils.fmt(active.stats.population));
+  set(dom.ethRegionChunks, CoordUtils.fmt(active.stats.claimChunks));
+  if (dom.ethRegionLandFrom){
+    const from = active.stats.landFrom || [];
+    dom.ethRegionLandFrom.textContent = from.length
+      ? `Also holds land of ${from.length} town${from.length === 1 ? '' : 's'} based elsewhere: ${from.join(', ')}. ` +
+        'Their chunks count here; the towns and their residents count where most of their land is.'
+      : '';
+    dom.ethRegionLandFrom.hidden = !from.length;
+  }
+
+  /* The region's counties, and what is in it but in no county, so they add up. */
+  if (dom.ethRegionCounties){
+    const list = countiesOf(active.name);
+    const rest = active.stats.rest || { towns: 0, residents: 0, chunks: 0 };
+    dom.ethRegionCounties.innerHTML = list.length
+      ? '<div class="nc-officer-label">Counties · ' + list.length +
+        ' <button type="button" class="hw-mini" id="countiesOnMap">' + (showCounties ? 'hide on map' : 'show on map') + '</button></div>' +
+        list.map(c => {
+          const st = c.stats || {};
+          return `<div class="econ-row"><span><i class="hw-swatch" style="background:${countyColour(c)};margin-right:.4rem"></i>` +
+            `${escapeHtml(c.name)}</span><span class="econ-num">${plural(st.towns || 0, 'town')} · ` +
+            `${plural(st.residents || 0, 'resident')} · ${plural(st.chunks || 0, 'chunk')}</span></div>`;
+        }).join('') +
+        `<div class="econ-row" style="color:var(--muted)"><span>Not in a county</span><span class="econ-num">` +
+        `${plural(rest.towns, 'town')} · ${plural(rest.residents, 'resident')} · ${plural(rest.chunks, 'chunk')}</span></div>`
+      : '';
+    const btn = document.getElementById('countiesOnMap');
+    if (btn) btn.addEventListener('click', () => setShowCounties(!showCounties));
+  }
 
   if (dom.ethRegionTownList){
     dom.ethRegionTownList.replaceChildren();
@@ -9286,6 +9976,273 @@ function ncLoadFromFeatures(features){
   nationClaimState.nextId = Math.max(nationClaimState.nextId, maxId + 1);
 }
 
+
+/* =========================================================================
+   COUNTIES
+
+   Nation, then regions, then counties. A county is drawn by hand inside one
+   region and belongs to it: anything drawn past the region's edge is trimmed
+   to it. Counties have their own view, off until switched on, so they never
+   clutter the regions they sit in.
+
+   Counted like regions, chunk by chunk: a town belongs to the county holding
+   most of its land inside its own region, and land in a region but in no
+   county is shown as the region's "not in a county", so a region's counties
+   always add up to the region.
+   ========================================================================= */
+const countyState = {
+  counties: new Map(),     // id -> { id, name, region, fillColor, geometry, stats }
+  nextId: 1,
+  drawArmed: false,
+  pendingRegion: '',
+  pendingName: '',
+  editing: null,           // { id, layer }
+};
+function countyNextId(){ return 'county-' + (countyState.nextId++); }
+function countiesOf(regionName){
+  return [...countyState.counties.values()].filter(c => c.region === regionName)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+function regionByName(name){
+  return [...regionManager.regions.values()].find(r => r.name === name) || null;
+}
+function countyColour(c){
+  if (c.fillColor) return c.fillColor;
+  const r = regionByName(c.region);
+  return r ? (r.fillColor || regionManager._colorFor(r.id)) : COLORS.muted;
+}
+function geometryLatLngs(g){
+  const ring = (rr) => rr.map(([x, y]) => L.latLng(y, x));
+  if (!g) return [];
+  if (g.type === 'Polygon') return g.coordinates.map(ring);
+  if (g.type === 'MultiPolygon') return g.coordinates.map(poly => poly.map(ring));
+  return [];
+}
+
+function setShowCounties(on){
+  showCounties = on;
+  renderCounties();
+  const sw = document.getElementById('btnShowCounties');
+  if (sw) sw.setAttribute('aria-checked', String(on));
+  if (mapController && typeof mapController.syncLayerToggles === 'function') mapController.syncLayerToggles();
+}
+
+function countyPopupHtml(c){
+  const st = c.stats || {};
+  return `<div class="mc-popup"><h4>${escapeHtml(c.name)}</h4><table>
+    <tr><td>Region</td><td>${escapeHtml(c.region || '—')}</td></tr>
+    <tr><td>Towns</td><td>${CoordUtils.fmt(st.towns || 0)}</td></tr>
+    <tr><td>Residents</td><td>${CoordUtils.fmt(st.residents || 0)}</td></tr>
+    <tr><td>Claimed chunks</td><td>${CoordUtils.fmt(st.chunks || 0)}</td></tr>
+  </table></div>`;
+}
+
+function renderCounties(){
+  const mc = mapController;
+  if (!mc || !mc.countiesLayerGroup) return;
+  mc.countiesLayerGroup.clearLayers();
+  if (!showCounties || currentScope() === 'global' || !viewerIsCitizen()) return;
+  countyState.counties.forEach(c => {
+    if (countyState.editing && countyState.editing.id === c.id) return;
+    const ll = geometryLatLngs(c.geometry);
+    if (!ll.length) return;
+    const col = countyColour(c);
+    const poly = L.polygon(ll, {
+      color: col, weight: 1.6, opacity: .95, dashArray: '5 4',
+      fillColor: col, fillOpacity: .10,
+      interactive: !drawModeArmed(), pmIgnore: true,
+    });
+    poly.bindTooltip(escapeHtml(c.name + ' — ' + (c.region || 'no region')), { sticky: true, className: 'claim-tooltip' });
+    poly.bindPopup(() => countyPopupHtml(c), { maxWidth: 300 });
+    poly.addTo(mc.countiesLayerGroup);
+  });
+}
+
+/* Trims a drawn shape to its region, so a county can never sit outside it. */
+function clipToRegion(geometry, regionName){
+  const r = regionByName(regionName);
+  if (!r) return { geometry, clipped: false };
+  try {
+    const out = turf.intersect(turf.feature(geometry), r.layer.toGeoJSON());
+    if (!out || !out.geometry) return { geometry: null, clipped: true };
+    return { geometry: out.geometry, clipped: true };
+  } catch (_e) {
+    return { geometry, clipped: false };      // if the clip fails, keep it as drawn rather than lose it
+  }
+}
+
+function countyArmDraw(){
+  const region = dom.countyRegion ? dom.countyRegion.value : '';
+  const name = (dom.countyName ? dom.countyName.value : '').trim();
+  if (!region){ auditLog.log('Pick the region the county is in first', 'warn'); return; }
+  if (!name){ auditLog.log('Give the county a name first', 'warn'); return; }
+  hwDisarm(); hwCancelEdit(); ncDisarm(); countyCancelEdit();
+  countyState.pendingRegion = region;
+  countyState.pendingName = name;
+  countyState.drawArmed = true;
+  if (!showCounties) setShowCounties(true);
+  mapController.map.pm.enableDraw('Polygon', { finishOn: 'dblclick' });
+  renderCountyAdmin(); refreshInteractivity(); hwUpdateBanner();
+}
+
+function countyDisarm(){
+  if (!countyState.drawArmed) return;
+  countyState.drawArmed = false;
+  mapController.map.pm.disableDraw('Polygon');
+  renderCountyAdmin(); refreshInteractivity(); hwUpdateBanner();
+}
+
+function countyFinishDraw(layer){
+  countyState.drawArmed = false;
+  mapController.map.pm.disableDraw('Polygon');
+  const fit = clipToRegion(layer.toGeoJSON().geometry, countyState.pendingRegion);
+  if (!fit.geometry){
+    auditLog.log(`That shape is entirely outside ${countyState.pendingRegion} — nothing added`, 'warn');
+    renderCountyAdmin(); hwUpdateBanner();
+    return;
+  }
+  const id = countyNextId();
+  countyState.counties.set(id, { id, name: countyState.pendingName, region: countyState.pendingRegion,
+    fillColor: null, geometry: fit.geometry, stats: null });
+  if (dom.countyName) dom.countyName.value = '';
+  auditLog.log(`County "${countyState.pendingName}" drawn in ${countyState.pendingRegion}` +
+    (fit.clipped ? ' — trimmed to the region' : ''), 'success');
+  regionManager.recount(); renderAll();
+  renderCounties(); renderCountyAdmin(); hwUpdateBanner();
+  scheduleSave();
+}
+
+function countyEdit(id){
+  hwDisarm(); hwCancelEdit(); ncDisarm(); ncCancelEdit(); countyDisarm(); countyCancelEdit();
+  const c = countyState.counties.get(id);
+  if (!c) return;
+  const layer = L.polygon(geometryLatLngs(c.geometry), {
+    color: COLORS.brassHi, weight: 3, fillColor: countyColour(c), fillOpacity: .2, pmIgnore: false,
+  }).addTo(mapController.map);
+  countyState.editing = { id, layer };
+  try { if (layer.pm && typeof layer.pm.enable === 'function') layer.pm.enable({ allowSelfIntersection: false }); }
+  catch (err){ auditLog.log(`Could not start editing: ${err.message}`, 'warn'); }
+  renderCounties(); renderCountyAdmin(); hwUpdateBanner(); refreshInteractivity();
+}
+
+function countyCommitEdit(){
+  const e = countyState.editing;
+  if (!e) return;
+  const c = countyState.counties.get(e.id);
+  let geom = null;
+  try { geom = e.layer.toGeoJSON().geometry; } catch (_e) { geom = null; }
+  try { if (e.layer.pm) e.layer.pm.disable(); } catch (_e) {}
+  mapController.map.removeLayer(e.layer);
+  countyState.editing = null;
+  if (c && geom){
+    const fit = clipToRegion(geom, c.region);
+    if (fit.geometry){ c.geometry = fit.geometry; scheduleSave(); auditLog.log(`Saved "${c.name}"`, 'success'); }
+    else auditLog.log('Edit discarded — the county would be entirely outside its region', 'warn');
+  }
+  regionManager.recount(); renderAll();
+  renderCounties(); renderCountyAdmin(); hwUpdateBanner(); refreshInteractivity();
+}
+
+function countyCancelEdit(){
+  const e = countyState.editing;
+  if (!e) return;
+  try { if (e.layer.pm) e.layer.pm.disable(); } catch (_e) {}
+  mapController.map.removeLayer(e.layer);
+  countyState.editing = null;
+  renderCounties(); renderCountyAdmin(); hwUpdateBanner(); refreshInteractivity();
+}
+
+function renderCountyAdmin(){
+  if (dom.countyRegion && document.activeElement !== dom.countyRegion){
+    const keep = dom.countyRegion.value;
+    dom.countyRegion.innerHTML = '<option value="">Region…</option>' +
+      [...regionManager.regions.values()].map(r =>
+        `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('');
+    dom.countyRegion.value = keep;
+  }
+  if (dom.countyDraw) dom.countyDraw.classList.toggle('armed', countyState.drawArmed);
+  if (!dom.countyAdminList) return;
+  const regions = [...new Set([...regionManager.regions.values()].map(r => r.name)
+    .concat([...countyState.counties.values()].map(c => c.region)))];
+  if (!countyState.counties.size){
+    dom.countyAdminList.innerHTML = '<p class="empty-hint">No counties yet.</p>';
+    return;
+  }
+  dom.countyAdminList.innerHTML = regions.map(rn => {
+    const list = countiesOf(rn);
+    if (!list.length) return '';
+    const orphan = !regionByName(rn);
+    return `<div class="nc-officer-label" style="margin-top:.4rem">${escapeHtml(rn || 'No region')}` +
+      (orphan ? ' <span style="color:var(--danger-hi)">— region no longer exists</span>' : '') + '</div>' +
+      list.map(c => {
+        const ed = countyState.editing && countyState.editing.id === c.id;
+        return `<div class="hw-admin-row" data-county="${c.id}">` +
+          `<input type="color" value="${countyColour(c)}" data-ccolour title="Colour">` +
+          `<input type="text" value="${escapeHtml(c.name)}" data-cname title="Rename">` +
+          (ed ? '<button type="button" class="hw-mini" data-csave style="border-color:var(--brass);color:var(--brass-hi)">save</button>' +
+                '<button type="button" class="hw-mini" data-ccancel>cancel</button>'
+              : '<button type="button" class="hw-mini" data-cedit title="Move its points">edit</button>' +
+                '<button type="button" class="hw-mini" data-cfind title="Zoom to it">find</button>' +
+                '<button type="button" class="hw-mini danger" data-cdel title="Delete">&times;</button>') +
+          '</div>';
+      }).join('');
+  }).join('');
+  dom.countyAdminList.querySelectorAll('[data-county]').forEach(row => {
+    const c = countyState.counties.get(row.dataset.county);
+    if (!c) return;
+    const q = (sel) => row.querySelector(sel);
+    q('[data-ccolour]').addEventListener('input', (e) => { c.fillColor = e.target.value; renderCounties(); scheduleSave(); });
+    q('[data-cname]').addEventListener('change', (e) => {
+      const v = e.target.value.trim();
+      if (!v){ e.target.value = c.name; return; }
+      c.name = v; renderCounties(); renderAll(); scheduleSave();
+    });
+    if (q('[data-csave]')) q('[data-csave]').addEventListener('click', countyCommitEdit);
+    if (q('[data-ccancel]')) q('[data-ccancel]').addEventListener('click', countyCancelEdit);
+    if (q('[data-cedit]')) q('[data-cedit]').addEventListener('click', () => countyEdit(c.id));
+    if (q('[data-cfind]')) q('[data-cfind]').addEventListener('click', () => {
+      const s2 = planeShape(c.geometry);
+      if (s2) mapController.map.fitBounds(L.latLngBounds([L.latLng(s2.minY, s2.minX), L.latLng(s2.maxY, s2.maxX)]).pad(0.2));
+      if (!showCounties) setShowCounties(true);
+    });
+    if (q('[data-cdel]')) q('[data-cdel]').addEventListener('click', () => {
+      if (!window.confirm(`Delete the county "${c.name}"?`)) return;
+      countyState.counties.delete(c.id);
+      regionManager.recount(); renderAll(); renderCounties(); renderCountyAdmin(); scheduleSave();
+    });
+  });
+}
+
+/* ---- county persistence: features of kind 'county' in the same document ---- */
+function isCountyFeature(f){ return !!(f && f.properties && f.properties.kind === 'county'); }
+function countyToFeatures(){
+  return [...countyState.counties.values()].map(c => ({
+    type: 'Feature', geometry: c.geometry,
+    properties: { kind: 'county', id: c.id, name: c.name, region: c.region, fillColor: c.fillColor || null,
+      towns: c.stats ? c.stats.towns : null, residents: c.stats ? c.stats.residents : null,
+      claimChunks: c.stats ? c.stats.chunks : null },
+  }));
+}
+function countyLoadFromFeatures(features){
+  countyState.counties.clear();
+  let maxId = 0;
+  features.forEach(f => {
+    try {
+      const p = f.properties || {}, g = f.geometry;
+      if (!g || (g.type !== 'Polygon' && g.type !== 'MultiPolygon')) throw new Error('no shape');
+      const id = p.id || countyNextId();
+      const n = parseInt(String(id).split('-').pop(), 10);
+      if (Number.isFinite(n) && n > maxId) maxId = n;
+      countyState.counties.set(id, { id, name: p.name || 'County', region: p.region || '',
+        fillColor: p.fillColor || null, geometry: g, stats: null });
+    } catch (err){
+      persistKeepFeature(f);
+      auditLog.log(`A saved county could not be loaded (${err.message}) — it is kept as stored`, 'warn');
+    }
+  });
+  countyState.nextId = Math.max(countyState.nextId, maxId + 1);
+}
+
 function renderAll(){
   renderRegionList();
   renderInspector();
@@ -9647,7 +10604,10 @@ dom.addTownForm.addEventListener('submit', async (e) => {
 dom.regionNameInput.addEventListener('change', () => {
   const region = regionManager.getActive();
   if (!region) return;
+  const before = region.name;
   region.name = dom.regionNameInput.value.trim() || region.name;
+  // a county belongs to its region by name, so a rename carries them along
+  if (before !== region.name) countyState.counties.forEach(c => { if (c.region === before) c.region = region.name; });
   renderAll();
   scheduleSave();
 });
@@ -9707,6 +10667,8 @@ dom.splitCancelBtn.addEventListener('click', disarmSplit);
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && (highwayState.drawTarget || highwayState.stationTarget)) hwDisarm();
   if (e.key === 'Escape' && nationClaimState.drawArmed) ncDisarm();
+  if (e.key === 'Escape' && countyState.drawArmed) countyDisarm();
+  if (e.key === 'Escape' && countyState.editing) countyCancelEdit();
   if (e.key === 'Escape' && highwayState.editing) hwCancelEdit();
   if (e.key === 'Escape' && nationClaimState.editing) ncCancelEdit();
   if (e.key === 'Escape' && nationClaimState.proposal) ncDiscardProposal();
@@ -9810,6 +10772,11 @@ mapController.map.on('pm:create', (e) => {
     mapController.map.removeLayer(e.layer);
     regionManager.splitActiveWithLine(e.layer);
     disarmSplit();
+    return;
+  }
+  if ((e.shape === 'Polygon' || e.shape === 'Rectangle') && countyState.drawArmed){
+    mapController.map.removeLayer(e.layer);
+    countyFinishDraw(e.layer);
     return;
   }
   if ((e.shape === 'Polygon' || e.shape === 'Rectangle') && nationClaimState.drawArmed){
@@ -9961,7 +10928,7 @@ mapController.map.on('pm:remove', (e) => {
 /* ---- Draw / edit banner buttons ---- */
 if (dom.hwBannerUndo){
   dom.hwBannerUndo.addEventListener('click', () => {
-    if (nationClaimState.drawArmed){
+    if (nationClaimState.drawArmed || countyState.drawArmed){
       // Geoman owns the claim polygon, so its own vertex removal is used.
       const pm = mapController.map.pm;
       const handler = pm && pm.Draw && pm.Draw.Polygon;
@@ -9975,7 +10942,8 @@ if (dom.hwBannerDone){
   dom.hwBannerDone.addEventListener('click', () => {
     if (highwayState.editing){ hwCommitEdit(); return; }
     if (nationClaimState.editing){ ncCommitEdit(); return; }
-    if (nationClaimState.drawArmed){
+    if (countyState.editing){ countyCommitEdit(); return; }
+    if (nationClaimState.drawArmed || countyState.drawArmed){
       const pm = mapController.map.pm;
       const handler = pm && pm.Draw && pm.Draw.Polygon;
       if (handler && typeof handler._finishShape === 'function') handler._finishShape();
@@ -9988,10 +10956,17 @@ if (dom.hwBannerCancel){
   dom.hwBannerCancel.addEventListener('click', () => {
     if (highwayState.editing){ hwCancelEdit(); return; }
     if (nationClaimState.editing){ ncCancelEdit(); return; }
+    if (countyState.editing){ countyCancelEdit(); return; }
     if (nationClaimState.drawArmed){ ncDisarm(); return; }
+    if (countyState.drawArmed){ countyDisarm(); return; }
     hwDisarm();
   });
 }
+
+/* ---- County controls ---- */
+if (dom.countyDraw) dom.countyDraw.addEventListener('click', () => {
+  if (countyState.drawArmed) countyDisarm(); else countyArmDraw();
+});
 
 /* ---- Nation claim controls ---- */
 if (dom.ncDrawBtn){
@@ -10143,7 +11118,7 @@ let persistConflict = null;       // the Worker's answer when a save was refused
  * loads on its own. A kind that fails is saved back exactly as it was stored,
  * and a single item that fails is kept and saved back untouched, so a bad entry
  * can never take the rest down with it, nor be silently dropped by a save. */
-let persistRaw = { regions: [], highways: [], claims: [], plans: [] };
+let persistRaw = { regions: [], highways: [], claims: [], plans: [], counties: [] };
 const persistFailedKinds = new Set();
 let persistKeep = [];             // individual stored features that failed to load
 function persistKeepFeature(f){ if (f && !persistKeep.includes(f)) persistKeep.push(f); }
@@ -10217,11 +11192,13 @@ async function loadRegionsFromBackend(){
     plans:    all.filter(expIsPlanFeature),
     claims:   all.filter(ncIsClaimFeature),
     highways: all.filter(hwIsHighwayFeature),
-    regions:  all.filter(f => !hwIsHighwayFeature(f) && !ncIsClaimFeature(f) && !expIsPlanFeature(f)),
+    counties: all.filter(isCountyFeature),
+    regions:  all.filter(f => !hwIsHighwayFeature(f) && !ncIsClaimFeature(f) && !expIsPlanFeature(f) && !isCountyFeature(f)),
   };
   persistRaw.iceHighway = fc.iceHighway || null;
 
-  const LABEL = { plans: 'expansion plans', claims: 'nation claims', highways: 'ice highways', regions: 'regions' };
+  const LABEL = { plans: 'expansion plans', claims: 'nation claims', highways: 'ice highways', regions: 'regions',
+    counties: 'counties' };
   const load = (kind, fn) => {
     try { fn(); }
     catch (err){
@@ -10276,10 +11253,14 @@ async function loadRegionsFromBackend(){
     }
   });
 
+  /* Counties before regions, so the first count of the regions includes them. */
+  load('counties', () => countyLoadFromFeatures(persistRaw.counties));
+
   let count = 0;
   load('regions', () => {
     count = regionManager.rehydrateFromFeatureCollection({ type: 'FeatureCollection', features: persistRaw.regions });
   });
+  draw('counties', () => { regionManager.recount(); renderCounties(); renderCountyAdmin(); });
   draw('regions', () => {
     if (count){
       auditLog.log(`Loaded ${count} saved region(s) from the shared store`, 'success');
@@ -10443,21 +11424,24 @@ function pushTownRegions(){
   if (!viewerIsManager()) return;
   clearTimeout(townRegionTimer);
   townRegionTimer = setTimeout(async () => {
-    const towns = {};
+    const towns = {}, counties = {};
     regionManager.regions.forEach(region => {
-      (region.containedTowns || []).forEach(t => { towns[t.name] = region.name; });
+      (region.containedTowns || []).forEach(t => {
+        towns[t.name] = region.name;
+        if (t._county) counties[t.name] = t._county;
+      });
     });
     const names = Object.keys(towns);
     if (!names.length) return;
 
-    const sig = names.sort().map(n => n + '=' + towns[n]).join('|');
+    const sig = names.sort().map(n => n + '=' + towns[n] + '/' + (counties[n] || '')).join('|');
     if (sig === lastTownRegionSig) return;      // nothing moved
 
     try {
       const res = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/admin/town-regions', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ towns }),
+        body: JSON.stringify({ towns, counties }),
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
@@ -11085,6 +12069,7 @@ function buildPersistPayload(){
   fc.features = [].concat(
     persistFailedKinds.has('regions') ? persistRaw.regions : fc.features,
     kind('highways', hwToFeatures), kind('claims', ncToFeatures), kind('plans', expToFeatures),
+    kind('counties', countyToFeatures),
     persistKeep);
   fc.iceHighway = persistFailedKinds.has('highways') && persistRaw.iceHighway
     ? persistRaw.iceHighway
@@ -11210,13 +12195,13 @@ function setAdminMode(enabled){
   // The Admin tab only exists while unlocked.
   if (dom.viewTabAdmin) dom.viewTabAdmin.hidden = !enabled;
   if (enabled){
-    dom.btnAdminToggle.textContent = '🔓 Admin';
-    dom.btnAdminToggle.title = 'Click to lock admin console';
+    dom.btnAdminToggle.textContent = 'Done editing';
+    dom.btnAdminToggle.title = 'Stop editing the map';
     auditLog.log('Admin mode unlocked', 'success');
     setSidebarView('admin'); // jump straight to the console on unlock
   } else{
-    dom.btnAdminToggle.textContent = '🔒 Admin';
-    dom.btnAdminToggle.title = 'Unlock admin console';
+    dom.btnAdminToggle.textContent = 'Edit';
+    dom.btnAdminToggle.title = 'Edit the map';
     auditLog.log('Admin mode locked', 'info');
     // Locking while viewing Admin would leave an empty sidebar.
     if (activeView === 'admin') setSidebarView('ethiopia');
@@ -11305,8 +12290,8 @@ function applyViewerGate(){
   const notice = document.getElementById('publicNoticeText');
   if (notice){
     notice.textContent = member
-      ? '\u{1F512} Public view — unlock admin console to edit regions'
-      : '\u{1F512} Showing the general EarthMC map. Ethiopia\u2019s regions and highways are private to its citizens.';
+      ? 'View only'
+      : 'The general EarthMC map. Ethiopia\u2019s regions and highways are for its citizens.';
   }
   document.body.classList.toggle('outsider', !member);
 

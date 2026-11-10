@@ -7,82 +7,73 @@
 <script src="assets/session.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/base.css?v=3">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css?v=4">
 <style>
-.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
-  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
-.back:hover{ color:var(--gold); }
-.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+/* The shared theme draws the masthead, section heads and buttons. This page
+   adds the grouped tiles, the refresh steps and the wording editor. */
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
 .topbar .spacer{ margin-left:auto; }
-.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.4rem; }
-.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
-.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
-  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+.back{ text-decoration:none; }
 
-.tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); gap:.7rem; margin-bottom:1.6rem; }
-.tile{ display:block; text-decoration:none; color:inherit; background:var(--ink-raised);
-  border:1px solid var(--rule); border-top:2px solid var(--accent,var(--gold));
-  border-radius:3px; padding:.95rem 1.05rem; transition:background .16s ease; }
-.tile:hover{ background:var(--ink-high); }
-.tile h3{ font-family:var(--display); font-weight:600; font-size:var(--step-0); margin:0 0 .3rem; }
-.tile p{ color:var(--text-mid); font-size:var(--step--1); margin:0; }
-.tile .go{ display:block; margin-top:.6rem; font-family:var(--data); font-size:.66rem;
-  color:var(--accent,var(--gold)); }
-.tile.people{ --accent:var(--green); } .tile.gov{ --accent:var(--red); }
-.tile.money{ --accent:var(--gold); } .tile.jobs{ --accent:var(--green); }
-.tile.don{ --accent:var(--gold); } .tile.map{ --accent:var(--blue); }
-.tile.war{ --accent:var(--red); }
-
-.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
-  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 1rem; }
-.section-head h2{ font-size:var(--step-2); }
-.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+.group{ margin-bottom:1.6rem; }
+.group > h2{ font-family:var(--body); font-size:.82rem; font-weight:600; color:var(--text-low); margin:0 0 .6rem;
+  display:flex; align-items:center; gap:.6rem; }
+.group > h2::after{ content:''; flex:1 1 auto; height:1px; background:var(--line); }
+.tiles{ display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr)); gap:.6rem; }
+.tile{ display:flex; flex-direction:column; gap:.25rem; text-decoration:none; color:inherit;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%), var(--surface);
+  border:1px solid var(--line); border-top:2px solid var(--accent); border-radius:var(--r-md);
+  padding:.85rem 1rem; transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
+.tile:hover{ border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); transform:translateY(-1px);
+  box-shadow:0 6px 22px rgba(0,0,0,.35), 0 0 18px color-mix(in srgb, var(--accent) 14%, transparent); }
+.tile h3{ font-size:1rem; font-weight:700; margin:0; }
+.tile p{ color:var(--text-mid); font-size:.84rem; margin:0; line-height:1.45; }
+.tile.g{ --accent:var(--green); } .tile.y{ --accent:var(--gold); }
+.tile.r{ --accent:var(--red); } .tile.b{ --accent:var(--blue); }
 
 /* --- the refresh panel --------------------------------------------------- */
-.refresh{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px;
+.refresh{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md);
   padding:1rem 1.1rem; margin-bottom:1.6rem; }
 .refresh .lead{ display:flex; align-items:center; gap:.9rem; flex-wrap:wrap; }
-.refresh p.why{ color:var(--text-mid); font-size:var(--step--1); margin:.5rem 0 0; max-width:42rem; }
+.refresh p.why{ color:var(--text-mid); font-size:.86rem; margin:.6rem 0 0; max-width:44rem; line-height:1.5; }
 .steps{ margin-top:.9rem; display:flex; flex-direction:column; gap:.3rem; }
 .step{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;
-  padding:.4rem .55rem; background:var(--ink); border:1px solid var(--rule);
-  border-left:3px solid var(--mark,var(--rule)); border-radius:2px;
-  font-family:var(--data); font-size:.7rem; }
+  padding:.45rem .6rem; background:rgba(0,0,0,.25); border:1px solid var(--line);
+  border-left:3px solid var(--mark,var(--line)); border-radius:8px;
+  font-family:var(--data); font-size:.72rem; }
 .step.ok{ --mark:var(--green); }
 .step.bad{ --mark:var(--red); }
 .step .nm{ color:var(--text); }
-.step .de{ color:var(--text-low); font-size:.64rem; }
+.step .de{ color:var(--text-low); font-size:.66rem; }
 .step .ms{ margin-left:auto; color:var(--text-low); font-variant-numeric:tabular-nums; }
-.step .err{ flex-basis:100%; color:var(--red); font-size:.66rem; }
-.step .res{ flex-basis:100%; color:var(--text-mid); font-size:.64rem; }
+.step .err{ flex-basis:100%; color:var(--red); font-size:.68rem; }
+.step .res{ flex-basis:100%; color:var(--text-mid); font-size:.66rem; }
 
+/* --- page wording -------------------------------------------------------- */
 .pagepick{ display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:1rem; }
-.pp{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem; background:var(--ink-raised);
-  border:1px solid var(--rule); border-radius:2px; color:var(--text-mid); cursor:pointer; }
-.pp:hover{ border-color:var(--gold-dim); color:var(--text); }
-.pp.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+.pp{ font-family:var(--body); font-weight:600; font-size:.8rem; padding:.35rem .75rem; background:var(--surface);
+  border:1px solid var(--line); border-radius:999px; color:var(--text-mid); cursor:pointer; }
+.pp:hover{ border-color:var(--line-hot); color:var(--text); }
+.pp.on{ background:var(--gold); border-color:var(--gold); color:#141006; }
+.pp .ed{ color:var(--gold); }
+.pp.on .ed{ color:#141006; }
 
-.slot{ background:var(--ink-raised); border:1px solid var(--rule); border-radius:3px;
-  padding:.8rem .95rem; margin-bottom:.5rem; }
-.slot-name{ font-family:var(--data); font-size:.64rem; letter-spacing:.06em; text-transform:uppercase;
-  color:var(--text-low); margin-bottom:.5rem; display:flex; gap:.5rem; align-items:baseline; }
-.slot-name .orig{ color:var(--text-mid); text-transform:none; letter-spacing:0; font-size:.68rem; }
+.slot{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md);
+  padding:.85rem 1rem; margin-bottom:.5rem; }
+.slot-name{ font-size:.78rem; color:var(--text-low); margin-bottom:.5rem; display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; }
+.slot-name b{ color:var(--text); font-weight:600; }
+.slot-name .orig{ color:var(--text-mid); }
 .slot .fields{ display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; }
 .f{ display:flex; flex-direction:column; gap:.25rem; flex:1 1 14rem; }
-.f label{ font-family:var(--data); font-size:.62rem; color:var(--text-low); letter-spacing:.05em; }
-.f input{ background:var(--ink); color:var(--text); border:1px solid var(--rule);
-  border-radius:2px; padding:.42rem .55rem; font-family:var(--body); font-size:.82rem; width:100%; }
-.f input:focus{ border-color:var(--gold); }
+.f label{ font-size:.72rem; color:var(--text-low); }
+.f input{ background:rgba(0,0,0,.3); color:var(--text); border:1px solid var(--line);
+  border-radius:8px; padding:.45rem .6rem; font-family:var(--body); font-size:.86rem; width:100%; }
+.f input:focus{ border-color:var(--gold); outline:none; }
 .slot .acts{ display:flex; gap:.35rem; }
-.slot .btn{ padding:.34rem .6rem; font-size:.7rem; }
-.msg{ font-family:var(--data); font-size:.68rem; margin-top:.5rem; min-height:1em; }
+.msg{ font-size:.78rem; margin-top:.5rem; min-height:1em; }
 .msg.ok{ color:var(--green); } .msg.err{ color:var(--red); }
-.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
-  color:var(--text-mid); font-size:var(--step--1); }
-footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
-  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
-  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+footer{ margin-top:3rem; padding-top:1rem; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -90,7 +81,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
 <div class="shell">
 
   <div class="topbar">
-    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <a class="back" href="index.html">&#8592; Home</a>
     <span class="spacer"></span>
     <span id="authSlot"></span>
   </div>
@@ -101,82 +92,80 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
   </header>
 
   <div id="body">
-    <div class="tiles">
-      <a class="tile people" href="people.html">
-        <h3>People</h3>
-        <p>Everyone in the server and in the nation. Names, parties, notes, funding.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile gov" href="government.html">
-        <h3>Government</h3>
-        <p>Offices, parties, regions and House seats.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile gov" href="elections.html">
-        <h3>Elections</h3>
-        <p>Call an election, approve candidacies, and read the turnout.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile war" href="war.html">
-        <h3>War Department</h3>
-        <p>Any nation's towns, residents and 42-day clocks &mdash; who is holding, and who is only still listed.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile money" href="treasury.html">
-        <h3>Treasury</h3>
-        <p>The ledger, reconciliation against the nation bank.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile money" href="funding.html">
-        <h3>Funding</h3>
-        <p>Allowances, requests and the payment archive.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile don" href="donations.html">
-        <h3>Donations</h3>
-        <p>Credit deposits to donors and edit the leaderboard.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile jobs" href="jobs.html">
-        <h3>Job board</h3>
-        <p>Post work, set rates, and the EMC Services bank.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile people" href="account.html">
-        <h3>Accounts</h3>
-        <p>One person's full record &mdash; look anyone up by Discord ID.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile gold" href="history.html">
-        <h3>The record</h3>
-        <p>Growth month by month, terms, and past governments.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile gold" href="growth.html">
-        <h3>Growth</h3>
-        <p>Residents, land and towns over time, and every arrival and departure.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile gold" href="stats.html">
-        <h3>Usage</h3>
-        <p>Which commands and pages get used, by whom, and how often.</p>
-        <span class="go">Open &#8594;</span></a>
-      <a class="tile map" href="map.html">
-        <h3>Map</h3>
-        <p>Regions, ice highways and nation borders.</p>
-        <span class="go">Open &#8594;</span></a>
+    <div class="group">
+      <h2>People and government</h2>
+      <div class="tiles">
+        <a class="tile g" href="people.html"><h3>People</h3>
+          <p>Everyone on the server and in the nation &mdash; names, parties, notes and funding.</p></a>
+        <a class="tile g" href="account.html"><h3>Accounts</h3>
+          <p>One person&rsquo;s full record, looked up by Discord ID.</p></a>
+        <a class="tile r" href="government.html"><h3>Government</h3>
+          <p>Offices, parties, regions and House seats.</p></a>
+        <a class="tile r" href="elections.html"><h3>Elections</h3>
+          <p>Call an election, approve candidates and read the turnout.</p></a>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Money and work</h2>
+      <div class="tiles">
+        <a class="tile y" href="treasury.html"><h3>Treasury</h3>
+          <p>The ledger, checked against the nation bank.</p></a>
+        <a class="tile y" href="funding.html"><h3>Funding</h3>
+          <p>Allowances, requests and every payment made.</p></a>
+        <a class="tile y" href="donations.html"><h3>Donations</h3>
+          <p>Credit deposits to donors and keep the leaderboard right.</p></a>
+        <a class="tile g" href="jobs.html"><h3>Job board</h3>
+          <p>Post work, set rates and run the EMC Services bank.</p></a>
+        <a class="tile g" href="economy.html"><h3>Economy</h3>
+          <p>The company&rsquo;s takings, costs and profit, service by service.</p></a>
+        <a class="tile g" href="shop.html"><h3>Shop</h3>
+          <p>Stock, sales and the barrels inside the shop&rsquo;s walls.</p></a>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Land and defence</h2>
+      <div class="tiles">
+        <a class="tile b" href="map.html"><h3>Map</h3>
+          <p>Regions, counties, borders, ice highways, expansion and overclaim planning.</p></a>
+        <a class="tile r" href="war.html"><h3>War Department</h3>
+          <p>Any nation&rsquo;s towns and 42-day clocks, which way it is going, and the towns it has lost.</p></a>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Records and statistics</h2>
+      <div class="tiles">
+        <a class="tile b" href="stats.html"><h3>Statistics</h3>
+          <p>Regions and counties compared &mdash; activity, falling towns, growth, turnout &mdash; and who uses the dashboard and bot.</p></a>
+        <a class="tile y" href="growth.html"><h3>Growth</h3>
+          <p>Residents, land and towns over time, and every arrival and departure.</p></a>
+        <a class="tile y" href="history.html"><h3>The record</h3>
+          <p>Growth month by month, terms of office and past governments.</p></a>
+      </div>
     </div>
 
     <div class="section-head">
-      <h2>Data</h2>
-      <span class="meta">Every scheduled job, on demand</span>
+      <h2>Scheduled jobs</h2>
+      <span class="meta">run them all now</span>
     </div>
     <div class="refresh">
       <div class="lead">
-        <button class="btn btn-accent" type="button" id="refreshBtn">&#8635; Refresh everything now</button>
+        <button class="btn btn-accent" type="button" id="refreshBtn">Run every scheduled job now</button>
         <span class="msg" id="refreshMsg"></span>
       </div>
       <p class="why">
-        These normally run on separate timers, so a problem with any one of them is
-        invisible until someone notices a chart has stopped &mdash; which last time took
-        four days. Each step reports on its own: a partial run says which part failed
-        rather than hiding it behind a single tick.
+        The nation figures, town sweep, snapshots and samples normally run on their own timers.
+        Running them here reports each one separately, so if one has stopped you see which,
+        instead of finding out days later from a chart that went flat.
       </p>
       <div class="steps" id="refreshSteps"></div>
     </div>
 
     <div class="section-head">
       <h2>Page wording</h2>
-      <span class="meta">Blank a field to restore the original</span>
+      <span class="meta">blank a field to restore the original</span>
     </div>
     <div class="pagepick" id="pagepick"></div>
     <div id="slots"><p class="empty">Pick a page.</p></div>
@@ -207,7 +196,7 @@ var PAGES = {
   admin:      { label:'Admin',      slots:{ title:'Admin', subtitle:'Everything in one place' } },
   account:    { label:'Account',    slots:{ title:'Account', subtitle:'Your record' } },
   history:    { label:'The record', slots:{ title:'The record', subtitle:'How Ethiopia has grown' } },
-  stats:      { label:'Usage',      slots:{ title:'Usage', subtitle:'What is actually being used' } },
+  stats:      { label:'Statistics', slots:{ title:'Statistics', subtitle:'How the nation is doing, region by region' } },
 };
 
 var me = null, current = 'index', text = {};
@@ -223,7 +212,7 @@ async function api(path, opts){
   return d;
 }
 
-/* --- refresh -------------------------------------------------------------- */
+/* --- scheduled jobs ------------------------------------------------------ */
 
 function renderSteps(steps){
   var host = $('refreshSteps');
@@ -269,18 +258,20 @@ async function refreshAll(){
   }
 }
 
-/* --- page wording --------------------------------------------------------- */
+/* --- page wording -------------------------------------------------------- */
 
 function renderPicker(){
   $('pagepick').innerHTML = Object.keys(PAGES).map(function(p){
     var edited = text[p] && Object.keys(text[p]).length;
-    return '<span class="pp' + (current === p ? ' on' : '') + '" data-p="' + p + '">' +
-      esc(PAGES[p].label) + (edited ? ' \u00b7 edited' : '') + '</span>';
+    return '<button type="button" class="pp' + (current === p ? ' on' : '') + '" data-p="' + p + '">' +
+      esc(PAGES[p].label) + (edited ? ' <span class="ed">\u2022 edited</span>' : '') + '</button>';
   }).join('');
   $('pagepick').querySelectorAll('[data-p]').forEach(function(el){
     el.addEventListener('click', function(){ current = el.dataset.p; renderPicker(); renderSlots(); });
   });
 }
+
+var SLOT_NAMES = { title:'Title', subtitle:'Subtitle', intro:'Introduction' };
 
 function renderSlots(){
   var page = PAGES[current];
@@ -288,8 +279,8 @@ function renderSlots(){
   $('slots').innerHTML = Object.keys(page.slots).map(function(slot){
     var o = saved[slot] || {};
     return '<div class="slot" data-slot="' + esc(slot) + '">' +
-      '<div class="slot-name">' + esc(slot) +
-        '<span class="orig">originally: ' + esc(page.slots[slot]) + '</span></div>' +
+      '<div class="slot-name"><b>' + esc(SLOT_NAMES[slot] || slot) + '</b>' +
+        '<span class="orig">originally &ldquo;' + esc(page.slots[slot]) + '&rdquo;</span></div>' +
       '<div class="fields">' +
         '<div class="f"><label>English</label>' +
           '<input data-en value="' + esc(o.en || '') + '" placeholder="' +
@@ -335,7 +326,7 @@ function renderSlots(){
   });
 }
 
-/* --- auth ----------------------------------------------------------------- */
+/* --- auth ---------------------------------------------------------------- */
 
 function ethiopiaProfileChip(me){
   var face = me.avatarUrl
@@ -368,16 +359,15 @@ function renderAuth(){
   }
 }
 
-/* A missing element must never take the page down.
-   A page stuck on "Loading…" with no error is the worst failure mode there is:
-   nothing to read, nothing to search for, no clue what went wrong. If anything
-   in load() throws, say so on the page. */
+/* A missing element must never take the page down. A page stuck on
+   "Loading…" with no error is the worst failure there is: nothing to read and
+   no clue what went wrong. If anything in load() throws, say so on the page. */
 function fatal(err){
   var msg = (err && err.message) ? err.message : String(err);
   var host = document.getElementById('body') || document.body;
   var box = document.createElement('p');
   box.className = 'empty';
-  box.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
+  box.style.cssText = 'color:var(--red);text-align:left';
   box.textContent = 'This page failed to load: ' + msg +
     '. If it mentions a missing element, the deployed copy of this page is out of date.';
   host.innerHTML = '';
@@ -411,7 +401,7 @@ async function load(quiet){
 
 load().catch(fatal);
 </script>
-<script src="assets/pagetext.js?v=1"></script>
-<script src="assets/election-banner.js?v=1"></script>
+<script src="assets/pagetext.js?v=2"></script>
+<script src="assets/election-banner.js?v=2"></script>
 </body>
 </html>

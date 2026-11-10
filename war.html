@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/base.css?v=3">
+<link rel="stylesheet" href="assets/base.css?v=4">
 <style>
 .back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
   letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
@@ -159,6 +159,27 @@ canvas{ width:100%; height:200px; display:block; }
 .card h3{ font-family:var(--display); font-size:var(--step-0); margin:0 0 .15rem; }
 .card .cap{ font-family:var(--data); font-size:.62rem; color:var(--text-low); margin:0 0 .7rem; }
 
+/* One card per measure of the nation, each with its own verdict. Four small
+   charts rather than one combined one: residents and gold are on scales a
+   thousand apart, and on one chart the smaller line is simply flat. */
+.trends{ display:grid; grid-template-columns:repeat(auto-fit,minmax(17rem,1fr)); gap:.7rem; }
+.trend{ background:var(--ink-raised); border:1px solid var(--rule); border-top:2px solid var(--tc,var(--rule));
+  border-radius:var(--r-md); padding:.85rem .95rem; }
+.trend .th{ display:flex; align-items:baseline; gap:.6rem; }
+.trend .th h3{ font-family:var(--display); font-size:var(--step-0); margin:0; }
+.trend .verdict{ margin-left:auto; font-family:var(--data); font-size:.62rem; letter-spacing:.06em;
+  text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; color:var(--tc);
+  border:1px solid var(--tc); }
+.trend .big{ font-family:var(--data); font-weight:600; font-size:var(--step-1); margin:.3rem 0 .1rem; }
+.trend .chg{ display:flex; gap:1rem; font-family:var(--data); font-size:.68rem; color:var(--text-low); margin-bottom:.4rem; }
+.trend canvas{ height:130px; }
+.up{ color:var(--green); } .down{ color:var(--red); } .flat{ color:var(--text-low); }
+.gone-tag{ font-family:var(--data); font-size:.6rem; letter-spacing:.05em; text-transform:uppercase;
+  padding:.1rem .4rem; border-radius:3px; }
+.gone-tag.fell{ background:rgba(239,68,68,.16); color:var(--red); }
+.gone-tag.left{ background:rgba(252,209,22,.14); color:var(--gold); }
+.gone-tag.renamed{ background:rgba(255,255,255,.07); color:var(--text-mid); }
+
 .empty{ border:1px dashed var(--rule); border-radius:var(--r-md); padding:1.4rem;
   text-align:center; color:var(--text-mid); font-size:var(--step--1); }
 .note{ font-family:var(--data); font-size:.66rem; color:var(--text-low); margin:.5rem 0 0; }
@@ -199,7 +220,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-<script src="assets/chart.js?v=2"></script>
+<script src="assets/chart.js?v=3"></script>
 <script>
 'use strict';
 var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
@@ -207,6 +228,9 @@ var $ = function(id){ return document.getElementById(id); };
 var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
   return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
 var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
+var dshort = function(s){
+  var d = new Date(s); return isNaN(d) ? String(s || '—') : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+};
 
 var me = null, intel = null, watching = [], overview = null;
 var view = 'watch';        // 'watch' | 'nation' | 'raid'
@@ -295,6 +319,94 @@ function activityBar(a){
   '<div class="barkey">' + seg.map(function(s){
     return '<span><em style="background:' + s[2] + '"></em>' + esc(s[3]) + ' <b>' + num(s[1]) + '</b></span>';
   }).join('') + '</div>';
+}
+
+/* ---- growth, stagnation, decline ---------------------------------------
+ *
+ * One verdict per measure, from the daily samples kept while a nation is
+ * watched. The comparison is today against 30 days back (or the first day
+ * recorded, if watching began more recently), as a percentage, because a
+ * nation of 400 losing 20 is a different thing from a nation of 40 losing 20.
+ *
+ *   growing     up 3% or more
+ *   holding     within 3% either way — stagnant
+ *   shrinking   down 3% to 15%
+ *   collapsing  down more than 15%
+ */
+var TRENDS = [
+  { key:'towns',     label:'Towns',     color:'#fcd116' },
+  { key:'residents', label:'Residents', color:'#22c55e' },
+  { key:'chunks',    label:'Land',      color:'#4d8dff', unit:' chunks' },
+  { key:'balance',   label:'Nation bank', color:'#f5f1e8', unit:'g' },
+];
+function trendOf(hist, key){
+  var rows = (hist || []).filter(function(r){ return r[key] != null; });
+  if (rows.length < 2) return null;
+  var last = rows[rows.length - 1];
+  var back = function(days){
+    var cut = new Date(last.day).getTime() - days * 86400000;
+    var older = rows.filter(function(r){ return new Date(r.day).getTime() <= cut; });
+    return older.length ? older[older.length - 1] : rows[0];
+  };
+  var w7 = back(7), w30 = back(30);
+  var p = w30[key] ? ((last[key] - w30[key]) / w30[key]) * 100 : null;
+  var word = p === null ? 'new' : p >= 3 ? 'growing' : p > -3 ? 'holding' : p > -15 ? 'shrinking' : 'collapsing';
+  var span = Math.round((new Date(last.day) - new Date(w30.day)) / 86400000);
+  return { now: last[key], d7: last[key] - w7[key], d30: last[key] - w30[key], p30: p, word: word, span: span };
+}
+var VERDICT_COLOUR = { growing:'var(--green)', holding:'var(--text-mid)', shrinking:'var(--gold)',
+  collapsing:'var(--red)', 'new':'var(--text-low)' };
+var signedNum = function(n, unit){
+  var cls = n > 0 ? 'up' : n < 0 ? 'down' : 'flat';
+  return '<span class="' + cls + '">' + (n > 0 ? '+' : '') + num(n) + (unit || '') + '</span>';
+};
+
+function renderTrends(hist){
+  return '<div class="trends">' + TRENDS.map(function(t){
+    var tr = trendOf(hist, t.key);
+    if (!tr) return '';
+    var col = VERDICT_COLOUR[tr.word];
+    return '<div class="trend" style="--tc:' + col + '">' +
+      '<div class="th"><h3>' + esc(t.label) + '</h3><span class="verdict">' + esc(tr.word) + '</span></div>' +
+      '<div class="big">' + num(tr.now) + (t.unit || '') + '</div>' +
+      '<div class="chg"><span>7 days ' + signedNum(tr.d7) + '</span><span>' + tr.span + ' days ' + signedNum(tr.d30) +
+        (tr.p30 === null ? '' : ' (' + (tr.p30 > 0 ? '+' : '') + tr.p30.toFixed(1) + '%)') + '</span></div>' +
+      '<canvas id="tr-' + t.key + '"></canvas></div>';
+  }).join('') + '</div>';
+}
+
+function drawTrends(hist){
+  if (!window.EthChart) return;
+  TRENDS.forEach(function(t){
+    var c = $('tr-' + t.key);
+    if (!c) return;
+    EthChart.line(c, hist.map(function(r){ var o = { day: r.day }; o[t.key] = r[t.key]; return o; }),
+      { x:'day', fill:true, lines:[{ key: t.key, label: t.label, color: t.color }] });
+  });
+}
+
+/* Towns a nation has lost: fell (deleted), left (now elsewhere), renamed. */
+function renderGone(list, tracked){
+  if (!tracked){
+    return '<p class="note">Towns that fall or leave are recorded once migration 044 has been run in the D1 console.</p>';
+  }
+  if (!list.length){
+    return '<p class="note">No town has fallen or left since recording began.</p>';
+  }
+  var counts = { fell:0, left:0, renamed:0 };
+  list.forEach(function(g){ counts[g.outcome] = (counts[g.outcome] || 0) + 1; });
+  return '<div class="tablewrap" style="max-height:22rem"><table><thead><tr>' +
+    '<th>Town</th><th>What happened</th><th>When</th><th style="text-align:right">Last known</th><th>Went to</th>' +
+    '</tr></thead><tbody>' + list.map(function(g){
+      return '<tr><td class="name">' + esc(g.town) + '</td>' +
+        '<td><span class="gone-tag ' + esc(g.outcome) + '">' + esc(g.outcome) + '</span></td>' +
+        '<td>' + esc(dshort(g.gone_at)) + '</td>' +
+        '<td class="n">' + (g.residents != null ? num(g.residents) + ' res · ' + num(g.chunks) + ' ch' : '—') + '</td>' +
+        '<td>' + esc(g.went_to || '—') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p class="note">' + counts.fell + ' fell, ' + counts.left + ' left, ' + counts.renamed + ' renamed. ' +
+    'Checked once a day: a town missing from the nation is looked up on its own, so a town that ' +
+    'moved nation or changed its name is never counted as fallen.</p>';
 }
 
 function townsTable(towns){
@@ -431,8 +543,24 @@ function render(){
         'a judgement, so the four parts are shown and you can disagree with the total.</p></div>';
   }
 
+  /* Growth, stagnation or decline, measure by measure — straight after the
+     score, because it is the other half of the same question: not how strong
+     it is today, but which way it is going. */
+  if (intel.history && intel.history.length > 1){
+    out += '<div class="section-head"><h2>Which way it is going</h2>' +
+      '<span class="meta">a row a day since watching began · ' + intel.history.length + ' days</span></div>' +
+      renderTrends(intel.history) +
+      '<p class="note">Growing is up 3% or more over the last 30 days (or since watching began); holding is ' +
+      'within 3% either way; shrinking is down up to 15%; collapsing is down more than that.</p>';
+  } else if (intel.watched){
+    out += '<p class="note">Watching started recently — a trend needs at least two days.</p>';
+  } else {
+    out += '<p class="note">Not watched, so there is no history to show which way it is going. ' +
+      'Press <b>Watch this nation</b> to start a daily record.</p>';
+  }
+
   if (intel.projection && intel.projection.length){
-    out += '<div class="card"><h3>If nobody logs in again</h3>' +
+    out += '<div class="card" style="margin-top:1rem"><h3>If nobody logs in again</h3>' +
       '<p class="cap">Cumulative. A worst case, and it moves the moment anyone returns.</p>' +
       '<div class="tablewrap" style="max-height:none"><table><thead><tr>' +
       '<th>Within</th><th style="text-align:right">Towns fall</th>' +
@@ -475,13 +603,11 @@ function render(){
       '<span class="meta">' + falling.length + ' town' + (falling.length === 1 ? '' : 's') +
       ' on the 42-day clock</span></div>';
 
-    var done = 0;
     bands.forEach(function(b, i){
       var prev = i ? bands[i - 1].max : -1;
       var inBand = falling.filter(function(t){
         return t.daysLeft > prev && t.daysLeft <= b.max; });
       if (!inBand.length) return;
-      done += inBand.length;
       out += '<div class="fallband">' + esc(b.label) + ' · ' + inBand.length + '</div>' +
         '<div class="fallgrid">' + inBand.map(function(t){
           /* The bar runs the other way on purpose: it fills as the town runs
@@ -522,6 +648,11 @@ function render(){
     out += '<p class="note">The bar fills as the clock runs down, so a full bar is a town ' +
       'about to go. Click any card to find it on the map.</p>';
   }
+
+  /* What it has already lost. */
+  out += '<div class="section-head"><h2>Gone</h2>' +
+    '<span class="meta">towns that fell, left or were renamed</span></div>' +
+    renderGone(intel.gone || [], intel.goneTracked);
 
   out += '<div class="section-head"><h2>The ground</h2>' +
     '<span class="meta">every claim, coloured by how long it has left</span></div>' +
@@ -631,29 +762,9 @@ function render(){
       'would hide the thing worth knowing.</p>';
   }
 
-  if (intel.history && intel.history.length > 1){
-    out += '<div class="section-head"><h2>Trend</h2>' +
-      '<span class="meta">one row a day since watching began</span></div>' +
-      '<div class="card"><h3>Residents and towns</h3>' +
-      '<p class="cap">A nation shedding people for a fortnight is the signal, not its count today.</p>' +
-      '<canvas id="cTrend"></canvas></div>' +
-      '<div class="card"><h3>Land</h3>' +
-      '<p class="cap">Chunks claimed, day by day.</p>' +
-      '<canvas id="cLand"></canvas></div>';
-  } else if (intel.watched){
-    out += '<p class="note">Watching started recently — a trend needs at least two days.</p>';
-  }
-
   $('body').innerHTML = out;
 
-  if (intel.history && intel.history.length > 1 && window.EthChart){
-    EthChart.line($('cTrend'), intel.history.map(function(r){
-      return { x: r.day, residents: r.residents, towns: r.towns };
-    }), { keys:['residents','towns'], colors:[EthChart.colors[0], EthChart.colors[2]] });
-    EthChart.line($('cLand'), intel.history.map(function(r){
-      return { x: r.day, chunks: r.chunks };
-    }), { keys:['chunks'], colors:[EthChart.gold] });
-  }
+  if (intel.history && intel.history.length > 1) drawTrends(intel.history);
 
   drawWarMap();
   $('body').querySelectorAll('[data-fall]').forEach(function(card){
@@ -839,19 +950,12 @@ function renderRaid(){
         if (t.pvp) how += ' <span style="color:var(--gold)">· pvp</span>';
       }
 
-      /* How you get there. A public spawn is a free teleport in; otherwise
-         the nearest one and how far you would still have to walk. */
-      /* is_public is /t toggle public, which lets THEIR OWN NATION spawn
-         here — not us. It was labelled "public spawn" and read as reachable,
-         which was simply wrong and is why this column never answered the
-         question it was asked. Whether outsiders can spawn is a third toggle
-         (/t toggle outsiderscanspawn) and the scan cannot see it, so the
-         list says what it knows and the row detail checks live. */
-      /* outsider_spawn is the paid toggle and the only one that lets us in.
-         is_public is their own nation's and is shown second, dimmer, because
-         it is a fact about the town but not a route for us. */
+      /* How you get there. outsider_spawn is the paid toggle and the only one
+         that lets us in; is_public is their own nation's (/t toggle public)
+         and is not a route for us. Whether outsiders can spawn is a third
+         toggle the scan cannot always see, so the row detail checks live. */
       var reach = t.outsider_spawn === 1
-        ? '<span style="color:var(--sage-hi)">/t spawn ' + esc(t.town) + '</span>'
+        ? '<span style="color:var(--sage-hi, var(--green))">/t spawn ' + esc(t.town) + '</span>'
         : t.nearestSpawn
         ? '<span style="color:var(--text-low)">' + num(t.nearestSpawn.blocks) + ' from ' +
           esc(t.nearestSpawn.town) + '</span>'
@@ -903,10 +1007,6 @@ function townPanel(row){
     return '<div class="tfact"><span>' + esc(label) + '</span><b>' + val + '</b></div>';
   };
 
-  /* The headline is how you ARRIVE, because everything else is moot without
-     it. Outsider spawn is a paid flag — a mayor spends gold a day so that
-     /t spawn works for anyone — which is why it is worth calling out by its
-     real name rather than "public". */
   /* A walk needs a number, not an adjective. "Nearby" could be two hundred
      blocks or four thousand, and those are a different afternoon. */
   var walk = function(b){
@@ -915,10 +1015,13 @@ function townPanel(row){
       : '<span style="color:var(--red)">' + (b / 1000).toFixed(1) + 'k blocks</span>';
   };
 
+  /* The headline is how you ARRIVE, because everything else is moot without
+     it. Outsider spawn is a paid flag — a mayor spends gold a day so that
+     /t spawn works for anyone — which is why it is called by its real name. */
   var arrive;
   if (d.outsiderSpawn === true){
-    arrive = '<div class="tbanner" style="background:rgba(24,157,77,.14);border:1px solid var(--sage);' +
-      'color:var(--sage-hi)"><b>/t spawn ' + esc(d.name) + '</b> works for anyone &mdash; ' +
+    arrive = '<div class="tbanner" style="background:rgba(24,157,77,.14);border:1px solid var(--green-dim);' +
+      'color:var(--green)"><b>/t spawn ' + esc(d.name) + '</b> works for anyone &mdash; ' +
       'outsiderscanspawn is on.</div>';
   } else if (d.outsiderSpawn === null){
     /* Not false — unknown. The API does not appear to expose this toggle, and
@@ -1000,12 +1103,12 @@ function townPanel(row){
         fact('Chunks', num(d.chunks) + (d.maxChunks ? ' of ' + num(d.maxChunks) : '')) +
         fact('Founded', esc(String(d.founded || '').slice(0, 10) || '—')) +
         fact('Home block', typeof d.homeX === 'number' ? num(d.homeX) + ', ' + num(d.homeZ) : '—') +
-        fact('Joining', d.isOpen ? '<span style="color:var(--sage-hi)">open &mdash; /t join ' +
+        fact('Joining', d.isOpen ? '<span style="color:var(--green)">open &mdash; /t join ' +
           esc(d.name) + '</span>' : 'invite only') +
         fact('Nation spawn', d.nationSpawn
           ? '<span style="color:var(--gold)">on &mdash; their nation only</span>' : 'off') +
         fact('Outsider spawn', d.outsiderSpawn === true
-          ? '<span style="color:var(--sage-hi)">on</span>'
+          ? '<span style="color:var(--green)">on</span>'
           : d.outsiderSpawn === false ? 'off'
           : '<span style="color:var(--text-low)">not in the API</span>') +
         fact('Nation', esc(d.nation || 'none')) +
@@ -1175,11 +1278,10 @@ function renderWatchlist(){
 
 /* What watching is FOR, said once where it is decided.
  *
- * It was a button with no stated consequence, which is a fair thing to be
- * suspicious of. It does exactly one thing: records a row a day for that
- * nation so the trend exists later. Nothing about the live assessment changes
- * — an unwatched nation gives you the same report this second. What it cannot
- * give you is last week. */
+ * It does exactly one thing: records a row a day for that nation so the trend
+ * exists later, and notes each day which of its towns fell, left or were
+ * renamed. Nothing about the live assessment changes — an unwatched nation
+ * gives you the same report this second. What it cannot give you is last week. */
 function renderOverview(){
   if (!overview){ return '<p class="empty">Loading the watch list&hellip;</p>'; }
   var us = overview.us;
@@ -1203,22 +1305,28 @@ function renderOverview(){
     return ' <span style="color:' + col + ';font-size:.64rem">' +
       (d > 0 ? '+' : '') + num(d) + '</span>';
   };
+  var lostCell = function(r){
+    if (r.fell30 == null) return '<td class="n">—</td><td class="n">—</td>';
+    return '<td class="n">' + (r.fell30 ? '<span style="color:var(--red)">' + r.fell30 + '</span>' : '<span style="color:var(--text-low)">0</span>') + '</td>' +
+      '<td class="n">' + (r.left30 ? '<span style="color:var(--gold)">' + r.left30 + '</span>' : '<span style="color:var(--text-low)">0</span>') + '</td>';
+  };
 
   out += '<div class="tablewrap"><table><thead><tr>' +
     '<th>Nation</th><th style="text-align:right">Towns</th>' +
     '<th style="text-align:right">Residents</th><th style="text-align:right">Chunks</th>' +
-    '<th style="text-align:right">vs us</th><th></th>' +
+    '<th style="text-align:right">vs us</th><th style="text-align:right">Fell 30d</th>' +
+    '<th style="text-align:right">Left 30d</th><th></th>' +
     '</tr></thead><tbody>' +
     (us ? '<tr style="background:rgba(24,157,77,.08)">' +
       '<td class="name" style="color:var(--green)">' + esc(us.name) + ' (us)</td>' +
       '<td class="n">' + num(us.towns) + '</td>' +
       '<td class="n">' + num(us.residents) + '</td>' +
       '<td class="n">' + num(us.chunks) + '</td>' +
-      '<td class="n">—</td><td></td></tr>' : '') +
+      '<td class="n">—</td>' + lostCell(us) + '<td></td></tr>' : '') +
     overview.rows.map(function(r){
       if (r.missing){
         return '<tr class="unknown"><td class="name">' + esc(r.name) + '</td>' +
-          '<td colspan="5">no longer exists on the server</td></tr>';
+          '<td colspan="7">no longer exists on the server</td></tr>';
       }
       var c = r.change;
       return '<tr>' +
@@ -1226,7 +1334,7 @@ function renderOverview(){
         '<td class="n">' + num(r.towns) + (c ? delta(c.towns) : '') + '</td>' +
         '<td class="n">' + num(r.residents) + (c ? delta(c.residents) : '') + '</td>' +
         '<td class="n">' + num(r.chunks) + (c ? delta(c.chunks) : '') + '</td>' +
-        '<td class="n">' + pct(r.vsChunks) + '</td>' +
+        '<td class="n">' + pct(r.vsChunks) + '</td>' + lostCell(r) +
         '<td><button class="btn" type="button" data-assess="' + esc(r.name) + '" ' +
           'style="padding:.2rem .5rem;font-size:.64rem">Assess</button></td></tr>';
     }).join('') + '</tbody></table></div>' +
@@ -1234,6 +1342,19 @@ function renderOverview(){
     'the change across however many days have been recorded — which is why watching ' +
     'exists: a live reading cannot tell you a nation has been shedding towns for a ' +
     'fortnight.</p>';
+
+  var gone = overview.recentlyGone || [];
+  if (gone.length){
+    out += '<div class="section-head"><h2>Recently gone</h2>' +
+      '<span class="meta">towns lost by watched nations and by us, last 30 days</span></div>' +
+      '<div class="tablewrap" style="max-height:20rem"><table><thead><tr>' +
+      '<th>Town</th><th>Nation</th><th>What happened</th><th>When</th><th>Went to</th>' +
+      '</tr></thead><tbody>' + gone.map(function(g){
+        return '<tr><td class="name">' + esc(g.town) + '</td><td>' + esc(g.nation) + '</td>' +
+          '<td><span class="gone-tag ' + esc(g.outcome) + '">' + esc(g.outcome) + '</span></td>' +
+          '<td>' + esc(dshort(g.gone_at)) + '</td><td>' + esc(g.went_to || '—') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
   return out;
 }
 
@@ -1331,13 +1452,9 @@ function townPopup(t){
   var holders = (t.roster || []).filter(function(r){
     return r.idleDays !== null && r.idleDays < 42; });
 
-  /* Who is most likely to end up with this town.
-   *
-   * Stated as what it is — the resident who has been on most recently — and
-   * not dressed up as a prediction. Towny hands a fallen town to nobody; what
-   * actually happens is whoever is around claims it. The newest login is the
-   * best available proxy for that and the honest label for it is "most active
-   * resident", not "most likely to get it". */
+  /* Who is most likely to end up with this town: stated as what it is — the
+     resident who has been on most recently — and not dressed up as a
+     prediction. Towny hands a fallen town to nobody. */
   var likely = holders.length ? holders[0] : null;
 
   return '<div class="wpop"><h4>' + esc(t.name) +
@@ -1383,16 +1500,11 @@ function drawWarMap(keepView){
   if (warShow.terrain){
     L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
       /* 512 with offset 5 — squaremap's real tile size, so one image pixel is
-         one display pixel. The old 2048/3 pairing stretched every tile 4x and
-         cost sixteen times the pixel area for detail the file never had. */
+         one display pixel. */
       tileSize: 512, zoomOffset: 5, minNativeZoom: 0, maxNativeZoom: 5,
-      /* minZoom and maxZoom HERE mean "hide this layer outside this range",
+      /* minZoom and maxZoom here mean "hide this layer outside this range",
          which is a different thing from the map's own zoom limits. Leaving
-         them out meant minZoom defaulted to 0 — so the terrain was switched
-         off at every negative zoom, which is every zoom wide enough to see a
-         nation. It only appeared once you had zoomed past 0, which is exactly
-         the symptom. minNativeZoom below is the separate setting that stops it
-         FETCHING folders that do not exist. */
+         them out hid the terrain at every zoom wide enough to see a nation. */
       minZoom: -7, maxZoom: 2,
       noWrap: true, opacity: 0.55, keepBuffer: 1,
       updateWhenZooming: false,
@@ -1417,10 +1529,9 @@ function drawWarMap(keepView){
         L.polygon(ring.map(function(pt){ return MC.toLatLng(pt[0], pt[1]); }), {
           color: col, weight: 1.8, opacity: 0.95,
           fillColor: col, fillOpacity: 0.28,
-          /* Clickable. The outline is the town as far as anyone looking at
+          /* Clickable: the outline is the town as far as anyone looking at
              this map is concerned, so clicking the shape has to do what
-             clicking the dot does — hunting for a 4px marker inside a large
-             territory is not a thing anyone should have to do. */
+             clicking the dot does. */
           interactive: true, bubblingMouseEvents: false,
         }).bindPopup(popup, { maxWidth: 320 }).addTo(warMap);
       });
@@ -1467,13 +1578,9 @@ function drawWarMap(keepView){
   });
 
   if (warShow.range){
-    /* ONE merged frontier, not a circle per town.
-     *
-     * Sixty overlapping dashed rings is a scribble — and worse, it is a
-     * misleading one: it suggests the towns each hold a separate bubble when
-     * what actually exists is a single connected area. The union is the real
-     * shape, and the real question (can a town at X join) is answered by
-     * whether X is inside it. */
+    /* ONE merged frontier, not a circle per town: the union is the real
+       shape, and the real question (can a town at X join) is answered by
+       whether X is inside it. */
     var merged = null;
     try {
       (intel.towns || []).forEach(function(t){

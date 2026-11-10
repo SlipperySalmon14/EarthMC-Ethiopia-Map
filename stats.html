@@ -3,59 +3,101 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Usage · Ethiopia</title>
+<title>Statistics · Ethiopia</title>
+<script src="assets/session.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/base.css?v=2">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/base.css?v=4">
 <style>
-.back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
-  letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
-.back:hover{ color:var(--gold); }
-.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+/* The shared theme styles the masthead, tiles, section heads and buttons.
+   This page adds its own furniture: the heat map, the league table and the
+   hour-of-week grid. Colour carries the measure, so the frame stays neutral. */
+.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
 .topbar .spacer{ margin-left:auto; }
-.masthead{ border-bottom:1px solid var(--rule); padding-bottom:1.1rem; margin-bottom:1.2rem; }
-.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
-.masthead .sub{ font-family:var(--data); font-size:var(--step--1); letter-spacing:.15em;
-  text-transform:uppercase; color:var(--gold); margin:.5rem 0 0; }
+.back{ text-decoration:none; }
 
-.range{ display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:1.1rem; }
-.rb{ font-family:var(--data); font-size:.72rem; padding:.35rem .7rem; background:var(--ink-raised);
-  border:1px solid var(--rule); border-radius:2px; color:var(--text-mid); cursor:pointer; }
-.rb.on{ background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:600; }
+.tabs2{ display:flex; gap:2px; padding:3px; border-radius:11px; background:rgba(255,255,255,.045);
+  width:max-content; max-width:100%; margin-bottom:1rem; }
+.tabs2 button{ font-family:var(--body); font-weight:600; font-size:.88rem; border:0; background:none;
+  color:var(--text-mid); padding:.45rem 1rem; border-radius:9px; cursor:pointer; }
+.tabs2 button[aria-pressed="true"]{ background:var(--gold); color:#141006; box-shadow:0 0 14px rgba(252,209,22,.3); }
 
-.stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.7rem; margin-bottom:1.6rem; }
-.stat{ background:var(--ink-raised); border:1px solid var(--rule);
-  border-left:3px solid var(--accent,var(--rule)); border-radius:3px; padding:.85rem 1rem; }
-.stat .n{ font-family:var(--data); font-weight:600; font-size:var(--step-1);
-  font-variant-numeric:tabular-nums; display:block; }
-.stat .k{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-low); display:block; margin-top:.2rem; }
-.stat.c{ --accent:var(--green); } .stat.p{ --accent:var(--blue); }
-.stat.l{ --accent:var(--gold); } .stat.f{ --accent:var(--red); } .stat.f .n{ color:var(--red); }
+.controls{ display:flex; flex-wrap:wrap; gap:.6rem 1.2rem; align-items:center; margin-bottom:1rem; }
+.seg{ display:inline-flex; gap:2px; padding:3px; border-radius:10px; background:rgba(0,0,0,.3);
+  border:1px solid var(--line); flex-wrap:wrap; }
+.seg button{ border:0; background:none; color:var(--text-mid); font-family:var(--body); font-weight:600;
+  font-size:.8rem; padding:.34rem .7rem; border-radius:8px; cursor:pointer; }
+.seg button.on{ background:var(--sv, var(--gold)); color:#141006; }
+.ctl-label{ font-size:.78rem; color:var(--text-low); margin-right:.3rem; }
 
-.section-head{ display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
-  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:1.8rem 0 .9rem; }
-.section-head h2{ font-size:var(--step-1); }
-.section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+.metrics{ display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:1rem; }
+.metric{ font-family:var(--body); font-weight:600; font-size:.82rem; padding:.38rem .8rem; border-radius:999px;
+  border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text-mid); cursor:pointer; }
+.metric:hover{ border-color:var(--line-hot); color:var(--text); }
+.metric.on{ border-color:var(--mc); color:var(--text); background:color-mix(in srgb, var(--mc) 16%, transparent);
+  box-shadow:0 0 14px color-mix(in srgb, var(--mc) 25%, transparent); }
 
-table{ width:100%; border-collapse:collapse; font-size:var(--step--1); }
-th{ font-family:var(--data); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
-  color:var(--text-low); text-align:left; font-weight:400; padding:.45rem .5rem;
-  border-bottom:1px solid var(--rule); }
-td{ padding:.45rem .5rem; border-bottom:1px solid var(--rule-soft);
-  font-family:var(--data); font-size:.72rem; font-variant-numeric:tabular-nums; }
-td.n{ text-align:right; }
-td.name{ color:var(--text); font-weight:600; }
-.bar{ height:.35rem; background:var(--ink); border-radius:999px; overflow:hidden; margin-top:.25rem; }
-.bar span{ display:block; height:100%; background:var(--green); border-radius:999px; }
-.fail{ color:var(--red); }
-.zero{ color:var(--text-low); }
-.empty{ border:1px dashed var(--rule); border-radius:3px; padding:1.4rem; text-align:center;
-  color:var(--text-mid); font-size:var(--step--1); }
-footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
-  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
-  font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
+.callouts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(13rem,1fr)); gap:.7rem; margin-bottom:1rem; }
+.call{ border-radius:var(--r-md); border:1px solid var(--line); border-top:2px solid var(--cc);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--cc) 10%, transparent), transparent 75%), var(--surface);
+  padding:.8rem .95rem; }
+.call .k{ font-size:.76rem; color:var(--text-low); }
+.call .v{ display:block; font-weight:700; font-size:1.05rem; margin:.15rem 0; }
+.call .d{ font-family:var(--data); font-size:.74rem; color:var(--cc); }
+
+.mapwrap{ position:relative; border-radius:var(--r-md); overflow:hidden; border:1px solid var(--line); margin-bottom:.5rem; }
+#heat{ height:30rem; background:#0b0a08; }
+#heat .leaflet-control-attribution{ display:none; }
+.legend{ display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; font-size:.78rem; color:var(--text-low); margin-bottom:1.2rem; }
+.legend .ramp{ width:12rem; height:.55rem; border-radius:999px; }
+.legend label{ display:flex; align-items:center; gap:.35rem; cursor:pointer; }
+.leaflet-popup-content-wrapper{ background:var(--surface); color:var(--text); border:1px solid var(--line-hot); border-radius:12px; }
+.leaflet-popup-tip{ background:var(--surface); }
+.leaflet-popup-content{ margin:.7rem .9rem; font-family:var(--body); font-size:.84rem; }
+.pop h4{ margin:0 0 .35rem; font-size:1rem; }
+.pop .r{ display:flex; justify-content:space-between; gap:1rem; font-size:.8rem; padding:.1rem 0; color:var(--text-low); }
+.pop .r b{ color:var(--text); font-family:var(--data); font-weight:600; }
+
+.tablewrap{ overflow:auto; border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); }
+table{ width:100%; border-collapse:collapse; }
+th{ font-family:var(--body); font-weight:600; font-size:.74rem; color:var(--text-low); text-align:right;
+  padding:.55rem .6rem; border-bottom:1px solid var(--line); white-space:nowrap; cursor:pointer; position:sticky; top:0;
+  background:var(--surface); }
+th:first-child{ text-align:left; }
+th.on{ color:var(--gold); }
+td{ padding:.5rem .6rem; border-bottom:1px solid var(--line); font-family:var(--data); font-size:.78rem;
+  font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+td:first-child{ text-align:left; font-family:var(--body); font-weight:600; font-size:.88rem; }
+tbody tr{ cursor:pointer; }
+tbody tr:hover td{ background:rgba(255,255,255,.03); }
+tr.sel td{ background:rgba(252,209,22,.07); }
+tr.outside td{ color:var(--text-low); font-style:italic; }
+td .heat{ display:inline-block; min-width:2.6rem; padding:.08rem .4rem; border-radius:6px; color:#141006; font-weight:600; }
+.up{ color:var(--green); } .down{ color:var(--red); } .flat{ color:var(--text-low); }
+.note{ font-size:.82rem; color:var(--text-low); margin:.6rem 0 0; line-height:1.5; }
+
+.detail{ margin-top:1rem; }
+.detail h3{ font-size:1.05rem; margin:0 0 .5rem; }
+
+/* usage */
+.hourgrid{ display:grid; grid-template-columns:2.4rem repeat(24, 1fr); gap:2px; font-family:var(--data); font-size:.62rem; }
+.hourgrid .hd{ color:var(--text-low); text-align:center; }
+.hourgrid .dl{ color:var(--text-low); display:flex; align-items:center; }
+.hourgrid .c{ height:1.25rem; border-radius:3px; background:rgba(255,255,255,.04); }
+canvas.chart{ width:100%; height:220px; display:block; }
+.card{ border-radius:var(--r-md); border:1px solid var(--line); background:var(--surface); padding:1rem 1.1rem; margin-bottom:1rem; }
+.card h3{ margin:0 0 .2rem; font-size:1rem; }
+.card .cap{ font-size:.8rem; color:var(--text-low); margin:0 0 .7rem; }
+.bars .row{ display:grid; grid-template-columns:12rem 1fr 4.5rem; gap:.6rem; align-items:center; padding:.25rem 0;
+  font-size:.82rem; }
+.bars .bar{ height:.6rem; border-radius:999px; background:rgba(255,255,255,.05); overflow:hidden; }
+.bars .bar span{ display:block; height:100%; border-radius:999px; background:var(--blue); box-shadow:0 0 10px rgba(77,141,255,.5); }
+.bars .n{ font-family:var(--data); text-align:right; }
+.fail{ color:var(--red); } .zero{ color:var(--text-low); }
+.empty{ padding:1.4rem; text-align:center; }
+footer{ margin-top:3rem; padding-top:1rem; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -69,178 +111,548 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
   </div>
 
   <header class="masthead">
-    <h1 data-slot="title">Usage</h1>
-    <p class="sub" data-slot="subtitle">What is actually being used</p>
+    <h1 data-slot="title">Statistics</h1>
+    <p class="sub" data-slot="subtitle">How the nation is doing, region by region</p>
   </header>
+
+  <div class="tabs2" role="group" aria-label="What to look at">
+    <button type="button" data-tab="regions" aria-pressed="true">Regions and counties</button>
+    <button type="button" data-tab="usage" aria-pressed="false">Dashboard and bot use</button>
+  </div>
 
   <div id="body"><p class="empty">Loading…</p></div>
 
   <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="assets/chart.js?v=3"></script>
 <script>
 'use strict';
 var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
+var NATION = 'Ethiopia';
 var $ = function(id){ return document.getElementById(id); };
 var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
   return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); };
 var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 var when = function(s){
   if (!s) return '—';
-  var d = new Date(s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
-  return isNaN(d) ? String(s)
-    : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + ' ' +
-      d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  var d = new Date(typeof s === 'number' ? s : s + (/[Zz]|[+-]\d{2}:?\d{2}$/.test(s) ? '' : 'Z'));
+  return isNaN(d) ? String(s) : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + ' ' +
+    d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
 };
-
-var me = null, data = null, days = 30;
+var dayOnly = function(s){
+  if (!s) return '—';
+  var d = new Date(s); return isNaN(d) ? String(s) : d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+};
+var plural = function(n, w){ return num(n) + ' ' + (n === 1 ? w : w + 's'); };
+var signed = function(n, suffix){
+  if (n == null) return '<span class="flat">—</span>';
+  var cls = n > 0 ? 'up' : n < 0 ? 'down' : 'flat';
+  return '<span class="' + cls + '">' + (n > 0 ? '+' : '') + num(n) + (suffix || '') + '</span>';
+};
 
 async function api(path, opts){
   var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
   var d = null;
   try { d = await res.json(); } catch (e) {}
-  if (!res.ok){ var err = new Error((d && d.error) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
+  if (!res.ok){ var err = new Error((d && (d.detail || d.error)) || ('HTTP ' + res.status)); err.status = res.status; throw err; }
   return d;
 }
 
-function fatal(err){
-  var host = $('body') || document.body;
-  host.innerHTML = '';
-  var p = document.createElement('p');
-  p.className = 'empty';
-  p.style.cssText = 'color:var(--red);border-color:var(--red-dim);text-align:left';
-  p.textContent = 'This page failed to load: ' + ((err && err.message) || err);
-  host.appendChild(p);
+var me = null, tab = 'regions';
+
+/* ===================================================================== */
+/* REGIONS AND COUNTIES                                                   */
+/* ===================================================================== */
+/* Every measure, what it means, and which way is good. "good" decides the
+   colour: high is green when high is good, red when it is bad. */
+var METRICS = [
+  { k:'activeShare', label:'Active this week', unit:'%', good:'high', c:'#22c55e',
+    desc:'share of residents who logged in within 7 days', town:function(t){ return t.residents ? Math.round(t.active7 / t.residents * 100) : null; } },
+  { k:'falling12', label:'Falling towns', good:'low', c:'#ef4444',
+    desc:'towns within 12 days of being deleted for inactivity', town:function(t){ return t.daysLeft === null ? null : t.daysLeft <= 12 ? 1 : 0; } },
+  { k:'residentsChange', label:'Resident growth', good:'high', c:'#4d8dff', signed:true,
+    desc:'change in residents over the window', town:function(t){ return t.residentsThen == null ? null : t.residents - t.residentsThen; } },
+  { k:'chunksChange', label:'Land growth', good:'high', c:'#fcd116', signed:true,
+    desc:'change in claimed chunks over the window', town:function(t){ return t.chunksThen == null ? null : t.chunks - t.chunksThen; } },
+  { k:'turnout', label:'Turnout', unit:'%', good:'high', c:'#22c55e',
+    desc:'residents who voted in an election in the window', town:function(t){ return t.residents ? Math.round(t.voters / t.residents * 100) : null; } },
+  { k:'dashboardPerResident', label:'Dashboard use', good:'high', c:'#4d8dff',
+    desc:'dashboard and bot actions per resident', town:function(t){ return t.residents ? Math.round(t.dashboardActions / t.residents * 10) / 10 : null; } },
+  { k:'residents', label:'Residents', good:'high', c:'#f5f1e8', desc:'people living there now', town:function(t){ return t.residents; } },
+  { k:'chunks', label:'Land', good:'high', c:'#f5f1e8', desc:'claimed chunks now', town:function(t){ return t.chunks; } },
+];
+var R = { data:null, days:30, level:'regions', metric:'activeShare', sel:null, sort:'metric', dir:'desc',
+          geo:null, towns:null, showTowns:true, heat:null };
+function metricDef(){ return METRICS.filter(function(m){ return m.k === R.metric; })[0] || METRICS[0]; }
+
+/* Red to gold to green, flipped for measures where high is bad. */
+function ramp(t){
+  t = Math.max(0, Math.min(1, t));
+  var stops = [[239,68,68],[252,209,22],[34,197,94]];
+  var i = t < .5 ? 0 : 1, f = t < .5 ? t / .5 : (t - .5) / .5;
+  var a = stops[i], b = stops[i + 1];
+  return 'rgb(' + a.map(function(v, j){ return Math.round(v + (b[j] - v) * f); }).join(',') + ')';
+}
+function colourFor(v, min, max, m){
+  if (v == null || !isFinite(v)) return '#3a342c';
+  var t = max === min ? .5 : (v - min) / (max - min);
+  if (m.good === 'low') t = 1 - t;
+  if (m.k === 'residents' || m.k === 'chunks'){
+    var a = .25 + .75 * t; return 'rgba(77,141,255,' + a.toFixed(2) + ')';
+  }
+  return ramp(t);
 }
 
-function table(rows, cols){
-  if (!rows.length) return '<p class="empty">Nothing recorded yet.</p>';
-  return '<table><thead><tr>' +
-    cols.map(function(c){ return '<th' + (c.n ? ' style="text-align:right"' : '') + '>' + esc(c.h) + '</th>'; }).join('') +
-    '</tr></thead><tbody>' +
-    rows.map(function(r){
-      return '<tr>' + cols.map(function(c){
-        return '<td class="' + (c.n ? 'n ' : '') + (c.cls || '') + '">' + c.get(r) + '</td>';
-      }).join('') + '</tr>';
-    }).join('') + '</tbody></table>';
+function units(){
+  if (!R.data) return [];
+  return R.level === 'counties' ? R.data.counties : R.data.regions;
+}
+function fmtMetric(v, m){
+  if (v == null) return '—';
+  if (m.signed) return (v > 0 ? '+' : '') + num(v);
+  return num(v) + (m.unit || '');
 }
 
-function render(){
-  var maxUses = data.commands.length ? data.commands[0].uses : 1;
+function renderCallouts(){
+  var list = units().filter(function(u){ return u.name.charAt(0) !== '(' && u.residents; });
+  if (!list.length) return '';
+  var best = function(key, dir){
+    var xs = list.filter(function(u){ return u[key] != null; });
+    if (!xs.length) return null;
+    return xs.sort(function(a, b){ return dir === 'high' ? b[key] - a[key] : a[key] - b[key]; })[0];
+  };
+  var cards = [
+    { k:'Most active', u:best('activeShare', 'high'), v:function(u){ return u.activeShare + '% on this week'; }, c:'#22c55e' },
+    { k:'Most towns falling', u:best('falling12', 'high'), v:function(u){ return plural(u.falling12, 'town') + ' within 12 days'; }, c:'#ef4444' },
+    { k:'Least growth', u:best('residentsChange', 'low'), v:function(u){ return (u.residentsChange > 0 ? '+' : '') + num(u.residentsChange) + ' residents'; }, c:'#fcd116' },
+    { k:'Best turnout', u:best('turnout', 'high'), v:function(u){ return u.turnout + '% voted'; }, c:'#4d8dff' },
+  ];
+  return '<div class="callouts">' + cards.filter(function(c){ return c.u; }).map(function(c){
+    return '<div class="call" style="--cc:' + c.c + '"><span class="k">' + c.k + '</span>' +
+      '<span class="v">' + esc(c.u.name) + (R.level === 'counties' && c.u.region ? ' <span style="font-weight:400;color:var(--text-low)">in ' +
+      esc(c.u.region) + '</span>' : '') + '</span><span class="d">' + c.v(c.u) + '</span></div>';
+  }).join('') + '</div>';
+}
 
-  var out =
-    '<div class="range">' +
-      [7, 30, 90, 365].map(function(d){
-        return '<span class="rb' + (days === d ? ' on' : '') + '" data-days="' + d + '">' +
-          (d === 365 ? 'Year' : d + ' days') + '</span>';
-      }).join('') +
+function leagueTable(list, opts){
+  var m = metricDef();
+  var cols = [
+    { k:'name', h: opts.first || 'Region', get:function(u){ return esc(u.name); } },
+    { k:'metric', h: m.label, get:function(u){
+        var v = u[m.k];
+        return '<span class="heat" style="background:' + colourFor(v, opts.min, opts.max, m) + '">' + fmtMetric(v, m) + '</span>'; } },
+    { k:'towns', h:'Towns', get:function(u){ return num(u.towns); } },
+    { k:'residents', h:'Residents', get:function(u){ return num(u.residents); } },
+    { k:'chunks', h:'Land', get:function(u){ return num(u.chunks); } },
+    { k:'activeShare', h:'Active 7d', get:function(u){ return u.activeShare == null ? '—' : u.activeShare + '%'; } },
+    { k:'falling12', h:'Falling', get:function(u){ return u.falling12 ? '<span class="down">' + u.falling12 + '</span>' : '<span class="zero">0</span>'; } },
+    { k:'residentsChange', h:'Δ residents', get:function(u){ return signed(u.residentsChange); } },
+    { k:'chunksChange', h:'Δ land', get:function(u){ return signed(u.chunksChange); } },
+    { k:'gained', h:'Towns ±', get:function(u){
+        if (!u.gained && !u.lost) return '<span class="zero">—</span>';
+        return (u.gained ? '<span class="up">+' + u.gained + '</span>' : '') + (u.gained && u.lost ? ' ' : '') +
+          (u.lost ? '<span class="down">−' + u.lost + '</span>' : ''); } },
+    { k:'turnout', h:'Turnout', get:function(u){ return u.turnout == null ? '—' : u.turnout + '%'; } },
+    { k:'seats', h:'Seats', get:function(u){ return u.seats ? num(u.seats) : '<span class="zero">—</span>'; } },
+    { k:'dashboardPerResident', h:'Use / res', get:function(u){ return u.dashboardPerResident == null ? '—' : u.dashboardPerResident; } },
+  ];
+  if (opts.noSeats) cols = cols.filter(function(c){ return c.k !== 'seats'; });
+  var key = R.sort === 'metric' ? m.k : R.sort;
+  var rows = list.slice().sort(function(a, b){
+    var oa = a.name.charAt(0) === '(' ? 1 : 0, ob = b.name.charAt(0) === '(' ? 1 : 0;
+    if (oa !== ob) return oa - ob;                      // "outside" always last
+    if (key === 'name') return R.dir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+    var va = a[key] == null ? -Infinity : a[key], vb = b[key] == null ? -Infinity : b[key];
+    return R.dir === 'asc' ? va - vb : vb - va;
+  });
+  return '<div class="tablewrap"><table><thead><tr>' + cols.map(function(c){
+      return '<th data-sort="' + c.k + '" class="' + (R.sort === c.k ? 'on' : '') + '">' + esc(c.h) +
+        (R.sort === c.k ? (R.dir === 'desc' ? ' ▾' : ' ▴') : '') + '</th>';
+    }).join('') + '</tr></thead><tbody>' +
+    rows.map(function(u){
+      var id = (u.region ? u.region + '\u0000' : '') + u.name;
+      return '<tr data-unit="' + esc(id) + '" class="' + (R.sel === id ? 'sel ' : '') + (u.name.charAt(0) === '(' ? 'outside' : '') + '">' +
+        cols.map(function(c){ return '<td>' + c.get(u) + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function townTable(towns){
+  var m = metricDef();
+  if (!towns.length) return '<p class="empty">No towns.</p>';
+  return '<div class="tablewrap" style="max-height:26rem"><table><thead><tr>' +
+    ['Town','County','Residents','Active 7d','Falls in','Δ residents','Δ land','Voters','Use'].map(function(h){ return '<th>' + h + '</th>'; }).join('') +
+    '</tr></thead><tbody>' + towns.slice().sort(function(a, b){
+      var va = m.town(a), vb = m.town(b);
+      va = va == null ? -Infinity : va; vb = vb == null ? -Infinity : vb;
+      return m.good === 'low' ? vb - va : vb - va;
+    }).map(function(t){
+      var fall = t.daysLeft == null ? '—' : t.daysLeft <= 12 ? '<span class="down">' + t.daysLeft + 'd</span>' : t.daysLeft + 'd';
+      return '<tr><td>' + esc(t.name) + '</td><td style="text-align:left;font-family:var(--body)">' + esc(t.county || '—') + '</td>' +
+        '<td>' + num(t.residents) + '</td><td>' + num(t.active7) + '</td><td>' + fall + '</td>' +
+        '<td>' + signed(t.residentsThen == null ? null : t.residents - t.residentsThen) + '</td>' +
+        '<td>' + signed(t.chunksThen == null ? null : t.chunks - t.chunksThen) + '</td>' +
+        '<td>' + num(t.voters) + '</td><td>' + num(t.dashboardActions) + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function renderRegions(){
+  var d = R.data;
+  if (!d){ return '<p class="empty">Loading the regions…</p>'; }
+  var m = metricDef();
+  var list = units();
+  var vals = list.filter(function(u){ return u.name.charAt(0) !== '(' && u[m.k] != null; }).map(function(u){ return u[m.k]; });
+  var min = vals.length ? Math.min.apply(null, vals) : 0, max = vals.length ? Math.max.apply(null, vals) : 1;
+  R.range = { min:min, max:max };
+
+  var out = '<div class="controls">' +
+    '<span><span class="ctl-label">Window</span><span class="seg">' + [30, 90, 365].map(function(n){
+      return '<button type="button" data-days="' + n + '" class="' + (R.days === n ? 'on' : '') + '">' + (n === 365 ? 'Year' : n + ' days') + '</button>';
+    }).join('') + '</span></span>' +
+    '<span><span class="ctl-label">Compare</span><span class="seg">' +
+      '<button type="button" data-level="regions" class="' + (R.level === 'regions' ? 'on' : '') + '">Regions</button>' +
+      '<button type="button" data-level="counties" class="' + (R.level === 'counties' ? 'on' : '') + '">Counties</button></span></span>' +
     '</div>' +
+    '<div class="metrics">' + METRICS.map(function(x){
+      return '<button type="button" class="metric' + (x.k === R.metric ? ' on' : '') + '" data-metric="' + x.k + '" style="--mc:' + x.c + '">' + x.label + '</button>';
+    }).join('') + '</div>';
 
+  out += renderCallouts();
+
+  if (R.level === 'counties' && !d.counties.length){
+    out += '<p class="empty">' + (d.countiesKnown
+      ? 'No town has a county yet. Draw counties on the map; the next time a manager opens the map, each town is assigned to one.'
+      : 'Counties need migration 044 in the D1 console, then a manager opening the map once.') + '</p>';
+  }
+
+  out += '<div class="mapwrap"><div id="heat"></div></div>' +
+    '<div class="legend"><span>' + esc(m.label) + ' — ' + esc(m.desc) + '</span>' +
+      '<span class="ramp" style="background:' + (m.k === 'residents' || m.k === 'chunks'
+        ? 'linear-gradient(90deg, rgba(77,141,255,.25), rgba(77,141,255,1))'
+        : m.good === 'low' ? 'linear-gradient(90deg,#22c55e,#fcd116,#ef4444)' : 'linear-gradient(90deg,#ef4444,#fcd116,#22c55e)') + '"></span>' +
+      '<span>' + fmtMetric(min, m) + ' &#8594; ' + fmtMetric(max, m) + '</span>' +
+      '<label style="margin-left:auto"><input type="checkbox" id="showTowns"' + (R.showTowns ? ' checked' : '') + '> towns</label></div>';
+
+  out += '<div class="section-head"><h2>' + (R.level === 'counties' ? 'Every county' : 'Every region') + '</h2>' +
+    '<span class="meta">growth since ' + esc(dayOnly(d.growthFrom)) + ' · towns last swept ' + esc(when(d.swept)) + '</span></div>' +
+    leagueTable(list, { min:min, max:max, first: R.level === 'counties' ? 'County' : 'Region', noSeats: R.level === 'counties' }) +
+    '<p class="note">Each town counts in the region and county holding most of its land, as the map assigns them. ' +
+    'Towns no region holds are listed as outside, so every column adds up to ' + esc(NATION) + '\u2019s total of ' +
+    plural(d.total.towns, 'town') + ', ' + plural(d.total.residents, 'resident') + ' and ' + plural(d.total.chunks, 'chunk') + '. ' +
+    'Turnout counts residents who voted in any election in the window; dashboard use is actions on this site and the bot by people living there.</p>';
+
+  /* The selected region or county, opened up: its counties and its towns. */
+  if (R.sel){
+    var parts = R.sel.split('\u0000');
+    var isCounty = parts.length === 2;
+    var name = isCounty ? parts[1] : parts[0];
+    var towns = d.towns.filter(function(t){
+      return isCounty ? (t.region === parts[0] && t.county === name) : ((t.region || '(outside every region)') === name);
+    });
+    out += '<div class="detail"><div class="section-head"><h2>' + esc(name) + '</h2><span class="meta">' +
+      (isCounty ? 'a county of ' + esc(parts[0]) : 'its counties and towns') + '</span></div>';
+    if (!isCounty){
+      var cs = d.counties.filter(function(c){ return c.region === name; });
+      if (cs.length){
+        out += '<h3>Counties</h3>' + leagueTable(cs, { min:min, max:max, first:'County', noSeats:true });
+      }
+    }
+    out += '<h3 style="margin-top:1rem">Towns</h3>' + townTable(towns) + '</div>';
+  }
+  return out;
+}
+
+/* The heat map: the map's own regions and counties, coloured by the measure,
+   with each town as a dot coloured the same way. */
+async function loadGeo(){
+  if (R.geo) return;
+  try {
+    var doc = await api('/regions');
+    var feats = Array.isArray(doc.features) ? doc.features : [];
+    R.geo = {
+      regions: feats.filter(function(f){ var k = f.properties && f.properties.kind; return !k && f.geometry; }),
+      counties: feats.filter(function(f){ return f.properties && f.properties.kind === 'county' && f.geometry; }),
+    };
+  } catch (e) { R.geo = { regions: [], counties: [], error: e.message }; }
+}
+
+async function loadTownPlaces(){
+  if (R.towns) return;
+  var fwd = function(url, body){
+    return fetch(API + '/?url=' + encodeURIComponent(url), { method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(body) }).then(function(r){ return r.json(); });
+  };
+  try {
+    var n = (await fwd('https://api.earthmc.net/v4/nations', { query:[NATION], template:{ name:true, towns:true } }))[0];
+    var refs = ((n && n.towns) || []).map(function(t){ return t.uuid || t.name; });
+    var out = {};
+    for (var i = 0; i < refs.length; i += 100){
+      var batch = await fwd('https://api.earthmc.net/v4/towns', { query: refs.slice(i, i + 100), template:{ name:true, coordinates:true } });
+      (batch || []).forEach(function(t){
+        var hb = t && t.coordinates && t.coordinates.homeBlock;
+        if (t && Array.isArray(hb)) out[t.name] = [hb[0] * 16 + 8, hb[1] * 16 + 8];
+      });
+    }
+    R.towns = out;
+  } catch (e) { R.towns = {}; }
+}
+
+function ringLatLngs(g){
+  var ring = function(rr){ return rr.map(function(p){ return L.latLng(p[1], p[0]); }); };
+  if (g.type === 'Polygon') return g.coordinates.map(ring);
+  if (g.type === 'MultiPolygon') return g.coordinates.map(function(p){ return p.map(ring); });
+  return [];
+}
+
+function drawHeat(){
+  var host = $('heat');
+  if (!host || typeof L === 'undefined') return;
+  var keep = R.heat ? { c: R.heat.getCenter(), z: R.heat.getZoom() } : null;
+  if (R.heat){ R.heat.remove(); R.heat = null; }
+  var map = L.map(host, { crs: L.CRS.Simple, minZoom: -6, maxZoom: 2, zoomSnap: 1, attributionControl: false, preferCanvas: true });
+  R.heat = map;
+  L.tileLayer('https://map.earthmc.net/tiles/minecraft_overworld/{z}/{x}_{y}.png', {
+    tileSize: 512, zoomOffset: 5, minNativeZoom: 0, maxNativeZoom: 5, minZoom: -7, maxZoom: 2,
+    noWrap: true, opacity: .45,
+    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  }).addTo(map);
+
+  var m = metricDef(), d = R.data, bounds = [];
+  var byName = {};
+  units().forEach(function(u){ byName[(u.region ? u.region + '\u0000' : '') + u.name] = u; });
+  var feats = R.level === 'counties' ? (R.geo ? R.geo.counties : []) : (R.geo ? R.geo.regions : []);
+  feats.forEach(function(f){
+    var p = f.properties || {};
+    var key = R.level === 'counties' ? (p.region + '\u0000' + p.name) : p.name;
+    var u = byName[key];
+    var v = u ? u[m.k] : null;
+    var col = colourFor(v, R.range.min, R.range.max, m);
+    var ll = ringLatLngs(f.geometry);
+    if (!ll.length) return;
+    var poly = L.polygon(ll, { color: col, weight: R.sel === key ? 3.5 : 1.6, opacity: 1,
+      fillColor: col, fillOpacity: v == null ? .08 : .45, dashArray: R.level === 'counties' ? '5 4' : null });
+    poly.bindPopup('<div class="pop"><h4>' + esc(p.name) + '</h4>' + (u
+      ? '<div class="r">' + esc(m.label) + ' <b>' + fmtMetric(v, m) + '</b></div>' +
+        '<div class="r">Towns <b>' + num(u.towns) + '</b></div><div class="r">Residents <b>' + num(u.residents) + '</b></div>' +
+        '<div class="r">Active this week <b>' + (u.activeShare == null ? '—' : u.activeShare + '%') + '</b></div>' +
+        '<div class="r">Falling towns <b>' + num(u.falling12) + '</b></div>' +
+        '<div class="r">Resident change <b>' + (u.residentsChange > 0 ? '+' : '') + num(u.residentsChange) + '</b></div>'
+      : '<div class="r">No towns assigned yet</div>') + '</div>');
+    poly.on('click', function(){ R.sel = key; renderBody(); });
+    poly.addTo(map);
+    ll.forEach(function(r){ (Array.isArray(r[0]) ? r[0] : r).forEach(function(x){ bounds.push(x); }); });
+  });
+
+  if (R.showTowns && R.towns){
+    var tvals = d.towns.map(function(t){ return m.town(t); }).filter(function(x){ return x != null; });
+    var tmin = tvals.length ? Math.min.apply(null, tvals) : 0, tmax = tvals.length ? Math.max.apply(null, tvals) : 1;
+    d.towns.forEach(function(t){
+      var at = R.towns[t.name];
+      if (!at) return;
+      var v = m.town(t);
+      var col = colourFor(v, tmin, tmax, m);
+      L.circleMarker(L.latLng(-at[1], at[0]), { radius: Math.max(3, Math.min(11, Math.sqrt(t.residents || 1) * 2)),
+        color: '#0f0d0b', weight: 1.5, fillColor: col, fillOpacity: 1 })
+        .bindTooltip(esc(t.name) + ' · ' + esc(m.label.toLowerCase()) + ' ' + (v == null ? '—' : (m.signed && v > 0 ? '+' : '') + num(v)),
+          { direction:'top' }).addTo(map);
+      bounds.push(L.latLng(-at[1], at[0]));
+    });
+  }
+  if (keep) map.setView(keep.c, keep.z);
+  else if (bounds.length) map.fitBounds(L.latLngBounds(bounds).pad(.1));
+  else map.setView([0, 0], -4);
+}
+
+async function loadRegionData(){
+  R.data = null; renderBody();
+  try {
+    R.data = await api('/api/admin/regionstats?days=' + R.days);
+  } catch (e){
+    $('body').innerHTML = '<p class="empty">' + esc(e.status === 403 ? 'Statistics are for Managers.' : 'Unavailable: ' + e.message) + '</p>';
+    return;
+  }
+  renderBody();
+  await Promise.all([loadGeo(), loadTownPlaces()]);
+  if (tab === 'regions') drawHeat();
+}
+
+function wireRegions(){
+  var body = $('body');
+  body.querySelectorAll('[data-days]').forEach(function(b){ b.addEventListener('click', function(){ R.days = Number(b.dataset.days); loadRegionData(); }); });
+  body.querySelectorAll('[data-level]').forEach(function(b){ b.addEventListener('click', function(){ R.level = b.dataset.level; R.sel = null; renderBody(); }); });
+  body.querySelectorAll('[data-metric]').forEach(function(b){ b.addEventListener('click', function(){ R.metric = b.dataset.metric; R.sort = 'metric'; R.dir = 'desc'; renderBody(); }); });
+  body.querySelectorAll('[data-sort]').forEach(function(th){ th.addEventListener('click', function(){
+    var k = th.dataset.sort;
+    if (R.sort === k) R.dir = R.dir === 'desc' ? 'asc' : 'desc'; else { R.sort = k; R.dir = 'desc'; }
+    renderBody(); }); });
+  body.querySelectorAll('[data-unit]').forEach(function(tr){ tr.addEventListener('click', function(){
+    R.sel = R.sel === tr.dataset.unit ? null : tr.dataset.unit; renderBody();
+    var det = document.querySelector('.detail'); if (det) det.scrollIntoView({ behavior:'smooth', block:'start' }); }); });
+  var st = $('showTowns');
+  if (st) st.addEventListener('change', function(){ R.showTowns = st.checked; drawHeat(); });
+}
+
+/* ===================================================================== */
+/* USAGE                                                                  */
+/* ===================================================================== */
+var U = { data:null, days:30 };
+var WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function simpleTable(rows, cols){
+  if (!rows.length) return '<p class="empty">Nothing recorded in this window.</p>';
+  return '<div class="tablewrap" style="max-height:28rem"><table><thead><tr>' +
+    cols.map(function(c){ return '<th style="cursor:default">' + esc(c.h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    rows.map(function(r){ return '<tr style="cursor:default">' + cols.map(function(c){ return '<td>' + c.get(r) + '</td>'; }).join('') + '</tr>'; }).join('') +
+    '</tbody></table></div>';
+}
+
+function renderUsage(){
+  var d = U.data;
+  if (!d) return '<p class="empty">Loading…</p>';
+  var maxUses = d.commands.length ? d.commands[0].uses : 1;
+  var people = d.people || [];
+  var active = people.filter(function(p){ return p.region; }).length;
+
+  var out = '<div class="controls"><span><span class="ctl-label">Window</span><span class="seg">' + [7, 30, 90, 365].map(function(n){
+      return '<button type="button" data-udays="' + n + '" class="' + (U.days === n ? 'on' : '') + '">' + (n === 365 ? 'Year' : n + ' days') + '</button>';
+    }).join('') + '</span></span></div>' +
     '<div class="stats">' +
-      '<div class="stat c"><span class="n">' + num(data.totals.commands) + '</span>' +
-        '<span class="k">Commands run</span></div>' +
-      '<div class="stat p"><span class="n">' + num(data.totals.pageViews) + '</span>' +
-        '<span class="k">Page views</span></div>' +
-      '<div class="stat l"><span class="n">' + num(data.logins.total) + '</span>' +
-        '<span class="k">Logins · ' + num(data.logins.people) + ' people</span></div>' +
-      '<div class="stat f"><span class="n">' + num(data.totals.failures) + '</span>' +
-        '<span class="k">Command failures</span></div>' +
+      '<div class="stat chk"><span class="n">' + num(d.totals.commands) + '</span><span class="k">Bot commands</span></div>' +
+      '<div class="stat twn"><span class="n">' + num(d.totals.pageViews) + '</span><span class="k">Page views</span></div>' +
+      '<div class="stat bal"><span class="n">' + num(d.logins.people) + '</span><span class="k">People signed in</span>' +
+        '<span class="d" style="font-size:.76rem;color:var(--text-low)">' + plural(d.logins.total, 'sign-in') + '</span></div>' +
+      '<div class="stat ' + (d.totals.failures ? 'warn' : '') + '"><span class="n">' + num(d.totals.failures) + '</span><span class="k">Commands that failed</span></div>' +
     '</div>';
 
-  out += '<div class="section-head"><h2>Commands</h2>' +
-    '<span class="meta">' + data.commands.length + ' distinct</span></div>' +
-    table(data.commands, [
-      { h: 'Command', cls: 'name', get: function(r){
-          // A bar makes the gap between the top command and the rest legible
-          // at a glance, which a column of numbers does not.
-          var pct = Math.round((r.uses / maxUses) * 100);
-          return '/' + esc(r.name) + '<div class="bar"><span style="width:' + pct + '%"></span></div>';
-        } },
-      { h: 'Uses', n: true, get: function(r){ return num(r.uses); } },
-      { h: 'People', n: true, get: function(r){ return num(r.people); } },
-      { h: 'Failed', n: true, get: function(r){
-          return r.failures ? '<span class="fail">' + num(r.failures) + '</span>'
-                            : '<span class="zero">0</span>';
-        } },
-      { h: 'Last used', n: true, get: function(r){ return esc(when(r.last_used)); } },
+  out += '<div class="card"><h3>Day by day</h3><p class="cap">Commands, page views and sign-ins.</p><canvas class="chart" id="cDaily"></canvas></div>';
+
+  /* When: day of the week by hour. */
+  var grid = {}, hmax = 1;
+  (d.hours || []).forEach(function(h){ grid[h.wd + ':' + h.hr] = h.n; if (h.n > hmax) hmax = h.n; });
+  out += '<div class="card"><h3>When it is used</h3><p class="cap">Every action by day of the week and hour, in UTC. Brighter is busier.</p>' +
+    '<div class="hourgrid"><span></span>' + Array.from({ length: 24 }, function(_, h){ return '<span class="hd">' + (h % 3 === 0 ? h : '') + '</span>'; }).join('') +
+    [1, 2, 3, 4, 5, 6, 0].map(function(wd){
+      return '<span class="dl">' + WD[wd] + '</span>' + Array.from({ length: 24 }, function(_, h){
+        var n = grid[wd + ':' + h] || 0;
+        return '<span class="c" title="' + WD[wd] + ' ' + h + ':00 — ' + num(n) + '" style="background:' +
+          (n ? 'rgba(252,209,22,' + (.12 + .88 * n / hmax).toFixed(2) + ')' : '') + '"></span>';
+      }).join('');
+    }).join('') + '</div></div>';
+
+  /* Where: by region, through each person's town. */
+  var regions = d.byRegion || [];
+  var rmax = regions.length ? regions[0].actions : 1;
+  out += '<div class="card"><h3>Where it is used</h3><p class="cap">By the region each person lives in, from their verified account and town. ' +
+    num(active) + ' of the ' + num(people.length) + ' most active people are in a region.</p>' +
+    (regions.length ? '<div class="bars">' + regions.map(function(r){
+      return '<div class="row"><span>' + esc(r.region) + ' <span style="color:var(--text-low);font-size:.76rem">' + plural(r.people, 'person') + '</span></span>' +
+        '<span class="bar"><span style="width:' + Math.round(r.actions / rmax * 100) + '%"></span></span><span class="n">' + num(r.actions) + '</span></div>';
+    }).join('') + '</div>' : '<p class="empty">Nothing yet.</p>') + '</div>';
+
+  out += '<div class="section-head"><h2>Commands</h2><span class="meta">' + d.commands.length + ' used</span></div>' +
+    simpleTable(d.commands, [
+      { h:'Command', get:function(r){ var p = Math.round(r.uses / maxUses * 100);
+          return '/' + esc(r.name) + '<div style="height:.3rem;border-radius:999px;background:rgba(255,255,255,.05);margin-top:.3rem"><div style="width:' + p + '%;height:100%;border-radius:999px;background:var(--green)"></div></div>'; } },
+      { h:'Uses', get:function(r){ return num(r.uses); } },
+      { h:'People', get:function(r){ return num(r.people); } },
+      { h:'Per person', get:function(r){ return r.people ? (r.uses / r.people).toFixed(1) : '—'; } },
+      { h:'Failed', get:function(r){ return r.failures ? '<span class="fail">' + num(r.failures) + ' (' + Math.round(r.failures / r.uses * 100) + '%)</span>' : '<span class="zero">0</span>'; } },
+      { h:'Last used', get:function(r){ return esc(when(r.last_used)); } },
     ]);
-
-  out += '<div class="section-head"><h2>Pages</h2>' +
-    '<span class="meta">' + data.pages.length + ' distinct</span></div>' +
-    table(data.pages, [
-      { h: 'Page', cls: 'name', get: function(r){ return esc(r.name); } },
-      { h: 'Views', n: true, get: function(r){ return num(r.views); } },
-      { h: 'Signed-in people', n: true, get: function(r){ return num(r.people); } },
+  out += '<div class="section-head"><h2>Pages</h2><span class="meta">' + d.pages.length + ' opened</span></div>' +
+    simpleTable(d.pages, [
+      { h:'Page', get:function(r){ return esc(r.name); } },
+      { h:'Views', get:function(r){ return num(r.views); } },
+      { h:'Signed-in people', get:function(r){ return num(r.people); } },
+      { h:'Views each', get:function(r){ return r.people ? (r.views / r.people).toFixed(1) : '—'; } },
     ]);
-
-  out += '<div class="section-head"><h2>People</h2>' +
-    '<span class="meta">most active first</span></div>' +
-    table(data.people, [
-      { h: 'Who', cls: 'name', get: function(r){ return esc(r.label || r.discord_id); } },
-      { h: 'Discord ID', get: function(r){ return esc(r.discord_id); } },
-      { h: 'Actions', n: true, get: function(r){ return num(r.actions); } },
-      { h: 'Commands', n: true, get: function(r){ return num(r.commands); } },
-      { h: 'Last seen', n: true, get: function(r){ return esc(when(r.last_seen)); } },
+  out += '<div class="section-head"><h2>People</h2><span class="meta">most active first</span></div>' +
+    simpleTable(people, [
+      { h:'Who', get:function(r){ return esc(r.mc || r.label || r.discord_id) + (r.mc && r.label && r.label !== r.mc
+          ? ' <span style="color:var(--text-low);font-weight:400">' + esc(r.label) + '</span>' : ''); } },
+      { h:'Town', get:function(r){ return esc(r.town || '—'); } },
+      { h:'Region', get:function(r){ return esc(r.region || '—') + (r.county ? ' <span style="color:var(--text-low)">· ' + esc(r.county) + '</span>' : ''); } },
+      { h:'Actions', get:function(r){ return num(r.actions); } },
+      { h:'Commands', get:function(r){ return num(r.commands); } },
+      { h:'Last seen', get:function(r){ return esc(when(r.last_seen)); } },
     ]);
-
-  out += '<div class="section-head"><h2>Recent activity</h2>' +
-    '<span class="meta">newest first</span></div>' +
-    table(data.recent, [
-      { h: 'When', get: function(r){ return esc(when(r.created_at)); } },
-      { h: 'What', cls: 'name', get: function(r){
-          return (r.kind === 'command' ? '/' : '') + esc(r.name) +
-            (r.ok ? '' : ' <span class="fail">failed</span>');
-        } },
-      { h: 'Kind', get: function(r){ return esc(r.kind); } },
-      { h: 'Who', get: function(r){ return esc(r.actor_label || r.discord_id || '—'); } },
+  out += '<div class="section-head"><h2>Latest</h2><span class="meta">newest first</span></div>' +
+    simpleTable(d.recent, [
+      { h:'When', get:function(r){ return esc(when(r.created_at)); } },
+      { h:'What', get:function(r){ return (r.kind === 'command' ? '/' : '') + esc(r.name) + (r.ok ? '' : ' <span class="fail">failed</span>'); } },
+      { h:'Kind', get:function(r){ return esc(r.kind); } },
+      { h:'Who', get:function(r){ return esc(r.actor_label || r.discord_id || '—'); } },
     ]);
-
-  $('body').innerHTML = out;
-
-  document.querySelectorAll('[data-days]').forEach(function(el){
-    el.addEventListener('click', function(){
-      days = Number(el.dataset.days);
-      load(true);
-    });
-  });
+  return out;
 }
+
+async function loadUsage(){
+  U.data = null; renderBody();
+  try { U.data = await api('/api/admin/stats?days=' + U.days); }
+  catch (e){ $('body').innerHTML = '<p class="empty">' + esc(e.status === 403 ? 'Statistics are for Managers.'
+    : e.status === 503 ? 'Migration 017 has not been applied to the database yet.' : 'Unavailable: ' + e.message) + '</p>'; return; }
+  renderBody();
+}
+
+function wireUsage(){
+  $('body').querySelectorAll('[data-udays]').forEach(function(b){ b.addEventListener('click', function(){ U.days = Number(b.dataset.udays); loadUsage(); }); });
+  if (U.data && window.EthChart && $('cDaily')){
+    EthChart.line($('cDaily'), U.data.daily || [], { x:'day', lines:[
+      { key:'pages', label:'Page views', color: EthChart.colors.blue },
+      { key:'commands', label:'Commands', color: EthChart.colors.green },
+      { key:'logins', label:'Sign-ins', color: EthChart.colors.gold },
+    ] });
+  }
+}
+
+/* ===================================================================== */
+function renderBody(){
+  document.querySelectorAll('[data-tab]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.tab === tab)); });
+  if (tab === 'regions'){
+    if (R.heat){ R.heat.remove(); R.heat = null; }
+    $('body').innerHTML = renderRegions();
+    wireRegions();
+    if (R.data && R.geo) drawHeat();
+    $('stamp').textContent = R.data ? 'Regions · last ' + R.days + ' days' : 'Loading';
+  } else {
+    if (R.heat){ R.heat.remove(); R.heat = null; }
+    $('body').innerHTML = renderUsage();
+    wireUsage();
+    $('stamp').textContent = U.data ? 'Usage · last ' + U.days + ' days' : 'Loading';
+  }
+}
+
+document.querySelectorAll('[data-tab]').forEach(function(b){
+  b.addEventListener('click', function(){
+    tab = b.dataset.tab;
+    if (tab === 'regions' && !R.data) loadRegionData();
+    else if (tab === 'usage' && !U.data) loadUsage();
+    else renderBody();
+  });
+});
 
 function renderAuth(){
   var slot = $('authSlot');
   if (me && me.signedIn){
-    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
-      esc(me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
-    $('signout').addEventListener('click', async function(){
-      try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
-      location.reload();
-    });
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' + esc(me.mcName || me.discordName || 'Signed in') + ' \u00b7 ' + esc(me.tier) + '</button>';
+    $('signout').addEventListener('click', async function(){ try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {} location.reload(); });
   } else {
-    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' +
-      encodeURIComponent('/stats.html') + '">Sign in with Discord</a>';
+    slot.innerHTML = '<a class="btn" href="' + API + '/api/auth/login?redirect=' + encodeURIComponent('/stats.html') + '">Sign in with Discord</a>';
   }
 }
 
-async function load(quiet){
-  if (!quiet){
-    try { me = await api('/api/me'); } catch (e) { me = null; }
-    try { renderAuth(); } catch (e) {}
+(async function(){
+  try { me = await api('/api/me'); } catch (e) { me = null; }
+  renderAuth();
+  if (!me || !me.signedIn || me.tier !== 'manager'){
+    $('body').innerHTML = '<p class="empty">Statistics are for Managers.</p>';
+    $('stamp').textContent = 'Not permitted';
+    return;
   }
-  try {
-    data = await api('/api/admin/stats?days=' + days);
-    render();
-    $('stamp').textContent = 'Last ' + days + ' days';
-  } catch (err){
-    $('body').innerHTML = '<p class="empty">' + esc(
-      err.status === 403 ? 'Only a Manager can see usage statistics.'
-      : err.status === 503 ? 'Migration 017 has not been applied to the database yet.'
-      : 'Unavailable: ' + err.message) + '</p>';
-    $('stamp').textContent = 'Unavailable';
-  }
-}
-
-load().catch(fatal);
+  loadRegionData();
+})().catch(function(e){ $('body').innerHTML = '<p class="empty" style="color:var(--red)">This page failed to load: ' + esc(e && e.message) + '</p>'; });
 </script>
-<script src="assets/pagetext.js?v=1"></script>
+<script src="assets/pagetext.js?v=2"></script>
 </body>
 </html>
-

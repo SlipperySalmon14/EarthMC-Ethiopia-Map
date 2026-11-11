@@ -1423,6 +1423,30 @@ body:not(.planner) .planner-only{ display:none !important; }
 .wd-st{ font-size:.78rem; }
 .region-card.region-outside{ border-style:dashed; background:transparent; cursor:default; color:var(--muted); }
 .region-check{ margin-top:.5rem; }
+
+/* --- real-world borders ------------------------------------------------------ */
+.leaflet-tooltip.irl-label{ background:none; border:0; box-shadow:none; color:rgba(226,232,240,.75);
+  font-family:var(--font-body); font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; text-shadow:0 0 4px #000; }
+.leaflet-tooltip.irl-label::before{ display:none; }
+.irl-pop .irl-sum{ margin:.1rem 0 .5rem; font-size:.84rem; color:var(--muted); }
+.irl-pop .irl-sum b{ color:var(--brass-hi); font-family:var(--font-mono); }
+.irl-row{ display:grid; grid-template-columns:7rem 1fr 3rem; align-items:center; gap:.5rem; font-size:.8rem; padding:.12rem 0; }
+.irl-row span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.irl-row i{ display:block; height:.4rem; border-radius:999px; background:rgba(226,232,240,.45); }
+.irl-row b{ font-family:var(--font-mono); font-size:.74rem; text-align:right; }
+.irl-row.eth span, .irl-row.eth b{ color:var(--sage-hi); } .irl-row.eth i{ background:var(--sage); }
+.irl-note{ font-size:.74rem; color:var(--muted); margin:.4rem 0 0; }
+.irl-chk{ display:flex; align-items:center; gap:.3rem; font-size:.8rem; color:var(--muted); }
+.irl-cal{ margin-top:.6rem; border-top:1px solid var(--line); padding-top:.5rem; }
+.irl-cal summary{ cursor:pointer; font-weight:600; font-size:.86rem; }
+.irl-grid{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-top:.6rem; }
+.irl-f{ display:flex; flex-direction:column; gap:.2rem; font-size:.74rem; color:var(--muted); }
+.irl-f input, .irl-f select{ width:100%; }
+.irl-rank{ margin-top:.6rem; max-height:20rem; overflow-y:auto; }
+.irl-rr{ display:grid; grid-template-columns:1fr auto; gap:.05rem .6rem; padding:.35rem 0; border-bottom:1px solid var(--line); font-size:.82rem; }
+.irl-rr b{ font-family:var(--font-mono); color:var(--brass-hi); }
+.irl-rr em{ grid-column:1 / -1; font-style:normal; font-size:.74rem; color:var(--muted); }
+#panel-irl{ --c:var(--blue); }
 </style>
 </head>
 <body>
@@ -1519,6 +1543,14 @@ body:not(.planner) .planner-only{ display:none !important; }
           <button type="submit" class="btn btn-primary btn-small">Add</button>
         </form>
         <p class="hint">Add individual towns regardless of nation. To track a whole nation, use the Nation Tracker in the Global tab.</p>
+      </section>
+
+      <section class="panel view-settings" id="panel-irl">
+        <div class="panel-head">
+          <span class="eyebrow">Earth</span>
+          <h2>Real-world borders</h2>
+        </div>
+        <div id="irlPanel"></div>
       </section>
 
       <section class="panel view-settings" id="panel-settings">
@@ -4628,6 +4660,8 @@ class MapController{
     // not ancestors of the event target so the event never reaches them. Only
     // markers kept working, being real DOM nodes in markerPane. One shared
     // canvas hit-tests every layer in it, which is what makes clicking work.
+    // Real-world borders first, so everything else draws over them and stays clickable.
+    this.irlLayerGroup = L.layerGroup().addTo(this.map);
     this.claimsLayerGroup = L.layerGroup().addTo(this.map);
     this.townsLayerGroup = L.layerGroup().addTo(this.map);
     // Admin-drawn nation borders. Below the regions, which are the finer
@@ -4699,6 +4733,7 @@ class MapController{
       // view, where regions aren't drawn at all — `when` controls that.
       { label: 'Regions', get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
         when: () => currentScope() !== 'global' },
+      { label: 'Real-world borders', get: () => irlState.on, set: (v) => setShowIrl(v) },
       { label: 'Counties', get: () => showCounties, set: (v) => setShowCounties(v),
         when: () => currentScope() !== 'global' },
       { label: 'Ice highways', get: () => showHighways, set: (v) => {
@@ -8053,6 +8088,7 @@ function setSidebarView(view){
 
   if (typeof renderExpansionPanel === 'function') renderExpansionPanel();
 
+  if (view === 'settings') renderIrlPanel();
   if (view === 'admin' || view === 'settings'){
     renderAll();
     renderCountyAdmin();
@@ -10245,6 +10281,279 @@ function ncLoadFromFeatures(features){
 }
 
 
+
+/* =========================================================================
+   REAL-WORLD BORDERS
+
+   Today's countries laid over the server, to compare a nation with the land
+   it would hold on Earth and how much of that land it — or anyone — actually
+   claims. EarthMC's Aurora map is an Earth map with Antarctica cut off; its
+   proportions fit a Miller projection, which is what this assumes, with the
+   world border as the edges. That is a best fit, not a published fact, so
+   the alignment can be tuned — fastest by pinning two known places — and a
+   manager can save it for everyone.
+
+   Borders come from Natural Earth via the world-atlas package, loaded only
+   when the layer is switched on.
+   ========================================================================= */
+const IRL_DEFAULT = { proj: 'miller', xW: -33280, xE: 33080, eqZ: 0, ys: 1 };
+const irlState = {
+  on: false, detail: '110m', labels: false, loading: false, error: '',
+  raw: null,             // [{ name, polys: [[ring lon/lat, ...holes], ...] }]
+  countries: [],         // projected: { name, rings, shape, chunks }
+  calib: Object.assign({}, IRL_DEFAULT),
+  pins: [], pinning: false,
+  ranking: null,
+};
+try { const saved = JSON.parse(localStorage.getItem('irl-calib') || 'null'); if (saved) irlState.calib = Object.assign({}, IRL_DEFAULT, saved); }
+catch (_e) { /* no local copy */ }
+
+function irlY(lat, proj){
+  const f = Math.max(-85, Math.min(85, lat)) * Math.PI / 180;
+  if (proj === 'mercator') return Math.log(Math.tan(Math.PI / 4 + f / 2));
+  if (proj === 'equirect') return f;
+  return 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * f));     // Miller
+}
+function irlToMc(lon, lat, c){
+  c = c || irlState.calib;
+  const k = (c.xE - c.xW) / (2 * Math.PI);
+  return [c.xW + (lon + 180) / 360 * (c.xE - c.xW), c.eqZ - irlY(lat, c.proj) * k * c.ys];
+}
+/* Two places whose real coordinates are known fix the whole alignment: the
+   longitudes give the horizontal scale and offset, the latitudes the vertical. */
+function irlSolve(p1, p2, proj){
+  if (Math.abs(p1.lon - p2.lon) < 1 || Math.abs(p1.lat - p2.lat) < 1) return null;
+  const b = (p1.x - p2.x) / (p1.lon - p2.lon), a = p1.x - b * p1.lon;
+  const xW = a - 180 * b, xE = a + 180 * b;
+  const y1 = irlY(p1.lat, proj), y2 = irlY(p2.lat, proj);
+  const K = (p2.z - p1.z) / (y1 - y2);
+  const k = (xE - xW) / (2 * Math.PI);
+  return { proj, xW, xE, eqZ: p1.z + y1 * K, ys: K / k };
+}
+
+function irlProject(){
+  if (!irlState.raw) return;
+  irlState.countries = irlState.raw.map(c => {
+    const rings = c.polys.map(poly => poly.map(ring => ring.map(([lon, lat]) => irlToMc(lon, lat))));
+    const plane = { type: 'MultiPolygon', coordinates: rings.map(poly => poly.map(ring => ring.map(([x, z]) => [x, -z]))) };
+    const shape = planeShape(plane);
+    let area = 0;
+    plane.coordinates.forEach(poly => poly.forEach((ring, i) => {
+      let a = 0;
+      for (let j = 0, k = ring.length - 1; j < ring.length; k = j++) a += (ring[k][0] + ring[j][0]) * (ring[k][1] - ring[j][1]);
+      area += (i === 0 ? 1 : -1) * Math.abs(a / 2);
+    }));
+    return { name: c.name, rings, shape, chunks: Math.max(0, Math.round(area / 256)) };
+  });
+  irlState.ranking = null;
+}
+
+function irlLoadScript(src){
+  return new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = resolve; el.onerror = () => reject(new Error('could not load ' + src));
+    document.head.appendChild(el);
+  });
+}
+async function irlLoad(){
+  if (irlState.loading) return;
+  irlState.loading = true; irlState.error = ''; renderIrlPanel();
+  try {
+    if (typeof topojson === 'undefined') await irlLoadScript('https://unpkg.com/topojson-client@3/dist/topojson-client.min.js');
+    const res = await fetch(`https://cdn.jsdelivr.net/npm/world-atlas@2/countries-${irlState.detail}.json`);
+    if (!res.ok) throw new Error('the border data could not be downloaded (HTTP ' + res.status + ')');
+    const topo = await res.json();
+    const feats = topojson.feature(topo, topo.objects.countries).features;
+    irlSetCountries(feats.map(f => ({
+      name: (f.properties && f.properties.name) || 'Unnamed',
+      polys: f.geometry ? (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates) : [],
+    })).filter(c => c.polys.length));
+    auditLog.log(`Real-world borders loaded: ${irlState.raw.length} countries`, 'success');
+  } catch (err){
+    irlState.error = err.message;
+    auditLog.log(`Real-world borders failed — ${err.message}`, 'warn');
+  } finally {
+    irlState.loading = false; renderIrlPanel();
+  }
+}
+function irlSetCountries(list){
+  irlState.raw = list;
+  irlProject();
+  renderIrl();
+}
+
+function renderIrl(){
+  const g = mapController && mapController.irlLayerGroup;
+  if (!g) return;
+  g.clearLayers();
+  if (!irlState.on || !irlState.countries.length) return;
+  irlState.countries.forEach(c => {
+    const ll = c.rings.map(poly => poly.map(ring => ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z))));
+    const poly = L.polygon(ll, {
+      color: '#e2e8f0', weight: 1, opacity: .55, dashArray: '4 3',
+      fillColor: '#e2e8f0', fillOpacity: .015, smoothFactor: 1.5,
+      interactive: !drawModeArmed(), pmIgnore: true,
+    });
+    poly.on('click', (e) => {
+      L.popup({ maxWidth: 320 }).setLatLng(e.latlng).setContent(irlPopupHtml(c)).openOn(mapController.map);
+    });
+    if (irlState.labels && c.chunks > 40000){
+      poly.bindTooltip(escapeHtml(c.name), { permanent: true, direction: 'center', className: 'irl-label' });
+    }
+    poly.addTo(g);
+  });
+}
+
+/* How much of a country is claimed, and by whom: every claimed chunk whose
+   centre lies inside the country's shape, against the country's area in
+   chunks. Only the towns loaded are counted — the whole server once the
+   world scan has run. */
+function irlControl(c){
+  const by = new Map();
+  let claimed = 0;
+  const s0 = c.shape;
+  if (!s0) return { claimed: 0, by: [], area: c.chunks };
+  const pad = 4000;
+  ncAllTowns().forEach(t => {
+    if (t.isMoon || typeof t.mcX !== 'number') return;
+    if (t.mcX < s0.minX - pad || t.mcX > s0.maxX + pad || -t.mcZ < s0.minY - pad || -t.mcZ > s0.maxY + pad) return;
+    let n = 0;
+    (t.claimChunks || []).forEach(([cx, cz]) => { if (shapeContains(s0, cx * 16 + 8, -(cz * 16 + 8))) n++; });
+    if (!n) return;
+    claimed += n;
+    const k = t.nationName || '(no nation)';
+    by.set(k, (by.get(k) || 0) + n);
+  });
+  return { claimed, area: c.chunks, by: [...by.entries()].sort((a, b) => b[1] - a[1]) };
+}
+
+function irlPopupHtml(c){
+  const r = irlControl(c);
+  const pct = (n) => r.area ? (n / r.area * 100) : 0;
+  const fmtPct = (v) => v >= 10 ? v.toFixed(0) + '%' : v >= 0.1 ? v.toFixed(1) + '%' : v > 0 ? '<0.1%' : '0%';
+  const eth = r.by.find(([n]) => n === HOME_NATION);
+  const allLoaded = worldCache.enabled && worldCache.towns.length;
+  return `<div class="mc-popup irl-pop"><h4>${escapeHtml(c.name)}</h4>
+    <p class="irl-sum"><b>${fmtPct(pct(r.claimed))}</b> of its land is claimed · about ${CoordUtils.fmt(r.area)} chunks in all</p>
+    ${r.by.slice(0, 7).map(([n, v]) => `<div class="irl-row${n === HOME_NATION ? ' eth' : ''}"><span>${escapeHtml(n)}</span>
+      <i style="width:${Math.max(2, Math.min(100, v / Math.max(1, r.by[0][1]) * 100))}%"></i><b>${fmtPct(pct(v))}</b></div>`).join('')}
+    ${r.by.length > 7 ? `<p class="irl-note">and ${r.by.length - 7} more</p>` : ''}
+    ${eth ? '' : `<p class="irl-note">${escapeHtml(HOME_NATION)} holds none of it.</p>`}
+    ${allLoaded ? '' : '<p class="irl-note">Only the towns loaded so far are counted. Switch on every town (Global view, or the Planning tab) for the whole server.</p>'}
+  </div>`;
+}
+
+/* Every country by how much of it is claimed — computed on request, since it
+   checks every claimed chunk against every country. */
+async function irlRank(){
+  if (!irlState.countries.length) return;
+  irlState.ranking = 'working'; renderIrlPanel();
+  const out = [];
+  for (let i = 0; i < irlState.countries.length; i++){
+    const c = irlState.countries[i];
+    const r = irlControl(c);
+    if (r.claimed) out.push({ name: c.name, area: r.area, claimed: r.claimed,
+      eth: (r.by.find(([n]) => n === HOME_NATION) || [null, 0])[1], top: r.by[0] ? r.by[0][0] : null });
+    if (i % 20 === 19) await new Promise(res => setTimeout(res, 0));     // keep the page responsive
+  }
+  irlState.ranking = out.sort((a, b) => b.claimed / Math.max(1, b.area) - a.claimed / Math.max(1, a.area));
+  renderIrlPanel();
+}
+
+function irlSaveCalib(){
+  try { localStorage.setItem('irl-calib', JSON.stringify(irlState.calib)); } catch (_e) {}
+  irlProject(); renderIrl();
+  if (state.adminMode) scheduleSave();
+}
+
+/* Pinning: click a place on the map, then type where it is on Earth. */
+function irlStartPin(){
+  irlState.pinning = true; irlState.pins = [];
+  auditLog.log('Click a place you know on the map — a capital, a cape, a river mouth', 'info');
+  renderIrlPanel();
+}
+function irlTakePin(latlng){
+  const x = latlng.lng, z = -latlng.lat;
+  const ans = window.prompt(`Where is this on Earth? (X ${Math.round(x)}, Z ${Math.round(z)})\nLatitude, longitude — e.g. 9.03, 38.74 for Addis Ababa`);
+  if (!ans) { irlState.pinning = false; renderIrlPanel(); return; }
+  const m = ans.split(/[ ,;]+/).map(Number).filter(v => Number.isFinite(v));
+  if (m.length < 2 || Math.abs(m[0]) > 90 || Math.abs(m[1]) > 180){ window.alert('That needs a latitude and a longitude, like 9.03, 38.74'); return; }
+  irlState.pins.push({ x, z, lat: m[0], lon: m[1] });
+  if (irlState.pins.length < 2){
+    auditLog.log('Now click a second place, far from the first — another continent is best', 'info');
+    renderIrlPanel(); return;
+  }
+  const sol = irlSolve(irlState.pins[0], irlState.pins[1], irlState.calib.proj);
+  irlState.pinning = false;
+  if (!sol){ window.alert('The two places need to differ in both latitude and longitude. Try two further apart.'); renderIrlPanel(); return; }
+  irlState.calib = sol;
+  auditLog.log('Real-world borders aligned to your two places', 'success');
+  irlSaveCalib(); renderIrlPanel();
+}
+
+function irlCalibFeature(){
+  return [{ type: 'Feature', geometry: null, properties: { kind: 'irl-calibration', calib: irlState.calib } }];
+}
+function isIrlCalibFeature(f){ return !!(f && f.properties && f.properties.kind === 'irl-calibration'); }
+
+function renderIrlPanel(){
+  const host = document.getElementById('irlPanel');
+  if (!host) return;
+  const c = irlState.calib;
+  const num2 = (id, label, v, step) => `<label class="irl-f"><span>${label}</span><input type="number" id="${id}" value="${Math.round(v * 1000) / 1000}" step="${step}"></label>`;
+  let h = `<div class="hw-route-controls">
+      <button type="button" class="btn ${irlState.on ? 'btn-accent' : 'btn-primary'} btn-small" id="irlToggle">${irlState.on ? 'Shown' : 'Show real-world borders'}</button>
+      <select id="irlDetail" aria-label="Detail"><option value="110m"${irlState.detail === '110m' ? ' selected' : ''}>Simple</option>
+        <option value="50m"${irlState.detail === '50m' ? ' selected' : ''}>Detailed</option></select>
+      <label class="irl-chk"><input type="checkbox" id="irlLabels"${irlState.labels ? ' checked' : ''}> names</label></div>`;
+  if (irlState.loading) h += '<p class="hint">Loading the borders…</p>';
+  if (irlState.error) h += `<div class="eth-alert">${escapeHtml(irlState.error)}</div>`;
+  h += `<p class="hint">Click any country on the map to see how much of it is claimed, and by whom.</p>
+    <details class="irl-cal"><summary>Alignment</summary>
+      <p class="hint">Assumes a Miller projection with the world border as its edges. If the borders sit off, pin two places you know — the overlay lines itself up from them.</p>
+      <div class="hw-route-controls"><button type="button" class="btn btn-primary btn-small" id="irlPin">${irlState.pinning
+        ? `Click place ${irlState.pins.length + 1} of 2 on the map…` : 'Align with two places'}</button>
+        <button type="button" class="btn btn-ghost btn-small" id="irlReset">Reset</button></div>
+      <div class="irl-grid">
+        <label class="irl-f"><span>Projection</span><select id="irlProj">
+          ${[['miller', 'Miller'], ['equirect', 'Equirectangular'], ['mercator', 'Mercator']].map(([k, l]) =>
+            `<option value="${k}"${c.proj === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        ${num2('irlXW', 'X at 180° west', c.xW, 10)}${num2('irlXE', 'X at 180° east', c.xE, 10)}
+        ${num2('irlEq', 'Z of the equator', c.eqZ, 10)}${num2('irlYs', 'Vertical stretch', c.ys, 0.01)}
+      </div>
+      ${state.adminMode ? '<p class="hint">Changes are saved with the map, for everyone.</p>' : '<p class="hint">Saved on this device. A manager editing the map saves it for everyone.</p>'}
+    </details>`;
+  if (irlState.on && irlState.countries.length){
+    h += `<div class="hw-route-controls" style="margin-top:.5rem"><button type="button" class="btn btn-primary btn-small" id="irlRankBtn">
+      ${irlState.ranking === 'working' ? 'Counting…' : 'Rank countries by how much is claimed'}</button></div>`;
+    if (Array.isArray(irlState.ranking)){
+      h += irlState.ranking.length ? '<div class="irl-rank">' + irlState.ranking.slice(0, 25).map(r =>
+        `<div class="irl-rr"><span>${escapeHtml(r.name)}</span><b>${(r.claimed / Math.max(1, r.area) * 100).toFixed(1)}%</b>` +
+        `<em>${r.eth ? escapeHtml(HOME_NATION) + ' ' + (r.eth / Math.max(1, r.area) * 100).toFixed(1) + '%' : 'most: ' + escapeHtml(r.top || '—')}</em></div>`).join('') + '</div>'
+        : '<p class="hint">No country has any claimed land among the towns loaded.</p>';
+    }
+  }
+  host.innerHTML = h;
+  const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+  on('irlToggle', 'click', () => { setShowIrl(!irlState.on); });
+  on('irlDetail', 'change', (e) => { irlState.detail = e.target.value; irlState.raw = null; if (irlState.on) irlLoad(); });
+  on('irlLabels', 'change', (e) => { irlState.labels = e.target.checked; renderIrl(); });
+  on('irlPin', 'click', () => { if (!irlState.on) setShowIrl(true); irlStartPin(); });
+  on('irlReset', 'click', () => { irlState.calib = Object.assign({}, IRL_DEFAULT); irlSaveCalib(); renderIrlPanel(); });
+  on('irlProj', 'change', (e) => { irlState.calib.proj = e.target.value; irlSaveCalib(); });
+  [['irlXW', 'xW'], ['irlXE', 'xE'], ['irlEq', 'eqZ'], ['irlYs', 'ys']].forEach(([id, k]) => on(id, 'change', (e) => {
+    const v = Number(e.target.value); if (Number.isFinite(v)){ irlState.calib[k] = v; irlSaveCalib(); }
+  }));
+  on('irlRankBtn', 'click', irlRank);
+}
+
+function setShowIrl(v){
+  irlState.on = v;
+  if (v && !irlState.raw) irlLoad(); else renderIrl();
+  renderIrlPanel();
+  if (mapController && typeof mapController.syncLayerToggles === 'function') mapController.syncLayerToggles();
+}
+
 /* =========================================================================
    COUNTIES
 
@@ -11124,6 +11433,7 @@ document.addEventListener('mouseup', expEndPaint);
 document.addEventListener('pointercancel', expEndPaint);
 
 mapController.map.on('click', (e) => {
+  if (irlState.pinning){ irlTakePin(e.latlng); return; }      // aligning the real-world borders
   /* The planner owns the click while open. Checked BEFORE the highway
      handler, not after: both want raw map clicks and whichever is asked
      first wins. */
@@ -11387,7 +11697,7 @@ let persistConflict = null;       // the Worker's answer when a save was refused
  * loads on its own. A kind that fails is saved back exactly as it was stored,
  * and a single item that fails is kept and saved back untouched, so a bad entry
  * can never take the rest down with it, nor be silently dropped by a save. */
-let persistRaw = { regions: [], highways: [], claims: [], plans: [], counties: [] };
+let persistRaw = { regions: [], highways: [], claims: [], plans: [], counties: [], calib: [] };
 const persistFailedKinds = new Set();
 let persistKeep = [];             // individual stored features that failed to load
 function persistKeepFeature(f){ if (f && !persistKeep.includes(f)) persistKeep.push(f); }
@@ -11462,12 +11772,14 @@ async function loadRegionsFromBackend(){
     claims:   all.filter(ncIsClaimFeature),
     highways: all.filter(hwIsHighwayFeature),
     counties: all.filter(isCountyFeature),
-    regions:  all.filter(f => !hwIsHighwayFeature(f) && !ncIsClaimFeature(f) && !expIsPlanFeature(f) && !isCountyFeature(f)),
+    calib:    all.filter(isIrlCalibFeature),
+    regions:  all.filter(f => !hwIsHighwayFeature(f) && !ncIsClaimFeature(f) && !expIsPlanFeature(f) &&
+                              !isCountyFeature(f) && !isIrlCalibFeature(f)),
   };
   persistRaw.iceHighway = fc.iceHighway || null;
 
   const LABEL = { plans: 'expansion plans', claims: 'nation claims', highways: 'ice highways', regions: 'regions',
-    counties: 'counties' };
+    counties: 'counties', calib: 'the real-world border alignment' };
   const load = (kind, fn) => {
     try { fn(); }
     catch (err){
@@ -11524,6 +11836,11 @@ async function loadRegionsFromBackend(){
 
   /* Counties before regions, so the first count of the regions includes them. */
   load('counties', () => countyLoadFromFeatures(persistRaw.counties));
+  /* The alignment a manager saved wins over this device's own copy. */
+  load('calib', () => {
+    const f = persistRaw.calib[0];
+    if (f && f.properties && f.properties.calib) irlState.calib = Object.assign({}, IRL_DEFAULT, f.properties.calib);
+  });
 
   let count = 0;
   load('regions', () => {
@@ -12341,6 +12658,7 @@ function buildPersistPayload(){
     persistFailedKinds.has('regions') ? persistRaw.regions : fc.features,
     kind('highways', hwToFeatures), kind('claims', ncToFeatures), kind('plans', expToFeatures),
     kind('counties', countyToFeatures),
+    kind('calib', irlCalibFeature),
     persistKeep);
   fc.iceHighway = persistFailedKinds.has('highways') && persistRaw.iceHighway
     ? persistRaw.iceHighway

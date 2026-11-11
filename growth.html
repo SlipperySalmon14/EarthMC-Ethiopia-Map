@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/base.css?v=3">
+<link rel="stylesheet" href="assets/base.css?v=4">
 <style>
 .back{ display:inline-block; font-family:var(--data); font-size:var(--step--1);
   letter-spacing:.08em; text-transform:uppercase; color:var(--text-low); text-decoration:none; }
@@ -16,9 +16,6 @@
 .topbar .spacer{ margin-left:auto; }
 .masthead{ border-bottom:1px solid var(--rule-soft); padding-bottom:1.2rem; margin-bottom:1.8rem; }
 .masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
-/* Was tracked-out mono caps — the commonest tell of a generated page, and it
-   sat under every heading on the site. A subtitle is a phrase, so it is set
-   like one: the display face, italic, in gold. */
 .masthead .sub{ font-family:var(--display); font-weight:400; font-style:italic;
   font-size:var(--step-1); letter-spacing:-.01em; color:var(--gold); margin:.35rem 0 0; }
 
@@ -49,20 +46,12 @@
   font-family:var(--data); font-size:.68rem; color-scheme:dark; }
 .rangebar input[type=date]:focus{ border-color:var(--gold); outline:none; }
 .rangebar .rn{ margin-left:auto; color:var(--text-low); font-size:.62rem; }
-.keys{ display:flex; gap:.9rem; flex-wrap:wrap; margin-top:.5rem;
-  font-family:var(--data); font-size:.64rem; color:var(--text-low); }
-.keys i{ display:inline-block; width:.7rem; height:.16rem; border-radius:999px;
-  margin-right:.3rem; vertical-align:.18rem; }
 
 .section-head{ position:relative; display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
   border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin:2rem 0 .9rem; }
-/* The flag as a section marker, matching the home page. Repeating the three
-   bands here means the identity does structural work on every page instead of
-   living only in the left edge. */
 .section-head::after{ content:''; position:absolute; left:0; bottom:-1px;
   width:3.2rem; height:2px; background:linear-gradient(90deg,
     var(--green) 0 33.33%, var(--gold) 33.33% 66.66%, var(--red) 66.66% 100%); }
-
 .section-head h2{ font-size:var(--step-1); }
 .section-head .meta{ margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low); }
 
@@ -85,7 +74,6 @@ td.name{ color:var(--text); font-weight:600; font-family:var(--body); }
 tr.pick{ cursor:pointer; }
 tr.pick:hover td{ background:var(--ink-raised); }
 
-/* The town panel opens under the row it came from, so you keep your place. */
 .tpanel{ background:var(--ink-raised); border:1px solid var(--rule);
   border-left:3px solid var(--gold); border-radius:var(--r-md); padding:1rem 1.1rem;
   margin:.8rem 0 1.4rem; }
@@ -94,12 +82,8 @@ tr.pick:hover td{ background:var(--ink-raised); }
 .tpanel .close{ margin-left:auto; background:none; border:0; color:var(--text-low);
   font-size:1.1rem; cursor:pointer; line-height:1; }
 .tpanel .close:hover{ color:var(--gold); }
-
-/* Residents and chunks get a chart each rather than two lines on one.
-   At roughly twelve chunks per resident — the game's own claim rule — a shared
-   axis is always dominated by chunks, and residents renders as a flat line
-   along the bottom. That is not an occasional collision; it cannot come out
-   any other way. */
+/* Residents and chunks get a chart each: at about twelve chunks per resident a
+   shared axis is always dominated by chunks and residents lies flat. */
 .tsplit{ margin-top:.8rem; }
 .tsplit h4{ font-family:var(--data); font-size:.64rem; letter-spacing:.05em;
   text-transform:uppercase; color:var(--text-low); margin:0 0 .2rem; font-weight:400; }
@@ -116,19 +100,12 @@ tr.pick:hover td{ background:var(--ink-raised); }
 .ev.join .ico{ color:var(--green); }
 .ev.left .ico{ color:var(--red); }
 .ev.move .ico{ color:var(--blue); }
-/* A purge is not a departure and must not be coloured like one. Muted rather
-   than red: nobody chose it, nothing was lost that a return would not undo,
-   and a list of red arrows for the 42-day clock reads as an exodus that never
-   happened. */
+/* A purge is not a departure and is not coloured like one. */
 .ev.purged .ico{ color:var(--text-low); }
 .ev.purged .who{ font-weight:400; color:var(--text-mid); }
-.ev .why{ font-family:var(--data); font-size:.6rem; color:var(--text-low);
-  margin-left:.35rem; }
-
-/* A sweep's worth of events share one timestamp, because that timestamp is
-   when they were NOTICED, not when they happened. Grouping them under one
-   heading says so structurally instead of repeating the same clock reading
-   down a hundred rows and leaving it looking like a fault. */
+.ev .why{ font-family:var(--data); font-size:.6rem; color:var(--text-low); margin-left:.35rem; }
+/* One sweep's events share its timestamp — when they were NOTICED — so they are
+   grouped under it rather than repeating the same clock reading down the page. */
 .sweep{ margin-bottom:1rem; }
 .sweep-head{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;
   padding:.45rem .2rem; border-bottom:1px solid var(--rule);
@@ -139,7 +116,6 @@ tr.pick:hover td{ background:var(--ink-raised); }
 
 .pager{ display:flex; gap:.4rem; align-items:center; margin-top:.8rem; }
 .pager .where{ font-family:var(--data); font-size:.65rem; color:var(--text-low); margin-left:.4rem; }
-
 .empty{ border:1px dashed var(--rule); border-radius:var(--r-md); padding:1.4rem; text-align:center;
   color:var(--text-mid); font-size:var(--step--1); }
 .note{ font-family:var(--data); font-size:.66rem; color:var(--text-low); margin:.5rem 0 0; }
@@ -153,7 +129,7 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
 <div class="shell">
 
   <div class="topbar">
-    <a class="back" href="index.html">&#8592; Ecosystem</a>
+    <a class="back" href="index.html">&#8592; Home</a>
     <span class="spacer"></span>
     <span id="authSlot"></span>
   </div>
@@ -168,15 +144,11 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule);
   <footer><span>Ethiopia</span><span id="stamp">&nbsp;</span></footer>
 </div>
 
-<!-- Loaded BEFORE the inline script below, not after it. The inline script
-     calls load() immediately, and load() reaches paintCharts() as soon as its
-     first await resolves — so with this tag at the foot of the page, a fast
-     /api/me against a slow chart.js meant EthChart was still undefined and the
-     whole page died on "EthChart is not defined". A classic script tag here is
-     fetched and executed before the parser reaches the inline block, which
-     removes the race rather than making it unlikely. -->
+<!-- Loaded before the inline script, which calls load() at once: with chart.js
+     at the foot of the page a fast /api/me could reach paintCharts() before
+     EthChart existed. -->
 <script src="assets/session.js?v=1"></script>
-<script src="assets/chart.js?v=2"></script>
+<script src="assets/chart.js?v=3"></script>
 
 <script>
 'use strict';
@@ -187,7 +159,7 @@ var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, fun
 var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 var gold = function(n){ return num(n) + 'g'; };
 
-var me = null, hist = null, events = null, online = null;
+var me = null, hist = null, events = null, online = null, now = null;
 var days = 7, evPage = 0, evTown = '', onlineHours = 24;
 var sortKey = 'residents', sortDir = -1, search = '';
 var EV_PAGE = 25;
@@ -212,32 +184,15 @@ function fatal(err){
   try { console.error('[growth]', err); } catch (e) {}
 }
 
-/* --- charts ---------------------------------------------------------------
-   The four hand-rolled canvas renderers this page, treasury, shop and history
-   each carried have moved into assets/chart.js. They were four copies of the
-   same maths that had already drifted — growth and shop disagreed on whether
-   zero belongs on the axis — and none of them could be hovered, because a
-   canvas has no elements to hover. One module means the hit-testing was worth
-   writing once.
-   --------------------------------------------------------------------------- */
-
-/* An hourly bucket is "2026-09-10T14". The date alone would repeat across the
-   whole axis, so the hour is what distinguishes the points. */
+/* An hourly bucket is "2026-09-10T14": the hour is what tells the points apart. */
 function axisLabel(r){
   var v = r && r.day;
   if (!v) return '';
   return v.length > 10 ? v.slice(5, 10) + ' ' + v.slice(11, 13) + ':00' : v.slice(5);
 }
 
-/* The window, as two date fields.
- *
- * Bound BOTH ways: typing a date sets the chart's window, and zooming or
- * panning writes the dates back. One direction alone is the frustrating
- * version — you can either steer with the inputs or read them, and whichever
- * you picked is the one you want when you do not have it.
- *
- * The chart is the authority on what the window IS; these fields only express
- * it. That keeps the two from fighting when both change at once. */
+/* The window, as two date fields bound both ways: typing a date sets the
+   charts' window, and zooming or panning writes the dates back. */
 function rangeBar(){
   return '<div class="rangebar">' +
     '<span class="rl">From</span><input type="date" id="rFrom">' +
@@ -247,12 +202,9 @@ function rangeBar(){
     '</div>';
 }
 
-/* All three charts move together: they are three views of one series over one
-   period, and zooming residents while land and towns stayed put would be
-   comparing different windows side by side without saying so. */
+/* All three charts move together: three views of one series over one period. */
 var SYNCED = ['cPeople', 'cLand', 'cTowns'];
 var syncing = false;
-
 function dayOf(r){ return String((r && r.day) || '').slice(0, 10); }
 
 function applyRange(fromStr, toStr){
@@ -273,17 +225,11 @@ function wireRange(){
   var from = $('rFrom'), to = $('rTo'), all = $('rAll');
   if (!from || from.dataset.wired) return;
   from.dataset.wired = '1';
-
   var push = function(){ applyRange(from.value, to.value); };
   from.addEventListener('change', push);
   to.addEventListener('change', push);
-  if (all) all.addEventListener('click', function(){
-    from.value = ''; to.value = '';
-    applyRange('', '');
-  });
+  if (all) all.addEventListener('click', function(){ from.value = ''; to.value = ''; applyRange('', ''); });
 
-  /* Written back from whichever chart was touched, then mirrored onto the
-     others. The syncing flag stops that mirroring re-entering the handlers. */
   SYNCED.forEach(function(id){
     var c = $(id);
     if (!c) return;
@@ -293,14 +239,12 @@ function wireRange(){
       var a = dayOf(d.from), b = dayOf(d.to);
       if (from.value !== a) from.value = a;
       if (to.value !== b) to.value = b;
-
       var note = $('rNote');
       if (note){
         note.textContent = d.zoomed
           ? (d.hi - d.lo + 1) + ' of ' + d.total + ' points \u00b7 double-click to reset'
           : 'scroll to zoom \u00b7 drag to pan \u00b7 double-click to reset';
       }
-
       if (syncing) return;
       syncing = true;
       SYNCED.forEach(function(other){
@@ -318,9 +262,8 @@ function wireRange(){
 function paintCharts(){
   if (!hist) return;
   var rows = hist.series || [];
-
   EthChart.line($('cPeople'), rows, {
-    lines: [{ key:'residents', color:'#189d4d', width:2.2, label:'Residents' }],
+    lines: [{ key:'residents', color:'#189d4d', width:2.2, label:'Citizens' }],
     xFormat: axisLabel,
     emptyText: 'No history yet — the first snapshot lands on the next sweep',
   });
@@ -332,10 +275,6 @@ function paintCharts(){
     lines: [{ key:'towns', color:'#2f6fb8', width:2.2, label:'Towns' }],
     xFormat: axisLabel,
   });
-
-  /* After the three canvases exist, not before — the handlers bind to the
-     elements paintCharts just created, and the page rebuilds this whole
-     section with innerHTML on every repaint. */
   wireRange();
 
   if (online){
@@ -354,40 +293,39 @@ function paintCharts(){
   }
 }
 
-/* Change over the window, from the two ends of the series. */
-function delta(key){
-  var s = hist && hist.series || [];
-  if (s.length < 2) return null;
-  return (Number(s[s.length - 1][key]) || 0) - (Number(s[0][key]) || 0);
+/* The headline figures.
+ *
+ * Today's figures come from the one shared source every page uses
+ * (/api/nation/now — live from EarthMC), so this page, the home page and
+ * Accounts always show the same count. The change beside each is today's
+ * figure against the first recorded point of the chosen period. Before, this
+ * page showed its last stored snapshot instead, which drifted from the home
+ * page by however long ago that snapshot was taken — days, once the sweep
+ * stopped. */
+function liveOr(key){
+  if (now && now.live && typeof now.live[key] === 'number') return now.live[key];
+  var s = (hist && hist.series) || [];
+  return s.length ? s[s.length - 1][key] : null;
 }
-function deltaText(key, suffix){
-  var d = delta(key);
-  if (d === null) return '<span class="d flat">not enough history yet</span>';
+function deltaText(key){
+  var s = (hist && hist.series) || [];
+  var v = liveOr(key);
+  if (!s.length || v == null || s[0][key] == null) return '<span class="d flat">not enough history yet</span>';
+  var d = v - (Number(s[0][key]) || 0);
   var cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
-  var sign = d > 0 ? '+' : '';
-  return '<span class="d ' + cls + '">' + sign + num(d) + (suffix || '') +
-    ' in ' + days + 'd</span>';
+  return '<span class="d ' + cls + '">' + (d > 0 ? '+' : '') + num(d) + ' in ' + (days === 1 ? 'the last day' : days + ' days') + '</span>';
 }
 
 /* --- the log --------------------------------------------------------------
-   Events are detected by diffing consecutive sweeps, so every event found by
-   one sweep carries that sweep's timestamp. They are grouped by it here for
-   the same reason: a hundred rows reading 22:54 is one detection, not a
-   hundred coincidences, and listing them flat makes a correct log look broken.
-   --------------------------------------------------------------------------- */
-/* EarthMC deletes an account after 42 days offline, and a deleted account is
-   removed from its town — so a purge and a resignation are the same event to a
-   diff. The Worker records how many days the player had been offline at the
-   moment they vanished, which is the only point at which that is knowable.
-
-   40 rather than 42: last_online is refreshed when a sweep notices it change,
-   so it can lag slightly, and a player purged at exactly 42 could be recorded
-   at 41. The exact figure is shown alongside, so the threshold decides the
-   colour and the reader decides the meaning. */
+   Events are found by comparing consecutive sweeps, so everything one sweep
+   noticed carries that sweep's time, and they are grouped by it. */
+/* EarthMC deletes an account after 42 days offline, which removes it from its
+   town — to a diff, the same as leaving. The Worker records how long the
+   player had been offline when they vanished; 40 rather than 42 because last
+   online can lag a sweep, and the exact figure is shown beside it. */
 var PURGE_DAYS = 40;
 function isPurge(e){
-  return e.kind === 'resident_left' &&
-         e.days_offline != null && e.days_offline >= PURGE_DAYS;
+  return e.kind === 'resident_left' && e.days_offline != null && e.days_offline >= PURGE_DAYS;
 }
 
 var EV = {
@@ -418,11 +356,7 @@ function renderLog(){
       : 'No changes recorded yet. The log starts from the second sweep — the ' +
         'first one only records who is already here.') + '</p>';
   }
-
   var pages = Math.max(1, Math.ceil(events.total / EV_PAGE));
-
-  /* Grouped in order, not bucketed by a map, so the server's ordering is
-     preserved exactly and a page boundary splitting a sweep still reads. */
   var groups = [];
   events.events.forEach(function(e){
     var last = groups[groups.length - 1];
@@ -432,19 +366,11 @@ function renderLog(){
 
   var out = groups.map(function(g){
     var purges = g.rows.filter(isPurge).length;
-    var joins = g.rows.filter(function(e){
-      return EV[e.kind] && EV[e.kind].cls === 'join'; }).length;
-    /* Purges are counted out of "out". Folding them in turns the 42-day clock
-       into an apparent exodus, which is exactly the misreading this fixes. */
-    var lefts = g.rows.filter(function(e){
-      return EV[e.kind] && EV[e.kind].cls === 'left' && !isPurge(e); }).length;
-
-    /* A sweep that finds dozens of departures at once is usually a town
-       leaving with its residents — but it is also what a partial fetch looks
-       like, so the page says which it cannot tell rather than presenting a
-       number it has not checked. */
+    var joins = g.rows.filter(function(e){ return EV[e.kind] && EV[e.kind].cls === 'join'; }).length;
+    var lefts = g.rows.filter(function(e){ return EV[e.kind] && EV[e.kind].cls === 'left' && !isPurge(e); }).length;
+    /* Dozens of departures at once is usually a town leaving with its people —
+       or a partial fetch; the page says it cannot tell which. */
     var big = (g.rows.length - purges) >= 25;
-
     return '<div class="sweep"><div class="sweep-head">' +
         '<b>' + esc(stampOf(g.at)) + '</b>' +
         '<span>noticed by one sweep</span>' +
@@ -460,10 +386,8 @@ function renderLog(){
         return '<div class="ev ' + (purged ? 'purged' : t.cls) + '">' +
           '<span class="ico">' + (purged ? '○' : t.ico) + '</span>' +
           '<span>' + (purged
-            ? '<span class="who">' + esc(e.subject) + '</span> purged from ' +
-              esc(e.town_name) +
-              '<span class="why">42-day inactivity · last seen ' +
-              e.days_offline + 'd ago</span>'
+            ? '<span class="who">' + esc(e.subject) + '</span> purged from ' + esc(e.town_name) +
+              '<span class="why">42-day inactivity · last seen ' + e.days_offline + 'd ago</span>'
             : t.text(e)) + '</span></div>';
       }).join('') + '</div></div>';
   }).join('');
@@ -472,8 +396,7 @@ function renderLog(){
   '<div class="pager">' +
     '<button class="btn" type="button" id="evPrev"' + (evPage <= 0 ? ' disabled' : '') + '>Previous</button>' +
     '<button class="btn" type="button" id="evNext"' + (evPage + 1 >= pages ? ' disabled' : '') + '>Next</button>' +
-    '<span class="where">Page ' + (evPage + 1) + ' of ' + pages + ' · ' +
-      num(events.total) + ' changes</span>' +
+    '<span class="where">Page ' + (evPage + 1) + ' of ' + pages + ' · ' + num(events.total) + ' changes</span>' +
   '</div>';
 }
 
@@ -486,7 +409,6 @@ async function showTown(name){
   if (openTown === name){ openTown = null; openTownSeries = null; host.innerHTML = ''; return; }
   openTown = name;
   host.innerHTML = '<p class="empty">Loading ' + esc(name) + '…</p>';
-
   var d;
   try {
     d = await api('/api/nation/history?days=' + days + '&town=' + encodeURIComponent(name));
@@ -494,47 +416,36 @@ async function showTown(name){
     host.innerHTML = '<p class="empty">Could not load that town: ' + esc(e.message) + '</p>';
     return;
   }
-  if (openTown !== name) return;         // a later click won the race
+  if (openTown !== name) return;          // a later click won the race
 
   openTownSeries = d.series || [];
   var first = openTownSeries[0], last = openTownSeries[openTownSeries.length - 1];
   var chg = function(k){
     if (!first || !last || openTownSeries.length < 2) return '—';
     var v = (Number(last[k]) || 0) - (Number(first[k]) || 0);
-    return '<span class="' + (v > 0 ? 'up' : v < 0 ? 'down' : 'flat') + '">' +
-      (v > 0 ? '+' : '') + num(v) + '</span>';
+    return '<span class="' + (v > 0 ? 'up' : v < 0 ? 'down' : 'flat') + '">' + (v > 0 ? '+' : '') + num(v) + '</span>';
   };
-
   host.innerHTML =
     '<div class="tpanel"><div class="head"><h3>' + esc(name) + '</h3>' +
       '<button class="close" id="tclose" aria-label="Close">×</button></div>' +
     '<p class="cap">' + (last
-      ? num(last.residents) + ' residents · ' + num(last.chunks) + ' chunks · ' + gold(last.balance)
+      ? num(last.residents) + ' residents · ' + num(last.chunks) + ' chunks · ' + gold(last.balance) + ' in its bank'
       : 'no snapshot yet') + '</p>' +
-    '<div class="tsplit"><h4>Residents ' + chg('residents') + '</h4>' +
-      '<canvas id="cTownRes"></canvas></div>' +
-    '<div class="tsplit"><h4>Chunks ' + chg('chunks') + '</h4>' +
-      '<canvas id="cTownChunks"></canvas></div>' +
-    '<div id="townlog"></div>' +
-    '</div>';
+    '<div class="tsplit"><h4>Residents ' + chg('residents') + '</h4><canvas id="cTownRes"></canvas></div>' +
+    '<div class="tsplit"><h4>Chunks ' + chg('chunks') + '</h4><canvas id="cTownChunks"></canvas></div>' +
+    '<div id="townlog"></div></div>';
 
   EthChart.line($('cTownRes'), openTownSeries, {
     lines: [{ key:'residents', color:'#189d4d', width:2, label:'Residents' }],
-    xFormat: axisLabel,
-    emptyText: 'No history for this town yet',
+    xFormat: axisLabel, emptyText: 'No history for this town yet',
   });
   EthChart.line($('cTownChunks'), openTownSeries, {
     lines: [{ key:'chunks', color:'#e0a92a', width:2, label:'Chunks' }],
-    xFormat: axisLabel,
-    emptyText: 'No history for this town yet',
+    xFormat: axisLabel, emptyText: 'No history for this town yet',
   });
-
   var close = $('tclose');
-  if (close) close.addEventListener('click', function(){
-    openTown = null; openTownSeries = null; host.innerHTML = '';
-  });
+  if (close) close.addEventListener('click', function(){ openTown = null; openTownSeries = null; host.innerHTML = ''; });
 
-  /* That town's own comings and goings, under its charts. */
   try {
     var ev = await api('/api/nation/events?days=' + days + '&limit=10&town=' + encodeURIComponent(name));
     var box = $('townlog');
@@ -542,13 +453,11 @@ async function showTown(name){
       box.innerHTML = ev.events.length
         ? '<div class="log" style="margin-top:.8rem">' + ev.events.map(function(e){
             var t = EV[e.kind];
-            return t ? '<div class="ev ' + t.cls + '"><span class="ico">' + t.ico + '</span>' +
-              '<span>' + t.text(e) + '</span></div>' : '';
+            return t ? '<div class="ev ' + t.cls + '"><span class="ico">' + t.ico + '</span><span>' + t.text(e) + '</span></div>' : '';
           }).join('') + '</div>'
         : '<p class="note">No comings or goings recorded for this town.</p>';
     }
-  } catch (_e) { /* the charts above are the point; this is a bonus */ }
-
+  } catch (_e) { /* the charts above are the point */ }
   host.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
@@ -557,7 +466,7 @@ var COLS = [
   { k:'town_name', h:'Town', get:function(r){ return esc(r.town_name); }, cls:'name' },
   { k:'residents', h:'Residents', n:true, get:function(r){ return num(r.residents); } },
   { k:'chunks',    h:'Chunks',    n:true, get:function(r){ return num(r.chunks); } },
-  { k:'balance',   h:'Bank',      n:true, get:function(r){ return gold(r.balance); } },
+  { k:'balance',   h:'Town bank', n:true, get:function(r){ return gold(r.balance); } },
 ];
 
 function townTable(){
@@ -569,108 +478,72 @@ function townTable(){
     if (typeof x === 'string') return sortDir * String(x).localeCompare(String(y));
     return sortDir * ((x || 0) - (y || 0));
   });
-
   if (!rows.length){
-    return '<p class="empty">' + (search
-      ? 'No town matches “' + esc(search) + '”.'
+    return '<p class="empty">' + (search ? 'No town matches “' + esc(search) + '”.'
       : 'No towns recorded yet — the first sweep will fill this in.') + '</p>';
   }
-
   return '<table><thead><tr>' + COLS.map(function(c){
       return '<th data-k="' + c.k + '"' + (c.n ? ' style="text-align:right"' : '') + '>' +
         esc(c.h) + (sortKey === c.k ? (sortDir < 0 ? ' ↓' : ' ↑') : '') + '</th>';
     }).join('') + '</tr></thead><tbody>' +
     rows.map(function(r){
       return '<tr class="pick" data-town="' + esc(r.town_name) + '">' +
-        COLS.map(function(c){
-          return '<td class="' + (c.n ? 'n ' : '') + (c.cls || '') + '">' + c.get(r) + '</td>';
-        }).join('') + '</tr>';
+        COLS.map(function(c){ return '<td class="' + (c.n ? 'n ' : '') + (c.cls || '') + '">' + c.get(r) + '</td>'; }).join('') + '</tr>';
     }).join('') + '</tbody></table>';
 }
 
+function staleNote(){
+  var s = (hist && hist.series) || [];
+  var latest = s[s.length - 1] || {};
+  if (!latest.day) return '<p class="note" style="margin:.1rem 0 0">No history recorded yet.</p>';
+  var when = latest.takenAt || latest.taken_at || latest.day;
+  /* Hour keys like 2026-10-02T21 are not valid instants, so they are padded
+     before parsing — otherwise every age reads as unknown. */
+  var iso = String(when || '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) iso += 'T12:00:00Z';
+  else if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(iso)) iso += ':00:00Z';
+  else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(iso)) iso += ':00Z';
+  var ageH = (Date.now() - new Date(iso).getTime()) / 3600000;
+  var bad = !isFinite(ageH) || ageH > 26;
+  var ageWord = !isFinite(ageH) ? 'at an unknown time' : ageH < 1.5 ? 'about an hour ago'
+    : ageH < 48 ? Math.round(ageH) + ' hours ago' : Math.round(ageH / 24) + ' days ago';
+  var live = now && now.live;
+  return '<p class="note" style="margin:.1rem 0 0' + (bad ? ';color:var(--red)' : '') + '">' +
+    (live ? 'The figures above are live, the same as on every other page. ' : '') +
+    'The charts and the town table below were last recorded ' + esc(ageWord) + ' (' + esc(String(when).slice(0, 16)) + ')' +
+    (bad ? ' — the sweep has stopped, so they end there until it runs again.' : '.') + '</p>';
+}
+
 function render(){
-  var latest = (hist.series || [])[(hist.series || []).length - 1] || {};
-
   var out = '<div class="stats">' +
-      '<div class="stat res"><span class="n">' + num(latest.residents) + '</span>' +
-        '<span class="k">Residents</span>' + deltaText('residents') + '</div>' +
-      '<div class="stat twn"><span class="n">' + num(latest.towns) + '</span>' +
+      '<div class="stat res"><span class="n">' + num(liveOr('residents')) + '</span>' +
+        '<span class="k">Citizens</span>' + deltaText('residents') + '</div>' +
+      '<div class="stat twn"><span class="n">' + num(liveOr('towns')) + '</span>' +
         '<span class="k">Towns</span>' + deltaText('towns') + '</div>' +
-      '<div class="stat chk"><span class="n">' + num(latest.chunks) + '</span>' +
-        '<span class="k">Chunks</span>' + deltaText('chunks') + '</div>' +
-      '<div class="stat bal"><span class="n">' + gold(latest.balance) + '</span>' +
-        '<span class="k">Town banks combined</span>' + deltaText('balance', 'g') + '</div>' +
-    '</div>' +
-    /* Said plainly, because these figures disagree with the home page and
-       that looks like a fault until you know why.
-       
-       The home page asks EarthMC directly and gets the count as of this
-       second. This page reads the stored daily snapshot, which is the only
-       way to have a history at all — you cannot chart a number you never
-       wrote down. So the newest point here is as old as the last sweep, and
-       on a day when towns joined or a purge ran the two will differ by real
-       amounts. Neither is wrong; they are answers to different questions. */
-    /* Staleness in words, not just a date.
-     *
-     * "Recorded 2026-10-02T21" is only meaningful if you happen to know what
-     * today is, so a snapshot that stopped four days ago reads as a normal
-     * timestamp and nobody notices the history has frozen. Hours-ago says it
-     * outright, and past a day it turns red — because at that point this is
-     * not staleness, it is a broken sweep. */
-    (function(){
-      if (!latest.day) return '<p class="note" style="margin:.1rem 0 0">No snapshot recorded yet.</p>';
-      var when = latest.takenAt || latest.taken_at || latest.day;
-      /* Snapshot keys are hour-stamped — 2026-10-02T21 — and that is not a
-         valid ISO instant: the spec needs minutes once hours are given, so
-         new Date() returns Invalid Date and every comparison against it is
-         false. Which is why this read "at an unknown time" while printing the
-         timestamp right next to it. Padded to a parseable form first. */
-      var iso = String(when || '');
-      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) iso += 'T12:00:00Z';
-      else if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(iso)) iso += ':00:00Z';
-      else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(iso)) iso += ':00Z';
-      var ageH = (Date.now() - new Date(iso).getTime()) / 3600000;
-      var bad = !isFinite(ageH) || ageH > 26;
-      var ageWord = !isFinite(ageH) ? 'at an unknown time'
-        : ageH < 1.5 ? 'about an hour ago'
-        : ageH < 48 ? Math.round(ageH) + ' hours ago'
-        : Math.round(ageH / 24) + ' days ago';
-      return '<p class="note" style="margin:.1rem 0 0' +
-        (bad ? ';color:var(--red)' : '') + '">' +
-        'Last recorded ' + esc(ageWord) + ' (' + esc(String(when).slice(0, 16)) + ').' +
-        (bad
-          ? ' That is too old — the sweep has stopped, so everything below is frozen at ' +
-            'that moment. The figures on the home page are live and will not match.'
-          : ' These are the stored snapshots, which is what makes a history possible; ' +
-            'the home page asks the server live, so it reads slightly higher or lower.') +
-        '</p>';
-    })();
+      '<div class="stat chk"><span class="n">' + num(liveOr('chunks')) + '</span>' +
+        '<span class="k">Chunks claimed</span>' + deltaText('chunks') + '</div>' +
+      (now && now.live
+        ? '<div class="stat bal"><span class="n">' + gold(now.live.balance) + '</span>' +
+            '<span class="k">In the nation bank</span><span class="d flat">live</span></div>'
+        : '') +
+    '</div>' + staleNote();
 
-  out += '<div class="tools">' +
+  out += '<div class="tools" style="margin-top:1rem">' +
     '<div class="f" style="flex:0 0 10rem"><label for="days">Period</label>' +
       '<select id="days">' + [1, 3, 7, 30, 90, 365].map(function(d){
         return '<option value="' + d + '"' + (days === d ? ' selected' : '') + '>' +
           (d === 365 ? 'Year' : d === 1 ? 'Today' : d + ' days') + '</option>'; }).join('') +
       '</select></div>' +
-      '<span class="note" style="margin:0 0 .5rem .2rem">' +
-        (hist.hourly ? 'hourly points' : 'daily averages') + '</span>' +
-      '</div>';
+      '<span class="note" style="margin:0 0 .5rem .2rem">' + (hist.hourly ? 'hourly points' : 'daily averages') + '</span>' +
+    '</div>';
 
-  /* --- who is actually on ------------------------------------------------
-     Every other figure here is a stock — how many residents, how much gold,
-     how much land. None of them say whether anyone is playing. This is the
-     only one that does, and it is sampled finely enough to show the shape of
-     a day rather than a single reading from it. */
+  /* Who is actually on — the one figure here that says whether anyone plays. */
   if (online){
-    var missing = online.expectedSamples
-      ? Math.round((1 - (online.samples / online.expectedSamples)) * 100) : 0;
+    var missing = online.expectedSamples ? Math.round((1 - (online.samples / online.expectedSamples)) * 100) : 0;
     out += '<div class="chartwrap"><h3>Who is actually on</h3>' +
       '<p class="cap">Ethiopians in game, sampled every minute' +
-        (online.bucketMinutes > 1
-          ? ' · averaged into ' + online.bucketMinutes + '-minute points' : '') +
-        (online.peak
-          ? ' · peak ' + online.peak.online + ' on ' + esc(stampOf(online.peak.at))
-          : '') + '</p>' +
+        (online.bucketMinutes > 1 ? ' · averaged into ' + online.bucketMinutes + '-minute points' : '') +
+        (online.peak ? ' · peak ' + online.peak.online + ' on ' + esc(stampOf(online.peak.at)) : '') + '</p>' +
       '<div class="tools" style="margin:.6rem 0 0">' +
         '<div class="f" style="flex:0 0 10rem"><label for="ohrs">Window</label>' +
           '<select id="ohrs">' + [6, 24, 72, 168, 720].map(function(h){
@@ -678,70 +551,43 @@ function render(){
               (h < 24 ? h + ' hours' : h === 24 ? 'Today' : (h / 24) + ' days') + '</option>';
           }).join('') + '</select></div></div>' +
       '<canvas id="cOnline"></canvas>' +
-      /* A floor, not a count: anyone who has opted out of the EarthMC API is
-         invisible to it. Said here rather than left for someone to work out
-         from a number that is quietly always a little low. */
-      '<p class="note">A floor, not an exact count — anyone who has opted out of ' +
-        'the EarthMC API never appears in it.' +
-        (missing > 5 ? ' ' + missing + '% of expected samples are missing from this window.' : '') +
-      '</p></div>';
+      '<p class="note">A floor, not an exact count — anyone who has opted out of the EarthMC API never appears in it.' +
+        (missing > 5 ? ' ' + missing + '% of expected samples are missing from this window.' : '') + '</p></div>';
   }
 
-  /* One bar for all three, placed above them — it governs the whole group, so
-     putting a copy on each would imply they move independently. */
   out += rangeBar();
-
-  out += '<div class="chartwrap"><h3>Residents</h3>' +
-      '<p class="cap">Everyone living in an Ethiopian town, day by day.</p>' +
+  out += '<div class="chartwrap"><h3>Citizens</h3><p class="cap">Everyone living in an Ethiopian town, as recorded.</p>' +
       '<canvas id="cPeople"></canvas></div>' +
-    '<div class="chartwrap"><h3>Land</h3>' +
-      '<p class="cap">Total chunks claimed across every town.</p>' +
+    '<div class="chartwrap"><h3>Land</h3><p class="cap">Total chunks claimed across every town.</p>' +
       '<canvas id="cLand"></canvas></div>' +
-    '<div class="chartwrap"><h3>Towns</h3>' +
-      '<p class="cap">How many towns fly the flag.</p>' +
+    '<div class="chartwrap"><h3>Towns</h3><p class="cap">How many towns fly the flag.</p>' +
       '<canvas id="cTowns"></canvas></div>';
 
-  out += '<div class="section-head"><h2>Towns</h2>' +
-    '<span class="meta">click one for its own history</span></div>' +
+  out += '<div class="section-head"><h2>Towns</h2><span class="meta">click one for its own history</span></div>' +
     '<div class="tools"><div class="f"><label for="q">Search towns</label>' +
       '<input id="q" placeholder="Addis, Gondar…" value="' + esc(search) + '"></div></div>' +
-    '<div id="tpanel"></div>' +
-    '<div id="towntable">' + townTable() + '</div>';
+    '<div id="tpanel"></div><div id="towntable">' + townTable() + '</div>';
 
-  out += '<div class="section-head"><h2>Comings and goings</h2>' +
-    '<span class="meta">grouped by the sweep that noticed them</span></div>' +
+  out += '<div class="section-head"><h2>Comings and goings</h2><span class="meta">grouped by the sweep that noticed them</span></div>' +
     '<div id="log">' + renderLog() + '</div>';
 
   $('body').innerHTML = out;
   paintCharts();
   wire();
-
-  /* pagetext.js runs once at load, over the [data-slot] elements present at
-     that moment. Everything above was rendered after an await. */
   if (window.ethiopiaPageText) window.ethiopiaPageText.reapply();
 }
 
 function wire(){
   var d = $('days');
-  if (d) d.addEventListener('change', function(){
-    days = Number(d.value); openTown = null; evPage = 0; load();
-  });
-
+  if (d) d.addEventListener('change', function(){ days = Number(d.value); openTown = null; evPage = 0; load(); });
   var oh = $('ohrs');
   if (oh) oh.addEventListener('change', async function(){
     onlineHours = Number(oh.value);
-    try { online = await api('/api/nation/online?hours=' + onlineHours); }
-    catch (_e) { online = null; }
+    try { online = await api('/api/nation/online?hours=' + onlineHours); } catch (_e) { online = null; }
     render();
   });
-
   var q = $('q');
-  if (q) q.addEventListener('input', function(){
-    search = q.value;
-    $('towntable').innerHTML = townTable();
-    wireTable();
-  });
-
+  if (q) q.addEventListener('input', function(){ search = q.value; $('towntable').innerHTML = townTable(); wireTable(); });
   wireTable();
   wireLog();
 }
@@ -768,8 +614,7 @@ function wireLog(){
 
 async function loadLog(){
   try {
-    events = await api('/api/nation/events?days=' + days +
-      '&limit=' + EV_PAGE + '&offset=' + (evPage * EV_PAGE));
+    events = await api('/api/nation/events?days=' + days + '&limit=' + EV_PAGE + '&offset=' + (evPage * EV_PAGE));
     $('log').innerHTML = renderLog();
     wireLog();
   } catch (e){
@@ -777,28 +622,19 @@ async function loadLog(){
   }
 }
 
-/* The signed-in chip: Discord avatar, Minecraft name, tier.
- *
- * Both names, not one. The Discord account is who you are to the government
- * and the Minecraft account is who you are in the world — this system's whole
- * premise is that those are one verified identity, so showing only half of it
- * makes people wonder which account they are actually signed in as. The
- * avatar is the fastest way to answer that without reading anything. */
+/* The signed-in chip: Discord avatar, Minecraft name, tier — both names,
+   because that pairing is the identity this whole system rests on. */
 function ethiopiaProfileChip(me){
   var face = me.avatarUrl
     ? '<img src="' + esc(me.avatarUrl) + '" alt="" width="18" height="18" ' +
-      'style="width:18px;height:18px;border-radius:50%;object-fit:cover;' +
-      'vertical-align:-.2rem;margin-right:.35rem" ' +
-      'onerror="this.style.display=\'none\'">'
-    : '';
+      'style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:-.2rem;margin-right:.35rem" ' +
+      'onerror="this.style.display=\'none\'">' : '';
   var head = me.mcName
     ? '<img src="https://minotar.net/helm/' + encodeURIComponent(me.mcName) + '/18.png" ' +
       'alt="" width="18" height="18" style="width:18px;height:18px;border-radius:2px;' +
       'image-rendering:pixelated;vertical-align:-.2rem;margin-right:.35rem" ' +
-      'onerror="this.style.display=\'none\'">'
-    : '';
-  var who = me.mcName
-    ? esc(me.mcName) + (me.discordName ? ' \u00b7 ' + esc(me.discordName) : '')
+      'onerror="this.style.display=\'none\'">' : '';
+  var who = me.mcName ? esc(me.mcName) + (me.discordName ? ' \u00b7 ' + esc(me.discordName) : '')
     : esc(me.discordName || 'Signed in');
   return face + head + who + ' \u00b7 ' + esc(me.tier);
 }
@@ -806,8 +642,7 @@ function ethiopiaProfileChip(me){
 function renderAuth(){
   var slot = $('authSlot');
   if (me && me.signedIn){
-    slot.innerHTML = '<button class="btn" type="button" id="signout">' +
-      ethiopiaProfileChip(me) + '</button>';
+    slot.innerHTML = '<button class="btn" type="button" id="signout">' + ethiopiaProfileChip(me) + '</button>';
     $('signout').addEventListener('click', async function(){
       try { await api('/api/auth/logout', { method:'POST' }); } catch (e) {}
       location.reload();
@@ -826,38 +661,27 @@ async function load(){
     hist = await api('/api/nation/history?days=' + days);
   } catch (e){
     if (e.status === 401){
-      $('body').innerHTML = '<p class="empty">Sign in as a verified citizen of Ethiopia ' +
-        'to see the nation\'s history.</p>';
+      $('body').innerHTML = '<p class="empty">Sign in as a verified citizen of Ethiopia to see the nation\'s history.</p>';
       $('stamp').textContent = 'Not signed in';
       return;
     }
     throw e;
   }
-
-  try {
-    events = await api('/api/nation/events?days=' + days + '&limit=' + EV_PAGE);
-  } catch (_e) { events = { events: [], total: 0 }; }
-
-  /* Its own table and its own cadence, so a missing migration 030 costs this
-     one panel rather than the page. */
-  try {
-    online = await api('/api/nation/online?hours=' + onlineHours);
-  } catch (_e) { online = null; }
+  /* The shared live figures. Their absence costs the headline its live
+     reading, never the page: it falls back to the last recorded point. */
+  try { now = await api('/api/nation/now'); } catch (_e) { now = null; }
+  try { events = await api('/api/nation/events?days=' + days + '&limit=' + EV_PAGE); }
+  catch (_e) { events = { events: [], total: 0 }; }
+  try { online = await api('/api/nation/online?hours=' + onlineHours); } catch (_e) { online = null; }
 
   render();
-
   var s = hist.series || [];
-  $('stamp').textContent = s.length
-    ? s.length + (hist.hourly ? ' hourly points' : ' days') + ' recorded'
-    : 'no history yet';
+  $('stamp').textContent = s.length ? s.length + (hist.hourly ? ' hourly points' : ' days') + ' recorded' : 'no history yet';
 }
-
-/* No resize handler here any more — assets/chart.js keeps one for every chart
-   on the page, including the two inside the town panel. */
 
 load().catch(fatal);
 </script>
-<script src="assets/pagetext.js?v=1"></script>
+<script src="assets/pagetext.js?v=3"></script>
 <script src="assets/election-banner.js?v=2"></script>
 </body>
 </html>

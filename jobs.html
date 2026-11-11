@@ -54,11 +54,13 @@
 .sortbar .note{ font-size:.8rem; color:var(--text-low); margin:0 0 .5rem auto; max-width:22rem; text-align:right; }
 
 /* --- the board ---------------------------------------------------------------- */
-.boardwrap{ max-height:40rem; overflow-y:auto; border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); }
+.boardwrap{ border-top:1px solid var(--line); }
 .board{ display:flex; flex-direction:column; }
-.j{ position:relative; padding:.95rem 1.1rem 1rem 1.25rem; border-bottom:1px solid var(--line); }
-.j::before{ content:''; position:absolute; left:0; top:.8rem; bottom:.8rem; width:3px; border-radius:0 3px 3px 0;
-  background:var(--sv, var(--line-hot)); box-shadow:0 0 10px var(--sv, transparent); }
+.j{ position:relative; padding:1rem .4rem 1rem 1.1rem; border-bottom:1px solid rgba(255,255,255,.06); transition:background .15s ease; }
+.j:hover{ background:rgba(255,255,255,.02); }
+/* A small service dot by the title rather than a lit bar down every card. */
+.j::before{ content:''; position:absolute; left:.1rem; top:1.45rem; width:.45rem; height:.45rem; border-radius:50%;
+  background:var(--sv, var(--line-hot)); }
 .j:last-child{ border-bottom:none; }
 .j.prio{ background:linear-gradient(90deg, rgba(252,209,22,.06), transparent 40%); }
 .j.mine{ background:linear-gradient(90deg, rgba(77,141,255,.08), transparent 45%); }
@@ -97,10 +99,19 @@
 .rep .who{ color:var(--text); }
 
 .prog{ margin-top:.6rem; }
+.mm{ display:flex; align-items:baseline; gap:.5rem; flex-wrap:wrap; font-size:.84rem; padding:.2rem 0; color:var(--green); }
+.mm.off{ color:var(--text-low); text-decoration:line-through; text-decoration-color:rgba(255,255,255,.3); }
+.mm-by{ font-size:.74rem; color:var(--text-low); margin-left:.4rem; text-decoration:none; display:inline-block; }
+.mm-x{ margin-left:auto; background:none; border:0; color:var(--gold); font-family:var(--body); font-size:.76rem; cursor:pointer; text-decoration:none; }
+.mm-form{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; margin-top:.7rem; }
+.mm-form input{ background:rgba(0,0,0,.3); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:.4rem .55rem;
+  font-family:var(--body); font-size:.84rem; flex:1 1 9rem; min-width:0; }
+.mm-form input:first-child{ flex:0 1 10rem; }
+.mm-form .btn{ padding:.36rem .7rem; font-size:.8rem; }
 .prog-top{ display:flex; align-items:baseline; gap:.5rem; font-size:.82rem; color:var(--text-low); margin-bottom:.3rem; }
 .prog-top b{ font-family:var(--data); color:var(--green); }
 .prog-top .warn{ color:var(--red); margin-left:auto; }
-.prog-track{ height:.5rem; background:rgba(0,0,0,.35); border:1px solid var(--line); border-radius:999px; overflow:hidden; }
+.prog-track{ height:.3rem; background:rgba(255,255,255,.07); border-radius:999px; overflow:hidden; }
 .prog-fill{ height:100%; background:var(--green); border-radius:999px; box-shadow:0 0 10px rgba(34,197,94,.5); transition:width .3s ease; }
 .prog-fill.done{ background:var(--gold); box-shadow:0 0 10px rgba(252,209,22,.5); }
 .prog-names{ font-size:.78rem; color:var(--text-low); margin-top:.35rem; }
@@ -515,6 +526,11 @@ function scoreChip(j){
    splits into the worker's pay, held in escrow until the job is done and
    released, and the company's fee, which went into the bank on posting. */
 function moneyLine(j){
+  /* Not shown on the board any more: a worker needs to know what a job pays,
+     not how the customer's price splits. The split lives on the Economy page
+     and in the edit form, for those who manage it. */
+  return '';
+  /* eslint-disable no-unreachable */
   var cancelled = j.status === 'cancelled';
   var w = j.paidAt ? '<span class="w">released to the worker <b>' + gold(j.workerPay) + '</b></span>'
     : cancelled ? '<span class="r">refunded <b>' + gold(j.workerPay) + '</b></span>'
@@ -559,6 +575,15 @@ function progressBlock(j){
   return '';
 }
 
+/* What the quantity counts, in words: "20 recruits", not "20 × 45g". */
+function unitWord(j){
+  var n = Number(j.quantity) === 1;
+  if (j.service === 'recruiting') return j.isMayor ? (n ? 'town' : 'towns') : (n ? 'recruit' : 'recruits');
+  if (j.service === 'mapart' || j.service === 'claim map' || j.service === 'claimmap') return n ? 'map' : 'maps';
+  if (j.service === 'media') return n ? 'piece' : 'pieces';
+  return n ? 'unit' : 'units';
+}
+
 function jobRow(j){
   var cls = 'j svc-' + j.service + (j.priority ? ' prio' : '') + (j.isMine ? ' mine' : '');
   var type = typeLabel(j);
@@ -591,14 +616,14 @@ function jobRow(j){
   var age = ageOf(j.createdAt);
   return '<div class="' + cls + '">' +
     '<div class="j-head"><span class="j-title">' + esc(jobTitle(j)) + '</span>' + tags + payBlock(j) + '</div>' +
-    '<div class="j-meta">#' + j.id + ' · ' + j.quantity + ' \u00d7 ' + gold(j.unitPrice) +
+    '<div class="j-meta">#' + j.id + ' · ' + j.quantity + ' ' + esc(unitWord(j)) +
       (j.customer ? ' · for ' + esc(j.customer) : '') +
       (j.assignee ? ' · taken by ' + esc(j.assignee) : '') +
       ' · posted ' + esc(when(j.createdAt)) + (scope === 'live' ? ' · ' + ageText(age) : '') +
       (j.paidAt ? ' · released ' + esc(when(j.paidAt)) : '') + '</div>' +
     moneyLine(j) +
     (j.representative ? '<div style="margin-top:.4rem">' + repChip(j.representative) + '</div>' : '') +
-    (j.status === 'queued' ? scoreChip(j) : '') +
+    (j.status === 'queued' && data.canManage ? scoreChip(j) : '') +
     (j.details ? '<div class="j-details">' + esc(j.details) + '</div>' : '') +
     progressBlock(j) +
     (acts ? '<div class="j-acts">' + acts + '</div>' : '') +
@@ -1050,11 +1075,66 @@ function renderDetailPanel(orderId){
       ((d.baseline || []).length > 20 ? ' and ' + (d.baseline.length - 20) + ' more' : '') + '</div></div>' +
     (d.baselineOverridden ? '<div class="prog-names" style="margin-top:.4rem;color:var(--gold)">Starting point set by hand' +
       (d.baselineOverriddenAt ? ' on ' + esc(when(d.baselineOverriddenAt)) : '') + '</div>' : '') +
+    manualBlock(orderId, d) +
     (d.canSetBaseline ? '<div style="margin-top:.6rem"><button class="btn" type="button" data-baseline="' + orderId + '" ' +
       'style="padding:.24rem .6rem;font-size:.76rem">Set which ' + unit + ' were already there</button>' +
       '<span class="prog-names" style="margin-left:.5rem">For work that started before the job was posted.</span></div>' : '') +
   '</div>';
 }
+
+/* Who counts, corrected by hand. For when two people recruit into the same
+   town, someone joins for another reason, or the tracker missed a joiner:
+   count someone, or stop counting them — with a note saying why, kept beside
+   the name so the decision can be read and undone later. */
+function manualBlock(orderId, d){
+  var added = d.manualAdded || [], removed = d.manualRemoved || [];
+  var who = function(x){ return esc(x.name) + '<span class="mm-by">' + esc([x.by, x.at ? when(x.at) : null].filter(Boolean).join(' · ')) +
+    (x.note ? ' — ' + esc(x.note) : '') + '</span>'; };
+  var out = '';
+  if (added.length) out += '<div style="margin-top:.5rem"><span class="k">Counted by hand · ' + added.length + '</span>' +
+    added.map(function(x){ return '<div class="mm">' + who(x) + (d.canAdjust ? '<button type="button" class="mm-x" data-undo="' +
+      orderId + '" data-name="' + esc(x.name) + '">undo</button>' : '') + '</div>'; }).join('') + '</div>';
+  if (removed.length) out += '<div style="margin-top:.5rem"><span class="k">Not counted · ' + removed.length + '</span>' +
+    removed.map(function(x){ return '<div class="mm off">' + who(x) + (d.canAdjust ? '<button type="button" class="mm-x" data-undo="' +
+      orderId + '" data-name="' + esc(x.name) + '">count again</button>' : '') + '</div>'; }).join('') + '</div>';
+  if (d.canAdjust){
+    out += d.adjustable === false
+      ? '<p class="prog-names" style="margin-top:.6rem;color:var(--gold)">Run migration 045 in the D1 console to correct recruits by hand.</p>'
+      : '<div class="mm-form"><input id="mmName' + orderId + '" placeholder="Minecraft name" maxlength="16" autocomplete="off">' +
+        '<input id="mmNote' + orderId + '" placeholder="Why (optional), e.g. recruited by Mythflash" maxlength="120" autocomplete="off">' +
+        '<button class="btn" type="button" data-mm="add" data-id="' + orderId + '">Count them</button>' +
+        '<button class="btn" type="button" data-mm="remove" data-id="' + orderId + '">Don\u2019t count them</button>' +
+        '<span class="prog-names" id="mmMsg' + orderId + '"></span></div>';
+  }
+  return out;
+}
+
+async function manualChange(orderId, body){
+  var msg = $('mmMsg' + orderId);
+  try {
+    var r = await api('/api/jobs/recruits', { method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(Object.assign({ orderId: orderId }, body)) });
+    if (msg){ msg.textContent = 'Now counting ' + r.counted + '.'; msg.style.color = 'var(--green)'; }
+    await loadDetail(orderId);
+    load(true);
+  } catch (e){ if (msg){ msg.textContent = e.message; msg.style.color = 'var(--red)'; } }
+}
+
+document.addEventListener('click', function(e){
+  var b = e.target.closest && e.target.closest('[data-mm],[data-undo]');
+  if (!b) return;
+  if (b.dataset.undo){ manualChange(Number(b.dataset.undo), { undo: [b.dataset.name] }); return; }
+  var id = Number(b.dataset.id);
+  var name = ($('mmName' + id) || {}).value || '';
+  var note = ($('mmNote' + id) || {}).value || '';
+  if (!/^[A-Za-z0-9_]{2,16}$/.test(name.trim())){
+    var m = $('mmMsg' + id); if (m){ m.textContent = 'That is not a Minecraft name.'; m.style.color = 'var(--red)'; }
+    return;
+  }
+  var body = { note: note.trim() || null };
+  body[b.dataset.mm] = [name.trim()];
+  manualChange(id, body);
+});
 
 async function loadDetail(orderId){
   try { var d = await api('/api/jobs/detail?orderId=' + orderId); d.canSetBaseline = !!(bank && bank.canAdjustBank); detailCache[orderId] = d; }

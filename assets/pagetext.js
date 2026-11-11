@@ -330,3 +330,4 @@
   function start(){ watch(); load(); offerEditing(); beacon(); }
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();
+

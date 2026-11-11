@@ -1365,6 +1365,33 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 .claim-tooltip{ border-radius:8px !important; font-family:var(--font-body) !important; font-size:.76rem !important; letter-spacing:0; }
 .map-open{ background:var(--brass); color:#141006; font-family:var(--font-body); box-shadow:0 0 22px rgba(252,209,22,.35), 0 6px 18px rgba(0,0,0,.5); }
 
+/* --- planning ---------------------------------------------------------------- */
+body:not(.planner) .planner-only{ display:none !important; }
+.fc-wrap{ position:relative; touch-action:pan-y; }
+.fc-chart .fc-hit{ cursor:crosshair; }
+.fc-tip{ position:absolute; top:.6rem; z-index:3; min-width:9.5rem; padding:.45rem .6rem; border-radius:9px;
+  background:rgba(15,13,11,.94); border:1px solid var(--line-hot); box-shadow:0 8px 22px rgba(0,0,0,.5);
+  font-size:.74rem; line-height:1.45; pointer-events:none; display:flex; flex-direction:column; }
+.fc-tip b{ font-size:.78rem; margin-bottom:.1rem; }
+.fc-tip em{ color:var(--muted); font-style:normal; }
+.fc-tip .bad{ color:var(--danger-hi); } .fc-tip .ok{ color:var(--sage-hi); }
+.oc-box{ margin-top:.8rem; padding:.7rem .8rem; border-radius:11px; border:1px solid rgba(249,115,22,.35);
+  background:linear-gradient(180deg, rgba(249,115,22,.08), transparent 70%); }
+.oc-head{ display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+.oc-day{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:.6rem; margin-top:.6rem; font-size:.8rem; }
+.oc-day input{ width:100%; accent-color:#f97316; }
+.oc-day b{ font-family:var(--font-mono); font-size:.72rem; color:var(--brass-hi); white-space:nowrap; }
+.oc-victim{ display:grid; grid-template-columns:1fr auto; gap:.1rem .6rem; width:100%; text-align:left; cursor:pointer;
+  margin-top:.3rem; padding:.45rem .6rem; border-radius:9px; background:var(--panel-2); color:var(--parchment);
+  border:1px solid rgba(255,255,255,.06); font-family:var(--font-body); font-size:.82rem; }
+.oc-victim:hover, .oc-victim.on{ border-color:#f97316; }
+.oc-victim em{ font-style:normal; color:var(--muted); font-size:.74rem; margin-left:.3rem; }
+.oc-victim > span:last-child{ grid-column:1 / -1; font-size:.76rem; }
+.oc-chart{ margin:.3rem 0 .4rem; }
+.leaflet-tooltip.oc-label{ background:rgba(15,13,11,.86); color:#fde68a; border:1px solid rgba(249,115,22,.5);
+  box-shadow:none; font-family:var(--font-mono); font-size:10px; padding:2px 6px; border-radius:6px; }
+.leaflet-tooltip.oc-label::before{ display:none; }
+
 /* --- the planner's three modes, the forecast, the watch list ---------------- */
 .exp-modes{ display:flex; gap:.3rem; margin-bottom:.8rem; flex-wrap:wrap; }
 .exp-modes .btn{ flex:1 1 auto; white-space:nowrap; }
@@ -1453,6 +1480,7 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
 
       <div class="view-switcher" role="tablist" aria-label="Sidebar view">
         <button type="button" class="view-tab is-active" id="viewTabEthiopia" role="tab" aria-selected="true">Ethiopia</button>
+        <button type="button" class="view-tab" id="viewTabPlanning" role="tab" aria-selected="false" hidden>Planning</button>
         <button type="button" class="view-tab" id="viewTabGlobal" role="tab" aria-selected="false">Global</button>
         <button type="button" class="view-tab" id="viewTabSettings" role="tab" aria-selected="false">Settings</button>
         <button type="button" class="view-tab" id="viewTabAdmin" role="tab" aria-selected="false" hidden>Edit</button>
@@ -1620,15 +1648,15 @@ input[type="text"]:focus, textarea:focus, select:focus{ border-color:var(--brass
         </div>
       </section>
 
-      <section class="panel view-ethiopia" id="panel-plan">
+      <section class="panel view-planning" id="panel-plan" hidden>
         <div class="panel-head">
           <span class="eyebrow">Planning</span>
           <h2>Expansion and overclaims</h2>
         </div>
         <p class="hint" style="margin-top:0">
           Plan new land for our towns, including land taken from towns over
-          their limit; model towns joining or leaving a nation; and forecast
-          which towns are about to go over their claim limit.
+          their limit and the day it becomes possible; model towns joining or
+          leaving a nation; and forecast which towns are going over their limit.
         </p>
         <div id="planPanel"></div>
       </section>
@@ -2587,6 +2615,8 @@ const expansionState = {
   /* Overclaiming: a plan may take chunks from other towns. Off by default, so
      a stray stroke over a neighbour still does nothing. */
   overclaim: false,
+  asOf: 0,               // the day an overclaim plan is set for (0 = today)
+  openVictim: null,      // the town whose forecast is open under the plan
 
   painting: false,       // a drag is in progress
   paintMode: 'add',      // what the drag is doing, fixed at pointerdown
@@ -2641,6 +2671,66 @@ function townOverNow(t){ return Math.max(0, (t.townBlocks || 0) - townLimitNow(t
    but claimed today by another is an overclaim of that other town. Kept per
    victim so its outline can lose exactly those chunks. Rebuilt only when the
    finished plans or the shown groups change. */
+/* Forecasts for the towns a plan overclaims, and for towns near it on request.
+   Kept apart from the watch list, which is one nation at a time; these run
+   60 days so the "plan for" slider always has a day to read. */
+const victimForecasts = new Map();
+const victimLoading = new Set();
+const victimFailed = new Set();      // tried once and failed: not retried on every redraw
+const VICTIM_HORIZON = 60;
+function forecastFor(name, src){
+  if (src === 'watch') return watchState.forecasts.get(name) || null;
+  if (src === 'victim') return victimForecasts.get(name) || null;
+  return victimForecasts.get(name) || watchState.forecasts.get(name) || null;
+}
+/* How far over its limit a town will be on a given day: from its forecast
+   when there is one, otherwise only today is known. */
+function overAt(town, d){
+  const fc = forecastFor(town.name);
+  if (fc){ const p = fc.series[Math.min(d, fc.series.length - 1)]; return p ? p.over : 0; }
+  return d === 0 ? townOverNow(town) : null;
+}
+async function ensureVictimForecast(town){
+  if (!town || victimForecasts.has(town.name) || victimLoading.has(town.name) || victimFailed.has(town.name)) return;
+  victimLoading.add(town.name);
+  try {
+    const missing = (town.residents || []).filter(r => !activityCache.players.has(r));
+    if (missing.length){
+      const got = await client.getPlayerActivity(missing);
+      got.forEach((v, k) => activityCache.players.set(k, v));
+      activityMemo.clear();
+    }
+    /* The nation bonus is modelled only when that whole nation has been
+       forecast in the watch; otherwise it is held at today's value. */
+    const model = watchState.model && watchState.nation && town.nationName &&
+      watchState.nation.toLowerCase() === town.nationName.toLowerCase() ? watchState.model : null;
+    victimForecasts.set(town.name, forecastTown(town, VICTIM_HORIZON, model));
+  } catch (err){
+    victimFailed.add(town.name);
+    auditLog.log(`Could not forecast ${town.name}: ${err.message}`, 'warn');
+  } finally {
+    victimLoading.delete(town.name);
+    renderExpansionOverlay(); renderExpansionPanel();
+  }
+}
+/* Other towns within reach of the town being planned, nearest first. */
+function expNearbyTowns(plan, radius){
+  const hx = plan.town.mcX, hz = plan.town.mcZ;
+  return ncAllTowns()
+    .filter(t => t.name !== plan.town.name && !t.isMoon && typeof t.mcX === 'number')
+    .map(t => ({ t, d: Math.hypot(t.mcX - hx, t.mcZ - hz) }))
+    .filter(x => x.d <= radius)
+    .sort((a, b) => a.d - b.d)
+    .map(x => x.t);
+}
+const EXP_NEARBY_RADIUS = 2500;
+async function expForecastNearby(plan){
+  const near = expNearbyTowns(plan, EXP_NEARBY_RADIUS).filter(t => !victimForecasts.has(t.name)).slice(0, 25);
+  if (!near.length){ auditLog.log('Every town near it is already forecast', 'info'); return; }
+  auditLog.log(`Forecasting ${near.length} town(s) near ${plan.town.name}…`, 'info');
+  for (const t of near) await ensureVictimForecast(t);
+}
+
 let expTakenMemo = null, expTakenSig = '';
 function expTakenFrom(name){
   chunkOwnerIndex();
@@ -2677,12 +2767,16 @@ function expVictims(plan){
     if (!by.has(owner.name)) by.set(owner.name, { town: owner, keys: [] });
     by.get(owner.name).keys.push(k);
   });
+  const asOf = expansionState.asOf || 0;
   return [...by.values()].map(v => {
     const over = townOverNow(v.town);
-    const fc = watchState.forecasts.get(v.town.name) || null;
+    const fc = forecastFor(v.town.name);
     const need = v.keys.length;
-    return { town: v.town, taken: need, overNow: over, fc,
-      readyDay: over >= need ? 0 : forecastDayFor(fc, need) };
+    const at = overAt(v.town, asOf);
+    return { town: v.town, keys: v.keys, taken: need, overNow: over, fc,
+      readyDay: over >= need ? 0 : forecastDayFor(fc, need),
+      /* how many of these can be taken by the planned day */
+      allowedAt: at === null ? null : Math.min(need, Math.max(0, at)) };
   }).sort((a, b) => b.taken - a.taken);
 }
 function expActive(){ return !!(expansionState.editing || expansionState.mode === 'nation'); }
@@ -3144,8 +3238,18 @@ function dayDate(d){
 /* The forecast as a picture: the claim limit falling as residents go, the
    town's land flat across it, and the gap where the land is over the limit
    filled red. Residents underneath, on their own scale. */
-function forecastChart(fc){
-  const W = 320, H = 150, L = 34, R = 8, T = 10, B = 24, RH = 34;
+const FC = { W: 320, H: 150, L: 34, R: 8, T: 10, B: 24, RH: 34 };
+/* The forecast as a picture: the claim limit falling as residents go, the
+   town's land flat across it, and the gap where the land is over the limit
+   filled red. Residents underneath, on their own scale. Point at it (or drag a
+   finger along it) to read any day.
+
+   opts.need draws the line a plan has to clear: taking N chunks is possible
+   once the limit falls N below the land, which is where the gold line crosses
+   it. opts.mark marks the day the plan is set for. */
+function forecastChart(fc, opts){
+  opts = opts || {};
+  const { W, H, L, R, T, B, RH } = FC;
   const top = H - B - RH - 8;
   const n = fc.series.length - 1 || 1;
   const maxY = Math.max(fc.chunks, ...fc.series.map(x => x.limit), 1) * 1.08;
@@ -3155,7 +3259,6 @@ function forecastChart(fc){
   const RY = (v) => top + 8 + (1 - v / maxRes) * RH;
   const step = (get, yf) => fc.series.map((p, i) =>
     (i ? `H${X(p.d).toFixed(1)}V${yf(get(p)).toFixed(1)}` : `M${X(p.d).toFixed(1)},${yf(get(p)).toFixed(1)}`)).join('');
-  // red where the land is over the limit
   let over = '';
   fc.series.forEach((p, i) => {
     if (i === fc.series.length - 1 || p.over <= 0) return;
@@ -3168,19 +3271,71 @@ function forecastChart(fc){
   const fall = fc.fellDay !== null
     ? `<line x1="${X(fc.fellDay)}" x2="${X(fc.fellDay)}" y1="${T}" y2="${H - B}" stroke="#ef4444" stroke-dasharray="3 3"/>` +
       `<text x="${X(fc.fellDay) - 3}" y="${T + 9}" text-anchor="end" fill="#f87171">falls</text>` : '';
-  return `<svg class="fc-chart" viewBox="0 0 ${W} ${H}" role="img" ` +
+  let need = '';
+  if (opts.need){
+    const yv = Y(Math.max(0, fc.chunks - opts.need));
+    need = `<path d="M${L},${yv.toFixed(1)}H${W - R}" stroke="#f97316" stroke-dasharray="2 3" fill="none"/>` +
+      `<text x="${W - R - 2}" y="${(yv - 3).toFixed(1)}" text-anchor="end" fill="#fb923c">takes ${opts.need}</text>`;
+  }
+  const mark = typeof opts.mark === 'number' && opts.mark > 0 && opts.mark <= n
+    ? `<line x1="${X(opts.mark)}" x2="${X(opts.mark)}" y1="${T}" y2="${H - B}" stroke="#fcd116" stroke-width="1" opacity=".7"/>` : '';
+  return `<div class="fc-wrap" data-fc="${escapeHtml(fc.town.name)}" data-src="${opts.src || 'watch'}">` +
+    `<svg class="fc-chart" viewBox="0 0 ${W} ${H}" role="img" ` +
     `aria-label="Claim limit against land over the next ${n} days">` +
     over +
     `<path d="M${L},${Y(fc.chunks).toFixed(1)}H${W - R}" stroke="#f5f1e8" stroke-dasharray="4 3" fill="none" opacity=".8"/>` +
+    need +
     `<path d="${step(p => p.limit, Y)}" stroke="#fcd116" stroke-width="2" fill="none"/>` +
     `<path d="${step(p => p.res, RY)}" stroke="#4d8dff" stroke-width="1.5" fill="none"/>` +
-    fall +
+    fall + mark +
     `<text x="${L - 4}" y="${(Y(fc.chunks) + 3).toFixed(1)}" text-anchor="end">${CoordUtils.fmt(fc.chunks)}</text>` +
     `<text x="${L - 4}" y="${(top + 14).toFixed(1)}" text-anchor="end" fill="#8fb5ff">${maxRes}</text>` +
-    ticks + `</svg>` +
+    ticks +
+    `<line class="fc-cursor" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="#ffffff" stroke-width="1" opacity="0"/>` +
+    `<rect class="fc-hit" x="${L}" y="0" width="${W - L - R}" height="${H}" fill="transparent"/>` +
+    `</svg><div class="fc-tip" hidden></div></div>` +
     `<div class="fc-key"><span><i style="background:#fcd116"></i>claim limit</span>` +
     `<span><i style="background:#f5f1e8"></i>land held</span><span><i style="background:rgba(239,68,68,.6)"></i>over the limit</span>` +
-    `<span><i style="background:#4d8dff"></i>residents</span></div>`;
+    `<span><i style="background:#4d8dff"></i>residents</span>` +
+    (opts.need ? '<span><i style="background:#f97316"></i>what the plan takes</span>' : '') + '</div>';
+}
+
+/* The readout under a finger or pointer: the day, and every figure on it. */
+function wireForecastCharts(host){
+  if (!host) return;
+  host.querySelectorAll('.fc-wrap').forEach(wrap => {
+    const fc = forecastFor(wrap.dataset.fc, wrap.dataset.src);
+    const svg = wrap.querySelector('svg');
+    const tip = wrap.querySelector('.fc-tip');
+    const cur = svg && svg.querySelector('.fc-cursor');
+    if (!fc || !svg || !tip || !cur) return;
+    const n = fc.series.length - 1 || 1;
+    const show = (ev) => {
+      const r = svg.getBoundingClientRect();
+      if (!r.width) return;
+      const vx = (ev.clientX - r.left) / r.width * FC.W;
+      const d = Math.max(0, Math.min(n, Math.round((vx - FC.L) / (FC.W - FC.L - FC.R) * n)));
+      const p = fc.series[d];
+      const x = FC.L + d / n * (FC.W - FC.L - FC.R);
+      cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.setAttribute('opacity', '.8');
+      const gap = p.limit - fc.chunks;
+      tip.innerHTML = `<b>${d === 0 ? 'Today' : dayDate(d) + ' · in ' + d + ' day' + (d === 1 ? '' : 's')}</b>` +
+        `<span>${plural(p.res, 'resident')}</span>` +
+        `<span>limit ${CoordUtils.fmt(p.limit)}${p.bonus ? ` <em>(bonus ${CoordUtils.fmt(p.bonus)})</em>` : ''}</span>` +
+        `<span>land ${CoordUtils.fmt(fc.chunks)}</span>` +
+        (p.res === 0 ? '<span class="bad">fallen</span>'
+          : gap < 0 ? `<span class="bad">${CoordUtils.fmt(-gap)} over — overclaimable</span>`
+          : `<span class="ok">${CoordUtils.fmt(gap)} to spare</span>`);
+      tip.hidden = false;
+      const px = (x / FC.W) * r.width;
+      const tw = tip.offsetWidth || 150;
+      tip.style.left = Math.max(0, Math.min(r.width - tw, px + (px > r.width / 2 ? -tw - 10 : 10))) + 'px';
+    };
+    const hide = () => { tip.hidden = true; cur.setAttribute('opacity', '0'); };
+    svg.addEventListener('pointermove', show);
+    svg.addEventListener('pointerdown', show);
+    svg.addEventListener('pointerleave', hide);
+  });
 }
 
 /* Loads a nation for the watch: its towns (from what is already loaded when
@@ -3264,7 +3419,8 @@ window.forecastFromPopup = function(name){
   expansionState.editing = null;
   const nation = town.nationName;
   const panel = document.getElementById('panel-plan');
-  if (panel && activeView !== 'ethiopia' && viewerIsCitizen()) setSidebarView('ethiopia');
+  if (!planningAccess.planner) return;
+  if (activeView !== 'planning') setSidebarView('planning');
   if (nation && watchState.nation.toLowerCase() === nation.toLowerCase() && watchState.forecasts.has(name)){
     watchState.selected = name;
     renderExpansionOverlay(); renderExpansionPanel();
@@ -3292,8 +3448,13 @@ window.planFromPopup = function(name){
     .find(t => t.name === name);
   if (!town){ auditLog.log(`Town "${name}" is no longer loaded`, 'warn'); return; }
   mapController.map.closePopup();
+  if (!planningAccess.planner) return;
+  if (activeView !== 'planning') setSidebarView('planning');
   if (expansionState.mode === 'nation'){ expToggleTownInNation(town); return; }
+  if (expansionState.mode === 'watch') expansionState.mode = 'town';
   expOpenTown(town);
+  const panel = document.getElementById('panel-plan');
+  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 /* Three rungs of the same tile pyramid, swapped by zoom.
@@ -4710,6 +4871,7 @@ const dom = {
   viewTabEthiopia: document.getElementById('viewTabEthiopia'),
   viewTabGlobal: document.getElementById('viewTabGlobal'),
   viewTabAdmin: document.getElementById('viewTabAdmin'),
+  viewTabPlanning: document.getElementById('viewTabPlanning'),
   btnLowQuality: document.getElementById('btnLowQuality'),
   btnAllClaims: document.getElementById('btnAllClaims'),
   claimCapLabel: document.getElementById('claimCapLabel'),
@@ -4945,7 +5107,7 @@ function buildTownPopupHtml(t){
       <tr><td>Coordinates</td><td>X ${Math.round(t.mcX).toLocaleString()}, Z ${Math.round(t.mcZ).toLocaleString()}</td></tr>
     </table>
     ${residentHtml}
-    <div style="margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--line)">
+    <div class="planner-only" style="margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--line)">
       <button type="button" class="btn btn-ghost btn-small"
         onclick="window.planFromPopup('${escapeHtml(t.name).replace(/'/g, "\\'")}')">
         Plan expansion</button>
@@ -5149,6 +5311,18 @@ function townsForActiveView(towns){
      it lands somewhere plausible inside Ethiopia and gets counted in whatever
      that view totals up. */
   let list = (towns || []).filter(t => (mapWorld === 'moon' ? t.isMoon : !t.isMoon));
+
+  /* The Planning tab shows every town it has, from every nation — a plan is
+     about the land around our towns, whoever holds it. */
+  if (activeView === 'planning'){
+    const extra = (worldCache.towns || []).concat(watchState.towns || []);
+    const seen = new Set(list.map(t => t.name));
+    extra.forEach(t => {
+      if (seen.has(t.name) || (mapWorld === 'moon' ? !t.isMoon : t.isMoon)) return;
+      seen.add(t.name); list.push(t);
+    });
+    return list;
+  }
 
   /* Nation mode is about moving towns BETWEEN nations, so it needs to see
      towns that are not ours — which the Ethiopia view otherwise filters out
@@ -5489,9 +5663,55 @@ function renderExpansionOverlay(){
           fillColor: COLORS.sage, fillOpacity: .30 });
         /* Taken from another town: its own colour, so an overclaim is never
            mistaken for empty ground. */
-        shape(over, {
+        /* Split by whether each victim is far enough over its limit on the
+           planned day: orange can be taken by then, red cannot yet. */
+        const okSet = new Set(), noSet = new Set();
+        const byVictim = new Map();
+        over.forEach(k => {
+          const [x, z] = k.split(',').map(Number);
+          const o = chunkOwnerAt(x, z);
+          if (!byVictim.has(o.name)) byVictim.set(o.name, { town: o, keys: [] });
+          byVictim.get(o.name).keys.push(k);
+        });
+        byVictim.forEach(v => {
+          const at = overAt(v.town, expansionState.asOf || 0);
+          const allowed = Math.max(0, at === null ? 0 : at);
+          v.keys.forEach((k, i) => (i < allowed ? okSet : noSet).add(k));
+        });
+        shape(okSet, {
           color: '#f97316', weight: 2.5, opacity: 1,
-          fillColor: '#f97316', fillOpacity: .38 });
+          fillColor: '#f97316', fillOpacity: .42 });
+        shape(noSet, {
+          color: '#ef4444', weight: 2.5, opacity: 1, dashArray: '5 3',
+          fillColor: '#ef4444', fillOpacity: .30 });
+
+        /* While overclaiming, every town near the plan that is over its limit
+           — today, or by the planned day — is outlined and labelled, so what
+           can be taken is visible before painting. */
+        if (expansionState.overclaim){
+          const asOf = expansionState.asOf || 0;
+          expNearbyTowns(plan, EXP_NEARBY_RADIUS).slice(0, 60).forEach(t => {
+            const nowOver = townOverNow(t);
+            const then = overAt(t, asOf);
+            const fc = forecastFor(t.name);
+            const firstDay = fc ? fc.firstOverDay : null;
+            if (!nowOver && !(then > 0) && firstDay === null) return;
+            const rings = tracedOutlinesFor(t);
+            if (!rings) return;
+            const col = nowOver ? '#ef4444' : (then > 0 ? '#f59e0b' : '#a8a29e');
+            const label = nowOver
+              ? `${t.name} · ${CoordUtils.fmt(nowOver)} over now` + (then > nowOver ? ` · ${CoordUtils.fmt(then)} by ${dayDate(asOf)}` : '')
+              : then > 0 ? `${t.name} · ${CoordUtils.fmt(then)} over by ${dayDate(asOf)}`
+              : `${t.name} · over from ${dayDate(firstDay)}`;
+            rings.forEach((ring, i) => {
+              const poly = L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
+                color: col, weight: 2.5, opacity: .95, dashArray: nowOver ? null : '6 4',
+                fill: false, interactive: false, pmIgnore: true,
+              }).addTo(group);
+              if (i === 0) poly.bindTooltip(escapeHtml(label), { permanent: true, direction: 'center', className: 'oc-label' });
+            });
+          });
+        }
         shape(plan.removed, {
           color: COLORS.danger, weight: 2, opacity: 1,
           fillColor: COLORS.danger, fillOpacity: .22, dashArray: '4 3' });
@@ -5627,27 +5847,57 @@ function renderExpansionPanel(){
           `${PLAN_PER_RESIDENT}/resident + ${n(f.bonus)} nation bonus` +
           `${f.bonusEstimated ? ' (estimated)' : ''}</p>` +
         (() => {
+          const asOf = expansionState.asOf || 0;
+          let h = '<div class="oc-box">' +
+            '<div class="oc-head"><b>Overclaiming</b>' +
+            `<button type="button" class="btn ${expansionState.overclaim ? 'btn-accent' : 'btn-primary'} btn-small" ` +
+              'id="expOverclaim" title="Let this plan take chunks from other towns">' +
+              (expansionState.overclaim ? 'On' : 'Off') + '</button></div>';
+          if (!expansionState.overclaim){
+            return h + '<p class="hint" style="margin:.3rem 0 0">Switch on to paint over other towns. Towns near ' +
+              escapeHtml(plan.town.name) + ' that are over their limit get outlined on the map.</p></div>';
+          }
+          const near = expNearbyTowns(plan, EXP_NEARBY_RADIUS);
+          const overNow = near.filter(t => townOverNow(t) > 0).length;
+          const overBy = asOf ? near.filter(t => !townOverNow(t) && overAt(t, asOf) > 0).length : 0;
+          const unforecast = near.filter(t => !victimForecasts.has(t.name)).length;
+          h += '<label class="oc-day"><span>Plan for</span>' +
+            `<input type="range" id="expAsOf" min="0" max="${VICTIM_HORIZON}" step="1" value="${asOf}">` +
+            `<b id="expAsOfLabel">${asOf ? dayDate(asOf) + ' · +' + asOf + 'd' : 'today'}</b></label>` +
+            `<p class="hint" style="margin:.2rem 0 .4rem">${plural(overNow, 'town')} near ${escapeHtml(plan.town.name)} ` +
+            `${overNow === 1 ? 'is' : 'are'} over the limit now` + (asOf ? `, ${overBy} more by ${dayDate(asOf)}` : '') + '.' +
+            (unforecast ? ` <a href="#" id="expNearby">Forecast ${Math.min(25, unforecast)} nearby</a> to see who goes over later.` : '') +
+            '</p>';
           const vs = expVictims(plan);
-          if (!vs.length) return '';
-          return '<div class="nc-officer-label" style="margin-top:.7rem">Overclaimed from · ' + vs.length + '</div>' +
-            vs.map(v => {
-              const okNow = v.readyDay === 0;
-              const when = okNow ? 'takeable now'
-                : v.readyDay !== null ? `takeable from ${dayDate(v.readyDay)}`
-                : v.fc ? `not over by ${n(v.taken)} within ${v.fc.horizon} days`
-                : (v.overNow ? `only ${n(v.overNow)} over today` : 'not over its limit today');
-              return `<div class="econ-row"><span>${escapeHtml(v.town.name)} &middot; ${n(v.taken)} chunk` +
-                `${v.taken === 1 ? '' : 's'}</span><span class="econ-num" style="color:${okNow ? 'var(--sage-hi)'
-                  : v.readyDay !== null ? 'var(--brass-hi)' : 'var(--danger-hi)'}">${when}</span></div>` +
-                (!okNow && !v.fc ? `<p class="hint" style="margin:.1rem 0 .3rem"><a href="#" data-expforecast=` +
-                  `"${escapeHtml(v.town.name)}">Forecast ${escapeHtml(v.town.name)}</a> to see when it goes far enough over.</p>` : '');
-            }).join('');
+          if (vs.length){
+            h += '<div class="nc-officer-label" style="margin-top:.3rem">Taking from · ' + vs.length + '</div>';
+            vs.forEach(v => {
+              const ok = v.allowedAt !== null && v.allowedAt >= v.taken;
+              const when = v.readyDay === 0 ? 'possible now'
+                : v.readyDay !== null ? `possible from ${dayDate(v.readyDay)}`
+                : v.fc ? `not ${v.taken} over within ${v.fc.horizon} days`
+                : victimLoading.has(v.town.name) ? 'forecasting…' : `${v.overNow} over today`;
+              const col = ok ? 'var(--sage-hi)' : v.readyDay !== null ? 'var(--brass-hi)' : 'var(--danger-hi)';
+              const open = expansionState.openVictim === v.town.name;
+              h += `<button type="button" class="oc-victim${open ? ' on' : ''}" data-ocvictim="${escapeHtml(v.town.name)}">` +
+                `<span>${escapeHtml(v.town.name)} <em>${escapeHtml(v.town.nationName || 'no nation')}</em></span>` +
+                `<span class="econ-num">${n(v.taken)} chunk${v.taken === 1 ? '' : 's'}</span>` +
+                `<span style="color:${col}">${when}` +
+                (asOf && v.allowedAt !== null && !ok ? ` · ${n(v.allowedAt)} of ${n(v.taken)} by ${dayDate(asOf)}` : '') +
+                (asOf && ok ? ` · all by ${dayDate(asOf)}` : '') + '</span></button>';
+              if (open){
+                h += v.fc ? '<div class="oc-chart">' + forecastChart(v.fc, { src: victimForecasts.has(v.town.name) ? 'victim' : 'watch',
+                    need: v.taken, mark: asOf }) + '</div>'
+                  : '<p class="hint">Forecasting…</p>';
+              }
+            });
+            h += '<p class="hint" style="margin:.4rem 0 0">Orange chunks can be taken by the planned day, red ones not yet. ' +
+              'A town loses land only while it is over its limit, never its home block, and what you take must touch your land.</p>';
+          } else {
+            h += '<p class="hint" style="margin:.2rem 0 0">Paint over an outlined town to take its land.</p>';
+          }
+          return h + '</div>';
         })() +
-        '<div class="hw-route-controls" style="margin-top:.6rem">' +
-          `<button type="button" class="btn ${expansionState.overclaim ? 'btn-accent' : 'btn-primary'} btn-small" ` +
-            'id="expOverclaim" title="Let this plan take chunks from other towns">' +
-            (expansionState.overclaim ? 'Overclaiming: on' : 'Overclaiming: off') + '</button>' +
-        '</div>' +
         '<div class="hw-route-controls" style="margin-top:.4rem">' +
           '<button type="button" class="btn btn-primary btn-small" id="expMinus">&minus; res</button>' +
           '<button type="button" class="btn btn-primary btn-small" id="expPlus">+ res</button>' +
@@ -5664,8 +5914,7 @@ function renderExpansionPanel(){
           'of the town, colours and all, so you can judge the shape.<br>' +
           'Dragging paints rather than pans while a town is open &mdash; scroll still ' +
           'zooms, and <b>Pan</b> hands dragging back.<br>' +
-          'With <b>overclaiming</b> on, painting over another town takes its land (shown orange). A town can only ' +
-          'lose chunks while it is over its limit, never its home block, and the chunks taken must touch your land.</p>';
+          'With <b>overclaiming</b> on, painting over another town takes its land.</p>';
     }
 
     const locked = plans.filter(p => p.locked);
@@ -5771,7 +6020,7 @@ function renderExpansionPanel(){
         const st = watchStatus(sel);
         out += '<div class="watch-detail">' +
           `<div class="wd-head"><b>${escapeHtml(t.name)}</b><span class="wd-st ${st.cls}">${escapeHtml(st.text)}</span></div>` +
-          forecastChart(sel) +
+          forecastChart(sel, { src: 'watch' }) +
           '<div class="econ-breakdown" style="margin-top:.5rem">' +
             `<div class="econ-row"><span>Today</span><span class="econ-num">${plural(s0.res, 'resident')} · ` +
               `limit ${n(s0.limit)}${sel.limitExact ? '' : ' (est.)'} · ${n(sel.chunks)} chunks</span></div>` +
@@ -5919,6 +6168,26 @@ function renderExpansionPanel(){
     renderExpansionOverlay(); renderExpansionPanel();
   });
   bind('expLock', expLockIn);
+  const asOfEl = document.getElementById('expAsOf');
+  if (asOfEl){
+    asOfEl.addEventListener('input', () => {
+      expansionState.asOf = Number(asOfEl.value) || 0;
+      const lbl = document.getElementById('expAsOfLabel');
+      if (lbl) lbl.textContent = expansionState.asOf ? dayDate(expansionState.asOf) + ' · +' + expansionState.asOf + 'd' : 'today';
+      renderExpansionOverlay();
+    });
+    asOfEl.addEventListener('change', () => renderExpansionPanel());
+  }
+  on('#expNearby', (e) => { e.preventDefault(); if (plan) expForecastNearby(plan); });
+  on('[data-ocvictim]', (e) => {
+    const name = e.currentTarget.dataset.ocvictim;
+    expansionState.openVictim = expansionState.openVictim === name ? null : name;
+    renderExpansionPanel();
+  });
+  /* Every town this plan takes from is forecast as soon as it appears. */
+  if (plan && expansionState.overclaim) expVictims(plan).forEach(v => { if (!forecastFor(v.town.name)) ensureVictimForecast(v.town); });
+  wireForecastCharts(host);
+
   bind('expOverclaim', () => {
     expansionState.overclaim = !expansionState.overclaim;
     auditLog.log(expansionState.overclaim
@@ -5926,16 +6195,7 @@ function renderExpansionPanel(){
       : 'Overclaiming off', 'info');
     renderExpansionPanel();
   });
-  on('[data-expforecast]', (e) => {
-    e.preventDefault();
-    const name = e.currentTarget.dataset.expforecast;
-    const t = ncAllTowns().find(x => x.name === name);
-    if (!t || !t.nationName) return;
-    /* Forecast the victim's nation without leaving the plan: the plan is kept,
-       and the panel reads the forecast as soon as it lands. */
-    const keepMode = expansionState.mode;
-    watchLoad(t.nationName).then(() => { expansionState.mode = keepMode; renderExpansionPanel(); });
-  });
+
   bind('watchGo', () => {
     const el = document.getElementById('watchNation');
     const h = document.getElementById('watchHorizon');
@@ -7738,7 +7998,7 @@ let lastDataView = 'ethiopia';   // 'ethiopia' | 'global'
 // The scope the map and tables should use right now. Admin always edits
 // Ethiopia's regions, so it stays Ethiopia-scoped regardless.
 function currentScope(){
-  if (activeView === 'admin') return 'ethiopia';
+  if (activeView === 'admin' || activeView === 'planning') return 'ethiopia';
   if (activeView === 'settings') return lastDataView;
   return activeView;
 }
@@ -7760,9 +8020,17 @@ function setSidebarView(view){
   document.querySelectorAll('.view-global').forEach(el => { el.hidden = view !== 'global'; });
   document.querySelectorAll('.view-admin').forEach(el => { el.hidden = view !== 'admin'; });
   document.querySelectorAll('.view-settings').forEach(el => { el.hidden = view !== 'settings'; });
+  document.querySelectorAll('.view-planning').forEach(el => { el.hidden = view !== 'planning'; });
   // Shown in both data views — nation claims are not Ethiopia-specific.
   document.querySelectorAll('.view-anydata').forEach(el => { el.hidden = !(view === 'ethiopia' || view === 'global'); });
-  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal, settings: dom.viewTabSettings, admin: dom.viewTabAdmin };
+  const tabs = { ethiopia: dom.viewTabEthiopia, global: dom.viewTabGlobal, settings: dom.viewTabSettings,
+    admin: dom.viewTabAdmin, planning: dom.viewTabPlanning };
+  /* Planning draws every nation's towns, so the land a plan would take can be
+     seen and painted over. The world scan is the one way every town loads. */
+  if (view === 'planning' && (!worldCache.enabled || !worldCache.towns.length) && !worldCache.inFlight){
+    auditLog.log('Loading every town so neighbouring nations can be planned against — about a minute', 'info');
+    setWorldMode('all');
+  }
   Object.entries(tabs).forEach(([name, el]) => {
     if (!el) return;
     el.classList.toggle('is-active', name === view);
@@ -10445,6 +10713,7 @@ if (dom.regionColorReset){
 if (dom.viewTabEthiopia) dom.viewTabEthiopia.addEventListener('click', () => setSidebarView('ethiopia'));
 if (dom.viewTabGlobal)   dom.viewTabGlobal.addEventListener('click', () => setSidebarView('global'));
 if (dom.viewTabAdmin)    dom.viewTabAdmin.addEventListener('click', () => setSidebarView('admin'));
+if (dom.viewTabPlanning) dom.viewTabPlanning.addEventListener('click', () => setSidebarView('planning'));
 if (dom.viewTabSettings) dom.viewTabSettings.addEventListener('click', () => setSidebarView('settings'));
 if (dom.guiRestoreBtn)   dom.guiRestoreBtn.addEventListener('click', () => setGuiHidden(false));
 // Single entry point for inactivity colouring, used by both the sidebar
@@ -11294,7 +11563,9 @@ async function loadRegionsFromBackend(){
 let saveQueuedWhileInFlight = false;
 
 async function saveRegionsToBackend(){
-  if (!state.adminMode) return; // only ever save while genuinely in admin mode
+  /* Only while editing — or a planner saving plans, which the Worker accepts
+     from a non-manager as plans alone, keeping the rest of the map as stored. */
+  if (!state.adminMode && !planningAccess.planner) return;
   if (!persistLoaded){
     /* Refused loudly, not quietly. An admin who cannot save needs to know
        immediately — the alternative is them working for an hour on something
@@ -11457,7 +11728,7 @@ function pushTownRegions(){
 }
 
 function scheduleSave(){
-  if (!state.adminMode) return;
+  if (!state.adminMode && !planningAccess.planner) return;
   setSaveStatus('Unsaved changes…');
   if (!persistConflict) setSavePill('unsaved', 'Saving soon…', 'Unsaved changes — saving in a moment');
   clearTimeout(saveDebounceTimer);
@@ -12264,6 +12535,10 @@ document.addEventListener('keydown', (e) => {
    — the data is protected server-side, not here.
    ========================================================================= */
 let viewerTier = 'unverified';
+/* Planning is for the President, Vice President, Treasurer, the Secretaries
+   and Managers. The Worker decides, live against Discord; this only mirrors
+   its answer so the tab and the popup buttons appear for the right people. */
+let planningAccess = { planner: false, as: null };
 
 function viewerIsCitizen(){
   return ['citizen', 'treasurer', 'manager'].includes(viewerTier);
@@ -12280,6 +12555,13 @@ async function loadViewer(){
     if (res.ok){
       const me = await res.json();
       viewerTier = (me && me.signedIn && me.tier) ? me.tier : 'unverified';
+    }
+    if (viewerIsCitizen()){
+      const r2 = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/planning/access', { credentials: 'include' });
+      if (r2.ok){
+        const a = await r2.json();
+        planningAccess = { planner: !!a.planner, as: a.as || null };
+      }
     }
   } catch(_err){ /* treated as a stranger, which is the safe default */ }
   applyViewerGate();
@@ -12304,6 +12586,12 @@ function applyViewerGate(){
   // check's visible result — if you cannot save, there is nothing here for
   // you to open, so it does not appear rather than opening to a dead end.
   if (dom.btnAdminToggle) dom.btnAdminToggle.hidden = !viewerIsManager();
+  if (dom.viewTabPlanning){
+    dom.viewTabPlanning.hidden = !planningAccess.planner;
+    dom.viewTabPlanning.title = planningAccess.as ? `Planning — open to you as ${planningAccess.as}` : '';
+  }
+  document.body.classList.toggle('planner', planningAccess.planner);
+  if (!planningAccess.planner && activeView === 'planning') setSidebarView(member ? 'ethiopia' : 'global');
 
   if (!member && activeView !== 'global') setSidebarView('global');
   // setSidebarView('ethiopia') runs at boot before loadViewer()'s fetch has

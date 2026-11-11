@@ -1032,6 +1032,16 @@ html:not(#_) .fcard .mark{ border-radius:0; font-size:inherit; text-transform:no
   /* Charts: a little shorter, so a chart and its key fit on one screen. */
   canvas{ max-height:230px; }
 }
+
+/* --- where the orders stand --------------------------------------------------- */
+.stagebar{ display:flex; height:.7rem; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.05); gap:2px; }
+.stagebar i{ display:block; height:100%; }
+.stages{ display:grid; grid-template-columns:repeat(auto-fit, minmax(10.5rem, 1fr)); gap:.4rem .9rem; margin-top:.8rem; }
+.stg{ display:grid; grid-template-columns:auto auto 1fr; align-items:baseline; gap:.15rem .45rem; font-size:.82rem; }
+.stg .sw{ width:.6rem; height:.6rem; border-radius:3px; align-self:center; }
+.stg b{ font-family:var(--data); font-size:1rem; }
+.stg .lb{ color:var(--text-low); }
+.stg .vl{ grid-column:2 / -1; font-family:var(--data); font-size:.74rem; color:var(--text-mid); }
 </style>
 </head>
 <body>
@@ -2106,6 +2116,35 @@ function viewEmc(){
   var open = (ow.active ? ow.active.n : 0) + (ow.queued ? ow.queued.n : 0);
   var fee = b.gross ? kept(b) / b.gross : 0;
 
+  /* Where the period's orders stand — placed, finished, still going — as one
+     bar, so "21 orders" can never again be read as 21 finished jobs. */
+  var st = data.stages;
+  if (st){
+    var SEG = [['released', 'Finished and paid', C.in], ['done', 'Finished, awaiting release', C.fee],
+               ['active', 'In progress', C.pay], ['queued', 'Waiting for a worker', 'rgba(255,255,255,.35)'],
+               ['cancelled', 'Cancelled', C.cost]];
+    var tot = SEG.reduce(function(a, s2){ return a + ((st[s2[0]] || {}).n || 0); }, 0);
+    var fin = ((st.released || {}).n || 0) + ((st.done || {}).n || 0);
+    var going = ((st.active || {}).n || 0) + ((st.queued || {}).n || 0);
+    if (tot){
+      out += panel('Where the orders stand', num(tot) + ' placed in this period',
+        '<div class="stagebar">' + SEG.map(function(s2){
+          var v = st[s2[0]] || { n: 0 };
+          return v.n ? '<i style="flex:' + v.n + ';background:' + s2[2] + '" title="' + esc(s2[1]) + ': ' + v.n + '"></i>' : '';
+        }).join('') + '</div>' +
+        '<div class="stages">' + SEG.map(function(s2){
+          var v = st[s2[0]] || { n: 0, gross: 0, units: 0 };
+          return '<div class="stg"><span class="sw" style="background:' + s2[2] + '"></span><b>' + num(v.n) + '</b>' +
+            '<span class="lb">' + esc(s2[1]) + '</span><span class="vl">' + gold(v.gross) + '</span></div>';
+        }).join('') + '</div>' +
+        '<p class="footline" style="margin-top:.6rem">' + num(fin) + ' of ' + num(tot - ((st.cancelled || {}).n || 0)) +
+          ' finished (' + Math.round(fin / Math.max(1, tot - ((st.cancelled || {}).n || 0)) * 100) + '%) · ' + num(going) + ' still going.</p>',
+        '', '', C.in);
+    }
+  }
+  var deliv = data.deliveredByCat || null;
+  var delivered = deliv ? Object.keys(deliv).reduce(function(a, k){ return a + deliv[k]; }, 0) : null;
+
   out += '<div class="grid g-main">' + panel(flowTitle('orders'), modeSwitch(), '<div class="chart" id="cSplit"></div><div id="splitKey"></div>', '', '', C.fee) +
     panel('Traffic', '', '<div class="glance">' +
       glance('', num(orders), 'Orders placed', num(cust.length) + ' customer' + (cust.length === 1 ? '' : 's') + (cust.length ? ' · ' + Math.round((repeat / cust.length) * 100) + '% came back' : '')) +
@@ -2113,7 +2152,12 @@ function viewEmc(){
       glance('fee', Math.round(fee * 100) + '%', 'Company fee rate', 'of total order value') +
       glance('', orders ? Math.round((pri / orders) * 100) + '%' : '—', 'Priority orders', num(pri) + ' of ' + num(orders)) +
       glance('', num(open), 'Open orders now', 'in progress or waiting for a worker') +
-      glance('', num(sum(list, 'qty')), 'Units delivered', list.map(function(c){ return unitOf(c.cat, c.qty); }).join(' · ')) + '</div>', '', '', C.in) + '</div>';
+      /* Delivered means finished: units on completed orders, not every unit
+         ordered. The ordered total is said beside it. */
+      glance('', num(delivered === null ? sum(list, 'qty') : delivered), 'Units delivered',
+        (delivered === null ? '' : 'of ' + num(sum(list, 'qty')) + ' ordered · ') +
+        list.map(function(c){ return unitOf(c.cat, deliv && deliv[c.cat] != null ? deliv[c.cat] : (delivered === null ? c.qty : 0)); }).join(' · ')) +
+      '</div>', '', '', C.in) + '</div>';
 
   var segs = list.map(function(c, i){ return { name:serviceName(c.cat), v:c.gross, color:SOURCES.emc.shades[i % 6] }; });
   var guessed = types.reduce(function(a, t){ return a + (t.guessed || 0); }, 0);

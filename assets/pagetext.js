@@ -167,6 +167,13 @@
       'background:rgba(20,18,15,.92);color:#cfc8b8;font:600 .8rem Karla,system-ui,sans-serif;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5)}' +
     '.pt-toggle:hover{color:#f5f1e8}' +
     '.pt-toggle.on{background:#fcd116;color:#141006;border-color:#fcd116;box-shadow:0 0 22px rgba(252,209,22,.45)}' +
+    /* On a phone the button is a small round one on the right, so it stops
+       sitting on top of whatever is at the bottom-left of the page; the words
+       come back while editing, when they matter. */
+    '@media (max-width:640px){.pt-toggle{left:auto;right:calc(env(safe-area-inset-right,0px) + 12px);' +
+      'bottom:calc(env(safe-area-inset-bottom,0px) + 14px);width:2.5rem;height:2.5rem;padding:0;justify-content:center;' +
+      'font-size:1rem;opacity:.85}.pt-toggle .pt-lb{display:none}.pt-toggle.on{width:auto;padding:0 .9rem;font-size:.78rem;opacity:1}' +
+      '.pt-toggle.on .pt-lb{display:inline}}' +
     'body.pt-editing *:not([data-pt-ui]):not([data-pt-ui] *){cursor:text !important}' +
     'body.pt-editing .pt-hot{outline:1px dashed #fcd116 !important;outline-offset:2px;background:rgba(252,209,22,.06)}' +
     '.pt-box{position:fixed;z-index:9999;width:min(25rem,calc(100vw - 24px));padding:.9rem 1rem;border-radius:12px;' +
@@ -284,7 +291,8 @@
     editing = on;
     document.body.classList.toggle('pt-editing', on);
     toggle.classList.toggle('on', on);
-    toggle.textContent = on ? '✎ Editing text · click any wording' : '✎ Edit text';
+    toggle.innerHTML = '<span class="pt-ic" aria-hidden="true">✎</span><span class="pt-lb">' +
+      (on ? 'Editing text · click any wording' : 'Edit text') + '</span>';
     if (!on) { closeBox(); if (hot) { hot.classList.remove('pt-hot'); hot = null; } }
   }
 
@@ -297,7 +305,8 @@
     } catch (e) { return; }
     var st = document.createElement('style'); st.setAttribute('data-pt-ui', ''); st.textContent = css;
     document.head.appendChild(st);
-    toggle = el('<button type="button" class="pt-toggle" data-pt-ui title="Change any wording on this page">✎ Edit text</button>');
+    toggle = el('<button type="button" class="pt-toggle" data-pt-ui title="Change any wording on this page" aria-label="Edit text">' +
+      '<span class="pt-ic" aria-hidden="true">✎</span><span class="pt-lb">Edit text</span></button>');
     document.body.appendChild(toggle);
     toggle.addEventListener('click', function(){ setEditing(!editing); });
     document.addEventListener('click', onClick, true);

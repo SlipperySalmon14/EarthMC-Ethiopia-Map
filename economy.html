@@ -1005,6 +1005,33 @@ table.margins td:first-child{ font-size:.88rem; }
    drawn ingot stands in (see the check at the end of the script). */
 :root{ --ingot-img:url("https://assets.mcasset.cloud/1.21.4/assets/minecraft/textures/item/gold_ingot.png"); }
 .ig{ width:.92em; height:.92em; margin-left:.12em; vertical-align:-.14em; background:var(--ingot-img, var(--ingot)) no-repeat center / contain; image-rendering:pixelated; }
+
+/* --- phones ------------------------------------------------------------------
+   The barrel card's service section is called .mark here, and the shared theme
+   turns every .mark into a pill-shaped chip — which made the whole section a
+   tall oval on a narrow screen. Put back to a plain block. */
+html:not(#_) .fcard .mark{ border-radius:0; font-size:inherit; text-transform:none; }
+.mix .facts b{ white-space:nowrap; }              /* a number and its coin stay on one line */
+@media (max-width:560px){
+  /* The stock ring above its figures, not squeezed beside them. */
+  .mix{ grid-template-columns:1fr; justify-items:center; gap:.7rem; }
+  .mix svg{ max-width:10.5rem; }
+  .mix .facts{ width:100%; }
+  /* A panel's switch goes under its title, full width, instead of crushing it. */
+  .ph .seg{ margin-left:0; width:100%; display:flex; }
+  .ph .seg button{ flex:1 1 0; padding:.42rem .3rem; font-size:.7rem; }
+  /* The floor's level filters wrap rather than running off the left edge. */
+  .floorbar .seg{ display:flex; flex-wrap:wrap; width:100%; }
+  .floorbar .seg button{ flex:1 1 auto; font-size:.72rem; padding:.42rem .5rem; }
+  .floorbar .fld{ width:100%; }
+  /* The service choice: question above, two even buttons, then Save. */
+  .svcform .sf1{ flex-direction:column; align-items:stretch; gap:.45rem; }
+  .svcform .seg{ display:flex; width:100%; }
+  .svcform .seg button{ flex:1 1 0; font-size:.74rem; padding:.5rem .4rem; }
+  .fcard .mark .form{ grid-template-columns:1fr; }
+  /* Charts: a little shorter, so a chart and its key fit on one screen. */
+  canvas{ max-height:230px; }
+}
 </style>
 </head>
 <body>
@@ -3462,6 +3489,6 @@ tick(); setInterval(tick, 1000); autoLabel();
 })();
 
 </script>
-<script src="assets/pagetext.js?v=2"></script>
+<script src="assets/pagetext.js?v=3"></script>
 </body>
 </html>

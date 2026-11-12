@@ -192,6 +192,50 @@ html:not(#_) .btn.primary:hover{ background:#ffe066; }
 
 .empty{ padding:1.4rem; text-align:center; }
 footer{ margin-top:3rem; padding-top:1rem; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+
+/* --- counting mode -------------------------------------------------------- */
+.mm-mode{ display:flex; flex-wrap:wrap; align-items:center; gap:.35rem; margin:.7rem 0 .3rem; }
+.mm-mode button{ font-family:var(--body); font-size:.78rem; font-weight:600; padding:.3rem .65rem; border-radius:999px;
+  border:1px solid var(--line); background:none; color:var(--text-mid); cursor:pointer; }
+.mm-mode button.on{ background:var(--gold); border-color:var(--gold); color:#141006; }
+.mm-mode .prog-names{ flex-basis:100%; }
+
+/* --- the timeline ---------------------------------------------------------- */
+.tl-bar{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin:.4rem 0 .7rem; }
+.tl-bar .btn{ padding:.32rem .7rem; font-size:.8rem; }
+.tl-sum{ margin-left:auto; font-size:.82rem; color:var(--text-low); }
+.tl-sum b{ color:var(--text); font-family:var(--data); }
+.tl-wrap{ position:relative; border-top:1px solid var(--line); border-bottom:1px solid var(--line); overflow:hidden; touch-action:pan-y; }
+.tl-svg{ width:100%; display:block; cursor:grab; user-select:none; }
+.tl-svg:active{ cursor:grabbing; }
+.tl-grid{ stroke:rgba(255,255,255,.06); }
+.tl-tick{ fill:var(--text-low); font-family:var(--data); font-size:10px; }
+.tl-now{ stroke:#fcd116; stroke-dasharray:3 3; opacity:.7; }
+.tl-lbl{ fill:#141006; font-family:var(--body); font-size:10px; font-weight:700; pointer-events:none; }
+.tl-o{ cursor:pointer; }
+.tl-o:hover rect, .tl-o.sel rect{ stroke:#fff; stroke-width:1.5; }
+.tl-tip{ position:absolute; z-index:5; width:220px; padding:.5rem .65rem; border-radius:10px; background:rgba(15,13,11,.95);
+  border:1px solid var(--line-hot); box-shadow:0 8px 22px rgba(0,0,0,.5); font-size:.78rem; pointer-events:none;
+  display:flex; flex-direction:column; gap:.1rem; }
+.tl-tip span, .tl-tipish span{ color:var(--text-mid); }
+.tl-tip .h, .tl-tipish .h{ color:var(--gold); }
+.tl-key{ display:flex; flex-wrap:wrap; gap:.3rem 1rem; margin:.5rem 0 1rem; font-size:.78rem; color:var(--text-low); }
+.tl-key i{ display:inline-block; width:14px; height:8px; border-radius:3px; margin-right:.35rem; vertical-align:middle; }
+.tl-key i.dash{ border:1px dashed var(--text-mid); background:none; }
+.tl-key i.ong{ background:linear-gradient(90deg, rgba(34,197,94,.45), rgba(34,197,94,.15)); }
+.tl-card{ display:flex; align-items:flex-end; gap:1rem; flex-wrap:wrap; padding:.8rem 1rem; border-radius:var(--r-md);
+  border:1px solid var(--line); background:var(--surface); margin-bottom:1rem; }
+.tl-tipish{ display:flex; flex-direction:column; gap:.15rem; font-size:.86rem; flex:1 1 16rem; }
+.tl-form{ border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface); padding:.8rem 1rem; }
+.tl-form summary{ cursor:pointer; font-weight:700; }
+.tl-grid2{ display:grid; grid-template-columns:repeat(auto-fit, minmax(11rem, 1fr)); gap:.55rem .8rem; }
+.tl-grid2 label{ display:flex; flex-direction:column; gap:.25rem; font-size:.76rem; color:var(--text-low); }
+.tl-grid2 label.w2{ grid-column:span 2; }
+@media (max-width:560px){ .tl-grid2 label.w2{ grid-column:auto; } .tl-sum{ margin-left:0; flex-basis:100%; } }
+.tl-grid2 input, .tl-grid2 select{ background:rgba(0,0,0,.3); color:var(--text); border:1px solid var(--line); border-radius:8px;
+  padding:.45rem .55rem; font-family:var(--body); font-size:.86rem; color-scheme:dark; }
+.tl-chk{ display:flex; align-items:center; gap:.4rem; margin-top:.6rem; font-size:.84rem; color:var(--text-mid); }
+body.tl-on .depts, body.tl-on .sortbar, body.tl-on .boardwrap{ display:none !important; }
 </style>
 </head>
 <body>
@@ -228,7 +272,9 @@ footer{ margin-top:3rem; padding-top:1rem; display:flex; justify-content:space-b
     <div class="tabs2" role="group" aria-label="Which jobs">
       <button type="button" data-scope="live" aria-pressed="true">On the board<span class="ct" id="ctLive"></span></button>
       <button type="button" data-scope="archive" aria-pressed="false">History<span class="ct" id="ctArchive"></span></button>
+      <button type="button" id="tlTab" aria-pressed="false">Timeline</button>
     </div>
+    <div id="timeline" hidden></div>
     <div class="depts" id="depts"></div>
 
     <div class="sortbar">
@@ -570,7 +616,9 @@ function progressBlock(j){
   }
   if (j.service === 'recruiting' && j.status === 'active' && (j.isMine || data.canManage)){
     return '<div class="prog"><button class="btn" type="button" data-track="' + j.id + '" data-town="' +
-      esc(j.town || '') + '">' + (mayor ? 'Track new towns' : 'Track progress') + '</button></div>';
+      esc(j.town || '') + '">' + (mayor ? 'Track new towns' : 'Track progress') + '</button> ' +
+      '<button class="btn" type="button" data-handtrack="' + j.id + '" data-town="' + esc(j.town || '') + '" ' +
+      'title="Count only the names you enter — for jobs spread over several towns or several recruiters">Track by hand</button></div>';
   }
   return '';
 }
@@ -1088,6 +1136,15 @@ function renderDetailPanel(orderId){
    the name so the decision can be read and undone later. */
 function manualBlock(orderId, d){
   var added = d.manualAdded || [], removed = d.manualRemoved || [];
+  var modeHtml = '';
+  if (d.canAdjust && d.modeSettable){
+    var hand = d.mode === 'manual';
+    modeHtml = '<div class="mm-mode"><span class="k">Counting</span>' +
+      '<button type="button" class="' + (hand ? '' : 'on') + '" data-setmode="auto" data-id="' + orderId + '">Every join counts</button>' +
+      '<button type="button" class="' + (hand ? 'on' : '') + '" data-setmode="manual" data-id="' + orderId + '">By hand only</button>' +
+      '<span class="prog-names">' + (hand ? 'Only the names entered below count. Joins the tracker sees are listed above for reference.'
+        : 'Everyone who joins counts, corrected by the names below.') + '</span></div>';
+  }
   var who = function(x){ return esc(x.name) + '<span class="mm-by">' + esc([x.by, x.at ? when(x.at) : null].filter(Boolean).join(' · ')) +
     (x.note ? ' — ' + esc(x.note) : '') + '</span>'; };
   var out = '';
@@ -1097,6 +1154,7 @@ function manualBlock(orderId, d){
   if (removed.length) out += '<div style="margin-top:.5rem"><span class="k">Not counted · ' + removed.length + '</span>' +
     removed.map(function(x){ return '<div class="mm off">' + who(x) + (d.canAdjust ? '<button type="button" class="mm-x" data-undo="' +
       orderId + '" data-name="' + esc(x.name) + '">count again</button>' : '') + '</div>'; }).join('') + '</div>';
+  out = modeHtml + out;
   if (d.canAdjust){
     out += d.adjustable === false
       ? '<p class="prog-names" style="margin-top:.6rem;color:var(--gold)">Run migration 045 in the D1 console to correct recruits by hand.</p>'
@@ -1120,7 +1178,19 @@ async function manualChange(orderId, body){
   } catch (e){ if (msg){ msg.textContent = e.message; msg.style.color = 'var(--red)'; } }
 }
 
-document.addEventListener('click', function(e){
+document.addEventListener('click', async function(e){
+  var hm = e.target.closest && e.target.closest('[data-setmode],[data-handtrack]');
+  if (hm){
+    var oid = Number(hm.dataset.id || hm.dataset.handtrack);
+    try {
+      await api('/api/jobs/recruits', { method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ orderId: oid, mode: hm.dataset.setmode || 'manual', town: hm.dataset.town || '' }) });
+      if (hm.dataset.handtrack) openDetail = oid;
+      await load(true);
+      await loadDetail(oid);
+    } catch (err){ window.alert(err.message === 'migration_046' ? 'Run migrations 045 and 046 in the D1 console first.' : err.message); }
+    return;
+  }
   var b = e.target.closest && e.target.closest('[data-mm],[data-undo]');
   if (!b) return;
   if (b.dataset.undo){ manualChange(Number(b.dataset.undo), { undo: [b.dataset.name] }); return; }
@@ -1135,6 +1205,260 @@ document.addEventListener('click', function(e){
   body[b.dataset.mm] = [name.trim()];
   manualChange(id, body);
 });
+
+
+/* =========================================================================
+   THE TIMELINE
+
+   Every order on one line of time: placed to finished, coloured by service.
+   Ongoing orders run to today; orders recorded after the fact — the ones
+   done before any of this existed — are outlined dashed. Scroll or pinch to
+   zoom, drag to pan, point at a bar for its figures, click it to open it.
+   ========================================================================= */
+var TL = { on: false, data: null, from: 0, to: 0, sel: null, err: '' };
+var TL_COL = { recruiting: '#22c55e', mapart: '#fcd116', 'claim map': '#4d8dff', claimmap: '#4d8dff', media: '#f97316', bulk: '#a8a29e' };
+var DAYMS = 86400000;
+
+function tlEnd(o){
+  var t = Date.parse(o.finishedAt || o.paidAt || '');
+  if (o.status === 'cancelled') return isFinite(t) ? t : Date.parse(o.placedAt) + DAYMS;
+  return isFinite(t) ? t : Date.now();
+}
+function tlPreset(days){
+  var now = Date.now();
+  if (days === 'all' && TL.data && TL.data.orders.length){
+    TL.from = Date.parse(TL.data.orders[0].placedAt) - 3 * DAYMS; TL.to = now + 3 * DAYMS;
+  } else { TL.from = now - days * DAYMS; TL.to = now + Math.max(2, days / 20) * DAYMS; }
+}
+
+async function tlLoad(){
+  try { TL.data = await api('/api/jobs/timeline'); TL.err = ''; }
+  catch (e){ TL.err = e.message; }
+  if (!TL.from) tlPreset(90);
+  tlRender();
+}
+
+function tlRender(){
+  var host = $('timeline');
+  if (!host) return;
+  if (TL.err){ host.innerHTML = '<p class="empty">' + esc(TL.err) + '</p>'; return; }
+  if (!TL.data){ host.innerHTML = '<p class="empty">Loading the timeline…</p>'; return; }
+  var all = TL.data.orders;
+  var inView = all.filter(function(o){ return tlEnd(o) >= TL.from && Date.parse(o.placedAt) <= TL.to; });
+  var fin = inView.filter(function(o){ return o.status === 'done' || o.paidAt; }).length;
+  var going = inView.filter(function(o){ return o.status === 'queued' || o.status === 'active'; }).length;
+  var past = inView.filter(function(o){ return o.historic; }).length;
+  var html = '<div class="tl-bar">' +
+    [[30, '30 days'], [90, '90 days'], [365, 'Year'], ['all', 'Everything']].map(function(p){
+      return '<button type="button" class="btn" data-tlp="' + p[0] + '">' + p[1] + '</button>'; }).join('') +
+    '<span class="tl-sum"><b>' + inView.length + '</b> orders in view · <b>' + fin + '</b> finished · <b>' + going + '</b> ongoing' +
+      (past ? ' · <b>' + past + '</b> recorded after the fact' : '') + '</span></div>' +
+    '<div class="tl-wrap"><svg id="tlSvg" class="tl-svg"></svg><div class="tl-tip" id="tlTip" hidden></div></div>' +
+    '<div class="tl-key">' + Object.keys(TL_COL).filter(function(k){ return k !== 'claimmap'; }).map(function(k){
+      return '<span><i style="background:' + TL_COL[k] + '"></i>' + esc(k) + '</span>'; }).join('') +
+      '<span><i class="dash"></i>recorded after the fact</span><span><i class="ong"></i>still going</span></div>' +
+    '<div id="tlSel"></div>' + (TL.data.canManage ? tlFormHtml() : '');
+  host.innerHTML = html;
+  tlDraw();
+  host.querySelectorAll('[data-tlp]').forEach(function(b){
+    b.addEventListener('click', function(){ var v = b.dataset.tlp; tlPreset(v === 'all' ? 'all' : Number(v)); tlRender(); });
+  });
+  tlWireForm();
+  tlShowSel();
+}
+
+/* Bars packed into lanes: each order takes the first lane free by the time it starts. */
+function tlDraw(){
+  var svg = $('tlSvg');
+  if (!svg) return;
+  var W = svg.clientWidth || 800, top = 26, laneH = 18;
+  var span = TL.to - TL.from;
+  var X = function(t){ return (t - TL.from) / span * W; };
+  var orders = TL.data.orders.filter(function(o){ return tlEnd(o) >= TL.from && Date.parse(o.placedAt) <= TL.to; });
+  var lanes = [], placed = orders.map(function(o){
+    var a = Date.parse(o.placedAt), b = Math.max(tlEnd(o), a + DAYMS * 0.6);
+    var lane = 0;
+    while (lanes[lane] !== undefined && lanes[lane] > a) lane++;
+    lanes[lane] = b + DAYMS * 0.3;
+    return { o: o, a: a, b: b, lane: lane };
+  });
+  var H = top + Math.max(4, lanes.length) * laneH + 8;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.style.height = H + 'px';
+  /* the time axis: months when zoomed out, days when zoomed in */
+  var ticks = '', days = span / DAYMS;
+  var d0 = new Date(TL.from); d0.setUTCHours(0, 0, 0, 0);
+  if (days > 120){ d0.setUTCDate(1); }
+  for (var t = d0.getTime(); t <= TL.to; ){
+    var x = X(t);
+    if (x >= 0){
+      var dt = new Date(t);
+      ticks += '<line x1="' + x + '" x2="' + x + '" y1="18" y2="' + H + '" class="tl-grid"/>' +
+        '<text x="' + (x + 3) + '" y="12" class="tl-tick">' +
+        (days > 120 ? dt.toLocaleDateString('en-GB', { month:'short', year: dt.getUTCMonth() === 0 ? 'numeric' : undefined })
+          : dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short' })) + '</text>';
+    }
+    if (days > 120){ var n = new Date(t); n.setUTCMonth(n.getUTCMonth() + 1); t = n.getTime(); }
+    else t += (days > 40 ? 7 : days > 14 ? 2 : 1) * DAYMS;
+  }
+  var nowX = X(Date.now());
+  var bars = placed.map(function(p){
+    var o = p.o, x1 = Math.max(-5, X(p.a)), x2 = Math.min(W + 5, X(p.b)), y = top + p.lane * laneH;
+    var col = TL_COL[o.service] || '#a8a29e';
+    var going = o.status === 'queued' || o.status === 'active';
+    var cancelled = o.status === 'cancelled';
+    return '<g class="tl-o' + (TL.sel === o.id ? ' sel' : '') + '" data-o="' + o.id + '">' +
+      '<rect x="' + x1 + '" y="' + y + '" width="' + Math.max(3, x2 - x1) + '" height="' + (laneH - 5) + '" rx="4" ' +
+        'fill="' + (cancelled ? 'rgba(255,255,255,.08)' : col) + '" fill-opacity="' + (going ? .45 : cancelled ? 1 : .8) + '" ' +
+        'stroke="' + (cancelled ? 'rgba(255,255,255,.25)' : col) + '" stroke-dasharray="' + (o.historic ? '3 2' : '') + '"' +
+        (o.historic ? ' fill-opacity=".25"' : '') + '/>' +
+      (o.paidAt && !cancelled ? '<circle cx="' + X(Date.parse(o.paidAt)) + '" cy="' + (y + (laneH - 5) / 2) + '" r="2.4" fill="#fff"/>' : '') +
+      (x2 - x1 > 70 ? '<text x="' + (x1 + 5) + '" y="' + (y + laneH - 9) + '" class="tl-lbl">' + esc((o.title || o.service).slice(0, Math.floor((x2 - x1) / 6.5))) + '</text>' : '') +
+      '</g>';
+  }).join('');
+  svg.innerHTML = ticks + (nowX > 0 && nowX < W ? '<line x1="' + nowX + '" x2="' + nowX + '" y1="14" y2="' + H + '" class="tl-now"/>' +
+    '<text x="' + (nowX - 3) + '" y="12" class="tl-tick" text-anchor="end" style="fill:#fcd116">today</text>' : '') + bars;
+  tlWireSvg(svg, W);
+}
+
+var tlDrag = null;
+function tlWireSvg(svg, W){
+  var tip = $('tlTip');
+  var byId = {};
+  TL.data.orders.forEach(function(o){ byId[o.id] = o; });
+  svg.onmousemove = svg.onpointermove = function(e){
+    if (tlDrag){
+      var dx = e.clientX - tlDrag.x, span = tlDrag.to - tlDrag.from;
+      TL.from = tlDrag.from - dx / W * span; TL.to = tlDrag.to - dx / W * span;
+      tlDraw(); return;
+    }
+    var g = e.target.closest && e.target.closest('[data-o]');
+    if (!g){ tip.hidden = true; return; }
+    var o = byId[g.dataset.o], r = svg.getBoundingClientRect();
+    tip.innerHTML = tlTip(o);
+    tip.hidden = false;
+    var x = e.clientX - r.left;
+    tip.style.left = Math.max(0, Math.min(r.width - 230, x + 12)) + 'px';
+    tip.style.top = (e.clientY - r.top + 14) + 'px';
+  };
+  svg.onpointerleave = function(){ tip.hidden = true; };
+  svg.onpointerdown = function(e){
+    if (e.target.closest && e.target.closest('[data-o]')) return;
+    tlDrag = { x: e.clientX, from: TL.from, to: TL.to };
+    svg.setPointerCapture && svg.setPointerCapture(e.pointerId);
+  };
+  svg.onpointerup = function(){ tlDrag = null; };
+  svg.onwheel = function(e){
+    e.preventDefault();
+    var r = svg.getBoundingClientRect();
+    var at = TL.from + (e.clientX - r.left) / r.width * (TL.to - TL.from);
+    var k = e.deltaY > 0 ? 1.2 : 1 / 1.2;
+    var span = Math.max(3 * DAYMS, Math.min(3 * 365 * DAYMS, (TL.to - TL.from) * k));
+    var f = (at - TL.from) / (TL.to - TL.from);
+    TL.from = at - f * span; TL.to = TL.from + span;
+    tlDraw();
+  };
+  svg.onclick = function(e){
+    var g = e.target.closest && e.target.closest('[data-o]');
+    if (!g) return;
+    TL.sel = Number(g.dataset.o);
+    tlDraw(); tlShowSel();
+  };
+}
+
+function tlDate(v){ var t = Date.parse(v || ''); return isFinite(t) ? new Date(t).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—'; }
+function tlTip(o){
+  var a = Date.parse(o.placedAt), b = tlEnd(o);
+  var took = Math.max(0, Math.round((b - a) / DAYMS));
+  return '<b>' + esc(o.title || o.service) + '</b><span>#' + o.id + ' · ' + esc(o.service) + (o.variant ? ' · ' + esc(o.variant) : '') + '</span>' +
+    '<span>ordered ' + tlDate(o.placedAt) + '</span>' +
+    (o.finishedAt ? '<span>finished ' + tlDate(o.finishedAt) + ' · ' + took + ' day' + (took === 1 ? '' : 's') + '</span>'
+      : o.status === 'cancelled' ? '<span>cancelled</span>' : '<span>still going · ' + took + ' days so far</span>') +
+    '<span>' + gold(o.workerPay) + ' to ' + esc(o.worker || 'the worker') + '</span>' +
+    (o.progress != null ? '<span>' + o.progress + ' of ' + o.quantity + ' counted</span>' : '') +
+    (o.historic ? '<span class="h">recorded after the fact</span>' : '');
+}
+function tlShowSel(){
+  var box = $('tlSel');
+  if (!box) return;
+  var o = TL.sel && TL.data ? TL.data.orders.filter(function(x){ return x.id === TL.sel; })[0] : null;
+  if (!o){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="tl-card"><div class="tl-tipish">' + tlTip(o) + '</div>' +
+    (o.historic ? '' : '<button type="button" class="btn" id="tlOpen">Open it on the board</button>') + '</div>';
+  var b = $('tlOpen');
+  if (b) b.addEventListener('click', function(){
+    var archived = o.paidAt || o.status === 'cancelled';
+    tlShow(false);
+    var target = document.querySelector('[data-scope="' + (archived ? 'archive' : 'live') + '"]');
+    if (target) target.click();
+    var q = $('qFilter'); if (q){ q.value = '#' + o.id; q.dispatchEvent(new Event('input')); }
+  });
+}
+
+function tlFormHtml(){
+  var today = new Date().toISOString().slice(0, 10);
+  return '<details class="tl-form"><summary>Record a past order</summary>' +
+    '<p class="note" style="margin:.4rem 0 .7rem">For work done before the board existed. It goes on the timeline and into the economy history as finished and paid on the dates you give. Its fee is not added to today\u2019s company bank unless you tick the box.</p>' +
+    '<div class="tl-grid2">' +
+      '<label>Service<select id="hSvc"><option value="recruiting">Recruiting</option><option value="mapart">Mapart</option>' +
+        '<option value="claim map">Claim map</option><option value="media">Media</option><option value="bulk">Bulk</option></select></label>' +
+      '<label>Type (optional)<input id="hVar" placeholder="e.g. Priority, Mayor, 3x3"></label>' +
+      '<label class="w2">Title<input id="hTitle" placeholder="e.g. Recruit 20 for Gondar"></label>' +
+      '<label>Customer<input id="hCust" placeholder="who ordered it"></label>' +
+      '<label>Done by<input id="hWorker" placeholder="Minecraft name"></label>' +
+      '<label>How many<input id="hQty" type="number" min="1" value="1"></label>' +
+      '<label>Customer paid, each<input id="hPrice" type="number" min="0" value="0"></label>' +
+      '<label>Company kept, each<input id="hCut" type="number" min="0" value="0"></label>' +
+      '<label>Ordered on<input id="hFrom" type="date" max="' + today + '"></label>' +
+      '<label>Finished on<input id="hTo" type="date" max="' + today + '"></label>' +
+      '<label class="w2">Notes<input id="hNote" placeholder="anything worth keeping"></label>' +
+    '</div>' +
+    '<label class="tl-chk"><input type="checkbox" id="hBook"> Add its fee to today\u2019s company bank</label>' +
+    '<div style="margin-top:.6rem"><button type="button" class="btn btn-accent" id="hSave">Put it on the timeline</button> ' +
+    '<span class="note" id="hMsg"></span></div></details>';
+}
+function tlWireForm(){
+  var b = $('hSave');
+  if (!b) return;
+  b.addEventListener('click', async function(){
+    var v = function(id){ var el = $(id); return el ? el.value.trim() : ''; };
+    var msg = $('hMsg');
+    try {
+      var r = await api('/api/jobs/historic', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({
+        service: v('hSvc'), variant: v('hVar') || null, title: v('hTitle'), customer: v('hCust'), worker: v('hWorker'),
+        quantity: Number(v('hQty')) || 1, unitPrice: Number(v('hPrice')) || 0, unitCut: Number(v('hCut')) || 0,
+        placedAt: v('hFrom'), completedAt: v('hTo') || v('hFrom'), details: v('hNote'), bookFee: $('hBook').checked }) });
+      msg.textContent = 'Recorded as #' + r.id + '.'; msg.style.color = 'var(--green)';
+      TL.sel = r.id;
+      await tlLoad();
+    } catch (e){
+      msg.textContent = e.message === 'migration_046' ? 'Run migration 046 in the D1 console first.' : e.message;
+      msg.style.color = 'var(--red)';
+    }
+  });
+}
+
+function tlShow(on){
+  TL.on = on;
+  var tab = $('tlTab'); if (tab) tab.setAttribute('aria-pressed', String(on));
+  /* A page-level class, so the board refreshing itself cannot show its
+     filters and list again underneath the timeline. */
+  document.body.classList.toggle('tl-on', on);
+  ['depts'].forEach(function(id){ var el = $(id); if (el) el.hidden = on; });
+  var sb = document.querySelector('.sortbar'), bw = document.querySelector('.boardwrap');
+  if (sb) sb.hidden = on; if (bw) bw.hidden = on;
+  $('timeline').hidden = !on;
+  if (on){
+    document.querySelectorAll('[data-scope]').forEach(function(b){ b.setAttribute('aria-pressed', 'false'); });
+    tlLoad();
+  }
+}
+document.addEventListener('click', function(e){
+  if (e.target.closest && e.target.closest('#tlTab')){ tlShow(!TL.on); return; }
+  var sc = e.target.closest && e.target.closest('[data-scope]');
+  if (sc && TL.on){ tlShow(false); sc.setAttribute('aria-pressed', 'true'); renderBoard(); }
+});
+window.addEventListener('resize', function(){ if (TL.on && TL.data) tlDraw(); });
 
 async function loadDetail(orderId){
   try { var d = await api('/api/jobs/detail?orderId=' + orderId); d.canSetBaseline = !!(bank && bank.canAdjustBank); detailCache[orderId] = d; }

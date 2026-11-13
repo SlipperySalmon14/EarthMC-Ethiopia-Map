@@ -2103,7 +2103,11 @@ let showCounties = false;    // counties inside each region — their own view, 
    reads these — declared further down, they did not exist yet at that moment,
    and the whole page stopped with "Cannot access 'irlState' before
    initialization". */
-const IRL_DEFAULT = { proj: 'miller', xW: -33280, xE: 33080, eqZ: 0, ys: 1 };
+/* Terra Nostra: ±64512 east to west. It has no Antarctica, so the south edge
+   stops in the Southern Ocean and the equator sits south of the map's centre;
+   these assume the top edge is about 84°N. Lining up two landmarks fixes any
+   error in that. */
+const IRL_DEFAULT = { proj: 'miller', xW: -64512, xE: 64512, eqZ: 8843, ys: 1 };
 const irlState = {
   on: false, detail: '110m', labels: false, loading: false, error: '',
   raw: null,             // [{ name, polys: [[ring lon/lat, ...holes], ...] }]
@@ -2112,7 +2116,7 @@ const irlState = {
   pins: [], pinning: false,
   ranking: null,
 };
-try { const saved = JSON.parse(localStorage.getItem('irl-calib') || 'null'); if (saved) irlState.calib = Object.assign({}, IRL_DEFAULT, saved); }
+try { const saved = JSON.parse(localStorage.getItem('irl-calib-nostra') || 'null'); if (saved) irlState.calib = Object.assign({}, IRL_DEFAULT, saved); }
 catch (_e) { /* no local copy */ }
 
 const countyState = {
@@ -10336,6 +10340,27 @@ function irlToMc(lon, lat, c){
 }
 /* Two places whose real coordinates are known fix the whole alignment: the
    longitudes give the horizontal scale and offset, the latitudes the vertical. */
+/* Any number of places, fitted together: longitude to X and the projected
+   latitude to Z, each a straight line. Two places fix it; more average out
+   imprecise clicks. Also returns how far off, in blocks, the places still sit. */
+function irlFit(pins, proj){
+  if (pins.length < 2) return null;
+  const line = (xs, ys0) => {
+    const n = xs.length, mx = xs.reduce((a, b) => a + b, 0) / n, my = ys0.reduce((a, b) => a + b, 0) / n;
+    let sxx = 0, sxy = 0;
+    for (let i = 0; i < n; i++){ sxx += (xs[i] - mx) ** 2; sxy += (xs[i] - mx) * (ys0[i] - my); }
+    if (sxx < 1e-9) return null;
+    const b = sxy / sxx; return { a: my - b * mx, b };
+  };
+  const fx = line(pins.map(p => p.lon), pins.map(p => p.x));
+  const fz = line(pins.map(p => irlY(p.lat, proj)), pins.map(p => p.z));
+  if (!fx || !fz || Math.abs(fx.b) < 1e-6) return null;
+  const xW = fx.a - 180 * fx.b, xE = fx.a + 180 * fx.b;
+  const k = (xE - xW) / (2 * Math.PI);
+  const calib = { proj, xW, xE, eqZ: fz.a, ys: -fz.b / k };
+  const err = pins.reduce((a, p) => { const [x, z] = irlToMc(p.lon, p.lat, calib); return a + Math.hypot(x - p.x, z - p.z); }, 0) / pins.length;
+  return Object.assign(calib, { err });
+}
 function irlSolve(p1, p2, proj){
   if (Math.abs(p1.lon - p2.lon) < 1 || Math.abs(p1.lat - p2.lat) < 1) return null;
   const b = (p1.x - p2.x) / (p1.lon - p2.lon), a = p1.x - b * p1.lon;
@@ -10382,7 +10407,7 @@ async function irlLoad(){
     irlSetCountries(feats.map(f => ({
       name: (f.properties && f.properties.name) || 'Unnamed',
       polys: f.geometry ? (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates) : [],
-    })).filter(c => c.polys.length));
+    })));
     auditLog.log(`Real-world borders loaded: ${irlState.raw.length} countries`, 'success');
   } catch (err){
     irlState.error = err.message;
@@ -10391,7 +10416,18 @@ async function irlLoad(){
     irlState.loading = false; renderIrlPanel();
   }
 }
+/* Terra Nostra has no Antarctica, so it is left out. A country crossing the
+   date line (Russia, Fiji) comes in pieces whose outlines jump from one edge
+   of the world to the other; each such ring is unwrapped so it runs on past
+   the east edge instead of straight across the map. */
 function irlSetCountries(list){
+  const unwrap = (ring) => {
+    let crosses = false;
+    for (let i = 1; i < ring.length; i++) if (Math.abs(ring[i][0] - ring[i - 1][0]) > 180){ crosses = true; break; }
+    return crosses ? ring.map(([lon, lat]) => [lon < 0 ? lon + 360 : lon, lat]) : ring;
+  };
+  list = list.filter(c => c.polys.length && !/antarctic/i.test(c.name))
+    .map(c => ({ name: c.name, polys: c.polys.map(poly => poly.map(unwrap)) }));
   irlState.raw = list;
   irlProject();
   renderIrl();
@@ -10476,34 +10512,56 @@ async function irlRank(){
 }
 
 function irlSaveCalib(){
-  try { localStorage.setItem('irl-calib', JSON.stringify(irlState.calib)); } catch (_e) {}
+  try { localStorage.setItem('irl-calib-nostra', JSON.stringify(irlState.calib)); } catch (_e) {}
   irlProject(); renderIrl();
   if (state.adminMode) scheduleSave();
 }
 
-/* Pinning: click a place on the map, then type where it is on Earth. */
+/* Lining up: pick a landmark, click where it is on the map. Sharp coastal
+   points are easy to find on the terrain and their real positions are known,
+   so nothing has to be typed. Two fix the alignment; each extra one refines it. */
+const IRL_LANDMARKS = [
+  ['Cape Agulhas — southern tip of Africa', -34.83, 20.00],
+  ['Strait of Gibraltar', 35.95, -5.60],
+  ['Cape Horn — southern tip of South America', -55.98, -67.27],
+  ['Cape Guardafui — tip of the Horn of Africa', 11.82, 51.28],
+  ['Kanyakumari — southern tip of India', 8.08, 77.55],
+  ['Key West — southern tip of Florida', 24.55, -81.78],
+  ['North Cape — top of Norway', 71.17, 25.78],
+  ['Cape York — top of Australia', -10.69, 142.53],
+  ['South East Cape — bottom of Tasmania', -43.64, 146.83],
+  ['Suez — Port Said', 31.26, 32.30],
+  ['Strait of Hormuz', 26.57, 56.25],
+  ['Panama Canal', 9.08, -79.68],
+  ['Cape Lopatka — tip of Kamchatka', 50.87, 156.67],
+  ['Singapore Strait', 1.29, 103.85],
+  ['Dakar — westernmost Africa', 14.72, -17.47],
+];
 function irlStartPin(){
   irlState.pinning = true; irlState.pins = [];
-  auditLog.log('Click a place you know on the map — a capital, a cape, a river mouth', 'info');
+  auditLog.log('Pick a landmark, then click exactly where it is on the map', 'info');
   renderIrlPanel();
 }
 function irlTakePin(latlng){
   const x = latlng.lng, z = -latlng.lat;
-  const ans = window.prompt(`Where is this on Earth? (X ${Math.round(x)}, Z ${Math.round(z)})\nLatitude, longitude — e.g. 9.03, 38.74 for Addis Ababa`);
-  if (!ans) { irlState.pinning = false; renderIrlPanel(); return; }
-  const m = ans.split(/[ ,;]+/).map(Number).filter(v => Number.isFinite(v));
-  if (m.length < 2 || Math.abs(m[0]) > 90 || Math.abs(m[1]) > 180){ window.alert('That needs a latitude and a longitude, like 9.03, 38.74'); return; }
-  irlState.pins.push({ x, z, lat: m[0], lon: m[1] });
-  if (irlState.pins.length < 2){
-    auditLog.log('Now click a second place, far from the first — another continent is best', 'info');
-    renderIrlPanel(); return;
-  }
-  const sol = irlSolve(irlState.pins[0], irlState.pins[1], irlState.calib.proj);
-  irlState.pinning = false;
-  if (!sol){ window.alert('The two places need to differ in both latitude and longitude. Try two further apart.'); renderIrlPanel(); return; }
-  irlState.calib = sol;
-  auditLog.log('Real-world borders aligned to your two places', 'success');
-  irlSaveCalib(); renderIrlPanel();
+  const lm = IRL_LANDMARKS[irlState.landmark | 0];
+  if (!lm) return;
+  irlState.pins = irlState.pins.filter(p => p.name !== lm[0]);     // re-clicking a landmark moves it
+  irlState.pins.push({ x, z, lat: lm[1], lon: lm[2], name: lm[0] });
+  /* Next unused landmark, ready for the next click. */
+  const used = new Set(irlState.pins.map(p => p.name));
+  const next = IRL_LANDMARKS.findIndex(l => !used.has(l[0]));
+  if (next >= 0) irlState.landmark = next;
+  if (irlState.pins.length >= 2){
+    const sol = irlFit(irlState.pins, irlState.calib.proj);
+    if (sol){
+      irlState.calib = { proj: sol.proj, xW: sol.xW, xE: sol.xE, eqZ: sol.eqZ, ys: sol.ys };
+      irlState.fitErr = sol.err;
+      irlSaveCalib();
+      auditLog.log(`Aligned to ${irlState.pins.length} landmarks — about ${Math.round(sol.err)} blocks off on average`, 'success');
+    }
+  } else auditLog.log(`${lm[0]} placed — now a second landmark, far from the first`, 'info');
+  renderIrlPanel();
 }
 
 function irlCalibFeature(){
@@ -10525,10 +10583,16 @@ function renderIrlPanel(){
   if (irlState.error) h += `<div class="eth-alert">${escapeHtml(irlState.error)}</div>`;
   h += `<p class="hint">Click any country on the map to see how much of it is claimed, and by whom.</p>
     <details class="irl-cal"><summary>Alignment</summary>
-      <p class="hint">Assumes a Miller projection with the world border as its edges. If the borders sit off, pin two places you know — the overlay lines itself up from them.</p>
-      <div class="hw-route-controls"><button type="button" class="btn btn-primary btn-small" id="irlPin">${irlState.pinning
-        ? `Click place ${irlState.pins.length + 1} of 2 on the map…` : 'Align with two places'}</button>
+      <p class="hint">Starts from a Miller projection fitted to Terra Nostra's edges. If the borders sit off, line them up with landmarks — two fix it, more make it exact.</p>
+      <div class="hw-route-controls"><button type="button" class="btn ${irlState.pinning ? 'btn-accent' : 'btn-primary'} btn-small" id="irlPin">${irlState.pinning
+        ? 'Done lining up' : 'Line up with landmarks'}</button>
         <button type="button" class="btn btn-ghost btn-small" id="irlReset">Reset</button></div>
+      ${irlState.pinning ? `<label class="irl-f" style="margin-top:.5rem"><span>Next landmark — click exactly where it is on the map</span>
+        <select id="irlLandmark">${IRL_LANDMARKS.map((l, i) => `<option value="${i}"${(irlState.landmark | 0) === i ? ' selected' : ''}>${
+          irlState.pins.some(p => p.name === l[0]) ? '✓ ' : ''}${escapeHtml(l[0])}</option>`).join('')}</select></label>
+        <p class="hint">${irlState.pins.length} placed${irlState.pins.length >= 2 && irlState.fitErr != null
+          ? ` — about ${Math.round(irlState.fitErr)} blocks off on average. More landmarks, spread over the map, make it more exact.`
+          : irlState.pins.length ? ' — place one more, far from the first.' : '. Pick ones far apart: different continents, north and south.'}</p>` : ''}
       <div class="irl-grid">
         <label class="irl-f"><span>Projection</span><select id="irlProj">
           ${[['miller', 'Miller'], ['equirect', 'Equirectangular'], ['mercator', 'Mercator']].map(([k, l]) =>
@@ -10553,7 +10617,12 @@ function renderIrlPanel(){
   on('irlToggle', 'click', () => { setShowIrl(!irlState.on); });
   on('irlDetail', 'change', (e) => { irlState.detail = e.target.value; irlState.raw = null; if (irlState.on) irlLoad(); });
   on('irlLabels', 'change', (e) => { irlState.labels = e.target.checked; renderIrl(); });
-  on('irlPin', 'click', () => { if (!irlState.on) setShowIrl(true); irlStartPin(); });
+  on('irlPin', 'click', () => {
+    if (irlState.pinning){ irlState.pinning = false; renderIrlPanel(); return; }
+    if (!irlState.on) setShowIrl(true);
+    irlStartPin();
+  });
+  on('irlLandmark', 'change', (e) => { irlState.landmark = Number(e.target.value) || 0; });
   on('irlReset', 'click', () => { irlState.calib = Object.assign({}, IRL_DEFAULT); irlSaveCalib(); renderIrlPanel(); });
   on('irlProj', 'change', (e) => { irlState.calib.proj = e.target.value; irlSaveCalib(); });
   [['irlXW', 'xW'], ['irlXE', 'xE'], ['irlEq', 'eqZ'], ['irlYs', 'ys']].forEach(([id, k]) => on(id, 'change', (e) => {

@@ -2097,6 +2097,32 @@ let showRegions = true;      // region polygons layer (Ethiopia view only)
 let showHighways = true;     // ice highway lines + stations
 let showNationClaims = true; // admin-drawn nation border areas
 let showCounties = false;    // counties inside each region — their own view, off until asked for
+
+/* State for the real-world borders and the counties, declared up here with
+   the other layer switches. The layer list is built when the map is, and it
+   reads these — declared further down, they did not exist yet at that moment,
+   and the whole page stopped with "Cannot access 'irlState' before
+   initialization". */
+const IRL_DEFAULT = { proj: 'miller', xW: -33280, xE: 33080, eqZ: 0, ys: 1 };
+const irlState = {
+  on: false, detail: '110m', labels: false, loading: false, error: '',
+  raw: null,             // [{ name, polys: [[ring lon/lat, ...holes], ...] }]
+  countries: [],         // projected: { name, rings, shape, chunks }
+  calib: Object.assign({}, IRL_DEFAULT),
+  pins: [], pinning: false,
+  ranking: null,
+};
+try { const saved = JSON.parse(localStorage.getItem('irl-calib') || 'null'); if (saved) irlState.calib = Object.assign({}, IRL_DEFAULT, saved); }
+catch (_e) { /* no local copy */ }
+
+const countyState = {
+  counties: new Map(),     // id -> { id, name, region, fillColor, geometry, stats }
+  nextId: 1,
+  drawArmed: false,
+  pendingRegion: '',
+  pendingName: '',
+  editing: null,           // { id, layer }
+};
 /* Which world the map shows. Not a layer toggle — the two worlds share a
    coordinate plane, so they can never both be drawn without one lying on top
    of the other. */
@@ -10296,17 +10322,6 @@ function ncLoadFromFeatures(features){
    Borders come from Natural Earth via the world-atlas package, loaded only
    when the layer is switched on.
    ========================================================================= */
-const IRL_DEFAULT = { proj: 'miller', xW: -33280, xE: 33080, eqZ: 0, ys: 1 };
-const irlState = {
-  on: false, detail: '110m', labels: false, loading: false, error: '',
-  raw: null,             // [{ name, polys: [[ring lon/lat, ...holes], ...] }]
-  countries: [],         // projected: { name, rings, shape, chunks }
-  calib: Object.assign({}, IRL_DEFAULT),
-  pins: [], pinning: false,
-  ranking: null,
-};
-try { const saved = JSON.parse(localStorage.getItem('irl-calib') || 'null'); if (saved) irlState.calib = Object.assign({}, IRL_DEFAULT, saved); }
-catch (_e) { /* no local copy */ }
 
 function irlY(lat, proj){
   const f = Math.max(-85, Math.min(85, lat)) * Math.PI / 180;
@@ -10567,14 +10582,6 @@ function setShowIrl(v){
    county is shown as the region's "not in a county", so a region's counties
    always add up to the region.
    ========================================================================= */
-const countyState = {
-  counties: new Map(),     // id -> { id, name, region, fillColor, geometry, stats }
-  nextId: 1,
-  drawArmed: false,
-  pendingRegion: '',
-  pendingName: '',
-  editing: null,           // { id, layer }
-};
 function countyNextId(){ return 'county-' + (countyState.nextId++); }
 function countiesOf(regionName){
   return [...countyState.counties.values()].filter(c => c.region === regionName)

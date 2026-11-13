@@ -1447,6 +1447,28 @@ body:not(.planner) .planner-only{ display:none !important; }
 .irl-rr b{ font-family:var(--font-mono); color:var(--brass-hi); }
 .irl-rr em{ grid-column:1 / -1; font-style:normal; font-size:.74rem; color:var(--muted); }
 #panel-irl{ --c:var(--blue); }
+
+.irl-rk-tools{ display:grid; grid-template-columns:1fr auto; gap:.4rem; margin-top:.7rem; }
+.irl-rk-tools input, .irl-rk-tools select{ width:100%; }
+.irl-conts{ display:flex; flex-wrap:wrap; gap:.25rem; margin:.5rem 0 .3rem; }
+.irl-conts button{ font-family:var(--font-body); font-size:.74rem; font-weight:600; padding:.25rem .6rem; border-radius:999px;
+  border:1px solid var(--line); background:none; color:var(--muted); cursor:pointer; }
+.irl-conts button.on{ background:var(--blue); border-color:var(--blue); color:#fff; }
+.irl-rank{ max-height:28rem; }
+button.irl-rr{ display:grid; grid-template-columns:1.6rem 1fr auto; grid-template-areas:"n nm p" "n bar bar" "n d d";
+  gap:.2rem .5rem; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line);
+  padding:.5rem .1rem; color:var(--parchment); font-family:var(--font-body); cursor:pointer; }
+button.irl-rr:hover{ background:rgba(255,255,255,.03); }
+.irl-n{ grid-area:n; font-family:var(--font-mono); font-size:.72rem; color:var(--muted); padding-top:.15rem; }
+.irl-nm{ grid-area:nm; display:flex; align-items:baseline; gap:.4rem; min-width:0; }
+.irl-nm b{ font-size:.86rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.irl-nm em{ font-style:normal; font-size:.7rem; color:var(--muted); white-space:nowrap; }
+.irl-p{ grid-area:p; font-family:var(--font-mono); font-size:.86rem; color:var(--brass-hi); }
+.irl-bar{ grid-area:bar; position:relative; height:.35rem; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; }
+.irl-bar i{ position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:rgba(226,232,240,.55); }
+.irl-bar i.eth{ background:var(--sage); }
+.irl-d{ grid-area:d; font-size:.72rem; color:var(--muted); }
+.irl-d .ok{ color:var(--sage-hi); }
 </style>
 </head>
 <body>
@@ -2107,7 +2129,7 @@ let showCounties = false;    // counties inside each region — their own view, 
    stops in the Southern Ocean and the equator sits south of the map's centre;
    these assume the top edge is about 84°N. Lining up two landmarks fixes any
    error in that. */
-const IRL_DEFAULT = { proj: 'miller', xW: -64512, xE: 64512, eqZ: 8843, ys: 1 };
+const IRL_DEFAULT = { proj: 'miller', xW: -64512, xE: 64512, eqZ: 8000, ys: 1 };
 const irlState = {
   on: false, detail: '110m', labels: false, loading: false, error: '',
   raw: null,             // [{ name, polys: [[ring lon/lat, ...holes], ...] }]
@@ -10371,6 +10393,30 @@ function irlSolve(p1, p2, proj){
   return { proj, xW, xE, eqZ: p1.z + y1 * K, ys: K / k };
 }
 
+/* Which continent a country is on, from the centre of its largest landmass —
+   so France's overseas departments do not move it to South America. A
+   geographic rule rather than a political one, so Russia (centred in
+   Siberia) is Asia and Turkey is Asia; borderline cases are rare. */
+function irlContinent(c){
+  let best = null, bestA = -1;
+  c.polys.forEach(poly => {
+    const r = poly[0] || [];
+    let a = 0;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] + r[i][0]) * (r[j][1] - r[i][1]);
+    if (Math.abs(a) > bestA){ bestA = Math.abs(a); best = r; }
+  });
+  if (!best || !best.length) return 'Other';
+  let lon = 0, lat = 0;
+  best.forEach(([x, y]) => { lon += x > 180 ? x - 360 : x; lat += y; });
+  lon /= best.length; lat /= best.length;
+  if ((lat < -10 && lon > 110) || (lat < 0 && lon > 140) || lon > 160 || lon < -140) return 'Oceania';
+  if (lat < 12.5 && lon < -34 && lon > -82 && !(lat > 7 && lon < -77)) return 'South America';
+  if (lon < -25) return 'North America';
+  if (lat > 35 && lon < 45 && !(lat < 42 && lon > 26)) return 'Europe';
+  if (lat < 37 && lon > -20 && lon < 52 && !(lat > 12 && lon > 34)) return 'Africa';
+  return 'Asia';
+}
+
 function irlProject(){
   if (!irlState.raw) return;
   irlState.countries = irlState.raw.map(c => {
@@ -10383,7 +10429,7 @@ function irlProject(){
       for (let j = 0, k = ring.length - 1; j < ring.length; k = j++) a += (ring[k][0] + ring[j][0]) * (ring[k][1] - ring[j][1]);
       area += (i === 0 ? 1 : -1) * Math.abs(a / 2);
     }));
-    return { name: c.name, rings, shape, chunks: Math.max(0, Math.round(area / 256)) };
+    return { name: c.name, rings, shape, chunks: Math.max(0, Math.round(area / 256)), continent: irlContinent(c) };
   });
   irlState.ranking = null;
 }
@@ -10475,8 +10521,13 @@ function irlControl(c){
     const k = t.nationName || '(no nation)';
     by.set(k, (by.get(k) || 0) + n);
   });
-  return { claimed, area: c.chunks, by: [...by.entries()].sort((a, b) => b[1] - a[1]) };
+  /* Area comes from the outline and claims from chunk centres; on a place only
+     a few chunks across the two disagree, so the area is never taken as
+     smaller than what is claimed in it. */
+  return { claimed, area: Math.max(c.chunks, claimed), tiny: c.chunks < IRL_TINY,
+    by: [...by.entries()].sort((a, b) => b[1] - a[1]) };
 }
+const IRL_TINY = 25;     // chunks: below this a share means little
 
 function irlPopupHtml(c){
   const r = irlControl(c);
@@ -10485,7 +10536,8 @@ function irlPopupHtml(c){
   const eth = r.by.find(([n]) => n === HOME_NATION);
   const allLoaded = worldCache.enabled && worldCache.towns.length;
   return `<div class="mc-popup irl-pop"><h4>${escapeHtml(c.name)}</h4>
-    <p class="irl-sum"><b>${fmtPct(pct(r.claimed))}</b> of its land is claimed · about ${CoordUtils.fmt(r.area)} chunks in all</p>
+    <p class="irl-sum">${escapeHtml(c.continent || '')} · <b>${fmtPct(pct(r.claimed))}</b> of its land is claimed · about ${CoordUtils.fmt(r.area)} chunks in all</p>
+    ${r.tiny ? '<p class="irl-note">Too small for the share to mean much — a few chunks either way changes it a lot.</p>' : ''}
     ${r.by.slice(0, 7).map(([n, v]) => `<div class="irl-row${n === HOME_NATION ? ' eth' : ''}"><span>${escapeHtml(n)}</span>
       <i style="width:${Math.max(2, Math.min(100, v / Math.max(1, r.by[0][1]) * 100))}%"></i><b>${fmtPct(pct(v))}</b></div>`).join('')}
     ${r.by.length > 7 ? `<p class="irl-note">and ${r.by.length - 7} more</p>` : ''}
@@ -10503,11 +10555,13 @@ async function irlRank(){
   for (let i = 0; i < irlState.countries.length; i++){
     const c = irlState.countries[i];
     const r = irlControl(c);
-    if (r.claimed) out.push({ name: c.name, area: r.area, claimed: r.claimed,
-      eth: (r.by.find(([n]) => n === HOME_NATION) || [null, 0])[1], top: r.by[0] ? r.by[0][0] : null });
+    out.push({ i, name: c.name, continent: c.continent, area: r.area, claimed: r.claimed, tiny: r.tiny,
+      pct: r.area ? Math.min(100, r.claimed / r.area * 100) : 0,
+      eth: (r.by.find(([n]) => n === HOME_NATION) || [null, 0])[1],
+      top: r.by[0] ? r.by[0][0] : null, topN: r.by[0] ? r.by[0][1] : 0, nations: r.by.length });
     if (i % 20 === 19) await new Promise(res => setTimeout(res, 0));     // keep the page responsive
   }
-  irlState.ranking = out.sort((a, b) => b.claimed / Math.max(1, b.area) - a.claimed / Math.max(1, a.area));
+  irlState.ranking = out;
   renderIrlPanel();
 }
 
@@ -10606,10 +10660,15 @@ function renderIrlPanel(){
     h += `<div class="hw-route-controls" style="margin-top:.5rem"><button type="button" class="btn btn-primary btn-small" id="irlRankBtn">
       ${irlState.ranking === 'working' ? 'Counting…' : 'Rank countries by how much is claimed'}</button></div>`;
     if (Array.isArray(irlState.ranking)){
-      h += irlState.ranking.length ? '<div class="irl-rank">' + irlState.ranking.slice(0, 25).map(r =>
-        `<div class="irl-rr"><span>${escapeHtml(r.name)}</span><b>${(r.claimed / Math.max(1, r.area) * 100).toFixed(1)}%</b>` +
-        `<em>${r.eth ? escapeHtml(HOME_NATION) + ' ' + (r.eth / Math.max(1, r.area) * 100).toFixed(1) + '%' : 'most: ' + escapeHtml(r.top || '—')}</em></div>`).join('') + '</div>'
-        : '<p class="hint">No country has any claimed land among the towns loaded.</p>';
+      const conts = ['All', 'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania'];
+      h += `<div class="irl-rk-tools">
+          <input type="search" id="irlRq" placeholder="Find a country" value="${escapeHtml(irlState.rq || '')}" autocomplete="off">
+          <select id="irlRs" aria-label="Order">${[['pct', 'Most claimed (share)'], ['claimed', 'Most claimed (chunks)'],
+            ['eth', 'Most held by ' + HOME_NATION], ['area', 'Largest'], ['name', 'By name']].map(([k, l]) =>
+            `<option value="${k}"${(irlState.rs || 'pct') === k ? ' selected' : ''}>${escapeHtml(l)}</option>`).join('')}</select></div>
+        <div class="irl-conts">${conts.map(c => `<button type="button" data-cont="${c}" class="${(irlState.rc || 'All') === c ? 'on' : ''}">${c}</button>`).join('')}</div>
+        <label class="irl-chk" style="margin:.2rem 0 .4rem"><input type="checkbox" id="irlSmall"${irlState.small ? ' checked' : ''}> include places under ${IRL_TINY} chunks</label>
+        <div id="irlRankList"></div>`;
     }
   }
   host.innerHTML = h;
@@ -10629,6 +10688,47 @@ function renderIrlPanel(){
     const v = Number(e.target.value); if (Number.isFinite(v)){ irlState.calib[k] = v; irlSaveCalib(); }
   }));
   on('irlRankBtn', 'click', irlRank);
+  on('irlRq', 'input', (e) => { irlState.rq = e.target.value; renderIrlRankList(); });
+  on('irlRs', 'change', (e) => { irlState.rs = e.target.value; renderIrlRankList(); });
+  on('irlSmall', 'change', (e) => { irlState.small = e.target.checked; renderIrlRankList(); });
+  host.querySelectorAll('[data-cont]').forEach(b => b.addEventListener('click', () => {
+    irlState.rc = b.dataset.cont;
+    host.querySelectorAll('[data-cont]').forEach(x => x.classList.toggle('on', x === b));
+    renderIrlRankList();
+  }));
+  renderIrlRankList();
+}
+
+/* The list itself, redrawn on its own so typing in the search keeps focus. */
+function renderIrlRankList(){
+  const box = document.getElementById('irlRankList');
+  if (!box || !Array.isArray(irlState.ranking)) return;
+  const q = (irlState.rq || '').trim().toLowerCase(), cont = irlState.rc || 'All', sort = irlState.rs || 'pct';
+  let rows = irlState.ranking.filter(r => (cont === 'All' || r.continent === cont) &&
+    (!q || r.name.toLowerCase().includes(q)) && (irlState.small || q || !r.tiny));
+  const key = { pct: r => r.pct, claimed: r => r.claimed, eth: r => r.eth, area: r => r.area };
+  rows = rows.sort(sort === 'name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => key[sort](b) - key[sort](a) || a.name.localeCompare(b.name));
+  const total = rows.length;
+  const claimedIn = rows.filter(r => r.claimed).length;
+  const p = (n, d) => d ? (n / d * 100 >= 10 ? (n / d * 100).toFixed(0) : (n / d * 100).toFixed(1)) + '%' : '0%';
+  box.innerHTML = `<p class="hint" style="margin:.2rem 0 .4rem">${total} ${total === 1 ? 'country' : 'countries'}${cont !== 'All' ? ' in ' + escapeHtml(cont) : ''} · ${claimedIn} with land claimed</p>` +
+    (rows.length ? '<div class="irl-rank">' + rows.slice(0, 120).map((r, n) => `<button type="button" class="irl-rr" data-ci="${r.i}">
+      <span class="irl-n">${n + 1}</span>
+      <span class="irl-nm"><b>${escapeHtml(r.name)}</b><em>${escapeHtml(r.continent)}${r.tiny ? ' · tiny' : ''}</em></span>
+      <span class="irl-p">${p(r.claimed, r.area)}</span>
+      <span class="irl-bar"><i style="width:${Math.min(100, r.pct)}%"></i>${r.eth ? `<i class="eth" style="width:${Math.min(100, r.eth / r.area * 100)}%"></i>` : ''}</span>
+      <span class="irl-d">${CoordUtils.fmt(r.claimed)} of ${CoordUtils.fmt(r.area)} chunks${r.top ? ' · most: ' + escapeHtml(r.top) + ' ' + p(r.topN, r.area) : ''}${
+        r.eth ? ' · <span class="ok">' + escapeHtml(HOME_NATION) + ' ' + p(r.eth, r.area) + '</span>' : ''}${r.nations > 1 ? ' · ' + r.nations + ' nations' : ''}</span>
+    </button>`).join('') + '</div>' + (rows.length > 120 ? `<p class="hint">Showing the first 120 — search or pick a continent to narrow it.</p>` : '')
+    : '<p class="hint">Nothing matches.</p>');
+  box.querySelectorAll('[data-ci]').forEach(el => el.addEventListener('click', () => {
+    const c = irlState.countries[Number(el.dataset.ci)];
+    if (!c || !c.shape) return;
+    const sh = c.shape;
+    const bounds = L.latLngBounds([L.latLng(sh.minY, sh.minX), L.latLng(sh.maxY, sh.maxX)]);
+    mapController.map.fitBounds(bounds.pad(0.15));
+    L.popup({ maxWidth: 320 }).setLatLng(bounds.getCenter()).setContent(irlPopupHtml(c)).openOn(mapController.map);
+  }));
 }
 
 function setShowIrl(v){

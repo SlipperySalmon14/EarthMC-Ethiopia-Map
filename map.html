@@ -1469,6 +1469,17 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
 .irl-bar i.eth{ background:var(--sage); }
 .irl-d{ grid-area:d; font-size:.72rem; color:var(--muted); }
 .irl-d .ok{ color:var(--sage-hi); }
+.leaflet-tooltip.irl-label .irl-share{ display:block; font-size:10px; font-weight:700; color:#fde68a; text-transform:none; letter-spacing:0; }
+
+/* --- planned new towns ----------------------------------------------------- */
+.nt-box{ margin-top:.8rem; padding:.7rem .8rem; border-radius:11px; border:1px dashed rgba(252,209,22,.4); background:rgba(252,209,22,.04); }
+.nt-box summary{ cursor:pointer; font-weight:700; font-size:.88rem; }
+.nt-grid{ display:grid; grid-template-columns:1fr 1fr; gap:.45rem .6rem; margin-top:.6rem; }
+.nt-grid label{ display:flex; flex-direction:column; gap:.2rem; font-size:.74rem; color:var(--muted); }
+.nt-grid input{ width:100%; }
+.nt-label{ transform:translate(-50%,-120%); white-space:nowrap; font-family:var(--font-body); font-weight:700; font-size:12px;
+  color:#fde68a; text-shadow:0 0 4px #000, 0 0 4px #000; text-align:center; pointer-events:none; }
+.nt-label span{ display:block; font-size:10px; font-weight:600; color:#e2e8f0; }
 </style>
 </head>
 <body>
@@ -2923,6 +2934,101 @@ function expOpenTown(town){
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
 }
 
+
+/* =========================================================================
+   PLANNING A NEW TOWN
+
+   A town that does not exist yet: a name, a mayor, how many residents it
+   starts with, its nation, and a home block placed on the map. It is laid out
+   around that block at the size asked for — skipping land other towns hold —
+   then painted like any other plan, with the same limit, cost and shield
+   figures. Saved with the plan, and rebuilt from what was saved.
+   ========================================================================= */
+function expPlannedTown(def){
+  const hx = Number(def.homeX), hz = Number(def.homeZ);
+  return {
+    name: def.name, mayor: def.mayor || '—', nationName: def.nation || HOME_NATION,
+    population: Math.max(1, Number(def.residents) || 1), residents: [def.mayor || '—'],
+    townBlocks: 0, claimChunks: [], maxTownBlocks: null,
+    mcX: hx, mcZ: hz, homeX: hx, homeZ: hz, isMoon: false, councillors: [], balance: 0,
+    planned: { mayor: def.mayor || '', residents: Math.max(1, Number(def.residents) || 1), nation: def.nation || HOME_NATION,
+      homeX: hx, homeZ: hz, note: def.note || '' },
+  };
+}
+
+/* The chunks nearest the home block, in rings outward, until the size is met. */
+function expLayOut(cx, cz, size, townName){
+  const out = [];
+  for (let r = 0; out.length < size && r < 60; r++){
+    const ring = [];
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++){
+      if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+      ring.push([cx + dx, cz + dz, dx * dx + dz * dz]);
+    }
+    ring.sort((a, b) => a[2] - b[2]).forEach(([x, z]) => {
+      if (out.length >= size) return;
+      const o = chunkOwnerAt(x, z);
+      if (o && o.name !== townName) return;
+      out.push(expKey(x, z));
+    });
+  }
+  return out;
+}
+
+function expArmNewTown(){
+  const v = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const name = v('ntName'), mayor = v('ntMayor');
+  const msg = (t) => { const el = document.getElementById('ntMsg'); if (el){ el.textContent = t; el.style.color = 'var(--danger-hi)'; } };
+  if (!/^[A-Za-z0-9_-]{2,40}$/.test(name)) return msg('A town name: letters, numbers, _ or -, as Towny allows.');
+  if (ncAllTowns().some(t => t.name.toLowerCase() === name.toLowerCase()) || expansionState.plans.has(name))
+    return msg('There is already a town called ' + name + '.');
+  expansionState.placingNew = {
+    name, mayor, nation: v('ntNation') || HOME_NATION,
+    residents: Math.max(1, Math.min(500, Number(v('ntRes')) || 1)),
+    size: Math.max(1, Math.min(2000, Number(v('ntSize')) || 1)),
+    note: v('ntNote'),
+  };
+  if (!showChunkGrid) setChunkGrid(true);
+  auditLog.log(`Click where ${name}'s home block goes`, 'info');
+  renderExpansionPanel(); refreshInteractivity();
+}
+
+function expPlaceNewTown(latlng){
+  const def = expansionState.placingNew;
+  if (!def) return;
+  const x = latlng.lng, z = -latlng.lat;
+  const cx = Math.floor(x / 16), cz = Math.floor(z / 16);
+  const owner = chunkOwnerAt(cx, cz);
+  if (owner){ auditLog.log(`That chunk belongs to ${owner.name} — pick open ground for the home block`, 'warn'); return; }
+  expansionState.placingNew = null;
+  const town = expPlannedTown(Object.assign({}, def, { homeX: cx * 16 + 8, homeZ: cz * 16 + 8 }));
+  expOpenTown(town);
+  const plan = expPlanFor(town.name);
+  expLayOut(cx, cz, def.size, town.name).forEach(k => plan.added.add(k));
+  auditLog.log(`${town.name} planned — ${plan.added.size} chunk(s) around its home block. Paint to reshape it.`, 'success');
+  renderExpansionOverlay(); renderExpansionPanel();
+}
+
+function newTownFormHtml(){
+  if (expansionState.placingNew){
+    const d = expansionState.placingNew;
+    return '<div class="nt-box"><b>Placing ' + escapeHtml(d.name) + '</b>' +
+      '<p class="hint" style="margin:.3rem 0 .5rem">Click the map where its home block goes. It is laid out around that spot at ' +
+      d.size + ' chunk' + (d.size === 1 ? '' : 's') + ', skipping land other towns hold.</p>' +
+      '<button type="button" class="btn btn-ghost btn-small" id="ntCancel">Cancel</button></div>';
+  }
+  return '<details class="nt-box"><summary>Plan a new town</summary><div class="nt-grid">' +
+    '<label>Name<input id="ntName" maxlength="40" placeholder="e.g. New_Harar" autocomplete="off"></label>' +
+    '<label>Mayor<input id="ntMayor" maxlength="16" placeholder="Minecraft name" autocomplete="off"></label>' +
+    '<label>Residents<input id="ntRes" type="number" min="1" max="500" value="1"></label>' +
+    '<label>Starting size (chunks)<input id="ntSize" type="number" min="1" max="2000" value="16"></label>' +
+    '<label>Nation<input id="ntNation" value="' + escapeHtml(HOME_NATION) + '" autocomplete="off"></label>' +
+    '<label>Notes<input id="ntNote" maxlength="200" placeholder="purpose, who funds it…" autocomplete="off"></label>' +
+    '</div><div class="hw-route-controls" style="margin-top:.5rem">' +
+    '<button type="button" class="btn btn-accent btn-small" id="ntGo">Place it on the map</button>' +
+    '<span class="hint" id="ntMsg"></span></div></details>';
+}
+
 function expLockIn(){
   const name = expansionState.editing;
   const plan = name ? expPlanFor(name) : null;
@@ -3161,6 +3267,7 @@ function expSaveGroup(name){
     .map(p => ({
       name: p.town.name,
       added: [...p.added], removed: [...p.removed], extra: p.extra,
+      planned: p.town.planned || undefined,
     }));
   if (!towns.length){ auditLog.log('Nothing planned to save', 'warn'); return null; }
   const g = { id: expansionState.nextSavedId++, name, towns };
@@ -3181,7 +3288,10 @@ function expLoadGroup(id){
   const missing = [];
   expansionState.plans.clear();
   g.towns.forEach(entry => {
-    const town = ncAllTowns().find(t => t.name === entry.name);
+    /* A planned town is rebuilt from what was saved — or, if it has since been
+       founded for real, the real town is used. */
+    const town = ncAllTowns().find(t => t.name === entry.name) ||
+      (entry.planned ? expPlannedTown(Object.assign({ name: entry.name }, entry.planned)) : null);
     if (!town){ missing.push(entry.name); return; }
     expansionState.plans.set(town.name, {
       town, added: new Set(entry.added), removed: new Set(entry.removed),
@@ -5245,6 +5355,23 @@ function nationStatsFor(name){
 const nationColorCache = new Map();
 const nationColorIsReal = new Set();
 
+/* A nation's map colour, as EarthMC gives it, made safe to draw. It comes as
+   whatever its owner set: six-digit hex usually, but sometimes three digits,
+   eight (with transparency, either end), or a plain number. The canvas
+   silently ignores a colour it cannot read and keeps the LAST colour it used —
+   so one nation with an unusual value (France) was painted in its neighbours'
+   colours, a different one per town. Anything unreadable falls back to a
+   generated colour instead. */
+function cleanHex(v){
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' && isFinite(v)) return '#' + ((v >>> 0) & 0xffffff).toString(16).padStart(6, '0');
+  let h = String(v).trim().replace(/^#/, '').replace(/^0x/i, '');
+  if (/^[0-9a-f]{3}$/i.test(h)) h = h.split('').map(c => c + c).join('');
+  if (/^[0-9a-f]{8}$/i.test(h)) h = /^(ff|00)/i.test(h) ? h.slice(2) : h.slice(0, 6);   // ARGB, else RGBA
+  if (/^\d+$/.test(h) && !/^[0-9a-f]{6}$/i.test(h)) h = (Number(h) & 0xffffff).toString(16).padStart(6, '0');
+  return /^[0-9a-f]{6}$/i.test(h) ? '#' + h.toLowerCase() : null;
+}
+
 // Called when nationStats gains entries. Only provisional colours are dropped;
 // anything already resolved from the nation's own dynmap colour stays put.
 function clearNationColorCache(){
@@ -5263,7 +5390,7 @@ function nationColors(nationName){
   // Real means it came from the nation's own dynmap colour rather than the
   // hash fallback. Only those are pinned.
   const stats = nationStatsFor(nationName);
-  if (stats && stats.fill) nationColorIsReal.add(cacheKey);
+  if (stats && cleanHex(stats.fill)) nationColorIsReal.add(cacheKey);
 
   return resolved;
 }
@@ -5273,8 +5400,9 @@ function nationColorsUncached(nationName){
     return { fill: COLORS.muted, outline: COLORS.muted };
   }
   const stats = nationStatsFor(nationName);
-  if (stats && stats.fill){
-    return { fill: stats.fill, outline: stats.outline || stats.fill };
+  const fill = stats && cleanHex(stats.fill);
+  if (fill){
+    return { fill, outline: cleanHex(stats.outline) || fill };
   }
   const gen = stableColorFor(nationName, CONFIG.NATION_PALETTE);
   return { fill: gen, outline: gen };
@@ -5710,6 +5838,29 @@ function renderExpansionOverlay(){
     shape(keys, style);
   };
 
+  /* ---- planned towns ----
+     A town that does not exist has no claims to draw, so its planned land is
+     drawn here: dashed, in its nation's colour, labelled with its name and
+     mayor. Finished plans and shown saved plans alike. */
+  const drawPlanned = (town, keys) => {
+    if (!keys || !keys.size) return;
+    const col = nationColors(town.nationName || HOME_NATION);
+    shape(keys, { color: col.outline, weight: 2.5, opacity: 1, dashArray: '7 4', fillColor: col.fill, fillOpacity: .28 });
+    L.marker(CoordUtils.mcToLatLng(town.mcX, town.mcZ), { interactive: false, pmIgnore: true,
+      icon: L.divIcon({ className: '', html: '<div class="nt-label">' + escapeHtml(town.name) +
+        '<span>planned' + (town.planned && town.planned.mayor ? ' · ' + escapeHtml(town.planned.mayor) : '') + '</span></div>' }) }).addTo(group);
+  };
+  expansionState.plans.forEach((plan, name) => {
+    if (plan.town.planned && expansionState.editing !== name) drawPlanned(plan.town, plan.added);
+  });
+  expansionState.saved.forEach(g => {
+    if (!expansionState.showing.has(g.id)) return;
+    g.towns.forEach(t => {
+      if (!t.planned || expansionState.plans.has(t.name)) return;
+      drawPlanned(expPlannedTown(Object.assign({ name: t.name }, t.planned)), new Set(t.added));
+    });
+  });
+
   /* ---- overclaim watch ----
      Red for towns over their limit now, amber for those that will be within
      the window, white around the one selected. */
@@ -5892,8 +6043,9 @@ function renderExpansionPanel(){
 
     if (!plans.length && !editing){
       out += '<p class="empty-hint">Open a town on the map and choose ' +
-        '&ldquo;Plan expansion&rdquo;. Several towns can be planned at once.</p>';
+        '&ldquo;Plan expansion&rdquo;, or plan a new town below. Several towns can be planned at once.</p>';
     }
+    if (!editing) out += newTownFormHtml();
 
     /* The one being painted gets the full readout. The rest are a list — a
        stack of six full breakdowns is unreadable, and only one is being
@@ -6255,6 +6407,8 @@ function renderExpansionPanel(){
     renderExpansionOverlay(); renderExpansionPanel();
   });
   bind('expLock', expLockIn);
+  bind('ntGo', expArmNewTown);
+  bind('ntCancel', () => { expansionState.placingNew = null; renderExpansionPanel(); refreshInteractivity(); });
   const asOfEl = document.getElementById('expAsOf');
   if (asOfEl){
     asOfEl.addEventListener('input', () => {
@@ -7029,8 +7183,8 @@ async function refreshWorldSnapshot(force){
             numTownBlocks: n.stats && typeof n.stats.numTownBlocks === 'number' ? n.stats.numTownBlocks : 0,
             numTowns: Array.isArray(n.towns) ? n.towns.length : null,
             ranks: (n.ranks && typeof n.ranks === 'object') ? n.ranks : null,
-          fill: n.dynmapColour ? '#' + String(n.dynmapColour).replace(/^#/, '') : null,
-            outline: n.dynmapOutline ? '#' + String(n.dynmapOutline).replace(/^#/, '') : null,
+          fill: cleanHex(n.dynmapColour),
+            outline: cleanHex(n.dynmapOutline),
           });
         });
       }
@@ -8949,8 +9103,8 @@ function ncStoreNation(n){
     numTownBlocks: n.stats && typeof n.stats.numTownBlocks === 'number' ? n.stats.numTownBlocks : 0,
     numTowns: Array.isArray(n.towns) ? n.towns.length : null,
     ranks: (n.ranks && typeof n.ranks === 'object') ? n.ranks : null,
-    fill: n.dynmapColour ? '#' + String(n.dynmapColour).replace(/^#/, '') : null,
-    outline: n.dynmapOutline ? '#' + String(n.dynmapOutline).replace(/^#/, '') : null,
+    fill: cleanHex(n.dynmapColour),
+    outline: cleanHex(n.dynmapOutline),
   });
 }
 
@@ -10484,18 +10638,25 @@ function renderIrl(){
   if (!g) return;
   g.clearLayers();
   if (!irlState.on || !irlState.countries.length) return;
-  irlState.countries.forEach(c => {
+  const byIdx = new Map(Array.isArray(irlState.ranking) ? irlState.ranking.map(r => [r.i, r]) : []);
+  irlState.countries.forEach((c, ci) => {
+    /* Shaded by the nation holding most of it, deeper the more is claimed —
+       the same reading as the nation claim areas. */
+    const r = byIdx.get(ci);
+    const shade = irlState.fillMode && r && r.claimed ? nationColors(r.top).fill : null;
     const ll = c.rings.map(poly => poly.map(ring => ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z))));
     const poly = L.polygon(ll, {
       color: '#e2e8f0', weight: 1, opacity: .55, dashArray: '4 3',
-      fillColor: '#e2e8f0', fillOpacity: .015, smoothFactor: 1.5,
+      fillColor: shade || '#e2e8f0', fillOpacity: shade ? .1 + .5 * Math.min(1, r.pct / 100) : .015, smoothFactor: 1.5,
       interactive: !drawModeArmed(), pmIgnore: true,
     });
     poly.on('click', (e) => {
       L.popup({ maxWidth: 320 }).setLatLng(e.latlng).setContent(irlPopupHtml(c)).openOn(mapController.map);
     });
     if (irlState.labels && c.chunks > 40000){
-      poly.bindTooltip(escapeHtml(c.name), { permanent: true, direction: 'center', className: 'irl-label' });
+      const share = r ? (r.pct >= 10 ? Math.round(r.pct) : r.pct.toFixed(1)) + '%' : null;
+      poly.bindTooltip(escapeHtml(c.name) + (share ? '<span class="irl-share">' + share + ' claimed</span>' : ''),
+        { permanent: true, direction: 'center', className: 'irl-label' });
     }
     poly.addTo(g);
   });
@@ -10563,6 +10724,7 @@ async function irlRank(){
   }
   irlState.ranking = out;
   renderIrlPanel();
+  if (irlState.fillMode || irlState.labels) renderIrl();
 }
 
 function irlSaveCalib(){
@@ -10632,7 +10794,9 @@ function renderIrlPanel(){
       <button type="button" class="btn ${irlState.on ? 'btn-accent' : 'btn-primary'} btn-small" id="irlToggle">${irlState.on ? 'Shown' : 'Show real-world borders'}</button>
       <select id="irlDetail" aria-label="Detail"><option value="110m"${irlState.detail === '110m' ? ' selected' : ''}>Simple</option>
         <option value="50m"${irlState.detail === '50m' ? ' selected' : ''}>Detailed</option></select>
-      <label class="irl-chk"><input type="checkbox" id="irlLabels"${irlState.labels ? ' checked' : ''}> names</label></div>`;
+      <label class="irl-chk"><input type="checkbox" id="irlLabels"${irlState.labels ? ' checked' : ''}> names</label></div>
+    <label class="irl-chk" style="margin-top:.4rem"><input type="checkbox" id="irlFill"${irlState.fillMode ? ' checked' : ''}>
+      Shade countries by who holds them — deeper the more is claimed</label>`;
   if (irlState.loading) h += '<p class="hint">Loading the borders…</p>';
   if (irlState.error) h += `<div class="eth-alert">${escapeHtml(irlState.error)}</div>`;
   h += `<p class="hint">Click any country on the map to see how much of it is claimed, and by whom.</p>
@@ -10675,7 +10839,17 @@ function renderIrlPanel(){
   const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
   on('irlToggle', 'click', () => { setShowIrl(!irlState.on); });
   on('irlDetail', 'change', (e) => { irlState.detail = e.target.value; irlState.raw = null; if (irlState.on) irlLoad(); });
-  on('irlLabels', 'change', (e) => { irlState.labels = e.target.checked; renderIrl(); });
+  on('irlLabels', 'change', (e) => {
+    irlState.labels = e.target.checked;
+    if (irlState.labels && !Array.isArray(irlState.ranking) && irlState.countries.length) irlRank().then(renderIrl);
+    else renderIrl();
+  });
+  on('irlFill', 'change', (e) => {
+    irlState.fillMode = e.target.checked;
+    /* The shading needs every country's figures; they are counted once, then kept. */
+    if (irlState.fillMode && !Array.isArray(irlState.ranking) && irlState.countries.length) irlRank().then(renderIrl);
+    else renderIrl();
+  });
   on('irlPin', 'click', () => {
     if (irlState.pinning){ irlState.pinning = false; renderIrlPanel(); return; }
     if (!irlState.on) setShowIrl(true);
@@ -11610,6 +11784,7 @@ document.addEventListener('pointercancel', expEndPaint);
 
 mapController.map.on('click', (e) => {
   if (irlState.pinning){ irlTakePin(e.latlng); return; }      // aligning the real-world borders
+  if (expansionState.placingNew){ expPlaceNewTown(e.latlng); return; }   // placing a planned town
   /* The planner owns the click while open. Checked BEFORE the highway
      handler, not after: both want raw map clicks and whichever is asked
      first wins. */
@@ -12783,9 +12958,9 @@ function expToFeatures(){
       kind: 'expansion-plan',
       id: g.id,
       name: g.name,
-      towns: g.towns.map(t => ({
+      towns: g.towns.map(t => Object.assign({
         name: t.name, added: t.added, removed: t.removed, extra: t.extra || 0,
-      })),
+      }, t.planned ? { planned: t.planned } : {})),
     },
   }));
 }
@@ -12805,12 +12980,12 @@ function expLoadFromFeatures(features){
       if (id > maxId) maxId = id;
       expansionState.saved.push({
         id, name: p.name || 'Expansion',
-        towns: p.towns.map(t => ({
+        towns: p.towns.map(t => Object.assign({
           name: t.name,
           added: Array.isArray(t.added) ? t.added : [],
           removed: Array.isArray(t.removed) ? t.removed : [],
           extra: t.extra || 0,
-        })),
+        }, t.planned && typeof t.planned === 'object' ? { planned: t.planned } : {})),
       });
     } catch (err){
       persistKeepFeature(f);
@@ -12885,8 +13060,8 @@ async function syncLiveData(){
             numTowns: Array.isArray(n.towns) ? n.towns.length : null,
           // The nation's real in-game map colours, as hex without '#'.
           ranks: (n.ranks && typeof n.ranks === 'object') ? n.ranks : null,
-          fill: n.dynmapColour ? '#' + String(n.dynmapColour).replace(/^#/, '') : null,
-          outline: n.dynmapOutline ? '#' + String(n.dynmapOutline).replace(/^#/, '') : null,
+          fill: cleanHex(n.dynmapColour),
+          outline: cleanHex(n.dynmapOutline),
         });
         const townList = Array.isArray(n.towns) ? n.towns : [];
         auditLog.log(`Nation "${n.name}" — ${townList.length} town(s), ${n.stats ? CoordUtils.fmt(n.stats.numResidents) : '—'} residents`, 'success');

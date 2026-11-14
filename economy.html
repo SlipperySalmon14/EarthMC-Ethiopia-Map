@@ -1042,6 +1042,37 @@ html:not(#_) .fcard .mark{ border-radius:0; font-size:inherit; text-transform:no
 .stg b{ font-family:var(--data); font-size:1rem; }
 .stg .lb{ color:var(--text-low); }
 .stg .vl{ grid-column:2 / -1; font-family:var(--data); font-size:.74rem; color:var(--text-mid); }
+
+/* --- income by service ------------------------------------------------------ */
+.svc-cards{ display:grid; grid-template-columns:repeat(auto-fit, minmax(13rem, 1fr)); gap:.6rem; }
+.svc-card{ border-radius:10px; border:1px solid var(--edge, rgba(255,255,255,.08)); border-top:2px solid var(--sc); padding:.7rem .8rem;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--sc) 9%, transparent), transparent 70%); }
+.sv-h{ font-weight:700; font-size:.9rem; }
+.sv-v{ font-family:var(--data); font-size:1.25rem; font-weight:600; color:var(--sc); margin:.25rem 0 .35rem; }
+.sv-v span{ display:block; font-family:var(--body); font-size:.7rem; font-weight:400; color:var(--text-low); }
+.sv-bar{ height:.35rem; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; margin-bottom:.35rem; }
+.sv-bar i{ display:block; height:100%; background:var(--sc); }
+.sv-l{ display:flex; justify-content:space-between; gap:.5rem; font-size:.74rem; color:var(--text-low); margin-top:.15rem; }
+
+/* --- projections -------------------------------------------------------------- */
+.pj-top{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.pj-seg button{ font-size:.8rem; }
+.pj-total b{ display:block; font-family:var(--data); font-size:1.6rem; color:var(--gold, #fcd116); }
+.pj-total span{ font-size:.8rem; color:var(--text-low); }
+.pj-chart{ width:100%; height:200px; display:block; }
+.pj-chart text{ fill:var(--text-low); font-size:10px; font-family:var(--data); }
+.pj-a{ fill:#22c55e; opacity:.85; } .pj-f{ fill:#fcd116; opacity:.35; stroke:#fcd116; stroke-dasharray:4 3; }
+.pj-table{ display:flex; flex-direction:column; }
+.pj-row{ display:grid; grid-template-columns:minmax(9rem,1.4fr) 1fr .8fr 1.2fr .6fr 1fr; gap:.6rem; align-items:center;
+  padding:.55rem .2rem; border-bottom:1px solid rgba(255,255,255,.06); font-family:var(--data); font-size:.8rem; }
+.pj-head{ font-family:var(--body); font-size:.72rem; color:var(--text-low); }
+.pj-n{ font-family:var(--body); font-weight:700; font-size:.88rem; }
+.pj-row em{ display:block; font-style:normal; font-family:var(--body); font-size:.7rem; color:var(--text-low); font-weight:400; }
+.pj-v{ color:var(--gold, #fcd116); font-weight:600; }
+.pj-c{ font-style:normal; font-family:var(--body); font-size:.7rem; font-weight:700; padding:.08rem .45rem; border-radius:999px; border:1px solid; }
+.pj-c.high{ color:#22c55e; } .pj-c.medium{ color:#fcd116; } .pj-c.low{ color:#ef4444; }
+.up{ color:#22c55e; } .dn{ color:#ef4444; } .flat{ color:var(--text-low); }
+@media (max-width:640px){ .pj-row{ grid-template-columns:1fr 1fr; } .pj-head{ display:none; } }
 </style>
 </head>
 <body>
@@ -1164,7 +1195,7 @@ var TYPE_COLORS = ['#fcd116','#4d8dff','#f97316','#22c55e','#a855f7','#ec4899','
 var SERVICE_NAMES = { recruiting:'Recruiting', mapart:'Mapart creation', claimmap:'Claim map creation',
   media:'Media creation', bulk:'Bulk sales' };
 var SPEND_NAMES = { buybacks:'Buy-backs', restock:'Restocking', materials:'Materials', refunds:'Refunds' };
-var TABS = [['overview','Overview'], ['emc','EMC<span class="long"> Services</span>'], ['shop','Shop'], ['spending','Spending'], ['history','History']];
+var TABS = [['overview','Overview'], ['emc','EMC<span class="long"> Services</span>'], ['shop','Shop'], ['spending','Spending'], ['history','History'], ['proj','Projections']];
 var PERIODS = [['7','7D'], ['30','30D'], ['90','90D'], ['year','1Y'], ['todate','To date'], ['custom','Custom']];
 var HIST_FILTERS = [['all','Everything'], ['hand','By hand'], ['emc','EMC orders'], ['shop','Shop'], ['spend','Spending']];
 var SIZE_HINTS = ['1x1', '1x2', '2x2', '2x3', '3x3', '3x4', '4x4', '5x5'];
@@ -1810,7 +1841,8 @@ function goTab(t){ state.tab = t; state.editing = null; remember(); renderContro
 var after = {};
 function renderView(){
   var v = $('view');
-  v.innerHTML = ({ overview:viewOverview, emc:viewEmc, shop:viewShop, spending:viewSpending, history:viewHistory })[state.tab]();
+  v.innerHTML = ({ overview:viewOverview, emc:viewEmc, shop:viewShop, spending:viewSpending, history:viewHistory, proj:viewProj })[state.tab]();
+  if (state.tab === 'proj') wireProj();
   if (after[state.tab]) after[state.tab](v);
   wireMix(v);
   v.querySelectorAll('[data-pick]').forEach(function(k){
@@ -2141,6 +2173,30 @@ function viewEmc(){
           ' finished (' + Math.round(fin / Math.max(1, tot - ((st.cancelled || {}).n || 0)) * 100) + '%) · ' + num(going) + ' still going.</p>',
         '', '', C.in);
     }
+  }
+  /* Income by service: one card each, so what every service brings in is
+     readable at a glance rather than inside the table below. */
+  var svc = {};
+  cats(function(c){ return c.source === 'emc'; }).forEach(function(c){
+    var k = c.cat || 'other';
+    if (!svc[k]) svc[k] = { cat: k, gross: 0, workers: 0, n: 0, qty: 0 };
+    svc[k].gross += c.gross || 0; svc[k].workers += c.workers || 0; svc[k].n += c.n || 0; svc[k].qty += c.qty || 0;
+  });
+  var svcs = Object.keys(svc).map(function(k){ return svc[k]; }).sort(function(a, b){ return kept(b) - kept(a); });
+  var svcTotal = svcs.reduce(function(a, x){ return a + kept(x); }, 0);
+  if (svcs.length){
+    out += panel('Income by service', svcs.length + ' service' + (svcs.length === 1 ? '' : 's') + ' this period',
+      '<div class="svc-cards">' + svcs.map(function(x, i){
+        var share = svcTotal ? kept(x) / svcTotal * 100 : 0;
+        var rate = x.gross ? Math.round(kept(x) / x.gross * 100) : 0;
+        return '<div class="svc-card" style="--sc:' + ['#22c55e','#fcd116','#4d8dff','#f97316','#a855f7','#a8a29e'][i % 6] + '">' +
+          '<div class="sv-h">' + esc(serviceName(x.cat)) + '</div>' +
+          '<div class="sv-v">' + gold(kept(x)) + '<span>company income</span></div>' +
+          '<div class="sv-bar"><i style="width:' + share.toFixed(1) + '%"></i></div>' +
+          '<div class="sv-l"><span>' + Math.round(share) + '% of income</span><span>' + rate + '% fee</span></div>' +
+          '<div class="sv-l"><span>' + num(x.n) + ' order' + (x.n === 1 ? '' : 's') + ' · ' + esc(unitOf(x.cat, x.qty)) + '</span>' +
+            '<span>' + gold(x.gross) + ' value</span></div></div>';
+      }).join('') + '</div>', '', '', C.fee);
   }
   var deliv = data.deliveredByCat || null;
   var delivered = deliv ? Object.keys(deliv).reduce(function(a, k){ return a + deliv[k]; }, 0) : null;
@@ -3252,6 +3308,128 @@ async function loadBarrels(){
    be corrected and voided here; orders are changed on the job board, apart
    from their type. Nothing is deleted: a voided record stays struck through,
    and a corrected one shows what it was before. */
+
+/* =========================================================================
+   PROJECTIONS
+
+   What each business is on course to bring in over the next quarter or year,
+   from what it has actually done. For every EMC service and for the shop:
+
+     rate   — the last 90 days' daily income, weighted 60/40 with the whole
+              year's, so one strong or weak month does not dominate;
+     trend  — the last 90 days against the 90 before, applied at half
+              strength and capped at ±50%, so a spike does not run away.
+
+   A projection is the rate carried forward with that trend. How much it can
+   be trusted depends on how long the business has history and how many
+   orders stand behind it, and each line says so.
+   ========================================================================= */
+var projData = null, projLoading = false, projSpan = 'quarter';
+
+async function loadProj(){
+  if (projLoading) return;
+  projLoading = true;
+  var to = todayStart() + DAY, from = to - 365 * DAY;
+  try { projData = await api('/api/economy' + q(from, to)); }
+  catch (e){ projData = { error: e.message }; }
+  projLoading = false;
+  if (state.tab === 'proj') renderView();
+}
+
+function projModel(){
+  var now = todayStart() + DAY;
+  var biz = {};
+  (projData.series || []).forEach(function(r){
+    var key = r.source === 'emc' ? 'emc:' + r.cat : r.source === 'shop' ? 'shop' : null;
+    if (!key) return;
+    if (!biz[key]) biz[key] = { key: key, name: r.source === 'emc' ? serviceName(r.cat) : 'Shop', source: r.source, days: {}, first: r.day, n: 0 };
+    var b = biz[key];
+    var inc = r.source === 'shop' ? profit(r) : kept(r);
+    var d = b.days[r.day] || (b.days[r.day] = { inc: 0, gross: 0, n: 0 });
+    d.inc += inc; d.gross += r.gross || 0; d.n += r.n || 0;
+    b.n += r.n || 0;
+    if (r.day < b.first) b.first = r.day;
+  });
+  var span = projSpan === 'year' ? 365 : 91;
+  return Object.keys(biz).map(function(k){
+    var b = biz[k];
+    var t = function(day){ return Date.parse(day + 'T00:00:00Z'); };
+    var sumBetween = function(a, z, f){ var s0 = 0; Object.keys(b.days).forEach(function(day){ var x = t(day); if (x >= a && x < z) s0 += b.days[day][f]; }); return s0; };
+    var age = Math.max(1, Math.round((now - t(b.first)) / DAY));
+    var d90 = Math.min(90, age), d365 = Math.min(365, age);
+    var last90 = sumBetween(now - 90 * DAY, now, 'inc'), prev90 = sumBetween(now - 180 * DAY, now - 90 * DAY, 'inc');
+    var year = sumBetween(now - 365 * DAY, now, 'inc');
+    var rate = 0.6 * (last90 / d90) + 0.4 * (year / d365);
+    var g = age >= 150 && prev90 > 0 ? Math.max(-0.5, Math.min(0.5, (last90 - prev90) / prev90)) : 0;
+    var proj = rate * span * (1 + g / 2);
+    var grossRate = 0.6 * (sumBetween(now - 90 * DAY, now, 'gross') / d90) + 0.4 * (sumBetween(now - 365 * DAY, now, 'gross') / d365);
+    var nRate = 0.6 * (sumBetween(now - 90 * DAY, now, 'n') / d90) + 0.4 * (sumBetween(now - 365 * DAY, now, 'n') / d365);
+    var conf = age < 60 || b.n < 5 ? 'low' : age < 180 || b.n < 20 ? 'medium' : 'high';
+    return { key: k, name: b.name, source: b.source, age: age, orders: b.n, last90: last90, prev90: prev90, rate: rate,
+      trend: g, proj: Math.round(proj), projGross: Math.round(grossRate * span * (1 + g / 2)),
+      projOrders: Math.round(nRate * span * (1 + g / 2)), conf: conf, days: b.days };
+  }).sort(function(a, b){ return b.proj - a.proj; });
+}
+
+/* Twelve months of what was actually earned, then the months ahead as
+   projected, dashed. */
+function projChart(rows){
+  var now = new Date(todayStart());
+  var months = [];
+  for (var i = 11; i >= 0; i--){ var m = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1)); months.push({ d: m, act: 0 }); }
+  rows.forEach(function(r){
+    Object.keys(r.days).forEach(function(day){
+      var dt = new Date(day + 'T00:00:00Z');
+      months.forEach(function(m){ if (dt.getUTCFullYear() === m.d.getUTCFullYear() && dt.getUTCMonth() === m.d.getUTCMonth()) m.act += r.days[day].inc; });
+    });
+  });
+  var ahead = projSpan === 'year' ? 12 : 3;
+  var perMonth = rows.reduce(function(a, r){ return a + r.proj; }, 0) / ahead;
+  for (var j = 1; j <= ahead; j++){ var f = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + j, 1)); months.push({ d: f, proj: perMonth }); }
+  var max = Math.max(1, Math.max.apply(null, months.map(function(m){ return Math.max(m.act || 0, m.proj || 0); })));
+  var W = 640, H = 170, bw = W / months.length;
+  return '<svg class="pj-chart" viewBox="0 0 ' + W + ' ' + (H + 22) + '" preserveAspectRatio="none">' + months.map(function(m, i){
+    var v = m.proj != null ? m.proj : Math.max(0, m.act), h = v / max * H, x = i * bw + 3;
+    var lbl = m.d.toLocaleDateString('en-GB', { month: 'short' });
+    return '<rect x="' + x + '" y="' + (H - h) + '" width="' + (bw - 6) + '" height="' + h + '" rx="3" class="' + (m.proj != null ? 'pj-f' : 'pj-a') + '">' +
+      '<title>' + lbl + ' ' + m.d.getUTCFullYear() + ': ' + Math.round(v).toLocaleString('en-US') + 'g ' + (m.proj != null ? 'projected' : 'earned') + '</title></rect>' +
+      '<text x="' + (x + (bw - 6) / 2) + '" y="' + (H + 15) + '" text-anchor="middle">' + lbl + '</text>';
+  }).join('') + '</svg>';
+}
+
+function viewProj(){
+  if (!projData){ loadProj(); return '<p class="empty">Reading the last year&hellip;</p>'; }
+  if (projData.error) return '<p class="empty">' + esc(projData.error) + '</p>';
+  var rows = projModel();
+  if (!rows.length) return '<p class="empty">No income recorded yet to project from.</p>';
+  var total = rows.reduce(function(a, r){ return a + r.proj; }, 0);
+  var label = projSpan === 'year' ? 'the next 12 months' : 'the next quarter';
+  var arrow = function(g){ return g > 0.05 ? '<span class="up">&#9650; ' + Math.round(g * 100) + '%</span>'
+    : g < -0.05 ? '<span class="dn">&#9660; ' + Math.round(-g * 100) + '%</span>' : '<span class="flat">steady</span>'; };
+  return '<div class="pj-top"><div class="seg pj-seg"><button type="button" data-pj="quarter" class="' + (projSpan === 'quarter' ? 'on' : '') + '">Next quarter</button>' +
+      '<button type="button" data-pj="year" class="' + (projSpan === 'year' ? 'on' : '') + '">Next year</button></div>' +
+      '<div class="pj-total"><b>' + gold(total) + '</b><span>projected income over ' + label + '</span></div></div>' +
+    panel('Month by month', 'solid: earned · faded: projected', projChart(rows), '', '', C.fee) +
+    panel('By business', label, '<div class="pj-table"><div class="pj-row pj-head"><span>Business</span><span>Last 90 days</span><span>Trend</span>' +
+      '<span>Projected income</span><span>Orders</span><span>Confidence</span></div>' +
+      rows.map(function(r){
+        return '<div class="pj-row"><span class="pj-n">' + esc(r.name) + '<em>' + (r.source === 'shop' ? 'sales less buy-backs' : 'company income') + '</em></span>' +
+          '<span>' + gold(Math.round(r.last90)) + '</span><span>' + arrow(r.trend) + '</span>' +
+          '<span class="pj-v">' + gold(r.proj) + (r.source === 'emc' ? '<em>' + gold(r.projGross) + ' order value</em>' : '') + '</span>' +
+          '<span>' + (r.source === 'emc' ? '~' + num(r.projOrders) : '—') + '</span>' +
+          '<span><i class="pj-c ' + r.conf + '">' + r.conf + '</i><em>' + r.age + ' days · ' + num(r.orders) + ' ' + (r.source === 'shop' ? 'sales' : 'orders') + '</em></span></div>';
+      }).join('') + '</div>' +
+      '<p class="footline">Rate: the last 90 days\u2019 daily income weighted 60/40 with the past year\u2019s. Trend: the last 90 days against the 90 before, ' +
+      'applied at half strength and capped at \u00b150%. A projection carries what has happened forward — new services, price changes or a quiet month will move it.</p>',
+      '', '', C.in);
+}
+
+function wireProj(){
+  document.querySelectorAll('[data-pj]').forEach(function(b){
+    b.addEventListener('click', function(){ projSpan = b.dataset.pj; renderView(); });
+  });
+}
+
 function viewHistory(){
   return '<div class="hbar"><div class="seg" id="hfilt">' + HIST_FILTERS.map(function(f){
       return '<button class="chip' + (state.hist === f[0] ? ' on' : '') + '" data-h="' + f[0] + '">' + f[1] + '</button>';

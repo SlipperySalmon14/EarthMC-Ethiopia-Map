@@ -1073,6 +1073,46 @@ html:not(#_) .fcard .mark{ border-radius:0; font-size:inherit; text-transform:no
 .pj-c.high{ color:#22c55e; } .pj-c.medium{ color:#fcd116; } .pj-c.low{ color:#ef4444; }
 .up{ color:#22c55e; } .dn{ color:#ef4444; } .flat{ color:var(--text-low); }
 @media (max-width:640px){ .pj-row{ grid-template-columns:1fr 1fr; } .pj-head{ display:none; } }
+
+/* --- projections, in depth -------------------------------------------------- */
+.pj2-controls{ display:flex; flex-wrap:wrap; gap:.8rem 1.4rem; align-items:flex-end; margin-bottom:1rem; }
+.pj2-controls label{ display:flex; flex-direction:column; gap:.3rem; font-size:.72rem; color:var(--text-low); }
+.pj2-controls label b{ color:var(--gold, #fcd116); font-family:var(--data); }
+.pj2-seg{ display:inline-flex; gap:2px; padding:3px; border-radius:10px; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.08); }
+.pj2-seg button{ border:0; background:none; color:var(--text-mid); font-family:var(--body); font-weight:600; font-size:.8rem;
+  padding:.38rem .75rem; border-radius:8px; cursor:pointer; }
+.pj2-seg button.on{ background:var(--gold, #fcd116); color:#141006; box-shadow:0 0 12px rgba(252,209,22,.3); }
+.pj2-adj input{ width:13rem; accent-color:#fcd116; }
+.pj2-tiles{ display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:.7rem; margin-bottom:1rem; }
+@media (max-width:820px){ .pj2-tiles{ grid-template-columns:1fr 1fr; } }
+.pj2-tile{ border-radius:12px; border:1px solid rgba(255,255,255,.08); padding:.85rem 1rem; background:rgba(255,255,255,.02); }
+.pj2-tile.hero{ border-color:rgba(252,209,22,.45); background:linear-gradient(180deg, rgba(252,209,22,.1), transparent 75%); }
+.pj2-tile span{ display:block; font-size:.76rem; color:var(--text-low); }
+.pj2-tile b{ display:block; font-family:var(--data); font-size:1.5rem; margin:.25rem 0 .1rem; }
+.pj2-tile.hero b{ font-size:2rem; color:var(--gold, #fcd116); }
+.pj2-tile em{ font-style:normal; font-size:.74rem; color:var(--text-mid); }
+.pj2-chart{ width:100%; height:auto; display:block; }
+.pj2-grid{ stroke:rgba(255,255,255,.06); } .pj2-split{ stroke:rgba(252,209,22,.5); stroke-dasharray:3 3; }
+.pj2-ax{ fill:var(--text-low); font-family:var(--data); font-size:10px; } .pj2-axf{ fill:#fcd116; } .pj2-axr{ fill:#fde68a; }
+.pj2-a{ fill:#22c55e; opacity:.85; } .pj2-f{ fill:rgba(252,209,22,.28); stroke:#fcd116; stroke-width:1; }
+.pj2-wh{ stroke:#fde68a; stroke-width:1.4; } .pj2-run{ fill:none; stroke:#fde68a; stroke-width:2; } .pj2-dot{ fill:#141006; stroke:#fde68a; stroke-width:2; }
+.pj2-key{ display:flex; flex-wrap:wrap; gap:.3rem 1.1rem; font-size:.74rem; color:var(--text-low); margin-top:.4rem; }
+.pj2-key i{ display:inline-block; width:12px; height:8px; border-radius:2px; margin-right:.35rem; vertical-align:middle; }
+.pj2-key i.a{ background:#22c55e; } .pj2-key i.f{ background:rgba(252,209,22,.35); border:1px solid #fcd116; }
+.pj2-key i.wh{ width:2px; height:10px; background:#fde68a; } .pj2-key i.run{ height:2px; background:#fde68a; }
+.pj2-share{ display:flex; height:.6rem; border-radius:999px; overflow:hidden; gap:2px; margin-bottom:.6rem; background:rgba(255,255,255,.05); }
+.pj2-share i{ display:block; height:100%; }
+.pj2-b{ display:grid; grid-template-columns:auto minmax(9rem,1.3fr) 120px repeat(4, minmax(5.5rem, 1fr)); gap:.4rem .9rem; align-items:center;
+  padding:.65rem .2rem; border-bottom:1px solid rgba(255,255,255,.06); cursor:pointer; }
+.pj2-b.off{ opacity:.45; }
+@media (max-width:820px){ .pj2-b{ grid-template-columns:auto 1fr 1fr; } .pj2-spark{ display:none; } }
+.pj2-bn b{ display:block; font-size:.9rem; } .pj2-bn em, .pj2-num em{ display:block; font-style:normal; font-size:.7rem; color:var(--text-low); }
+.pj2-num{ font-family:var(--data); font-size:.86rem; }
+.pj2-num i{ display:block; font-style:normal; font-size:.7rem; color:var(--text-low); font-family:var(--body); }
+.pj2-num.big{ color:var(--gold, #fcd116); font-weight:600; font-size:.95rem; }
+.pj2-spark{ width:120px; height:28px; } .pj2-spark rect{ fill:#22c55e; opacity:.7; }
+.pj2-how{ margin:0; padding-left:1.1rem; font-size:.84rem; color:var(--text-mid); line-height:1.55; }
+.pj2-how li{ margin-bottom:.35rem; } .pj2-how b{ color:var(--text); }
 </style>
 </head>
 <body>
@@ -3312,19 +3352,24 @@ async function loadBarrels(){
 /* =========================================================================
    PROJECTIONS
 
-   What each business is on course to bring in over the next quarter or year,
-   from what it has actually done. For every EMC service and for the shop:
+   Where each business is heading, from what it has actually done — with the
+   assumptions in plain view and every one of them adjustable.
 
-     rate   — the last 90 days' daily income, weighted 60/40 with the whole
-              year's, so one strong or weak month does not dominate;
-     trend  — the last 90 days against the 90 before, applied at half
-              strength and capped at ±50%, so a spike does not run away.
-
-   A projection is the rate carried forward with that trend. How much it can
-   be trusted depends on how long the business has history and how many
-   orders stand behind it, and each line says so.
+   Per business (each EMC service, and the shop), from the last year:
+     · daily figures from the per-service history; company income for a
+       service is its order value times that service's own fee rate over the
+       year, since the daily history carries value, not the split;
+     · a base rate by the chosen method (recent pace, blended, long-run, or a
+       fitted trend through the monthly totals);
+     · a trend (last 90 days against the 90 before, at half strength, capped)
+       that bends the months ahead rather than repeating one figure;
+     · a likely range from how much its months have varied.
+   Anything under 30 days old starts excluded: a week of figures is not a pace.
    ========================================================================= */
-var projData = null, projLoading = false, projSpan = 'quarter';
+var projData = null, projLoading = false;
+var PJ = { span: 3, method: 'blended', measure: 'income', adj: 0, off: {}, touched: {} };
+try { var savedPJ = JSON.parse(localStorage.getItem('econ-proj') || 'null'); if (savedPJ) PJ = Object.assign(PJ, savedPJ); } catch (e) {}
+function pjSave(){ try { localStorage.setItem('econ-proj', JSON.stringify(PJ)); } catch (e) {} }
 
 async function loadProj(){
   if (projLoading) return;
@@ -3336,97 +3381,217 @@ async function loadProj(){
   if (state.tab === 'proj') renderView();
 }
 
-function projModel(){
+var MONTH = 30.44;
+function pjMonthKey(t){ var d = new Date(t); return d.getUTCFullYear() * 12 + d.getUTCMonth(); }
+
+function projBusinesses(){
   var now = todayStart() + DAY;
-  var biz = {};
-  (projData.series || []).forEach(function(r){
-    var key = r.source === 'emc' ? 'emc:' + r.cat : r.source === 'shop' ? 'shop' : null;
-    if (!key) return;
-    if (!biz[key]) biz[key] = { key: key, name: r.source === 'emc' ? serviceName(r.cat) : 'Shop', source: r.source, days: {}, first: r.day, n: 0 };
-    var b = biz[key];
-    var inc = r.source === 'shop' ? profit(r) : kept(r);
-    var d = b.days[r.day] || (b.days[r.day] = { inc: 0, gross: 0, n: 0 });
-    d.inc += inc; d.gross += r.gross || 0; d.n += r.n || 0;
-    b.n += r.n || 0;
-    if (r.day < b.first) b.first = r.day;
+  var fee = {};
+  (projData.cats || []).forEach(function(c){
+    if (c.source !== 'emc') return;
+    var f = fee[c.cat] || (fee[c.cat] = { g: 0, k: 0, n: 0 });
+    f.g += c.gross || 0; f.k += kept(c); f.n += c.n || 0;
   });
-  var span = projSpan === 'year' ? 365 : 91;
+  var biz = {};
+  var add = function(key, name, source, day, v){
+    var b = biz[key] || (biz[key] = { key: key, name: name, source: source, days: {}, first: day, n: 0 });
+    var d = b.days[day] || (b.days[day] = { inc: 0, gross: 0, n: 0 });
+    d.inc += v.inc; d.gross += v.gross; d.n += v.n; b.n += v.n;
+    if (day < b.first) b.first = day;
+  };
+  (projData.catSeries || []).forEach(function(r){
+    if (r.source !== 'emc') return;
+    var f = fee[r.cat], rate = f && f.g ? f.k / f.g : 0.1;
+    add('emc:' + r.cat, serviceName(r.cat), 'emc', r.day, { inc: (r.gross || 0) * rate, gross: r.gross || 0, n: r.n || 0 });
+  });
+  (projData.series || []).forEach(function(r){
+    if (r.source !== 'shop') return;
+    add('shop', 'Shop', 'shop', r.day, { inc: profit(r), gross: r.gross || 0, n: r.n || 0 });
+  });
+  var cur = pjMonthKey(todayStart());
   return Object.keys(biz).map(function(k){
-    var b = biz[k];
-    var t = function(day){ return Date.parse(day + 'T00:00:00Z'); };
-    var sumBetween = function(a, z, f){ var s0 = 0; Object.keys(b.days).forEach(function(day){ var x = t(day); if (x >= a && x < z) s0 += b.days[day][f]; }); return s0; };
+    var b = biz[k], t = function(day){ return Date.parse(day + 'T00:00:00Z'); };
     var age = Math.max(1, Math.round((now - t(b.first)) / DAY));
-    var d90 = Math.min(90, age), d365 = Math.min(365, age);
-    var last90 = sumBetween(now - 90 * DAY, now, 'inc'), prev90 = sumBetween(now - 180 * DAY, now - 90 * DAY, 'inc');
-    var year = sumBetween(now - 365 * DAY, now, 'inc');
-    var rate = 0.6 * (last90 / d90) + 0.4 * (year / d365);
+    var field = PJ.measure === 'value' ? 'gross' : 'inc';
+    var between = function(a, z, f){ var s0 = 0; Object.keys(b.days).forEach(function(day){ var x = t(day); if (x >= a && x < z) s0 += b.days[day][f]; }); return s0; };
+    var months = {}; Object.keys(b.days).forEach(function(day){ var m = pjMonthKey(t(day)); months[m] = (months[m] || 0) + b.days[day][field]; });
+    var hist = []; for (var i = 11; i >= 0; i--) hist.push(months[cur - i] || 0);
+    /* the base daily rate, by the chosen method */
+    var d30 = Math.min(30, age), d90 = Math.min(90, age), d365 = Math.min(365, age);
+    var rate, method = PJ.method;
+    if (method === 'recent') rate = between(now - 30 * DAY, now, field) / d30;
+    else if (method === 'longrun') rate = between(now - 365 * DAY, now, field) / d365;
+    else rate = 0.6 * between(now - 90 * DAY, now, field) / d90 + 0.4 * between(now - 365 * DAY, now, field) / d365;
+    var last90 = between(now - 90 * DAY, now, field), prev90 = between(now - 180 * DAY, now - 90 * DAY, field);
     var g = age >= 150 && prev90 > 0 ? Math.max(-0.5, Math.min(0.5, (last90 - prev90) / prev90)) : 0;
-    var proj = rate * span * (1 + g / 2);
-    var grossRate = 0.6 * (sumBetween(now - 90 * DAY, now, 'gross') / d90) + 0.4 * (sumBetween(now - 365 * DAY, now, 'gross') / d365);
-    var nRate = 0.6 * (sumBetween(now - 90 * DAY, now, 'n') / d90) + 0.4 * (sumBetween(now - 365 * DAY, now, 'n') / d365);
+    var monthlyGrowth = Math.pow(1 + g / 2, 1 / 3) - 1;          // a quarter's half-trend, spread over three months
+    /* complete months with any activity — for the fitted trend and the spread */
+    var full = hist.slice(0, 11).filter(function(v, i){ return i >= 11 - Math.floor(age / MONTH); });
+    var fit = null;
+    if (method === 'trend' && full.length >= 3){
+      var n = full.length, mx = (n - 1) / 2, my = full.reduce(function(a, v){ return a + v; }, 0) / n, sxx = 0, sxy = 0;
+      full.forEach(function(v, i){ sxx += (i - mx) * (i - mx); sxy += (i - mx) * (v - my); });
+      fit = { slope: sxy / sxx, at: function(m){ return my + (sxy / sxx) * (n - 1 - mx + m); } };
+    }
+    var ahead = [];
+    for (var m = 1; m <= PJ.span; m++){
+      var v = fit ? fit.at(m) : rate * MONTH * Math.pow(1 + monthlyGrowth, m);
+      ahead.push(v * (1 + PJ.adj / 100));
+    }
+    var mean = full.length ? full.reduce(function(a, v){ return a + v; }, 0) / full.length : 0;
+    var sd = full.length > 1 ? Math.sqrt(full.reduce(function(a, v){ return a + (v - mean) * (v - mean); }, 0) / (full.length - 1)) : 0;
+    var spread = Math.max(0.12, Math.min(0.7, mean > 0 ? sd / mean : 0.5)) * (age < 90 ? 1.3 : 1);
     var conf = age < 60 || b.n < 5 ? 'low' : age < 180 || b.n < 20 ? 'medium' : 'high';
-    return { key: k, name: b.name, source: b.source, age: age, orders: b.n, last90: last90, prev90: prev90, rate: rate,
-      trend: g, proj: Math.round(proj), projGross: Math.round(grossRate * span * (1 + g / 2)),
-      projOrders: Math.round(nRate * span * (1 + g / 2)), conf: conf, days: b.days };
-  }).sort(function(a, b){ return b.proj - a.proj; });
+    var nRate = (0.6 * between(now - 90 * DAY, now, 'n') / d90 + 0.4 * between(now - 365 * DAY, now, 'n') / d365);
+    var tooNew = age < 30;
+    var on = PJ.touched[k] ? !PJ.off[k] : !tooNew;
+    return { key: k, name: b.name, source: b.source, age: age, n: b.n, hist: hist, ahead: ahead,
+      total: ahead.reduce(function(a, v){ return a + v; }, 0), spread: spread, trend: g, conf: conf, tooNew: tooNew, on: on,
+      orders: Math.round(nRate * MONTH * PJ.span), last: last90, method: fit ? 'fitted trend' : method };
+  }).sort(function(a, b){ return b.total - a.total; });
 }
 
-/* Twelve months of what was actually earned, then the months ahead as
-   projected, dashed. */
-function projChart(rows){
-  var now = new Date(todayStart());
-  var months = [];
-  for (var i = 11; i >= 0; i--){ var m = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1)); months.push({ d: m, act: 0 }); }
-  rows.forEach(function(r){
-    Object.keys(r.days).forEach(function(day){
-      var dt = new Date(day + 'T00:00:00Z');
-      months.forEach(function(m){ if (dt.getUTCFullYear() === m.d.getUTCFullYear() && dt.getUTCMonth() === m.d.getUTCMonth()) m.act += r.days[day].inc; });
-    });
-  });
-  var ahead = projSpan === 'year' ? 12 : 3;
-  var perMonth = rows.reduce(function(a, r){ return a + r.proj; }, 0) / ahead;
-  for (var j = 1; j <= ahead; j++){ var f = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + j, 1)); months.push({ d: f, proj: perMonth }); }
-  var max = Math.max(1, Math.max.apply(null, months.map(function(m){ return Math.max(m.act || 0, m.proj || 0); })));
-  var W = 640, H = 170, bw = W / months.length;
-  return '<svg class="pj-chart" viewBox="0 0 ' + W + ' ' + (H + 22) + '" preserveAspectRatio="none">' + months.map(function(m, i){
-    var v = m.proj != null ? m.proj : Math.max(0, m.act), h = v / max * H, x = i * bw + 3;
-    var lbl = m.d.toLocaleDateString('en-GB', { month: 'short' });
-    return '<rect x="' + x + '" y="' + (H - h) + '" width="' + (bw - 6) + '" height="' + h + '" rx="3" class="' + (m.proj != null ? 'pj-f' : 'pj-a') + '">' +
-      '<title>' + lbl + ' ' + m.d.getUTCFullYear() + ': ' + Math.round(v).toLocaleString('en-US') + 'g ' + (m.proj != null ? 'projected' : 'earned') + '</title></rect>' +
-      '<text x="' + (x + (bw - 6) / 2) + '" y="' + (H + 15) + '" text-anchor="middle">' + lbl + '</text>';
+/* The chart: twelve months earned, then the months ahead with a likely range
+   on each and the running total as a line. */
+function pjChart(list){
+  var cur = pjMonthKey(todayStart());
+  var cols = [];
+  for (var i = 11; i >= 0; i--) cols.push({ m: cur - i, act: list.reduce(function(a, b){ return a + b.hist[11 - i]; }, 0) });
+  var run = 0;
+  for (var j = 0; j < PJ.span; j++){
+    var v = list.reduce(function(a, b){ return a + b.ahead[j]; }, 0);
+    var sp = list.reduce(function(a, b){ return a + b.ahead[j] * b.spread; }, 0);
+    run += v;
+    cols.push({ m: cur + j + 1, proj: v, lo: Math.max(0, v - sp), hi: v + sp, run: run });
+  }
+  var W = 900, H = 230, L = 52, R = 52, T = 14, B = 26, iw = W - L - R;
+  var maxBar = Math.max(1, Math.max.apply(null, cols.map(function(c){ return Math.max(c.act || 0, c.hi || 0); })));
+  var maxRun = Math.max(1, run);
+  var bw = iw / cols.length;
+  var Y = function(v){ return T + (1 - Math.max(0, v) / maxBar) * (H - T - B); };
+  var YR = function(v){ return T + (1 - v / maxRun) * (H - T - B); };
+  var name = function(m){ return new Date(Date.UTC(Math.floor(m / 12), m % 12, 1)).toLocaleDateString('en-GB', { month: 'short' }); };
+  var grid = [0, .25, .5, .75, 1].map(function(f){
+    var y = T + (1 - f) * (H - T - B);
+    return '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" class="pj2-grid"/>' +
+      '<text x="' + (L - 6) + '" y="' + (y + 3) + '" text-anchor="end" class="pj2-ax">' + compact(maxBar * f) + '</text>' +
+      (run ? '<text x="' + (W - R + 6) + '" y="' + (y + 3) + '" class="pj2-ax pj2-axr">' + compact(maxRun * f) + '</text>' : '');
+  }).join('');
+  var bars = cols.map(function(c, i){
+    var x = L + i * bw + 4, w = bw - 8, lbl = name(c.m);
+    if (c.proj == null){
+      return '<rect x="' + x + '" y="' + Y(c.act) + '" width="' + w + '" height="' + (H - B - Y(c.act)) + '" rx="3" class="pj2-a"><title>' +
+        lbl + ': ' + Math.round(c.act).toLocaleString('en-US') + 'g earned</title></rect>' +
+        '<text x="' + (x + w / 2) + '" y="' + (H - 8) + '" text-anchor="middle" class="pj2-ax">' + lbl + '</text>';
+    }
+    var cx = x + w / 2;
+    return '<rect x="' + x + '" y="' + Y(c.proj) + '" width="' + w + '" height="' + (H - B - Y(c.proj)) + '" rx="3" class="pj2-f"><title>' +
+      lbl + ': about ' + Math.round(c.proj).toLocaleString('en-US') + 'g (' + Math.round(c.lo).toLocaleString('en-US') + '–' +
+      Math.round(c.hi).toLocaleString('en-US') + 'g likely)</title></rect>' +
+      '<line x1="' + cx + '" x2="' + cx + '" y1="' + Y(c.hi) + '" y2="' + Y(c.lo) + '" class="pj2-wh"/>' +
+      '<line x1="' + (cx - 5) + '" x2="' + (cx + 5) + '" y1="' + Y(c.hi) + '" y2="' + Y(c.hi) + '" class="pj2-wh"/>' +
+      '<line x1="' + (cx - 5) + '" x2="' + (cx + 5) + '" y1="' + Y(c.lo) + '" y2="' + Y(c.lo) + '" class="pj2-wh"/>' +
+      '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle" class="pj2-ax pj2-axf">' + lbl + '</text>';
+  }).join('');
+  var line = cols.map(function(c, i){ return c.run == null ? null : [L + i * bw + bw / 2, YR(c.run)]; }).filter(Boolean);
+  var path = line.length ? '<path d="M' + line.map(function(p){ return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join('L') + '" class="pj2-run"/>' +
+    line.map(function(p){ return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" class="pj2-dot"/>'; }).join('') : '';
+  var split = L + 12 * bw;
+  return '<svg class="pj2-chart" viewBox="0 0 ' + W + ' ' + H + '">' + grid +
+    '<line x1="' + split + '" x2="' + split + '" y1="' + T + '" y2="' + (H - B) + '" class="pj2-split"/>' +
+    '<text x="' + (split + 4) + '" y="' + (T + 10) + '" class="pj2-ax pj2-axf">projected</text>' + bars + path + '</svg>' +
+    '<div class="pj2-key"><span><i class="a"></i>earned</span><span><i class="f"></i>projected</span><span><i class="wh"></i>likely range</span>' +
+    '<span><i class="run"></i>running total (right scale)</span></div>';
+}
+
+function pjSpark(hist){
+  var max = Math.max(1, Math.max.apply(null, hist));
+  return '<svg class="pj2-spark" viewBox="0 0 120 28">' + hist.map(function(v, i){
+    var h = Math.max(1, v / max * 26);
+    return '<rect x="' + (i * 10 + 1) + '" y="' + (27 - h) + '" width="8" height="' + h + '" rx="1.5"/>';
   }).join('') + '</svg>';
 }
 
 function viewProj(){
   if (!projData){ loadProj(); return '<p class="empty">Reading the last year&hellip;</p>'; }
   if (projData.error) return '<p class="empty">' + esc(projData.error) + '</p>';
-  var rows = projModel();
-  if (!rows.length) return '<p class="empty">No income recorded yet to project from.</p>';
-  var total = rows.reduce(function(a, r){ return a + r.proj; }, 0);
-  var label = projSpan === 'year' ? 'the next 12 months' : 'the next quarter';
-  var arrow = function(g){ return g > 0.05 ? '<span class="up">&#9650; ' + Math.round(g * 100) + '%</span>'
-    : g < -0.05 ? '<span class="dn">&#9660; ' + Math.round(-g * 100) + '%</span>' : '<span class="flat">steady</span>'; };
-  return '<div class="pj-top"><div class="seg pj-seg"><button type="button" data-pj="quarter" class="' + (projSpan === 'quarter' ? 'on' : '') + '">Next quarter</button>' +
-      '<button type="button" data-pj="year" class="' + (projSpan === 'year' ? 'on' : '') + '">Next year</button></div>' +
-      '<div class="pj-total"><b>' + gold(total) + '</b><span>projected income over ' + label + '</span></div></div>' +
-    panel('Month by month', 'solid: earned · faded: projected', projChart(rows), '', '', C.fee) +
-    panel('By business', label, '<div class="pj-table"><div class="pj-row pj-head"><span>Business</span><span>Last 90 days</span><span>Trend</span>' +
-      '<span>Projected income</span><span>Orders</span><span>Confidence</span></div>' +
-      rows.map(function(r){
-        return '<div class="pj-row"><span class="pj-n">' + esc(r.name) + '<em>' + (r.source === 'shop' ? 'sales less buy-backs' : 'company income') + '</em></span>' +
-          '<span>' + gold(Math.round(r.last90)) + '</span><span>' + arrow(r.trend) + '</span>' +
-          '<span class="pj-v">' + gold(r.proj) + (r.source === 'emc' ? '<em>' + gold(r.projGross) + ' order value</em>' : '') + '</span>' +
-          '<span>' + (r.source === 'emc' ? '~' + num(r.projOrders) : '—') + '</span>' +
-          '<span><i class="pj-c ' + r.conf + '">' + r.conf + '</i><em>' + r.age + ' days · ' + num(r.orders) + ' ' + (r.source === 'shop' ? 'sales' : 'orders') + '</em></span></div>';
-      }).join('') + '</div>' +
-      '<p class="footline">Rate: the last 90 days\u2019 daily income weighted 60/40 with the past year\u2019s. Trend: the last 90 days against the 90 before, ' +
-      'applied at half strength and capped at \u00b150%. A projection carries what has happened forward — new services, price changes or a quiet month will move it.</p>',
-      '', '', C.in);
+  var all = projBusinesses();
+  if (!all.length) return '<p class="empty">No income recorded yet to project from.</p>';
+  var on = all.filter(function(b){ return b.on; });
+  var total = on.reduce(function(a, b){ return a + b.total; }, 0);
+  var lo = on.reduce(function(a, b){ return a + b.total * (1 - b.spread / Math.sqrt(PJ.span)); }, 0);
+  var hi = on.reduce(function(a, b){ return a + b.total * (1 + b.spread / Math.sqrt(PJ.span)); }, 0);
+  var past = on.reduce(function(a, b){ return a + b.hist.slice(12 - PJ.span).reduce(function(x, v){ return x + v; }, 0); }, 0);
+  var orders = on.filter(function(b){ return b.source === 'emc'; }).reduce(function(a, b){ return a + b.orders; }, 0);
+  var spanWord = PJ.span === 3 ? 'next quarter' : PJ.span === 6 ? 'next six months' : 'next year';
+  var what = PJ.measure === 'value' ? 'order value' : 'income';
+  var seg = function(key, opts){ return '<div class="pj2-seg">' + opts.map(function(o){
+    return '<button type="button" data-pjset="' + key + '" data-v="' + o[0] + '" class="' + (String(PJ[key]) === String(o[0]) ? 'on' : '') + '">' + o[1] + '</button>'; }).join('') + '</div>'; };
+  var chg = past ? Math.round((total - past) / Math.abs(past) * 100) : null;
+  var out = '<div class="pj2-controls">' +
+      '<label><span>Looking ahead</span>' + seg('span', [[3, 'Quarter'], [6, '6 months'], [12, 'Year']]) + '</label>' +
+      '<label><span>Measure</span>' + seg('measure', [['income', 'Company income'], ['value', 'Order value']]) + '</label>' +
+      '<label><span>Method</span>' + seg('method', [['recent', 'Recent pace'], ['blended', 'Blended'], ['longrun', 'Long-run'], ['trend', 'Fitted trend']]) + '</label>' +
+      '<label class="pj2-adj"><span>Your adjustment <b>' + (PJ.adj > 0 ? '+' : '') + PJ.adj + '%</b></span>' +
+        '<input type="range" min="-50" max="100" step="5" value="' + PJ.adj + '" id="pjAdj"></label>' +
+    '</div>' +
+    '<div class="pj2-tiles">' +
+      '<div class="pj2-tile hero"><span>Projected ' + what + ', ' + spanWord + '</span><b>' + gold(Math.round(total)) + '</b>' +
+        '<em>likely ' + gold(Math.round(Math.max(0, lo))) + ' – ' + gold(Math.round(hi)) + '</em></div>' +
+      '<div class="pj2-tile"><span>A month, on this course</span><b>' + gold(Math.round(total / PJ.span)) + '</b><em>across ' + on.length + ' of ' + all.length + ' businesses</em></div>' +
+      '<div class="pj2-tile"><span>Orders expected</span><b>~' + num(orders) + '</b><em>EMC Services, ' + spanWord + '</em></div>' +
+      '<div class="pj2-tile"><span>Against the last ' + (PJ.span === 3 ? 'three months' : PJ.span === 6 ? 'six months' : 'twelve months') + '</span><b class="' +
+        (chg == null ? '' : chg >= 0 ? 'up' : 'dn') + '">' + (chg == null ? '—' : (chg > 0 ? '+' : '') + chg + '%') + '</b><em>' + gold(Math.round(past)) + ' then</em></div>' +
+    '</div>';
+  out += panel('Month by month', 'last 12 months, then the ' + spanWord, pjChart(on), '', '', C.fee);
+  /* each business, with its share of the projection and its own past */
+  out += panel('By business', 'tick to include in the totals',
+    '<div class="pj2-share">' + on.filter(function(b){ return b.total > 0; }).map(function(b, i){
+      return '<i style="flex:' + b.total + ';background:' + ['#22c55e','#fcd116','#4d8dff','#f97316','#a855f7','#a8a29e'][i % 6] + '" title="' +
+        esc(b.name) + ': ' + Math.round(b.total / Math.max(1, total) * 100) + '%"></i>'; }).join('') + '</div>' +
+    '<div class="pj2-list">' + all.map(function(b){
+      var arrow = b.trend > 0.05 ? '<span class="up">&#9650; ' + Math.round(b.trend * 100) + '%</span>'
+        : b.trend < -0.05 ? '<span class="dn">&#9660; ' + Math.round(-b.trend * 100) + '%</span>' : '<span class="flat">steady</span>';
+      return '<label class="pj2-b' + (b.on ? '' : ' off') + '"><input type="checkbox" data-pjb="' + esc(b.key) + '"' + (b.on ? ' checked' : '') + '>' +
+        '<span class="pj2-bn"><b>' + esc(b.name) + '</b><em>' + (b.source === 'shop' ? 'sales less buy-backs' : 'EMC Services') +
+          (b.tooNew ? ' · only ' + b.age + ' days of history' : '') + '</em></span>' +
+        pjSpark(b.hist) +
+        '<span class="pj2-num"><em>last 90 days</em>' + gold(Math.round(b.last)) + '</span>' +
+        '<span class="pj2-num"><em>trend</em>' + arrow + '</span>' +
+        '<span class="pj2-num big"><em>' + spanWord + '</em>' + gold(Math.round(b.total)) +
+          '<i>likely ' + gold(Math.round(Math.max(0, b.total * (1 - b.spread)))) + ' to ' + gold(Math.round(b.total * (1 + b.spread))) + '</i></span>' +
+        '<span class="pj2-num"><em>confidence</em><i class="pj-c ' + b.conf + '">' + b.conf + '</i><i>' + b.age + 'd · ' + num(b.n) + (b.source === 'shop' ? ' sales' : ' orders') + '</i></span>' +
+      '</label>';
+    }).join('') + '</div>', '', '', C.in);
+  out += panel('How these numbers are made', '',
+    '<ul class="pj2-how">' +
+      '<li><b>Method — ' + ({ recent: 'recent pace', blended: 'blended', longrun: 'long-run', trend: 'fitted trend' })[PJ.method] + ':</b> ' +
+        ({ recent: 'the last 30 days\u2019 daily rate, carried forward.',
+           blended: 'the last 90 days\u2019 daily rate weighted 60/40 with the past year\u2019s, so one strong or weak month does not dominate.',
+           longrun: 'the daily average over the whole of the past year — slow to react, hard to fool.',
+           trend: 'a straight line through each business\u2019s monthly totals, continued; falls back to blended with under three months.' })[PJ.method] + '</li>' +
+      (PJ.method === 'trend' ? '' : '<li><b>Trend:</b> the last 90 days against the 90 before, at half strength, capped at ±50%, and only for businesses with 150 days of history. It bends the months ahead rather than repeating one figure.</li>') +
+      '<li><b>Company income</b> for each service is its order value times that service\u2019s own fee rate over the past year. The shop counts sales less buy-backs and restocking.</li>' +
+      '<li><b>Likely range:</b> from how much each business\u2019s months have varied — wider for a young or uneven one.</li>' +
+      '<li><b>Your adjustment</b> (' + (PJ.adj > 0 ? '+' : '') + PJ.adj + '%) is applied on top, for anything the figures cannot know: a new service, a price change, a recruitment push.</li>' +
+      '<li>Businesses under 30 days old start unticked. Settings are remembered on this device.</li></ul>', '', '', C.ghost);
+  return out;
 }
 
 function wireProj(){
-  document.querySelectorAll('[data-pj]').forEach(function(b){
-    b.addEventListener('click', function(){ projSpan = b.dataset.pj; renderView(); });
+  document.querySelectorAll('[data-pjset]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var k = b.dataset.pjset, v = b.dataset.v;
+      PJ[k] = k === 'span' ? Number(v) : v; pjSave(); renderView();
+    });
+  });
+  var adj = $('pjAdj');
+  if (adj){
+    adj.addEventListener('input', function(){ var lab = adj.parentNode.querySelector('b'); if (lab) lab.textContent = (adj.value > 0 ? '+' : '') + adj.value + '%'; });
+    adj.addEventListener('change', function(){ PJ.adj = Number(adj.value); pjSave(); renderView(); });
+  }
+  document.querySelectorAll('[data-pjb]').forEach(function(cb){
+    cb.addEventListener('change', function(){ PJ.touched[cb.dataset.pjb] = true; PJ.off[cb.dataset.pjb] = !cb.checked; pjSave(); renderView(); });
   });
 }
 

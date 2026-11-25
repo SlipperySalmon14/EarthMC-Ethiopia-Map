@@ -359,6 +359,8 @@ function renderAdmitted() {
       stampSvg('ADMITTED', stampDate(), '') +
     '</div>';
   $('admitted').hidden = false;
+  // A visa can't open the front page, so don't offer the way back to it.
+  document.querySelector('.back').hidden = isPerk;
   renderNation();
   if (isPerk) startClock(); else $('stamp').textContent = 'Signed in as a citizen';
 }

@@ -969,6 +969,7 @@ body.gui-hidden .gui-restore{ display: block; }
 .town-table .t-flag.cap{ background:var(--brass-dim); color:var(--parchment); }
 .town-table .t-flag.open{ background:var(--sage); color:var(--ink); }
 .town-table .t-flag.risk{ background:var(--danger); color:var(--parchment); }
+.town-table .t-flag.shield{ background:var(--flag-blue, #17539e); color:var(--parchment); }
 
 /* inspector detail */
 .field{ display:block; margin-bottom:.65rem; }
@@ -1043,6 +1044,12 @@ input[type="range"]{
   image-rendering: pixelated;
   image-rendering: crisp-edges; /* older Firefox */
 }
+/* Terrain tiles are canvases, so Leaflet's own seam fix (written for <img>
+   tiles) misses them. Same fix: during a zoom the tiles land on fractional
+   pixels, their soft edges overlap, and "plus-lighter" adds the two halves
+   back to solid instead of letting the background show through as a line.
+   Each zoom level is its own stacking context, so levels never add up. */
+.terrain-layer .leaflet-tile{ mix-blend-mode: plus-lighter; }
 
 /* Deliberately NOT applying a drop-shadow filter to the vector canvases:
    with preferCanvas the whole layer shares one canvas, so the filter would
@@ -1251,6 +1258,33 @@ h1,h2,h3{ letter-spacing:0; }
 .topbar-brand .tagline{ font-family:var(--font-hud); font-weight:600; font-size:.66rem; letter-spacing:.18em; color:var(--muted-dim); }
 .home-link{ font-family:var(--font-hud); letter-spacing:.16em; }
 .topbar-pill{ border-radius:999px; background:rgba(255,255,255,.04); border-color:var(--line-hot); font-family:var(--font-body); font-weight:600; font-size:.74rem; letter-spacing:0; }
+
+/* ---- Ethiopia Perk: the visa clock and the locked door ---------------------- */
+.perk-pill{ gap:.5rem; border-color:rgba(252,209,22,.45); color:var(--parchment); }
+.perk-pill .perk-k{ font-family:var(--font-mono); font-size:.62rem; letter-spacing:.1em; text-transform:uppercase; color:var(--brass); }
+.perk-pill #perkLeft{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+.perk-pill.low{ border-color:rgba(239,68,68,.6); }
+.perk-pill.low #perkLeft{ color:var(--terracotta-hi); }
+
+.map-lock{ position:fixed; inset:0; z-index:5000; display:grid; place-items:center; padding:1rem;
+  background:radial-gradient(ellipse 70% 60% at 50% 40%, rgba(15,13,11,.55), rgba(15,13,11,.88));
+  -webkit-backdrop-filter:blur(7px) saturate(.6); backdrop-filter:blur(7px) saturate(.6); }
+.map-lock-card{ position:relative; width:min(31rem,100%); overflow:hidden; padding:2rem 1.6rem 1.6rem;
+  border-radius:14px; border:1px solid rgba(252,209,22,.25); background:var(--panel);
+  box-shadow:0 30px 80px -30px rgba(0,0,0,.9); text-align:center; }
+.map-lock-band{ position:absolute; left:0; right:0; top:0; height:7px; background:var(--tibeb) repeat-x; }
+.map-lock-emblem{ width:64px; height:64px; margin:0 auto .6rem; display:block; }
+.map-lock-card h2{ font-family:var(--font-display); font-size:1.9rem; font-weight:600; margin:0; color:var(--parchment); }
+.map-lock-formal{ font-family:var(--font-display); color:var(--brass); margin:.2rem 0 .9rem; }
+.map-lock-card p{ color:var(--muted); line-height:1.55; margin:.4rem 0; }
+.map-lock-card b{ color:var(--parchment); }
+.map-lock-actions{ display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; margin-top:1.2rem; }
+.map-lock-actions .btn{ text-decoration:none; }
+body.map-locked .workspace{ pointer-events:none; }
+/* Hand-drawn nation borders are Ethiopia's own work and stay with citizens;
+   the Worker never sends them to a Perk visa, so the panel would only ever
+   say "none drawn". */
+body.perk #panel-nation-claims{ display:none !important; }
 
 /* --- the save indicator --------------------------------------------------- */
 .save-pill{
@@ -1793,7 +1827,7 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
           <input type="text" id="publicTrackInput" placeholder="Track another nation…" autocomplete="off">
           <button type="submit" class="btn btn-primary btn-small">Track</button>
         </form>
-        <p class="hint">Ethiopia is always tracked. Add any other nation by name to pull its towns into the map and table.</p>
+        <p class="hint">Add any nation by name to pull its towns into the map and table. Ethiopia shows here once you track it or load every town.</p>
         <div class="bulk-load">
           <button type="button" class="btn btn-ghost btn-small" id="btnLoadAll">Load every town</button>
           <button type="button" class="btn btn-ghost btn-small" id="btnLoadNationless">Nationless only</button>
@@ -2302,7 +2336,7 @@ class AuditLog{
    native Minecraft blocks, with brighter major lines and X=0/Z=0 axes.
    ========================================================================= */
 const McGridLayer = L.GridLayer.extend({
-  options: { tileSize: 256, noWrap: false, updateWhenZooming: false },
+  options: { tileSize: 256, noWrap: false, updateWhenZooming: false, zIndex: 1 },
 
   createTile(coords){
     const tile = document.createElement('canvas');
@@ -2493,6 +2527,13 @@ const TERRAIN_MIN_NATIVE_ZOOM = 0; // squaremap's coarsest (whole-world) folder
 // tile and scales it in CSS instead of fetching a separate copy per grid
 // cell. A custom getTileUrl bypasses that entirely, which is what previously
 // caused hundreds of duplicate requests for the same image.
+//
+// BUT maxNativeZoom and minNativeZoom are MAP zoom levels, not folders.
+// Leaflet clamps the map zoom first and adds zoomOffset only when it builds
+// the URL. TERRAIN_MAX/MIN_NATIVE_ZOOM below are folders, so they are always
+// converted (folder - TERRAIN_ZOOM_OFFSET) before Leaflet sees them — see
+// buildTerrainLayer. Passing the folders straight in is what blanked the
+// terrain past map zoom 0 and loaded thousands of tiles when zoomed out.
 /* 512, not 2048 — the size squaremap actually serves.
  *
  * This single number was both the blur and, almost certainly, the mobile
@@ -2519,68 +2560,41 @@ const TERRAIN_ZOOM_OFFSET = 5;   // map zoom -5 -> folder 0; map zoom 0 -> folde
 const TERRAIN_OPACITY_NORMAL = 0.6;  // default — terrain visible but not overpowering
 const TERRAIN_OPACITY_DIM = 0.22;    // "Dim terrain" — pushes it back so claims read clearly
 
-// NOTE — the comment that used to sit here argued for tileSize 256 /
-// zoomOffset 6 and blamed the live 2048/3 pairing for terrain blanking at
-// high zoom. It was wrong, and it described a configuration that was REVERTED
-// (see section 5 of the handoff). Do not reinstate 256/6 on its authority.
-//
-// tileSize and zoomOffset are locked together by tileSize = 512*2^(5-offset),
-// so folder 5 covers 512 blocks whichever pair is chosen. Past folder 5
-// Leaflet upscales one tile, and the on-screen size is 512*2^mapZoom
-// REGARDLESS of the pairing:
-//     zoom 4 -> 8,192px    zoom 5 -> 16,384px
-//     zoom 6 -> 32,768px   zoom 7 -> 65,536px
-// Browsers stop painting somewhere near 16,384px, which is why terrain goes
-// blank at the closest zooms. Both pairings blank at the same point; the only
-// setting that moves it is MAP_MAX_ZOOM. Left at 7 — the blanking is known
-// and accepted, and lowering it would remove working zoom levels.
-const MAP_MAX_ZOOM = 7; // ~25 blocks across a phone screen at the closest zoom
-
-// Leaflet does not fetch a finer tile past maxNativeZoom — it stretches ONE
-// tile, and the element it paints is
-//     tileSize * 2^(mapZoom + zoomOffset - maxNativeZoom)
-// At 2048/3/5 that is 65,536px wide by zoom 7. Desktop survives it (terrain
-// just blanks at the closest zooms, long accepted). iOS Safari does not:
-// compositing a layer that size is what kills the tab and produces "this
-// webpage was reloaded because a problem occurred".
-//
-// EarthMC's own map has no such problem because squaremap serves 512px tiles
-// at native resolution and never upscales, so its elements stay ~512px.
-//
-// On phones the map's own maxZoom is therefore capped to whatever keeps the
-// painted element within TERRAIN_MAX_ELEMENT_PX. MAP_MAX_ZOOM itself is
-// untouched, so desktop behaviour is exactly as before.
-/* 4096 on a phone, not 8192.
+/* How close you can zoom.
  *
- * This is the budget for the single painted element Leaflet produces when it
- * upscales one tile past maxNativeZoom. 8192 was already a guess at Safari's
- * ceiling and the crash says it was too generous — iOS gives a tab far less
- * memory than a desktop window, and the failure is not an exception it is the
- * renderer being killed, which is why nothing reaches the error banner.
- *
- * Costs nothing but zoom range: the cap only lowers how far in you can go
- * before terrain stops resolving further. */
-const TERRAIN_MAX_ELEMENT_PX = IS_SMALL_SCREEN ? 4096 : 8192;
+ * Past map zoom 0 there is no finer squaremap folder, so the terrain layer
+ * cuts the folder-5 images it already has into smaller squares and enlarges
+ * them, every block a crisp square, which is how EarthMC's own map zooms in.
+ * Nothing new is downloaded past zoom 0. One block on screen at each zoom:
+ *     zoom 0 -> 1px    zoom 1 -> 2px    zoom 2 -> 4px
+ *     zoom 3 -> 8px    zoom 4 -> 16px   zoom 5 -> 32px   zoom 6 -> 64px
+ * Every terrain tile is a plain 512px canvas at every zoom, so there is no
+ * longer a size budget holding phones or low quality back. */
+const MAP_MAX_ZOOM = 6;
 
-function terrainSafeMaxZoom(nativeZoom){
-  /* Applied on EVERY device, not just phones.
-   *
-   * This used to bail out with MAP_MAX_ZOOM on desktop, which is why terrain
-   * vanished when you zoomed right in: past squaremap's finest folder Leaflet
-   * stops fetching and starts SCALING what it has, and the scale factor
-   * doubles per zoom level. At map zoom 7 a tile is painted at 65,536px.
-   * Browsers simply refuse to paint an element that size — no error, the layer
-   * just stops drawing. Capping the map's zoom is the only fix, because the
-   * element size is a consequence of the zoom and nothing else.
-   *
-   * Desktop gets a larger budget than a phone, but a budget either way. */
-  const budget = IS_SMALL_SCREEN ? TERRAIN_MAX_ELEMENT_PX : TERRAIN_MAX_ELEMENT_PX * 2;
-  let z = MAP_MAX_ZOOM;
-  while (z > 1 &&
-         TERRAIN_TILE_SIZE * Math.pow(2, z + TERRAIN_ZOOM_OFFSET - nativeZoom) > budget){
-    z--;
-  }
-  return z;
+/* The one place the ceiling is set. Called when terrain, low quality or the
+   world changes, so a ceiling left over from an older page can't stick. */
+function applyZoomCap(ctrl){
+  let c = ctrl;
+  try { c = c || mapController; } catch (e) { return; }   // still being built
+  if (!c || !c.map) return;
+  if (c.map.getMaxZoom() !== MAP_MAX_ZOOM) c.map.setMaxZoom(MAP_MAX_ZOOM);
+}
+
+/* The dark coordinate grid is the ground only where there is no terrain.
+   Left under the terrain, its lines showed through (more so with "Dim
+   terrain") every 16,384 blocks, right on the edges of the coarsest tiles,
+   and read as seams between tiles. The coordinates are still in the
+   bottom-left readout, and "Chunk borders" draws a grid on purpose. */
+function syncBaseGrid(ctrl){
+  let c = ctrl;
+  try { c = c || mapController; } catch (e) { return; }   // still being built
+  if (!c || !c.map) return;
+  const map = c.map, grid = c.gridLayer, terrain = c.terrainLayer;
+  if (!grid) return;
+  const want = !(terrain && map.hasLayer(terrain));
+  if (want && !map.hasLayer(grid)) grid.addTo(map);
+  if (!want && map.hasLayer(grid)) map.removeLayer(grid);
 }
 
 const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
@@ -2604,7 +2618,7 @@ const TERRAIN_URL_TEMPLATE = `${TERRAIN_BASE_URL}/{z}/{x}_{y}.png`;
 const RANGE_FROM_CAPITAL = 5000;   // blocks from the capital's HOME PLOT
 const RANGE_FROM_TOWN    = 1500;   // blocks from every member town's, chaining
 const PLAN_BASE_CLAIMS   = 12;     // a town's own floor
-const PLAN_PER_RESIDENT  = 12;     // each resident adds this
+const PLAN_PER_RESIDENT  = 16;     // each resident adds this (raised from 12 on 19 Nov 2026)
 const PLAN_CLAIM_COST    = 16;     // gold per chunk, one-off
 const PLAN_SHIELD_PER    = 4;      // 1g/day per this many chunks over
 
@@ -2781,6 +2795,9 @@ function forecastFor(name, src){
 /* How far over its limit a town will be on a given day: from its forecast
    when there is one, otherwise only today is known. */
 function overAt(town, d){
+  // Shielded right now: nothing is takeable today. Later days stay forecast,
+  // since a shield's end date isn't published.
+  if (d === 0 && town.hasOverclaimShield) return 0;
   const fc = forecastFor(town.name);
   if (fc){ const p = fc.series[Math.min(d, fc.series.length - 1)]; return p ? p.over : 0; }
   return d === 0 ? townOverNow(town) : null;
@@ -3651,70 +3668,165 @@ window.planFromPopup = function(name){
   if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
-/* Three rungs of the same tile pyramid, swapped by zoom.
+/* Terrain painted by hand: one 512px canvas per tile, at EVERY zoom.
  *
- * Squaremap already stores the world at six levels of detail; the mistake was
- * reading it through ONE lens at every zoom. A single tileSize forces a single
- * trade: 2048 is fine from orbit and a blurry mess up close, 512 is perfect up
- * close and asks for sixteen tiles where four would look identical.
+ * Squaremap keeps the world in six folders. Folder 5 is one image pixel per
+ * block (512 blocks a tile); each folder below covers twice the ground, down
+ * to folder 0 at 16,384 blocks a tile. Nothing finer than folder 5 exists.
  *
- * tileSize and zoomOffset are not independent — a tile must cover the world
- * area Leaflet believes it covers, which fixes folder = zoom + offset and ties
- * the pair together. So changing detail means changing BOTH, which means a
- * layer per rung with its own zoom window:
+ * Leaflet's built-in way of zooming past that (maxNativeZoom) is what kept
+ * failing here: one step past the closest level, the terrain vanished. So
+ * this layer no longer asks Leaflet to stretch anything. For each tile
+ * Leaflet wants, it works out which squaremap image(s) cover that patch of
+ * ground and paints exactly that piece into a canvas:
  *
- *   zoom <= -3   2048 / 3   four tiles instead of sixteen, and the upscaling
- *                           is invisible there because it is already reading
- *                           the coarsest folder squaremap has
- *   -2 to -1     1024 / 4   middle ground
- *   zoom >= 0     512 / 5   one image pixel per display pixel, no upscaling
+ *   closer than folder 5   cut a 512-block image into smaller squares and
+ *                          blow each one up with smoothing OFF, so every
+ *                          block is a crisp square, the same thing EarthMC's
+ *                          own map shows up close
+ *   folders 0..5           one image, drawn 1:1
+ *   whole-world zooms      several folder-0 images shrunk into one tile
  *
- * Leaflet only draws a tile layer inside its own minZoom/maxZoom, so the swap
- * costs nothing — the layers take turns. Returned as a group carrying the few
- * TileLayer methods the rest of this file calls, so nothing else has to know
- * it is three things.
+ * Each image is downloaded once and kept in a small cache, so zooming in
+ * costs NO new downloads: every piece comes from an image already on hand.
+ * And every tile is a plain 512px canvas, so nothing on screen is ever an
+ * oversized element, however far in you go.
  */
-const TERRAIN_RUNGS = [
-  { tileSize: 2048, zoomOffset: 3, minZoom: -7, maxZoom: -3 },
-  { tileSize: 1024, zoomOffset: 4, minZoom: -2, maxZoom: -1 },
-  { tileSize: 512,  zoomOffset: 5, minZoom: 0,  maxZoom: MAP_MAX_ZOOM },
-];
+const TERRAIN_WORLD_BOUNDS = L.latLngBounds([-65536, -65536], [65536, 65536]); // ±64,512 world, rounded out to whole folder-0 tiles
+const TERRAIN_IMAGE_CACHE = IS_SMALL_SCREEN ? 12 : 40;
+const terrainImages = new Map();   // url -> promise of the loaded image (null if it 404'd)
+const terrainLoaded = new Map();   // url -> the image itself once it has arrived, for drawing straight away
+
+/* Blocks one squaremap image covers in a given folder. */
+function terrainFolderBlocks(folder){ return 512 * Math.pow(2, TERRAIN_ZOOM_OFFSET - folder); }
+
+/* One download per image, ever (until it ages out of the cache). A 404 is
+   remembered as null: that patch of ground is unrendered on EarthMC's end,
+   and asking again every pan would only repeat the 404. */
+function terrainImage(url){
+  const hit = terrainImages.get(url);
+  if (hit){ terrainImages.delete(url); terrainImages.set(url, hit); return hit; }
+  const ready = new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { if (terrainImages.has(url)) terrainLoaded.set(url, img); resolve(img); };
+    img.onerror = () => { if (terrainImages.has(url)) terrainLoaded.set(url, null); resolve(null); };
+    img.src = url;
+  });
+  terrainImages.set(url, ready);
+  while (terrainImages.size > TERRAIN_IMAGE_CACHE){
+    const oldest = terrainImages.keys().next().value;
+    terrainImages.delete(oldest);
+    terrainLoaded.delete(oldest);
+  }
+  return ready;
+}
+
+const TerrainLayer = L.GridLayer.extend({
+  initialize(url, options){
+    this._url = url;
+    this._finest = TERRAIN_MAX_NATIVE_ZOOM;   // a squaremap FOLDER
+    L.Util.setOptions(this, options);
+  },
+  setUrl(url){ this._url = url; if (this._map) this.redraw(); return this; },
+  /* The finest folder to read from. Low quality and the moon pass a coarser
+     one; closer zooms then enlarge that instead. */
+  setNativeZoom(folder){ this._finest = folder; if (this._map) this.redraw(); return this; },
+  nativeFolder(){ return this._finest; },
+  setKeepBuffer(n){ this.options.keepBuffer = n; return this; },
+
+  createTile(coords, done){
+    const size = this.getTileSize().x;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+
+    // The ground this tile covers, in blocks (lat = -z, so tile y runs with z).
+    const span = size / Math.pow(2, coords.z);
+    const x0 = coords.x * span, z0 = coords.y * span;
+    // The folder that matches this zoom, held to what squaremap has.
+    const folder = Math.max(TERRAIN_MIN_NATIVE_ZOOM,
+                   Math.min(this._finest, coords.z + TERRAIN_ZOOM_OFFSET));
+    const fspan = terrainFolderBlocks(folder);
+    const urlFor = (f, x, z) => this._url.replace('{z}', f).replace('{x}', x).replace('{y}', z);
+
+    // Paint the part of one squaremap image that falls inside this tile.
+    const paint = (img, f, sx, sz) => {
+      const fs = terrainFolderBlocks(f);
+      const ax = Math.max(x0, sx * fs), bx = Math.min(x0 + span, (sx + 1) * fs);
+      const az = Math.max(z0, sz * fs), bz = Math.min(z0 + span, (sz + 1) * fs);
+      if (bx <= ax || bz <= az) return;
+      const toSrc = (img.naturalWidth || 512) / fs, toDst = size / span;
+      // Enlarging: hard pixel edges, like the game. Shrinking: smooth, or
+      // the whole-world view turns to glitter.
+      ctx.imageSmoothingEnabled = fs <= span;
+      ctx.drawImage(img,
+        (ax - sx * fs) * toSrc, (az - sz * fs) * toSrc, (bx - ax) * toSrc, (bz - az) * toSrc,
+        (ax - x0) * toDst, (az - z0) * toDst, (bx - ax) * toDst, (bz - az) * toDst);
+    };
+
+    const pieces = [];
+    for (let sx = Math.floor(x0 / fspan); sx * fspan < x0 + span; sx++){
+      for (let sz = Math.floor(z0 / fspan); sz * fspan < z0 + span; sz++){
+        pieces.push({ sx, sz, url: urlFor(folder, sx, sz) });
+      }
+    }
+    // Leaflet only knows this tile once createTile has returned, so "ready"
+    // is always reported a beat later, never from inside this call.
+    let reported = false;
+    const report = () => { if (reported) return; reported = true; Promise.resolve().then(() => done(null, canvas)); };
+
+    // Already on hand (zooming in on ground you've seen): draw now.
+    if (pieces.every(p => terrainLoaded.has(p.url))){
+      for (const p of pieces){
+        terrainImage(p.url);   // keeps it fresh in the cache
+        const img = terrainLoaded.get(p.url);
+        if (img) paint(img, folder, p.sx, p.sz);
+      }
+      report();
+      return canvas;
+    }
+
+    /* Not yet: show the same ground from a coarser image that IS on hand,
+       blurry for a moment, and swap in the sharp one when it lands. Panning
+       or zooming into new ground then never shows an empty hole while
+       EarthMC's server answers. */
+    for (let pf = folder - 1; pf >= TERRAIN_MIN_NATIVE_ZOOM && pf >= folder - 4; pf--){
+      const ps = terrainFolderBlocks(pf);
+      const px = Math.floor(x0 / ps), pz = Math.floor(z0 / ps);
+      const img = terrainLoaded.get(urlFor(pf, px, pz));
+      if (img){ ctx.imageSmoothingEnabled = true; paint(img, pf, px, pz); report(); break; }
+    }
+
+    Promise.all(pieces.map(p => terrainImage(p.url))).then(imgs => {
+      if (reported) ctx.clearRect(0, 0, size, size);
+      imgs.forEach((img, i) => { if (img) paint(img, folder, pieces[i].sx, pieces[i].sz); });
+      report();
+    });
+    return canvas;
+  },
+});
 
 function buildTerrainLayer(){
-  const group = L.layerGroup();
-  group.rungs = TERRAIN_RUNGS.map(r => L.tileLayer(TERRAIN_URL_TEMPLATE, {
-    tileSize: r.tileSize,
-    zoomOffset: r.zoomOffset,
-    minZoom: r.minZoom,
-    maxZoom: r.maxZoom,
-    maxNativeZoom: TERRAIN_MAX_NATIVE_ZOOM,
-    minNativeZoom: TERRAIN_MIN_NATIVE_ZOOM,
-    /* Sized to the rung: at 512 an off-screen ring is cheap and stops panning
-       flashing white; at 2048 one ring is four megapixels a tile, and the view
-       barely moves at that zoom anyway. */
-    keepBuffer: IS_SMALL_SCREEN ? 0 : (r.tileSize <= 512 ? 2 : 1),
+  return new TerrainLayer(TERRAIN_URL_TEMPLATE, {
+    tileSize: TERRAIN_TILE_SIZE,
+    minZoom: -7,
+    maxZoom: MAP_MAX_ZOOM,
+    bounds: TERRAIN_WORLD_BOUNDS,
+    /* One ring of ready tiles around the screen so panning doesn't flash the
+       grid through. Each tile is a 1MB canvas, so one ring, not two. */
+    keepBuffer: IS_SMALL_SCREEN ? 0 : 1,
     updateWhenIdle: IS_SMALL_SCREEN,
     updateWhenZooming: false,
+    /* Pinned above the coordinate grid. Both used to sit at the default
+       zIndex and stack in the order they were added, so re-adding the grid
+       (low quality off) laid its solid tiles over the terrain. */
+    zIndex: 2,
+    className: 'terrain-layer',
     opacity: TERRAIN_OPACITY_NORMAL,
     pmIgnore: true,
-    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  }));
-  group.rungs.forEach(l => group.addLayer(l));
-
-  /* Forwarded so every existing call site keeps working unchanged — the dim
-     toggle, the moon switch and the low-quality switch all treat this as a
-     single tile layer and should carry on doing so. */
-  group.setOpacity = function(o){ group.rungs.forEach(l => l.setOpacity(o)); return group; };
-  group.setUrl = function(u){ group.rungs.forEach(l => l.setUrl(u)); return group; };
-  group.setNativeZoom = function(n){
-    group.rungs.forEach(l => { l.options.maxNativeZoom = n; l.redraw(); });
-    return group;
-  };
-  group.setKeepBuffer = function(n){
-    group.rungs.forEach(l => { l.options.keepBuffer = n; });
-    return group;
-  };
-  return group;
+  });
 }
 
 /* =========================================================================
@@ -3926,6 +4038,10 @@ class EarthMCClient{
       isCapital: !!(raw.status && raw.status.isCapital),
       isRuined: !!(raw.status && raw.status.isRuined),
       isOverClaimed: !!(raw.status && raw.status.isOverClaimed),
+      /* Since 19 Nov 2026: true while the town can't be overclaimed. That
+         covers the paid shield and the new 24-hour protection a town gets
+         when it is kicked from a nation that gave it a bonus. */
+      hasOverclaimShield: !!(raw.status && raw.status.hasOverclaimShield),
       // Confirmed present on EarthMC's v3 town payload alongside the other
       // status flags above (earthmc.net/docs/api). isOpen = anyone can join
       // without an invite; isPublic = spawn is publicly accessible.
@@ -4750,10 +4866,8 @@ class MapController{
     // goes negative, and every tile 404s — which is exactly what blanked the
     // terrain when the offset changed from 3 to 6 without this following it.
     minZoom: -7,
-      // 7 puts roughly 25 blocks across a phone screen — a few chunks, close
-      // enough to pick out individual claims. Past this the upscale factor
-      // needs a >100,000px tile, which browsers refuse to allocate.
-      maxZoom: terrainSafeMaxZoom(TERRAIN_MAX_NATIVE_ZOOM),
+      // Zoom 6 is 64px a block; see MAP_MAX_ZOOM.
+      maxZoom: MAP_MAX_ZOOM,
       // Integer zoom snapping. zoomSnap 0.25 previously allowed 57 distinct
       // zoom levels between the floor and ceiling, each triggering its own
       // non-reusable tile set — roughly 4× the requests for no visual gain,
@@ -4801,6 +4915,8 @@ class MapController{
     // graceful fallback to the coordinate grid. Stored on `this` so the
     // toggle control below can show/hide it.
     this.terrainLayer = buildTerrainLayer();
+    // Grid out when terrain goes on, back when it goes off, however it happens.
+    this.terrainLayer.on('add remove', () => syncBaseGrid(this));
     /* On a phone the map pane starts display:none behind the panels, so this
        whole map is built into a zero-sized container. Adding terrain here
        means the heaviest layer sits in memory for a map nobody has opened —
@@ -4894,20 +5010,21 @@ class MapController{
       // Ethiopia's own political regions. Hidden from this box in the Global
       // view, where regions aren't drawn at all — `when` controls that.
       { label: 'Regions', get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
-        when: () => currentScope() !== 'global' },
+        when: () => currentScope() !== 'global' || viewerIsPerk() },
       { label: 'Real-world borders', get: () => irlState.on, set: (v) => setShowIrl(v) },
       { label: 'Counties', get: () => showCounties, set: (v) => setShowCounties(v),
-        when: () => currentScope() !== 'global' },
+        when: () => currentScope() !== 'global' || viewerIsPerk() },
       { label: 'Ice highways', get: () => showHighways, set: (v) => {
           showHighways = v; renderHighways(); renderHighwayRoute();
         }, when: () => currentScope() !== 'global' },
       { label: 'Town markers', get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); } },
       { label: 'Chunk borders', get: () => showChunkGrid, set: (v) => setChunkGrid(v) },
       { label: 'Players', get: () => showPlayers, set: (v) => setShowPlayers(v) },
-      { label: 'Terrain (experimental)', get: () => showTerrain, set: (v) => {
+      { label: 'Terrain', get: () => showTerrain, set: (v) => {
           showTerrain = v;
           if (v) self.terrainLayer.addTo(self.map);
           else self.map.removeLayer(self.terrainLayer);
+          applyZoomCap();
         } },
       { label: 'Dim terrain', get: () => showDim, set: (v) => {
           showDim = v;
@@ -5564,9 +5681,13 @@ function townsForActiveView(towns){
     }
     return home;
   }
+  /* "Load every town" means every town, Ethiopia's included. Ethiopia's
+     own towns come from the live sync (fresher than the 15-minute world
+     scan); the merge below keeps one copy of each. */
+  const homeInGlobal = homeShownInGlobal();
   const tracked = list.filter(t => {
     const n = t.nationName || '';
-    if (n === HOME_NATION) return globalTrackedNations.has(HOME_NATION);
+    if (n === HOME_NATION) return homeInGlobal;
     return true;
   });
 
@@ -5610,7 +5731,13 @@ function renderNationClaims(allTowns){
     // Keep the biggest towns — they're the ones whose borders actually read
     // at a glance, and it's a stable choice across syncs.
     const inView = towns;
-    towns = towns.slice().sort((a, b) => (b.townBlocks || 0) - (a.townBlocks || 0)).slice(0, MAX_CLAIM_TOWNS);
+    /* Ethiopia's own towns go first and are never culled: with every town
+       on the server loaded, the "biggest 1,200" otherwise dropped our small
+       towns, which is half of why Ethiopia looked missing from that view. */
+    const home = towns.filter(t => (t.nationName || '') === HOME_NATION);
+    const rest = towns.filter(t => (t.nationName || '') !== HOME_NATION)
+      .sort((a, b) => (b.townBlocks || 0) - (a.townBlocks || 0));
+    towns = home.concat(rest.slice(0, Math.max(0, MAX_CLAIM_TOWNS - home.length)));
     /* A town with a plan on it is never culled, whatever its size. The cap
        exists to stop a world scan drawing thousands of borders; a town the
        user is actively planning is the one border they are looking at.
@@ -5669,10 +5796,11 @@ function setMapWorld(world){
   mapWorld = world;
   const layer = mapController.terrainLayer;
   if (layer){
-    layer.setNativeZoom(world === 'moon'
-      ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM);
+    const finest = world === 'moon' ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM;
+    layer.setNativeZoom(lowQuality ? Math.min(finest, TERRAIN_MAX_NATIVE_ZOOM - 1) : finest);
     layer.setUrl(world === 'moon'
       ? `${MOON_TILE_BASE}/{z}/{x}_{y}.png` : TERRAIN_URL_TEMPLATE);
+    applyZoomCap();
   }
   auditLog.log(world === 'moon'
     ? 'Showing Terra Luna — earth towns are hidden'
@@ -7050,7 +7178,7 @@ function selectTownsForTable(towns){
     list = list.filter(t => t.name.toLowerCase().includes(q));
   }
   if (nationView.openOnly)   list = list.filter(t => t.isOpen);
-  if (nationView.atRiskOnly) list = list.filter(t => t.isOverClaimed);
+  if (nationView.atRiskOnly) list = list.filter(t => t.isOverClaimed && perkSees(t));
 
   const key = nationView.sortKey;
   if (key === 'name'){
@@ -7086,7 +7214,9 @@ function renderTownTable(towns){
     wrap.appendChild(label);
     if (t.isCapital)     wrap.appendChild(makeFlag('cap', '★', 'Capital'));
     if (t.isOpen)        wrap.appendChild(makeFlag('open', 'OPEN', 'Anyone can join without an invite'));
-    if (t.isOverClaimed) wrap.appendChild(makeFlag('risk', '!', 'Over-claimed — more chunks than the treasury supports'));
+    if (t.isOverClaimed && perkSees(t)) wrap.appendChild(t.hasOverclaimShield
+      ? makeFlag('shield', '\u25C8', 'Over-claimed, but shielded right now: nobody can take its land until the shield ends')
+      : makeFlag('risk', '!', 'Over-claimed — more chunks than the treasury supports'));
     const fall = townActivity(t);
     if (fall.daysLeft !== null && fall.daysLeft <= WARN_DAYS){
       wrap.appendChild(makeFlag('falling', `${Math.floor(fall.daysLeft)}d`,
@@ -7220,11 +7350,19 @@ function worldTownsForView(){
   const base = worldCache.nationlessOnly
     ? worldCache.towns.filter(t => !t.nationName)
     : worldCache.towns;
-  // The world scan covers every nation, which would otherwise sneak Ethiopia
-  // back into Global even when it isn't tracked there. Keep the separation.
-  return globalTrackedNations.has(HOME_NATION)
+  // Ethiopia rides along when every town is loaded (or it's tracked here);
+  // otherwise Global stays about the other nations.
+  return homeShownInGlobal()
     ? base
     : base.filter(t => (t.nationName || '') !== HOME_NATION);
+}
+
+/* Global shows Ethiopia when someone tracks it there, or asks for every
+   town. It used to need tracking even then, so "Load every town" pulled in
+   the whole server except us. */
+function homeShownInGlobal(){
+  return globalTrackedNations.has(HOME_NATION) || viewerIsPerk() ||
+         (worldCache.enabled && !worldCache.nationlessOnly);
 }
 
 /* =========================================================================
@@ -7267,6 +7405,11 @@ function daysSince(ts){
 const activityMemo = new Map();
 
 function townActivity(town){
+  // A Perk visitor sees no fall clock on anyone else's town.
+  if (!perkSees(town)){
+    const n = (town.residents && town.residents.length) || (town.mayor ? 1 : 0);
+    return { idleDays: null, daysLeft: null, known: 0, total: n, perResident: [] };
+  }
   const memoKey = town.name + ':' + (town.residents ? town.residents.length : 0) + ':' + activityCache.fetchedAt;
   const cached = activityMemo.get(memoKey);
   if (cached) return cached;
@@ -7332,7 +7475,10 @@ async function refreshActivity(scope){
 
   const towns = state.towns || [];
   let names;
-  if (scope === 'ethiopia'){
+  if (viewerIsPerk()){
+    const mine = towns.filter(t => perkInfo.nation && (t.nationName || '') === perkInfo.nation);
+    names = [...new Set(mine.flatMap(t => t.residents && t.residents.length ? t.residents : (t.mayor ? [t.mayor] : [])))];
+  } else if (scope === 'ethiopia'){
     const eth = towns.filter(t => (t.nationName || '') === HOME_NATION);
     names = [...new Set(eth.flatMap(t => t.residents && t.residents.length ? t.residents : (t.mayor ? [t.mayor] : [])))];
   } else {
@@ -8248,7 +8394,7 @@ function currentScope(){
 // toggleable from the map layers box within the views that do show them.
 function applyRegionVisibility(){
   if (!mapController || !mapController.regionsLayerGroup) return;
-  const on = viewerIsCitizen() && currentScope() !== 'global' && showRegions;
+  const on = showRegions && ((viewerIsCitizen() && currentScope() !== 'global') || viewerIsPerk());
   if (on) mapController.regionsLayerGroup.addTo(mapController.map);
   else mapController.map.removeLayer(mapController.regionsLayerGroup);
   renderRegionCapitals();
@@ -8294,7 +8440,7 @@ function setSidebarView(view){
 
   if (typeof renderExpansionPanel === 'function') renderExpansionPanel();
 
-  if (view === 'settings') renderIrlPanel();
+  if (view === 'settings' || (view === 'global' && viewerIsPerk())) renderIrlPanel();
   if (view === 'admin' || view === 'settings'){
     renderAll();
     renderCountyAdmin();
@@ -8351,7 +8497,8 @@ function renderEthiopiaPanel(towns){
     atRisk.forEach(t => {
       const div = document.createElement('div');
       div.className = 'eth-alert';
-      div.textContent = `${t.name} is over-claimed — ${CoordUtils.fmt(t.townBlocks)} chunks on ${CoordUtils.fmt(t.balance)}g`;
+      div.textContent = `${t.name} is over-claimed — ${CoordUtils.fmt(t.townBlocks)} chunks on ${CoordUtils.fmt(t.balance)}g` +
+        (t.hasOverclaimShield ? ' · shielded for now' : '');
       dom.ethAlerts.appendChild(div);
     });
   }
@@ -10799,7 +10946,8 @@ function renderIrlPanel(){
       Shade countries by who holds them — deeper the more is claimed</label>`;
   if (irlState.loading) h += '<p class="hint">Loading the borders…</p>';
   if (irlState.error) h += `<div class="eth-alert">${escapeHtml(irlState.error)}</div>`;
-  h += `<p class="hint">Click any country on the map to see how much of it is claimed, and by whom.</p>
+  h += `<p class="hint">Click any country on the map to see how much of it is claimed, and by whom.</p>`;
+  if (viewerIsCitizen()) h += `
     <details class="irl-cal"><summary>Alignment</summary>
       <p class="hint">Starts from a Miller projection fitted to Terra Nostra's edges. If the borders sit off, line them up with landmarks — two fix it, more make it exact.</p>
       <div class="hw-route-controls"><button type="button" class="btn ${irlState.pinning ? 'btn-accent' : 'btn-primary'} btn-small" id="irlPin">${irlState.pinning
@@ -10968,7 +11116,7 @@ function renderCounties(){
   const mc = mapController;
   if (!mc || !mc.countiesLayerGroup) return;
   mc.countiesLayerGroup.clearLayers();
-  if (!showCounties || currentScope() === 'global' || !viewerIsCitizen()) return;
+  if (!showCounties || !((viewerIsCitizen() && currentScope() !== 'global') || viewerIsPerk())) return;
   countyState.counties.forEach(c => {
     if (countyState.editing && countyState.editing.id === c.id) return;
     const ll = geometryLatLngs(c.geometry);
@@ -11213,7 +11361,7 @@ function setLowQuality(on){
 
   if (mapController && mapController.terrainLayer){
     const layer = mapController.terrainLayer;
-    // Fetch two folders coarser and let Leaflet upscale. This genuinely does
+    // Fetch a coarser folder and let Leaflet upscale. This genuinely does
     // make the terrain blurrier — the earlier version only changed which
     // folder was requested, so anything already cached looked identical.
     // Two levers, because they bite at opposite ends of the zoom range:
@@ -11223,32 +11371,19 @@ function setLowQuality(on){
     //   keepBuffer lowers the NUMBER of tiles held, which is what actually
     //   costs when zoomed out. Only changing maxNativeZoom is why this switch
     //   previously appeared to do nothing but remove the town borders.
-    // Lowering maxNativeZoom raises the upscale factor, so it has to be paired
-    // with a matching cut to the map's maxZoom or the painted element grows
-    // instead of shrinking — the opposite of what this switch is for.
-    const nativeZoom = on ? 3 : TERRAIN_MAX_NATIVE_ZOOM;
-    layer.setNativeZoom(nativeZoom);
-    layer.setKeepBuffer(on ? 0 : (IS_SMALL_SCREEN ? 0 : 1));
+    /* One folder coarser, not two: with the tile layer fixed, a close view
+       is only a few tiles anyway, and two folders halved how far in you
+       could zoom with terrain on. The moon is already capped coarser. */
+    const finest = mapWorld === 'moon' ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM;
+    layer.setNativeZoom(on ? Math.min(finest, TERRAIN_MAX_NATIVE_ZOOM - 1) : finest);
+    layer.setKeepBuffer(on ? 0 : (IS_SMALL_SCREEN ? 0 : 2));
     layer.options.updateWhenIdle = on || IS_SMALL_SCREEN;
-    const safeZoom = terrainSafeMaxZoom(nativeZoom);
-    if (mapController && mapController.map && mapController.map.getMaxZoom() !== safeZoom){
-      if (mapController.map.getZoom() > safeZoom) mapController.map.setZoom(safeZoom);
-      mapController.map.setMaxZoom(safeZoom);
-    }
-    layer.setOpacity(layer.options.opacity); // force a repaint at the new level
-    layer.redraw();
+    applyZoomCap();
   }
 
-  // The coordinate grid is a whole second tile layer redrawing a canvas for
-  // every tile on every pan — and it's completely hidden under the terrain.
-  // Dropping it is pure saved work with no visual loss.
-  if (mapController && mapController.gridLayer){
-    /* Dropped only when terrain is there to stand in for it. On a phone
-       terrain is off, so removing the grid too would leave the borders
-       floating on a black rectangle. */
-    if (on && showTerrain) mapController.map.removeLayer(mapController.gridLayer);
-    else mapController.gridLayer.addTo(mapController.map);
-  }
+  // The coordinate grid only ever sits where there's no terrain now, low
+  // quality or not; syncBaseGrid keeps it that way.
+  syncBaseGrid();
 
   auditLog.log(on ? 'Low quality — coarser terrain, no claim outlines, grid off' : 'Low quality off', 'info');
   refreshMapLayers();
@@ -11286,15 +11421,10 @@ function setMapOverlay(open){
     mapController.map.invalidateSize();
     if (showTerrain && mapController.terrainLayer &&
         !mapController.map.hasLayer(mapController.terrainLayer)){
-      requestAnimationFrame(() => mapController.terrainLayer.addTo(mapController.map));
+      requestAnimationFrame(() => { mapController.terrainLayer.addTo(mapController.map); applyZoomCap(); });
     }
-    /* The grid is the fallback ground on a phone, so it must not be the thing
-       low-quality mode removed. Without terrain there is otherwise nothing
-       under the borders at all. */
-    if (IS_SMALL_SCREEN && mapController.gridLayer &&
-        !mapController.map.hasLayer(mapController.gridLayer)){
-      mapController.gridLayer.addTo(mapController.map);
-    }
+    /* The grid is the ground whenever terrain is off (a phone's default). */
+    syncBaseGrid();
   });
 }
 
@@ -13019,6 +13149,7 @@ function buildPersistPayload(){
 
 /* ---- Live sync ---- */
 async function syncLiveData(){
+  if (viewerLocked) return;
   setSyncStatus('syncing');
   auditLog.log('Sync started', 'info');
   try{
@@ -13213,6 +13344,101 @@ function viewerIsCitizen(){
   return ['citizen', 'treasurer', 'manager'].includes(viewerTier);
 }
 
+/* ETHIOPIA PERK. A visitor on a 30-minute /map visa (see perk.html). They get
+   the Global view, the real-world borders, and Ethiopia's regions and
+   counties to look at, never to edit; the Worker hands them nothing else.
+   Fall and over-claim warnings show for their OWN nation only, so the map
+   is never a target list of anyone else's towns, ours least of all. */
+let perkInfo = { nation: null, expiresAt: null };
+function viewerIsPerk(){ return viewerTier === 'perk'; }
+/* Locked means: nobody we let in. Signed out, or signed in without being a
+   citizen or holding a live visa. The map stops syncing and shows the door. */
+let viewerLocked = false;
+
+/* Whether a Perk visitor may see this town's fall and over-claim state. */
+function perkSees(t){
+  return !viewerIsPerk() || (!!perkInfo.nation && (t.nationName || '') === perkInfo.nation);
+}
+
+/* The door. One overlay for two cases: nobody let in ('closed') and a visa
+   that just ran out ('expired'). It sits over the map rather than replacing
+   it, so the world is visible, blurred, behind the reason you can't use it. */
+function showMapLock(kind){
+  viewerLocked = true;
+  let el = document.getElementById('mapLock');
+  if (!el){
+    el = document.createElement('div');
+    el.id = 'mapLock';
+    el.className = 'map-lock';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'mapLockTitle');
+    document.body.appendChild(el);
+  }
+  const expired = kind === 'expired';
+  const login = CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/auth/login?redirect=' + encodeURIComponent('/map.html');
+  el.innerHTML = `<div class="map-lock-card">
+      <div class="map-lock-band" aria-hidden="true"></div>
+      <svg class="map-lock-emblem" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#17539e"/>
+        <polygon fill="#edb912" points="50.00,20.00 56.74,40.73 78.53,40.73 60.90,53.54 67.63,74.27 50.00,61.46 32.37,74.27 39.10,53.54 21.47,40.73 43.26,40.73"/></svg>
+      <h2 id="mapLockTitle">${expired ? 'Your visa has expired' : 'World Atlas'}</h2>
+      <p class="map-lock-formal">Republic of Ethiopia</p>
+      <p>${expired
+        ? 'Your 30 minutes are up. Run <b>/map</b> in the Republic of Ethiopia\u2019s Discord for a fresh visa whenever you want back in.'
+        : 'This is the Republic\u2019s own map of the server. It opens for citizens of Ethiopia, and for holders of <b>Ethiopia Perk</b> with a visa from <b>/map</b> in the Discord server.'}</p>
+      <div class="map-lock-actions">
+        <a class="btn btn-primary" href="perk.html">${expired ? 'Enter a new visa code' : 'I have a visa code'}</a>
+        <a class="btn btn-ghost" href="${login}">Citizen? Sign in with Discord</a>
+      </div>
+    </div>`;
+  el.hidden = false;
+  document.body.classList.add('map-locked');
+  setSyncStatus && setSyncStatus('idle');
+}
+
+let perkClock = null;
+function startPerkClock(){
+  clearInterval(perkClock);
+  const end = Date.parse(perkInfo.expiresAt || '');
+  if (!end) return;
+  let pill = document.getElementById('perkPill');
+  if (!pill){
+    pill = document.createElement('div');
+    pill.id = 'perkPill';
+    pill.className = 'topbar-pill perk-pill';
+    pill.title = 'Time left on your Ethiopia Perk visa';
+    pill.innerHTML = '<span class="perk-k">Visa</span><span id="perkLeft">--:--</span>';
+    const status = document.getElementById('topStatusDot');
+    const host = status && status.closest('.topbar-pill');
+    if (host && host.parentNode) host.parentNode.insertBefore(pill, host);
+  }
+  const step = () => {
+    const left = end - Date.now();
+    if (left <= 0){
+      clearInterval(perkClock);
+      pill.remove();
+      try { if (window.ethiopiaSession) window.ethiopiaSession.forget(); } catch(_e){}
+      showMapLock('expired');
+      return;
+    }
+    const m = Math.floor(left / 60000), sec = Math.floor((left % 60000) / 1000);
+    document.getElementById('perkLeft').textContent = m + ':' + String(sec).padStart(2, '0');
+    pill.classList.toggle('low', left < 5 * 60000);
+  };
+  step();
+  perkClock = setInterval(step, 1000);
+}
+
+/* Fit the map to a nation's towns. Used for the hub's "your nation" link. */
+function focusNationTowns(name){
+  const want = String(name || '').toLowerCase();
+  const towns = (state.towns || []).filter(t => (t.nationName || '').toLowerCase() === want &&
+    !t.isMoon && Number.isFinite(t.mcX) && Number.isFinite(t.mcZ));
+  if (!towns.length || !mapController) return;
+  const bounds = L.latLngBounds(towns.map(t => CoordUtils.mcToLatLng(t.mcX, t.mcZ)));
+  mapController.map.fitBounds(bounds.pad(0.35), { maxZoom: -1 });
+}
+
 function viewerIsManager(){
   return viewerTier === 'manager';
 }
@@ -13224,6 +13450,13 @@ async function loadViewer(){
     if (res.ok){
       const me = await res.json();
       viewerTier = (me && me.signedIn && me.tier) ? me.tier : 'unverified';
+      if (viewerTier === 'perk'){
+        perkInfo.expiresAt = me.passExpiresAt || null;
+        try {
+          const r3 = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/perk/standing', { credentials: 'include' });
+          if (r3.ok){ const st = await r3.json(); perkInfo.nation = st.nation || null; }
+        } catch(_e){ /* no nation: they simply see no fall warnings */ }
+      }
     }
     if (viewerIsCitizen()){
       const r2 = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/planning/access', { credentials: 'include' });
@@ -13233,18 +13466,32 @@ async function loadViewer(){
       }
     }
   } catch(_err){ /* treated as a stranger, which is the safe default */ }
+  viewerLocked = !viewerIsCitizen() && !viewerIsPerk();
   applyViewerGate();
 }
 
 function applyViewerGate(){
   const member = viewerIsCitizen();
+  const perk = viewerIsPerk();
   const notice = document.getElementById('publicNoticeText');
   if (notice){
-    notice.textContent = member
-      ? 'View only'
+    notice.textContent = member ? 'View only'
+      : perk ? 'Ethiopia Perk \u00b7 World Atlas \u00b7 view only'
       : 'The general EarthMC map. Ethiopia\u2019s regions and highways are for its citizens.';
   }
   document.body.classList.toggle('outsider', !member);
+  document.body.classList.toggle('perk', perk);
+  /* The real-world borders live in Settings for citizens. A Perk visitor has
+     no Settings tab, so the same panel moves into Global for them, minus the
+     alignment controls (renderIrlPanel leaves those out). */
+  const irl = document.getElementById('panel-irl');
+  if (irl){
+    irl.classList.toggle('view-settings', !perk);
+    irl.classList.toggle('view-global', perk);
+    if (perk){ irl.hidden = activeView !== 'global'; renderIrlPanel(); }
+  }
+  if (perk) startPerkClock();
+  if (viewerLocked) showMapLock('closed');
 
   // Ethiopia's own tabs disappear entirely rather than being disabled — a
   // greyed tab still tells you what exists.
@@ -13280,7 +13527,7 @@ function applyViewerGate(){
 
 /* ---- Boot ---- */
 auditLog.log('Console initialized — awaiting first sync', 'info');
-loadViewer();   // decides what this visitor may see, before anything renders
+const viewerReady = loadViewer();   // decides what this visitor may see, before anything renders
 setSidebarView('ethiopia'); // Ethiopia is the default sidebar view
 if (IS_SMALL_SCREEN){
   setLowQuality(true);
@@ -13293,7 +13540,23 @@ renderNationClaimAreas();
 renderNationClaimAdmin();
 hwRefreshAll();          // empty until the backend load lands, but keeps the panel honest
 loadRegionsFromBackend(); // rehydrate the shared, persisted regions + highways
-syncLiveData();
+/* The first sync waits for the viewer check (one quick request), so a locked
+   visitor never starts pulling the whole server through the Worker. ?nation=
+   (from the Perk hub's "your nation" link) is tracked before that first sync. */
+viewerReady.then(async () => {
+  if (viewerLocked) return;
+  const wanted = new URLSearchParams(location.search).get('nation');
+  if (wanted && wanted.trim()){
+    const name = wanted.trim();
+    state.targetNations.add(name);
+    globalTrackedNations.add(name);
+    setSidebarView('global');
+    await syncLiveData();
+    focusNationTowns(name);
+  } else {
+    syncLiveData();
+  }
+});
 setInterval(syncLiveData, CONFIG.AUTO_SYNC_INTERVAL_MS);
 // Activity (lastOnline, balances) moves far slower than town data, so it
 // refreshes on its own timer rather than with every sync. The previous

@@ -1635,7 +1635,7 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
         <div class="setting-row">
           <div class="setting-text">
             <strong>Show every town border</strong>
-            <span>Off by default, only the largest towns get an outline (<span id="claimCapLabel">120</span> of them). Turning this on draws all of them — heavy after a world scan.</span>
+            <span>On by default on a computer. Off, only the largest towns get an outline (<span id="claimCapLabel">120</span> of them), which is lighter on a phone after a world scan.</span>
           </div>
           <button type="button" class="toggle-switch" id="btnAllClaims" role="switch" aria-checked="false"><span></span></button>
         </div>
@@ -2208,7 +2208,11 @@ let showNationRange = false;
 
 let showChunkGrid = false;   // 16x16 chunk boundaries, aligned to the real grid
 let showPlayers = false;     // live player positions from squaremap
-let showAllClaims = false;   // ignore MAX_CLAIM_TOWNS and draw every border
+/* Every border, on a computer. The cap below was brought in when the map was
+   lagging, but the lag was the terrain (thousands of shrunk tiles, fixed
+   since). Borders are now reused between syncs rather than rebuilt, so all
+   of them is affordable on a computer; a phone still starts capped. */
+let showAllClaims = !IS_SMALL_SCREEN;
 let lowQuality = false; // coarser tiles, no claim outlines — for slower devices
 let guiHidden = false;  // hides every panel and control for a bare map
                          // so they can be hidden when they visually compete with territory
@@ -4142,7 +4146,7 @@ function tracedOutlinesFor(town){
   // each entry holds full traced geometry, so without a ceiling this grows
   // for the life of the session. The cap sits above MAX_CLAIM_TOWNS so the
   // towns actually on screen are never evicted from under the renderer.
-  if (outlineCache.size > 1500){
+  if (outlineCache.size > (IS_SMALL_SCREEN ? 1500 : 12000)){
     const oldest = outlineCache.keys().next().value;
     if (oldest !== undefined) outlineCache.delete(oldest);
   }
@@ -5708,10 +5712,24 @@ function townsForActiveView(towns){
 const MAX_CLAIM_TOWNS = IS_SMALL_SCREEN ? 120 : 1200;
 
 
+/* What is on the canvas right now, per town, so a sync only touches what
+   changed. Rebuilding every polygon every 90 seconds was fine for 1,200
+   towns; for all ~6,000 it would be a visible hitch each time. A town's
+   shapes are kept while its traced outline (same object from outlineCache),
+   colours, nation and clickability are unchanged. Popups and tooltips look
+   the town up by name when opened, so they always show the latest sync. */
+const claimIndex = new Map();     // town name -> { rings, sig, layers }
+const latestTown = new Map();     // town name -> the freshest town object
+function townPopupFor(name, fallback){ return buildTownPopupHtml(latestTown.get(name) || fallback); }
+
+function clearClaimIndex(){
+  mapController.claimsLayerGroup.clearLayers();
+  claimIndex.clear();
+}
+
 function renderNationClaims(allTowns){
   let towns = townsForActiveView(allTowns);
-  mapController.claimsLayerGroup.clearLayers();
-  if (!showClaims) return;
+  if (!showClaims){ clearClaimIndex(); placeAllMarkers(); return; }
 
   /* Low quality drops claim outlines entirely — they are the most expensive
      layer, and on a phone that is the right trade. But a finished plan is now
@@ -5720,7 +5738,7 @@ function renderNationClaims(allTowns){
      Planned towns are drawn regardless; there are never many of them. */
   if (lowQuality){
     const planned = towns.filter(t => expPlannedChunksFor(t.name));
-    if (!planned.length) return;
+    if (!planned.length){ clearClaimIndex(); placeAllMarkers(); return; }
     towns = planned;
   }
 
@@ -5758,12 +5776,24 @@ function renderNationClaims(allTowns){
   // same nation into a single seamless shape, hiding real town boundaries.
   // Each town gets its own separate outline; same-nation towns still share
   // a color so nation grouping stays visually obvious at a glance.
+  const group = mapController.claimsLayerGroup;
+  const keep = new Set();
+  const interactive = !drawModeArmed();
   towns.forEach(t => {
     if (!t.claimChunks || !t.claimChunks.length) return;
     const rings = tracedOutlinesFor(t);
     if (!rings) return; // malformed claim data for this town — skip rather than crash
     const nationName = t.nationName || 'Unaffiliated';
     const { fill: color, outline } = townColors(t);
+    latestTown.set(t.name, t);
+    keep.add(t.name);
+    const sig = [color, outline, nationName, interactive].join('|');
+    const had = claimIndex.get(t.name);
+    if (had && had.rings === rings && had.sig === sig && had.layers.length &&
+        group.hasLayer(had.layers[0])) return;          // unchanged: leave it where it is
+    if (had) had.layers.forEach(l => group.removeLayer(l));
+    const layers = [];
+    claimIndex.set(t.name, { rings, sig, layers });
     rings.forEach(ring => {
       const latlngs = ring.map(([x,z]) => CoordUtils.mcToLatLng(x,z));
       const polygon = L.polygon(latlngs, {
@@ -5775,7 +5805,7 @@ function renderNationClaims(allTowns){
            practically unreadable. */
         color: outline, weight: 2.4, opacity: 1,
         fillColor: color, fillOpacity: 0.30,
-        interactive: !drawModeArmed(),
+        interactive,
         // Same reasoning as town markers above — this is live derived data,
         // never an admin-editable "region", and must stay inert to Geoman's
         // global edit/drag/removal modes.
@@ -5785,10 +5815,19 @@ function renderNationClaims(allTowns){
       // Clicking the claim area shows the same stats as the town marker.
       // Without this the polygon had no popup at all, so a click fell
       // through to Geoman's selection handling — the mystery square.
-      polygon.bindPopup(() => buildTownPopupHtml(t), { maxWidth: 340 });
-      polygon.addTo(mapController.claimsLayerGroup);
+      const name = t.name;
+      polygon.bindPopup(() => townPopupFor(name, t), { maxWidth: 340 });
+      polygon.addTo(group);
+      layers.push(polygon);
     });
   });
+  // Towns that left the view, fell, or were capped out this time.
+  for (const [name, rec] of claimIndex){
+    if (keep.has(name)) continue;
+    rec.layers.forEach(l => group.removeLayer(l));
+    claimIndex.delete(name);
+  }
+  placeAllMarkers();   // markers step back where a border is now drawn
 }
 
 function setMapWorld(world){
@@ -6683,27 +6722,71 @@ function renderExpansionPanel(){
   });
 }
 
+/* TOWN MARKERS
+ *
+ * A marker is how you find a town from far out, where its border is a few
+ * pixels. Close in, the border says it better, and a fixed 15px disc sitting
+ * on the town hides the very buildings you zoomed in to see. So:
+ *   - markers shrink as you zoom out, so the world view is dots, not blobs;
+ *   - from zoom -1 in, a town whose border is drawn drops its marker (the
+ *     border opens the same popup); towns with no border keep theirs;
+ *   - like the borders, markers are reused between syncs, not rebuilt.
+ */
+const markerIndex = new Map();    // town name -> { marker, sig, base }
+let markerZoomHooked = false;
+
+function markerScale(z){
+  return z <= -5 ? 0.42 : z === -4 ? 0.55 : z === -3 ? 0.72 : z === -2 ? 0.88 : 1;
+}
+
+function placeAllMarkers(){
+  const mc = mapController;
+  if (!mc || !mc.townsLayerGroup) return;
+  const group = mc.townsLayerGroup;
+  const z = mc.map.getZoom();
+  const scale = markerScale(z);
+  const stepBack = showClaims && z >= -1;
+  markerIndex.forEach((rec, name) => {
+    const show = !(stepBack && claimIndex.has(name));
+    if (show){
+      rec.marker.setRadius(Math.max(2.2, rec.base * scale));
+      if (!group.hasLayer(rec.marker)) group.addLayer(rec.marker);
+    } else if (group.hasLayer(rec.marker)){
+      group.removeLayer(rec.marker);
+    }
+  });
+}
+
 function renderTownMarkers(allTowns){
+  const group = mapController.townsLayerGroup;
+  if (!markerZoomHooked){ markerZoomHooked = true; mapController.map.on('zoomend', placeAllMarkers); }
+  if (!showTowns){ group.clearLayers(); markerIndex.clear(); return; }
   const towns = townsForActiveView(allTowns);
-  mapController.townsLayerGroup.clearLayers();
-  if (!showTowns) return;
+  const interactive = !drawModeArmed();
+  const keep = new Set();
   towns.forEach(t => {
-    const radius = Math.max(4, Math.min(15, Math.sqrt(Math.max(t.population, 1)) * 1.8));
+    const base = Math.max(4, Math.min(15, Math.sqrt(Math.max(t.population, 1)) * 1.8));
     // Once per marker — this used to be called twice, for stroke and fill.
     const tc = townColors(t);
+    // Markers wear their nation's real colour so allegiance reads at a
+    // glance. Ruined towns stay red, and capitals keep the brass ring so
+    // they're still distinguishable within their own nation.
+    const color = t.isRuined ? COLORS.danger : (t.isCapital && !colorByActivity ? COLORS.brassHi : tc.outline);
+    const fillColor = t.isRuined ? COLORS.danger : tc.fill;
+    const weight = t.isCapital ? 2.6 : 1.6;
+    const sig = [t.mcX, t.mcZ, base, color, fillColor, weight, interactive].join('|');
+    latestTown.set(t.name, t);
+    keep.add(t.name);
+    const had = markerIndex.get(t.name);
+    if (had && had.sig === sig) return;
+    if (had) group.removeLayer(had.marker);
     const marker = L.circleMarker(CoordUtils.mcToLatLng(t.mcX, t.mcZ), {
-      radius,
-      // Markers wear their nation's real colour so allegiance reads at a
-      // glance. Ruined towns stay red, and capitals keep the brass ring so
-      // they're still distinguishable within their own nation.
-      color: t.isRuined ? COLORS.danger : (t.isCapital && !colorByActivity ? COLORS.brassHi : tc.outline),
-      // Slightly heavier stroke and a more opaque fill so markers hold their
-      // own against bright desert as well as dark ocean. Cheaper than a
-      // canvas drop-shadow, which would repaint the whole layer on each pan.
-      weight: t.isCapital ? 3 : 2,
-      fillColor: t.isRuined ? COLORS.danger : tc.fill,
-      fillOpacity: 0.7,
-      interactive: !drawModeArmed(),
+      radius: base,
+      color, weight, fillColor,
+      // A touch more opaque than before: smaller markers need a solid core
+      // to hold their own against bright desert as well as dark ocean.
+      fillOpacity: 0.85,
+      interactive,
       // Town markers are live informational data, never an admin-editable
       // "region" — pmIgnore keeps Geoman's GLOBAL edit/drag mode (toggled
       // for editing political regions) from also grabbing these markers.
@@ -6713,11 +6796,18 @@ function renderTownMarkers(allTowns){
       pmIgnore: true,
       bubblingMouseEvents: false,
     });
-    // Lazy: building 300+ popup strings (each with resident lists) up front
-    // is wasted work when only a handful are ever opened.
-    marker.bindPopup(() => buildTownPopupHtml(t), { maxWidth: 340 });
-    marker.addTo(mapController.townsLayerGroup);
+    // Lazy: building thousands of popup strings (each with resident lists)
+    // up front is wasted work when only a handful are ever opened.
+    const name = t.name;
+    marker.bindPopup(() => townPopupFor(name, t), { maxWidth: 340 });
+    markerIndex.set(t.name, { marker, sig, base });
   });
+  for (const [name, rec] of markerIndex){
+    if (keep.has(name)) continue;
+    group.removeLayer(rec.marker);
+    markerIndex.delete(name);
+  }
+  placeAllMarkers();
 }
 
 /* =========================================================================
@@ -13477,7 +13567,7 @@ function applyViewerGate(){
   if (notice){
     notice.textContent = member ? 'View only'
       : perk ? 'Ethiopia Perk \u00b7 World Atlas \u00b7 view only'
-      : 'The general EarthMC map. Ethiopia\u2019s regions and highways are for its citizens.';
+      : '';
   }
   document.body.classList.toggle('outsider', !member);
   document.body.classList.toggle('perk', perk);

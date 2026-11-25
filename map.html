@@ -832,32 +832,30 @@ body.gui-hidden .gui-restore{ display: block; }
 .hw-mini.danger:hover{ border-color:var(--danger); color:var(--danger-hi); }
 .hw-station-marker{ cursor:pointer; }
 
-/* ---- live players ---- */
+/* ---- live players ----
+   Drawn the way EarthMC's own map draws them: a white pointer facing where
+   the player looks, then their head and name on a dark tag. Zoomed far out
+   the names go and only the heads stay, so a busy region doesn't turn into
+   a pile of overlapping text. */
 .player-marker{ position:relative; }
-.player-arrow{
-  position:absolute; left:0; top:0;
-  width:0; height:0;
-  border-left:5px solid transparent;
-  border-right:5px solid transparent;
-  border-bottom:11px solid var(--sage-hi);
-  transform:translate(-50%,-50%);
-  filter:drop-shadow(0 0 2px rgba(0,0,0,.9));
-}
-/* No yaw in the feed — a dot rather than an arrow pointing at nothing. */
-.player-arrow.no-yaw{
-  width:8px; height:8px; border:2px solid #fff; border-radius:50%;
-  background:var(--sage-hi); box-sizing:border-box;
-}
-.player-name{
-  position:absolute; left:0; top:8px;
-  transform:translateX(-50%);
-  font-family:var(--font-mono); font-size:.62rem; line-height:1;
-  color:var(--parchment); white-space:nowrap;
-  text-shadow:0 0 3px rgba(0,0,0,.95), 0 1px 2px rgba(0,0,0,.9);
-  pointer-events:none;
-}
-.player-marker.is-underground .player-arrow{ opacity:.45; }
-.player-marker.is-underground .player-name{ opacity:.55; }
+.pl{ position:absolute; left:0; top:0; display:flex; align-items:center; gap:3px;
+  transform:translate(-6px,-50%); white-space:nowrap; }
+.pl-dir{ width:12px; height:12px; flex:none; fill:#fff; stroke:#141210; stroke-width:1.3px;
+  stroke-linejoin:round; filter:drop-shadow(0 1px 1px rgba(0,0,0,.55)); transform-origin:50% 50%; }
+.pl-tag{ display:inline-flex; align-items:center; gap:5px; padding:2px 7px 2px 2px; border-radius:4px;
+  background:rgba(16,14,12,.84); border:1px solid rgba(255,255,255,.14); box-shadow:0 2px 6px rgba(0,0,0,.45); }
+.pl-tag .mc-head{ width:16px; height:16px; border-radius:2px; image-rendering:pixelated; display:block; }
+.pl-tag b{ font-family:var(--font-body); font-weight:700; font-size:.72rem; color:#f5f1e8; letter-spacing:.01em; }
+.pl.compact .pl-tag{ padding:2px; }
+.pl.under{ opacity:.55; }
+
+/* ---- capitals ----
+   A gold star, as on EarthMC's map, instead of a ringed dot: the one marker
+   that stays at every zoom, because a capital is what you look for first. */
+.cap-star{ display:grid; place-items:center; }
+.cap-star svg{ width:18px; height:18px; stroke:#1a1408; stroke-width:1.4px; stroke-linejoin:round;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.6)); transition:width .15s ease, height .15s ease; }
+.far-zoom .cap-star svg{ width:12px; height:12px; }
 
 /* The draw/edit banner reuses .split-banner's positioning but needs room for
    word buttons rather than single glyphs. */
@@ -1827,7 +1825,7 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
           <input type="text" id="publicTrackInput" placeholder="Track another nation…" autocomplete="off">
           <button type="submit" class="btn btn-primary btn-small">Track</button>
         </form>
-        <p class="hint">Add any nation by name to pull its towns into the map and table. Ethiopia shows here once you track it or load every town.</p>
+        <p class="hint" id="trackHint">Add any nation by name to pull its towns into the map and table. Ethiopia shows here once you track it or load every town.</p>
         <div class="bulk-load">
           <button type="button" class="btn btn-ghost btn-small" id="btnLoadAll">Load every town</button>
           <button type="button" class="btn btn-ghost btn-small" id="btnLoadNationless">Nationless only</button>
@@ -5014,10 +5012,10 @@ class MapController{
       // Ethiopia's own political regions. Hidden from this box in the Global
       // view, where regions aren't drawn at all — `when` controls that.
       { label: 'Regions', get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
-        when: () => currentScope() !== 'global' || viewerIsPerk() },
+        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
       { label: 'Real-world borders', get: () => irlState.on, set: (v) => setShowIrl(v) },
       { label: 'Counties', get: () => showCounties, set: (v) => setShowCounties(v),
-        when: () => currentScope() !== 'global' || viewerIsPerk() },
+        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
       { label: 'Ice highways', get: () => showHighways, set: (v) => {
           showHighways = v; renderHighways(); renderHighwayRoute();
         }, when: () => currentScope() !== 'global' },
@@ -5364,6 +5362,12 @@ function refreshMapLayers(){
     // to see and hard to click. Re-drawing them here puts them back on top.
     renderHighways();
     renderNationRange();
+    if (viewerIsPerk()){
+      // Tracking or untracking Ethiopia shows or hides its regions' switches.
+      applyRegionVisibility();
+      renderCounties();
+      if (mapController.syncLayerToggles) mapController.syncLayerToggles();
+    }
   }, 0);
 }
 
@@ -6739,6 +6743,8 @@ function markerScale(z){
   return z <= -5 ? 0.42 : z === -4 ? 0.55 : z === -3 ? 0.72 : z === -2 ? 0.88 : 1;
 }
 
+const CAPITAL_STAR = '<path d="M12 1.8l3.1 6.6 7.2.9-5.3 5 1.4 7.1L12 17.9l-6.4 3.5 1.4-7.1-5.3-5 7.2-.9z"/>';
+
 function placeAllMarkers(){
   const mc = mapController;
   if (!mc || !mc.townsLayerGroup) return;
@@ -6746,7 +6752,12 @@ function placeAllMarkers(){
   const z = mc.map.getZoom();
   const scale = markerScale(z);
   const stepBack = showClaims && z >= -1;
+  mc.map.getContainer().classList.toggle('far-zoom', z <= -4);
   markerIndex.forEach((rec, name) => {
+    if (rec.star){                       // capitals stay at every zoom
+      if (!group.hasLayer(rec.marker)) group.addLayer(rec.marker);
+      return;
+    }
     const show = !(stepBack && claimIndex.has(name));
     if (show){
       rec.marker.setRadius(Math.max(2.2, rec.base * scale));
@@ -6774,12 +6785,30 @@ function renderTownMarkers(allTowns){
     const color = t.isRuined ? COLORS.danger : (t.isCapital && !colorByActivity ? COLORS.brassHi : tc.outline);
     const fillColor = t.isRuined ? COLORS.danger : tc.fill;
     const weight = t.isCapital ? 2.6 : 1.6;
-    const sig = [t.mcX, t.mcZ, base, color, fillColor, weight, interactive].join('|');
+    const star = !!t.isCapital && !t.isRuined;
+    const starFill = colorByActivity ? tc.fill : COLORS.brassHi;
+    const sig = [t.mcX, t.mcZ, base, color, fillColor, weight, interactive, star, starFill].join('|');
     latestTown.set(t.name, t);
     keep.add(t.name);
     const had = markerIndex.get(t.name);
     if (had && had.sig === sig) return;
     if (had) group.removeLayer(had.marker);
+    const name = t.name;
+    if (star){
+      const marker = L.marker(CoordUtils.mcToLatLng(t.mcX, t.mcZ), {
+        icon: L.divIcon({
+          className: 'cap-star',
+          html: `<svg viewBox="0 0 24 24" aria-hidden="true" style="fill:${starFill}">${CAPITAL_STAR}</svg>`,
+          iconSize: [20, 20], iconAnchor: [10, 10],
+        }),
+        interactive, pmIgnore: true, keyboard: false, zIndexOffset: 300,
+        title: `${t.name} · capital of ${t.nationName || 'no nation'}`,
+        bubblingMouseEvents: false,
+      });
+      marker.bindPopup(() => townPopupFor(name, t), { maxWidth: 340 });
+      markerIndex.set(t.name, { marker, sig, base, star: true });
+      return;
+    }
     const marker = L.circleMarker(CoordUtils.mcToLatLng(t.mcX, t.mcZ), {
       radius: base,
       color, weight, fillColor,
@@ -6798,7 +6827,6 @@ function renderTownMarkers(allTowns){
     });
     // Lazy: building thousands of popup strings (each with resident lists)
     // up front is wasted work when only a handful are ever opened.
-    const name = t.name;
     marker.bindPopup(() => townPopupFor(name, t), { maxWidth: 340 });
     markerIndex.set(t.name, { marker, sig, base });
   });
@@ -6887,6 +6915,7 @@ function renderPlayers(){
   try{ bounds = mc.map.getBounds().pad(0.3); } catch(_e){ bounds = null; }
 
   let shown = 0;
+  const compact = mc.map.getZoom() <= -4;
   onlinePlayers.forEach(p => {
     const ll = CoordUtils.mcToLatLng(p.x, p.z);
     if (bounds && !bounds.contains(ll)) return;
@@ -6899,12 +6928,16 @@ function renderPlayers(){
     const rot = yaw === null ? null : Math.round(yaw + 180);
     const underground = !!p.isUnderground;
 
+    const pointer = rot === null
+      ? '<svg class="pl-dir" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.6"/></svg>'
+      : `<svg class="pl-dir" viewBox="0 0 12 12" aria-hidden="true" style="transform:rotate(${rot}deg)">`
+        + '<path d="M6 .9 10.7 11 6 8.5 1.3 11Z"/></svg>';
     const marker = L.marker(ll, {
       icon: L.divIcon({
-        className: 'player-marker' + (underground ? ' is-underground' : ''),
-        html: `<i class="player-arrow${rot === null ? ' no-yaw' : ''}"`
-            + `${rot === null ? '' : ` style="transform:translate(-50%,-50%) rotate(${rot}deg)"`}></i>`
-            + `<span class="player-name">${escapeHtml(name)}</span>`,
+        className: 'player-marker',
+        html: `<div class="pl${compact ? ' compact' : ''}${underground ? ' under' : ''}" title="${escapeHtml(name)}">`
+            + pointer
+            + `<span class="pl-tag">${playerHead(name, 16)}${compact ? '' : `<b>${escapeHtml(name)}</b>`}</span></div>`,
         iconSize: [0, 0],
         iconAnchor: [0, 0],
       }),
@@ -7451,7 +7484,7 @@ function worldTownsForView(){
    town. It used to need tracking even then, so "Load every town" pulled in
    the whole server except us. */
 function homeShownInGlobal(){
-  return globalTrackedNations.has(HOME_NATION) || viewerIsPerk() ||
+  return globalTrackedNations.has(HOME_NATION) ||
          (worldCache.enabled && !worldCache.nationlessOnly);
 }
 
@@ -8484,7 +8517,7 @@ function currentScope(){
 // toggleable from the map layers box within the views that do show them.
 function applyRegionVisibility(){
   if (!mapController || !mapController.regionsLayerGroup) return;
-  const on = showRegions && ((viewerIsCitizen() && currentScope() !== 'global') || viewerIsPerk());
+  const on = showRegions && ((viewerIsCitizen() && currentScope() !== 'global') || perkSeesEthiopia());
   if (on) mapController.regionsLayerGroup.addTo(mapController.map);
   else mapController.map.removeLayer(mapController.regionsLayerGroup);
   renderRegionCapitals();
@@ -10927,20 +10960,32 @@ function irlControl(c){
 }
 const IRL_TINY = 25;     // chunks: below this a share means little
 
+/* Whose share a country popup calls out: the nation picked in the list if
+   there is one; otherwise Ethiopia for a citizen, and for a visa holder their
+   own nation, or nobody. */
+function irlFocusNation(){
+  if (nationView.activeNation) return nationView.activeNation;
+  if (viewerIsPerk()) return perkInfo.nation || null;
+  return HOME_NATION;
+}
+
 function irlPopupHtml(c){
   const r = irlControl(c);
   const pct = (n) => r.area ? (n / r.area * 100) : 0;
   const fmtPct = (v) => v >= 10 ? v.toFixed(0) + '%' : v >= 0.1 ? v.toFixed(1) + '%' : v > 0 ? '<0.1%' : '0%';
-  const eth = r.by.find(([n]) => n === HOME_NATION);
+  const focus = irlFocusNation();
+  const eth = focus ? r.by.find(([n]) => n === focus) : true;
   const allLoaded = worldCache.enabled && worldCache.towns.length;
   return `<div class="mc-popup irl-pop"><h4>${escapeHtml(c.name)}</h4>
     <p class="irl-sum">${escapeHtml(c.continent || '')} · <b>${fmtPct(pct(r.claimed))}</b> of its land is claimed · about ${CoordUtils.fmt(r.area)} chunks in all</p>
     ${r.tiny ? '<p class="irl-note">Too small for the share to mean much — a few chunks either way changes it a lot.</p>' : ''}
-    ${r.by.slice(0, 7).map(([n, v]) => `<div class="irl-row${n === HOME_NATION ? ' eth' : ''}"><span>${escapeHtml(n)}</span>
+    ${r.by.slice(0, 7).map(([n, v]) => `<div class="irl-row${focus && n === focus ? ' eth' : ''}"><span>${escapeHtml(n)}</span>
       <i style="width:${Math.max(2, Math.min(100, v / Math.max(1, r.by[0][1]) * 100))}%"></i><b>${fmtPct(pct(v))}</b></div>`).join('')}
     ${r.by.length > 7 ? `<p class="irl-note">and ${r.by.length - 7} more</p>` : ''}
-    ${eth ? '' : `<p class="irl-note">${escapeHtml(HOME_NATION)} holds none of it.</p>`}
-    ${allLoaded ? '' : '<p class="irl-note">Only the towns loaded so far are counted. Switch on every town (Global view, or the Planning tab) for the whole server.</p>'}
+    ${eth ? '' : `<p class="irl-note">${escapeHtml(focus)} holds none of it.</p>`}
+    ${allLoaded ? '' : (viewerIsPerk()
+      ? '<p class="irl-note">Only the towns loaded so far are counted. Load every town for the whole server.</p>'
+      : '<p class="irl-note">Only the towns loaded so far are counted. Switch on every town (Global view, or the Planning tab) for the whole server.</p>')}
   </div>`;
 }
 
@@ -11206,7 +11251,7 @@ function renderCounties(){
   const mc = mapController;
   if (!mc || !mc.countiesLayerGroup) return;
   mc.countiesLayerGroup.clearLayers();
-  if (!showCounties || !((viewerIsCitizen() && currentScope() !== 'global') || viewerIsPerk())) return;
+  if (!showCounties || !((viewerIsCitizen() && currentScope() !== 'global') || perkSeesEthiopia())) return;
   countyState.counties.forEach(c => {
     if (countyState.editing && countyState.editing.id === c.id) return;
     const ll = geometryLatLngs(c.geometry);
@@ -13445,6 +13490,11 @@ function viewerIsPerk(){ return viewerTier === 'perk'; }
    citizen or holding a live visa. The map stops syncing and shows the door. */
 let viewerLocked = false;
 
+/* The Perk view is the world first. Ethiopia's towns, regions and counties
+   appear only once the visitor asks for Ethiopia: tracks it by name or loads
+   every town. Even then regions and counties start switched off. */
+function perkSeesEthiopia(){ return viewerIsPerk() && homeShownInGlobal(); }
+
 /* Whether a Perk visitor may see this town's fall and over-claim state. */
 function perkSees(t){
   return !viewerIsPerk() || (!!perkInfo.nation && (t.nationName || '') === perkInfo.nation);
@@ -13580,7 +13630,20 @@ function applyViewerGate(){
     irl.classList.toggle('view-global', perk);
     if (perk){ irl.hidden = activeView !== 'global'; renderIrlPanel(); }
   }
-  if (perk) startPerkClock();
+  if (perk){
+    showRegions = false;
+    showCounties = false;
+    applyRegionVisibility();
+    /* A visitor's first question is "where is my nation", so the search comes
+       first and the real-world borders follow. */
+    const nations = document.getElementById('panel-nations');
+    if (irl && nations && nations.nextSibling !== irl) nations.after(irl);
+    const hint = document.getElementById('trackHint');
+    if (hint) hint.textContent = 'Type any nation to put its towns on the map and in the table, or load every town on the server.';
+    const eyebrow = nations && nations.querySelector('.eyebrow');
+    if (eyebrow) eyebrow.textContent = 'The server';
+    startPerkClock();
+  }
   if (viewerLocked) showMapLock('closed');
 
   // Ethiopia's own tabs disappear entirely rather than being disabled — a

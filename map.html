@@ -1796,9 +1796,26 @@ body.hist-recording .hist-video i{ animation:hrPulse 1.1s ease-in-out infinite; 
     linear-gradient(var(--brass), var(--brass)) left bottom / 2px 22px no-repeat,
     linear-gradient(var(--brass), var(--brass)) right bottom / 22px 2px no-repeat,
     linear-gradient(var(--brass), var(--brass)) right bottom / 2px 22px no-repeat; }
+/* The handles: corners resize, edges move; the inside lets the map pan. */
+.hf-c, .hf-e{ position:absolute; pointer-events:auto; touch-action:none; }
+.hf-c{ width:22px; height:22px; z-index:2; }
+.hf-c::after{ content:''; position:absolute; inset:5px; border-radius:50%; background:var(--brass); box-shadow:0 0 0 2px rgba(14,12,10,.85), 0 2px 8px rgba(0,0,0,.6);
+  transform:scale(.7); transition:transform .12s ease; }
+.hf-c:hover::after{ transform:scale(1); }
+.hf-nw{ left:-11px; top:-11px; cursor:nwse-resize; } .hf-se{ right:-11px; bottom:-11px; cursor:nwse-resize; }
+.hf-ne{ right:-11px; top:-11px; cursor:nesw-resize; } .hf-sw{ left:-11px; bottom:-11px; cursor:nesw-resize; }
+.hf-e{ cursor:move; }
+.hf-top, .hf-bottom{ left:12px; right:12px; height:12px; } .hf-top{ top:-6px; } .hf-bottom{ bottom:-6px; }
+.hf-left, .hf-right{ top:12px; bottom:12px; width:12px; } .hf-left{ left:-6px; } .hf-right{ right:-6px; }
+.hr-shape.hr-free{ width:12px; height:10px; border-style:dashed; }
+@media (pointer: coarse){ .hf-c{ width:34px; height:34px; } .hf-nw, .hf-ne{ top:-17px; } .hf-sw, .hf-se{ bottom:-17px; } .hf-nw, .hf-sw{ left:-17px; } .hf-ne, .hf-se{ right:-17px; } }
 .hist-frame span{ position:absolute; left:10px; top:8px; padding:.16rem .4rem; border-radius:5px; background:rgba(14,12,10,.8);
   font:600 .6rem var(--font-mono); letter-spacing:.12em; color:var(--brass-hi); }
 body.hist-recording #map, body.hist-recording .globe{ pointer-events:none; }
+/* While the globe is filmed its canvases are the video's size; shown whole
+   and in proportion (letterboxed) rather than stretched to the window. */
+body.hist-recording .globe canvas{ object-fit:contain; }
+body.hist-recording .globe .globe-glow, body.hist-recording .hist-frame-clip{ display:none; }
 body.hist-recording .hist-bar > :not(.hist-rec){ opacity:.45; pointer-events:none; }
 body.hist-recording .hr-field, body.hist-recording .hr-dates, body.hist-recording .hr-checks{ opacity:.5; pointer-events:none; }
 /* The bar sits in the map, whose width depends on the sidebar too, so it
@@ -1967,6 +1984,7 @@ body.globe-on .map-close{ z-index:1300; }
               <button type="button" data-i="1" aria-pressed="true"><i class="hr-shape" style="--a:1.78"></i>1080p</button>
               <button type="button" data-i="2" aria-pressed="false"><i class="hr-shape" style="--a:1"></i>Square</button>
               <button type="button" data-i="3" aria-pressed="false"><i class="hr-shape" style="--a:.5625"></i>Tall</button>
+              <button type="button" data-i="4" aria-pressed="false"><i class="hr-shape hr-free"></i>Free</button>
             </div>
           </div>
           <div class="hr-checks">
@@ -1983,7 +2001,10 @@ body.globe-on .map-close{ z-index:1300; }
           <div class="hr-out" id="histRecOut" hidden></div>
         </section>
       </div>
-      <div class="hist-frame-clip" id="histFrameClip" hidden aria-hidden="true"><div class="hist-frame" id="histFrame"><span></span></div></div>
+      <div class="hist-frame-clip" id="histFrameClip" hidden aria-hidden="true"><div class="hist-frame" id="histFrame"><span></span>
+        <i class="hf-e hf-top" data-h="move"></i><i class="hf-e hf-right" data-h="move"></i><i class="hf-e hf-bottom" data-h="move"></i><i class="hf-e hf-left" data-h="move"></i>
+        <i class="hf-c hf-nw" data-h="nw"></i><i class="hf-c hf-ne" data-h="ne"></i><i class="hf-c hf-sw" data-h="sw"></i><i class="hf-c hf-se" data-h="se"></i>
+      </div></div>
       <div id="globe" class="globe" hidden>
         <div class="globe-glow" id="globeGlow" aria-hidden="true"></div>
         <canvas class="globe-gl" id="globeGl"></canvas>
@@ -2209,8 +2230,8 @@ body.globe-on .map-close{ z-index:1300; }
 
       <section class="panel view-anydata" id="panel-nation-claims">
         <div class="panel-head">
-          <span class="eyebrow">Borders</span>
-          <h2>Nation borders</h2>
+          <span class="eyebrow">Borders · drawn by hand</span>
+          <h2>Drawn claims</h2>
         </div>
         <div class="nc-list" id="ncList"></div>
         <div class="nc-detail" id="ncDetail" hidden>
@@ -5448,7 +5469,7 @@ const globe = {
   lat: 9, lon: 40, dist: 2.6,  // what the camera looks at, and from how far
   vLat: 0, vLon: 0,            // inertia, degrees per frame
   w: 0, h: 0, dpr: 1,
-  recording: false, halfOverride: 0,   // while a video of the globe is made
+  recording: false, halfOverride: 0, offX: 0, offY: 0,   // while a video of the globe is made
   queued: false,
   pointers: new Map(), drag: null, pinch: null, moved: 0,
   hits: [], hover: null, card: null,
@@ -5525,12 +5546,12 @@ function globeProject(M, v){
   const zl = 1 / globe.dist;
   if (q[2] < zl + (1 - zl) * 0.02) return null;
   const f = 1 / Math.tan(GLOBE_FOV / 2), d = globe.dist - q[2], s = globeHalf();
-  return [globe.w / 2 + f * q[0] / d * s, globe.h / 2 - f * q[1] / d * s, q[2]];
+  return [globe.w / 2 + (globe.offX || 0) + f * q[0] / d * s, globe.h / 2 + (globe.offY || 0) - f * q[1] / d * s, q[2]];
 }
 /* The other way: which point of the ball is under a screen pixel. */
 function globePick(px, py){
   const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf();
-  const nx = (px - globe.w / 2) / s, ny = (globe.h / 2 - py) / s;
+  const nx = (px - globe.w / 2 - (globe.offX || 0)) / s, ny = (globe.h / 2 + (globe.offY || 0) - py) / s;
   let dx = nx / f, dy = ny / f, dz = -1;
   const len = Math.hypot(dx, dy, dz); dx /= len; dy /= len; dz /= len;
   const oz = globe.dist;                      // ray from (0, 0, dist)
@@ -5893,7 +5914,7 @@ function globeFrame(){
   const n = Math.max(1e-6, (globe.dist - 1) * 0.3), fa = globe.dist + 1.2;
   const fx = f * s / (globe.w / 2), fy = f * s / (globe.h / 2);
   gl.uniformMatrix4fv(globe.loc.uProj, false, new Float32Array([
-    fx, 0, 0, 0,  0, fy, 0, 0,  0, 0, (fa + n) / (n - fa), -1,  0, 0, 2 * fa * n / (n - fa), 0]));
+    fx, 0, 0, 0,  0, fy, 0, 0,  -2 * (globe.offX || 0) / globe.w, 2 * (globe.offY || 0) / globe.h, (fa + n) / (n - fa), -1,  0, 0, 2 * fa * n / (n - fa), 0]));
   // Column-major for WebGL: transpose of the row-major M.
   gl.uniformMatrix3fv(globe.loc.uRot, false, new Float32Array([M[0], M[3], M[6], M[1], M[4], M[7], M[2], M[5], M[8]]));
   gl.uniform1f(globe.loc.uDist, globe.dist);
@@ -5975,9 +5996,10 @@ function globeBlocksPerRad(){ const c = globeCalib(); return (c.xE - c.xW) / (2 
 function globeView(M){
   const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf();
   const F = f * s, d = globe.dist;
-  return { M, F, d, cx: globe.w / 2, cy: globe.h / 2, w: globe.w, h: globe.h,
+  const ox = globe.offX || 0, oy = globe.offY || 0;
+  return { M, F, d, cx: globe.w / 2 + ox, cy: globe.h / 2 + oy, w: globe.w, h: globe.h,
     zl: 1 / d, lim: Math.sqrt(Math.max(0, 1 - 1 / (d * d))),
-    horizon: Math.acos(1 / d), halfDiag: Math.hypot(globe.w, globe.h) / 2,
+    horizon: Math.acos(1 / d), halfDiag: Math.hypot(globe.w / 2 + Math.abs(ox), globe.h / 2 + Math.abs(oy)),
     bpp: globeBlocksPerRad() * (d - 1) / F,        // blocks per screen pixel in the middle
     sx: new Float32Array(4096), vis: new Uint8Array(2048) };
 }
@@ -6423,6 +6445,7 @@ function globeDrawOverlay(M, rPx, V){
   // Bottom to top, the same order as the flat map.
   if (irlState.on && irlState.raw && mapWorld !== 'moon') globeDrawIrl(ctx, V, areas);
   if (hist.on) globeDrawHistory(ctx, V, 'land');
+  else if (liveBordersShown()) globeDrawHistory(ctx, V, 'land', liveBorders.frame, LIVE_BORDER_DRAW);
   if (showRegions && ethiopiaShown) globeDrawRegions(ctx, V, areas, zoomK);
   if (showCounties && ethiopiaShown) globeDrawCounties(ctx, V, areas);
   if (showNationClaims && viewerIsCitizen() && mapWorld !== 'moon') globeDrawNationClaims(ctx, V, areas);
@@ -6435,6 +6458,7 @@ function globeDrawOverlay(M, rPx, V){
   if (showHighways && scope !== 'global' && viewerIsCitizen() && mapWorld !== 'moon') globeDrawHighways(ctx, V, hits, zoomK);
   if (live && showNationRange) globeDrawRange(ctx, V, hits, areas, zoomK);
   if (hist.on) globeDrawHistory(ctx, V, 'labels');
+  else if (liveBordersShown()) globeDrawHistory(ctx, V, 'labels', liveBorders.frame, LIVE_BORDER_DRAW);
 
   /* Town markers: a dot each in its nation's colour, sized by population;
      capitals as stars. */
@@ -7789,14 +7813,49 @@ function histPaintLand(ctx, list, k, towns){
   });
 }
 /* Town borders (the layer switch), in the nation's colour inside and out. */
-function histPaintTowns(ctx, groups, k){
-  if (!showClaims) return;
+/* A town's own look: exactly what EarthMC's map paints it today (fill and
+   outline), when today's map is loaded and the town was in the same nation
+   on the day shown; otherwise its nation's colour that day. The recorder
+   keeps one colour per nation, not per town, so earlier days borrow each
+   town's colours from today. */
+function histTownLook(f, s){
+  const own = typeof MAP_TOWN_COLORS !== 'undefined' ? MAP_TOWN_COLORS.get(s.name) : null;
+  if (own){
+    const nat = s.id === HIST_NATIONLESS ? null : ((f.nations[s.id - 1] || {}).name || null);
+    if ((own.nation || null) === nat){
+      const key = own.fill + '|' + own.outline;
+      let l = histTownLook.memo.get(key);
+      if (!l){
+        const rgb = histHex(own.fill) || HIST_GREY;
+        l = { key, fill: `rgba(${rgb.join(',')},.3)`, edge: own.outline || own.fill, solid: own.fill };
+        histTownLook.memo.set(key, l);
+      }
+      return l;
+    }
+  }
+  const st = histStyleOf(f, s.id);
+  return { key: st.solid, fill: st.town, edge: st.townEdge, solid: st.solid };
+}
+histTownLook.memo = new Map();
+/* looks: Map key -> { fill, edge, path }. */
+function histPaintTowns(ctx, looks, k){
+  if (!showClaims || !looks) return;
   ctx.lineJoin = 'miter';
-  ctx.lineWidth = k >= 1 ? 1.4 : k >= 1 / 6 ? 1.1 : 0.9;
-  groups.forEach((p, st) => {
-    ctx.fillStyle = st.town; ctx.fill(p, 'evenodd');
-    ctx.strokeStyle = st.townEdge; ctx.stroke(p);
+  ctx.lineWidth = k >= 1 ? 1.6 : k >= 1 / 6 ? 1.2 : 0.9;
+  looks.forEach((l) => {
+    ctx.fillStyle = l.fill; ctx.fill(l.path, 'evenodd');
+    ctx.strokeStyle = l.edge; ctx.stroke(l.path);
   });
+}
+/* A town's path into its nation's land group and its own look group. */
+function histAddTown(groups, looks, f, s, p){
+  const st = histStyleOf(f, s.id);
+  let g = groups.get(st); if (!g) groups.set(st, g = new Path2D());
+  g.addPath(p);
+  if (!looks) return;
+  const l = histTownLook(f, s);
+  let e = looks.get(l.key); if (!e) looks.set(l.key, e = { fill: l.fill, edge: l.edge, path: new Path2D() });
+  e.path.addPath(p);
 }
 /* Town markers (the layer switch): a dot per town, sized by its people. */
 function histPaintDots(ctx, f, at, k){
@@ -7807,16 +7866,16 @@ function histPaintDots(ctx, f, at, k){
     if (s.cap && s.id !== HIST_NATIONLESS) continue;                 // capitals have their stars
     const p = at(s.cx, s.cz);
     if (!p || p[0] < -8 || p[1] < -8 || p[0] > ctx.canvas.width + 8 || p[1] > ctx.canvas.height + 8) continue;
-    const st = histStyleOf(f, s.id);
-    let l = byStyle.get(st); if (!l) byStyle.set(st, l = []);
+    const solid = histTownLook(f, s).solid;
+    let l = byStyle.get(solid); if (!l) byStyle.set(solid, l = []);
     l.push(p[0], p[1], Math.max(1.6, Math.min(4.2, Math.sqrt(Math.max(1, s.res)) * 0.7)) * grow);
   }
   ctx.save();
   ctx.lineWidth = 0.9; ctx.strokeStyle = 'rgba(12,10,8,.7)';
-  byStyle.forEach((l, st) => {
+  byStyle.forEach((l, solid) => {
     ctx.beginPath();
     for (let i = 0; i < l.length; i += 3){ ctx.moveTo(l[i] + l[i + 2], l[i + 1]); ctx.arc(l[i], l[i + 1], l[i + 2], 0, Math.PI * 2); }
-    ctx.fillStyle = st.solid; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = solid; ctx.fill(); ctx.stroke();
   });
   ctx.restore();
 }
@@ -7847,29 +7906,30 @@ function histRender2D(ctx, f, view, opts){
     }
     if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
   });
-  let groups = null;
+  let groups = null, looks = null;
   if (k >= HIST_TOWNS_FROM_K){
     groups = new Map();
+    looks = o.towns !== false && showClaims ? new Map() : null;
     for (const s of f.shapes){
       if (s.x1 < vx0 || s.x0 > vx1 || s.z1 < vz0 || s.z0 > vz1) continue;
-      const st = histStyleOf(f, s.id);
-      let p = groups.get(st); if (!p) groups.set(st, p = new Path2D());
+      const p = new Path2D();
       for (const r of histTownRings(s)) trace(p, r.p, true);
+      histAddTown(groups, looks, f, s, p);
     }
   }
   ctx.save();
   histPaintLand(ctx, list, k, groups);
-  if (groups) histPaintTowns(ctx, groups, k);
+  histPaintTowns(ctx, looks, k);
   ctx.restore();
-  histPaintDots(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], k);
+  if (o.towns !== false) histPaintDots(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], k);
   if (o.labels !== false){
-    histLabels2D(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], () => k, k, w, h, o.scale || 1);
+    histLabels2D(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], () => k, k, w, h, o.scale || 1, o.capitals !== false);
   }
 }
 
 /* Capitals and nation names in screen space. `at` places a point, `ppb`
    gives the scale there, `kc` the scale in the middle of the view. */
-function histLabels2D(ctx, f, at, ppb, kc, w, h, scale){
+function histLabels2D(ctx, f, at, ppb, kc, w, h, scale, capitals){
   const F = histFonts();
   const boxes = [];
   const clash = (b) => boxes.some(q => !(b[2] < q[0] || b[0] > q[2] || b[3] < q[1] || b[1] > q[3]));
@@ -7901,7 +7961,7 @@ function histLabels2D(ctx, f, at, ppb, kc, w, h, scale){
   }
   if (spaced) ctx.letterSpacing = '0px';
   // Capitals, once there is room for them.
-  if (kc >= 1 / 100){
+  if (capitals !== false && kc >= 1 / 100){
     const named = kc >= 1 / 22;
     ctx.textAlign = 'left';
     const fs = 11.5 * scale;
@@ -7936,6 +7996,9 @@ function histLabels2D(ctx, f, at, ppb, kc, w, h, scale){
 let HistLayer = null;
 if (typeof L !== 'undefined' && L.Layer && L.Layer.extend){
   HistLayer = L.Layer.extend({
+    /* opts.frame(): the territory to draw; opts.draw: options for histRender2D. */
+    initialize(opts){ this._opts = opts || {}; },
+    _frame(){ return this._opts.frame ? this._opts.frame() : hist.frame; },
     onAdd(map){
       this._map = map;
       this._c = L.DomUtil.create('canvas', 'hist-layer leaflet-zoom-animated');
@@ -7982,11 +8045,12 @@ if (typeof L !== 'undefined' && L.Layer && L.Layer.extend){
       const dc = d.getContext('2d');
       dc.setTransform(1, 0, 0, 1, 0, 0);
       dc.clearRect(0, 0, W, H);
-      if (hist.frame){
+      const f = this._frame();
+      if (f){
         dc.setTransform(dpr, 0, 0, dpr, 0, 0);
-        histRender2D(dc, hist.frame, { k: Math.pow(2, this._zoom), ox: tl.lng, oz: -tl.lat, w, h });
+        histRender2D(dc, f, { k: Math.pow(2, this._zoom), ox: tl.lng, oz: -tl.lat, w, h }, this._opts.draw);
       }
-      this._has = !!hist.frame;
+      this._has = !!f;
       const ctx = c.getContext('2d');
       const show = (t) => {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -8010,16 +8074,110 @@ if (typeof L !== 'undefined' && L.Layer && L.Layer.extend){
   });
 }
 
+function histEnsurePane(map){
+  if (hist.panes) return;
+  map.createPane('histPane');
+  map.getPane('histPane').style.zIndex = 350;
+  map.getPane('histPane').style.pointerEvents = 'none';
+  hist.panes = true;
+}
+/* ---- nation borders now --------------------------------------------------
+   The same territory as the timelapse, worked out from today's towns: from
+   every town on the server when they are loaded (refreshed with them every
+   15 minutes), otherwise from the day the recorder saved this morning. Drawn
+   under the live town borders, which stay exactly as EarthMC paints them. */
+const LIVE_BORDER_DRAW = { towns: false, capitals: false };
+const liveBorders = { frame: null, layer: null, busy: false, again: false, sig: '', source: '' };
+let showLiveBorders = false;
+function liveBordersShown(){ return showLiveBorders && !hist.on && mapWorld !== 'moon' && !!liveBorders.frame; }
+/* Every loaded earth town as a day's record, the recorder's format. */
+function liveBordersSnap(){
+  if (!worldCache.enabled || !worldCache.towns || worldCache.towns.length < 300) return null;
+  const nations = [], index = new Map(), towns = [];
+  for (const t of worldCache.towns){
+    if (t.isMoon || !t.claimChunks || !t.claimChunks.length) continue;
+    let ni = -1;
+    if (t.nationName){
+      const key = t.nationName;
+      if (!index.has(key)){ const c = nationColors(key); index.set(key, nations.length); nations.push([key, c.fill, c.outline]); }
+      ni = index.get(key);
+    }
+    const rows = new Map();
+    t.claimChunks.forEach(([x, z]) => { let r = rows.get(z); if (!r) rows.set(z, r = []); r.push(x); });
+    const runs = [];
+    [...rows.keys()].sort((a, b) => a - b).forEach(z => {
+      const xs = rows.get(z).sort((a, b) => a - b);
+      let s = xs[0], p = xs[0];
+      for (let i = 1; i <= xs.length; i++){
+        if (i < xs.length && xs[i] === p + 1){ p = xs[i]; continue; }
+        if (i < xs.length && xs[i] === p) continue;
+        runs.push(z, s, p - s + 1);
+        if (i < xs.length){ s = p = xs[i]; }
+      }
+    });
+    towns.push([t.name, ni, t.isCapital ? 1 : 0, t.population || (t.residents ? t.residents.length : 0), t.mayor || '', runs]);
+  }
+  return towns.length ? { v: 1, date: new Date().toISOString().slice(0, 10), nations, towns } : null;
+}
+async function liveBordersUpdate(){
+  if (!showLiveBorders || mapWorld === 'moon') return liveBordersPlace();
+  if (liveBorders.busy){ liveBorders.again = true; return; }
+  liveBorders.busy = true;
+  try {
+    const snap = liveBordersSnap();
+    let sig, make, source;
+    if (snap){
+      sig = 'live|' + worldCache.fetchedAt + '|' + snap.towns.length + '|' + hist.reachI;
+      source = 'live';
+      make = async () => {
+        const reach = HIST_REACHES[hist.reachI][0];
+        if (await histPoolInit()){
+          try { return await histPoolRun({ snap, date: snap.date, reach, moon: null }); }
+          catch (err){ if (!histPool.failed) throw err; }
+        }
+        return histCompute(snap, await histLand(), reach, null);
+      };
+    } else {
+      const index = await histLoadIndex();
+      if (!index.length) throw new Error('no days recorded yet');
+      const i = index.length - 1;
+      sig = 'day|' + index[i].date + '|' + hist.reachI;
+      source = index[i].date;
+      make = () => histFrameFor(i, hist.reachI);
+    }
+    if (sig !== liveBorders.sig || !liveBorders.frame){
+      liveBorders.frame = await make();
+      liveBorders.sig = sig;
+      liveBorders.source = source;
+    }
+  } catch (err){
+    auditLog.log('Nation borders could not be worked out: ' + (err && err.message || err), 'warn');
+  } finally {
+    liveBorders.busy = false;
+    liveBordersPlace();
+    if (mapController && mapController.updateLayerMeta) mapController.updateLayerMeta();
+    if (liveBorders.again){ liveBorders.again = false; liveBordersUpdate(); }
+  }
+}
+/* On the flat map: shown, hidden or redrawn to match the switches. */
+function liveBordersPlace(){
+  const mc = mapController;
+  globeRequestDraw();
+  if (!mc || !mc.map || !HistLayer) return;
+  const want = liveBordersShown();
+  if (want){
+    histEnsurePane(mc.map);
+    if (!liveBorders.layer) liveBorders.layer = new HistLayer({ frame: () => liveBorders.frame, draw: LIVE_BORDER_DRAW });
+    if (!mc.map.hasLayer(liveBorders.layer)) liveBorders.layer.addTo(mc.map);
+    else liveBorders.layer.redraw();
+  } else if (liveBorders.layer && mc.map.hasLayer(liveBorders.layer)) mc.map.removeLayer(liveBorders.layer);
+}
+
 function histFlatShow(fade){
   const mc = mapController;
   if (!mc || !mc.map || !HistLayer) return;
   const map = mc.map;
-  if (!hist.panes){
-    map.createPane('histPane');
-    map.getPane('histPane').style.zIndex = 350;
-    map.getPane('histPane').style.pointerEvents = 'none';
-    hist.panes = true;
-  }
+  histEnsurePane(map);
   if (!hist.layer) hist.layer = new HistLayer();
   if (!map.hasLayer(hist.layer)) hist.layer.addTo(map);
   else hist.layer.redraw(fade === true);
@@ -8064,9 +8222,10 @@ function histGlobeRing(r, open){
   return e;
 }
 
-/* part 'land' sits low among the globe's layers, 'labels' near the top. */
-function globeDrawHistory(ctx, V, part){
-  const f = hist.frame;
+/* part 'land' sits low among the globe's layers, 'labels' near the top.
+   Draws the timelapse's day, or another frame (the live borders) if given. */
+function globeDrawHistory(ctx, V, part, frame, opts){
+  const f = frame || hist.frame, o = opts || {};
   if (!f) return;
   const k = 1 / V.bpp, R = globeBlocksPerRad();
   if (part === 'labels'){
@@ -8076,7 +8235,7 @@ function globeDrawHistory(ctx, V, part){
     histLabels2D(ctx, f,
       (x, z) => { const p = where(x, z); return p ? [p[0], p[1]] : [-9999, -9999]; },
       (x, z) => { const p = where(x, z); return p ? V.F / Math.max(1e-6, V.d - p[2]) / R : k; },
-      k, V.w, V.h, 1);
+      k, V.w, V.h, 1, o.capitals !== false);
     return;
   }
   const list = [];
@@ -8096,22 +8255,23 @@ function globeDrawHistory(ctx, V, part){
     }
     if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
   });
-  let groups = null;
+  let groups = null, looks = null;
   if (k >= HIST_TOWNS_FROM_K){
     groups = new Map();
+    looks = o.towns !== false && showClaims ? new Map() : null;
     for (const s of f.shapes){
       const c = globeVecOfBlock((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2);
       if (!globeSeen(V, c, Math.hypot(s.x1 - s.x0, s.z1 - s.z0) / 2 / R)) continue;
-      const st = histStyleOf(f, s.id);
-      let p = groups.get(st); if (!p) groups.set(st, p = new Path2D());
+      const p = new Path2D();
       for (const r of histTownRings(s)){ const e = histGlobeRing(r); globeProjectRing(V, e); globePathFill(p, V, e.n); }
+      histAddTown(groups, looks, f, s, p);
     }
   }
   ctx.save();
   histPaintLand(ctx, list, k, groups);
-  if (groups) histPaintTowns(ctx, groups, k);
+  histPaintTowns(ctx, looks, k);
   ctx.restore();
-  histPaintDots(ctx, f, (x, z) => { const p = globeProject(V.M, globeVecOfBlock(x, z)); return p ? [p[0], p[1]] : null; }, k);
+  if (o.towns !== false) histPaintDots(ctx, f, (x, z) => { const p = globeProject(V.M, globeVecOfBlock(x, z)); return p ? [p[0], p[1]] : null; }, k);
 }
 
 /* ---- hover and click ----------------------------------------------------- */
@@ -8174,6 +8334,16 @@ function histPaint(fade){
 async function histOpen(){
   hist.on = true;
   document.body.classList.add('hist-on');
+  liveBordersPlace();
+  if (typeof MAP_TOWN_COLORS !== 'undefined' && !MAP_TOWN_COLORS.size && !hist.colorsAsked){
+    hist.colorsAsked = true;
+    smFetchMarkers('minecraft_overworld').then(ts => {
+      if (MAP_TOWN_COLORS.size) return;
+      ts.forEach(t => { const c = t._colors; if (c && c.fill) MAP_TOWN_COLORS.set(t.name, { fill: c.fill, outline: c.outline || c.fill, nation: t.nationName || null }); });
+      histTownLook.memo.clear();
+      if (hist.on) histPaint();
+    }).catch(() => { hist.colorsAsked = false; });
+  }
   if (mapWorld === 'moon' && typeof setMapWorld === 'function') setMapWorld('earth');
   const bar = document.getElementById('histBar');
   if (bar) bar.hidden = false;
@@ -8208,6 +8378,7 @@ function histClose(){
   refreshMapLayers();
   if (typeof renderPlayers === 'function') renderPlayers();
   globeRequestDraw();
+  liveBordersPlace();
   if (mc && mc.syncLayerToggles) mc.syncLayerToggles();
 }
 
@@ -8248,9 +8419,12 @@ onmessage = async (e) => {
   const m = e.data;
   if (m.land){ LAND = m.land; return; }
   try {
-    const r = await fetch(m.url);
-    if (!r.ok) throw new Error(histDateText(m.date) + ' did not load (HTTP ' + r.status + ')');
-    const snap = await histUnpack(await r.arrayBuffer());
+    let snap = m.snap;
+    if (!snap){
+      const r = await fetch(m.url);
+      if (!r.ok) throw new Error(histDateText(m.date) + ' did not load (HTTP ' + r.status + ')');
+      snap = await histUnpack(await r.arrayBuffer());
+    }
     snap.date = snap.date || m.date;
     const f = histCompute(snap, LAND, m.reach, m.moon);
     postMessage({ id: m.id, f }, [f.owner.buffer, f.free.buffer]);
@@ -8459,7 +8633,7 @@ function histBarUpdate(soft){
    Discord included), otherwise VP9 in a WebM. Days crossfade, with the date
    and the figures in the corner.
    ========================================================================= */
-const HIST_REC_SIZES = [['720p', 1280, 720], ['1080p', 1920, 1080], ['Square', 1080, 1080], ['Tall', 1080, 1920]];
+const HIST_REC_SIZES = [['720p', 1280, 720], ['1080p', 1920, 1080], ['Square', 1080, 1080], ['Tall', 1080, 1920], ['Free', 0, 0]];
 const HIST_REC_SPEEDS = [2, 4, 8, 15];
 const HIST_REC_FPS = 30;
 const HIST_MUXERS = { mp4: ['Mp4Muxer', 'muxMp4'], webm: ['WebMMuxer', 'muxWebm'] };
@@ -8471,16 +8645,89 @@ function histRecChoice(group){
 
 /* The part of the view that will be filmed: the video's shape, as large as
    fits in the middle of the map. */
+/* The part of the view that is filmed. By default the video's shape, as
+   large as fits in the middle; the corners of the gold frame drag it to any
+   size and place (keeping the shape, unless the shape is Free), and its edges
+   move it. Returns the frame in screen pixels and the video's size. */
 function histRecCrop(){
-  const [, W, H] = HIST_REC_SIZES[histRecChoice('size')];
-  const globeMode = mapProjection === 'globe' && globe.on;
+  const [, PW, PH] = HIST_REC_SIZES[histRecChoice('size')];
+  const globeMode = mapProjection === 'globe' && globe.on && !globe.recording;
   let vw, vh;
+  if (globe.recording && hist.rec && hist.rec.crop) return hist.rec.crop;
   if (globeMode){ vw = globe.w; vh = globe.h; }
   else { const s = mapController.map.getSize(); vw = s.x; vh = s.y; }
-  const a = W / H;
-  let w = vw * 0.94, h = w / a;
-  if (h > vh * 0.94){ h = vh * 0.94; w = h * a; }
-  return { W, H, vw, vh, w, h, x: (vw - w) / 2, y: (vh - h) / 2, globeMode };
+  let c = hist.crop ? Object.assign({}, hist.crop) : null;
+  const a = PW ? PW / PH : (c ? c.w / c.h : 16 / 9);
+  if (c && PW && Math.abs(c.w / c.h - a) > 0.01){
+    // A new fixed shape: the same middle and about the same size.
+    const area = c.w * c.h, mx = c.x + c.w / 2, my = c.y + c.h / 2;
+    c.w = Math.sqrt(area * a); c.h = c.w / a; c.x = mx - c.w / 2; c.y = my - c.h / 2;
+  }
+  if (!c){
+    let w = vw * 0.94, h = w / a;
+    if (h > vh * 0.94){ h = vh * 0.94; w = h * a; }
+    c = { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+  }
+  // Never larger than the view, never outside it.
+  const shrink = Math.min(1, vw / c.w, vh / c.h);
+  if (shrink < 1){ c.w *= shrink; c.h *= shrink; }
+  c.x = Math.max(0, Math.min(vw - c.w, c.x)); c.y = Math.max(0, Math.min(vh - c.h, c.y));
+  let W = PW, H = PH;
+  if (!W){
+    // Free: about as many pixels as 1080p, in the frame's own shape.
+    const r = c.w / c.h, A = 1920 * 1080;
+    W = Math.max(240, Math.min(3840, Math.round(Math.sqrt(A * r) / 2) * 2));
+    H = Math.max(240, Math.min(3840, Math.round(Math.sqrt(A / r) / 2) * 2));
+  }
+  return { W, H, vw, vh, w: c.w, h: c.h, x: c.x, y: c.y, globeMode };
+}
+
+/* Dragging the frame: a corner resizes it from the opposite corner, an edge
+   moves it. The map inside stays free to pan and zoom. */
+function histFrameDrag(e){
+  const role = e.target && e.target.dataset && e.target.dataset.h;
+  if (!role || (hist.rec && hist.rec.busy)) return;
+  e.preventDefault(); e.stopPropagation();
+  const handle = e.target;
+  try { handle.setPointerCapture(e.pointerId); } catch (_e) { /* fine */ }
+  const c0 = histRecCrop(), sx = e.clientX, sy = e.clientY;
+  const [, PW, PH] = HIST_REC_SIZES[histRecChoice('size')];
+  const fixed = PW ? PW / PH : 0;
+  if (histRecChoice('area') === 1){
+    const b = document.querySelector('#histRec [data-group="area"] button[data-i="0"]');
+    if (b) b.click();
+  }
+  const move = (ev) => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    let { x, y, w, h } = c0;
+    if (role === 'move'){
+      x = Math.max(0, Math.min(c0.vw - w, x + dx)); y = Math.max(0, Math.min(c0.vh - h, y + dy));
+    } else {
+      const left = role[1] === 'w', top = role[0] === 'n';
+      const ax = left ? c0.x + c0.w : c0.x, ay = top ? c0.y + c0.h : c0.y;      // the corner that stays put
+      const px = (left ? c0.x : c0.x + c0.w) + dx, py = (top ? c0.y : c0.y + c0.h) + dy;
+      const roomX = left ? ax : c0.vw - ax, roomY = top ? ay : c0.vh - ay;
+      w = Math.max(60, Math.min(roomX, left ? ax - px : px - ax));
+      h = Math.max(60, Math.min(roomY, top ? ay - py : py - ay));
+      if (fixed){
+        if (w / h > fixed) w = h * fixed; else h = w / fixed;
+        if (w > roomX){ w = roomX; h = w / fixed; }
+        if (h > roomY){ h = roomY; w = h * fixed; }
+      }
+      x = left ? ax - w : ax; y = top ? ay - h : ay;
+    }
+    hist.crop = { x, y, w, h };
+    histRecFrame();
+  };
+  const up = () => {
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', up);
+    handle.removeEventListener('pointercancel', up);
+    histRecSummary();
+  };
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', up);
+  handle.addEventListener('pointercancel', up);
 }
 
 function histRecFrame(){
@@ -8516,7 +8763,7 @@ function histRecSummary(){
   const whole = histRecChoice('area') === 1, globeView = mapProjection === 'globe';
   const where = whole
     ? (globeView ? 'The whole globe, turned as it is now, filling the video.' : 'The whole map, fitted to the video edge to edge.')
-    : `What is inside the frame on ${globeView ? 'the globe, as it is turned now' : 'the flat map, at this zoom'}. Move the map to change it.`;
+    : `What is inside the gold frame on ${globeView ? 'the globe, as it is turned now' : 'the flat map, at this zoom'}. Drag its corners to crop, its edges to move it, or move the map under it.`;
   el.innerHTML = `<b>${n} days</b> · <b>${secs < 60 ? secs + ' s' : Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s'}</b> of video<br>${where}`;
   histRecFrame();
 }
@@ -8609,14 +8856,15 @@ async function histRecGround(view, w, h){
 
 /* Space behind the globe and its glow, as on screen. */
 function histRecSpace(ctx, w, h, rPx){
-  const g = ctx.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, Math.hypot(w, h) * 0.62);
+  const cx = w / 2 + (globe.offX || 0), cy = h / 2 + (globe.offY || 0);
+  const g = ctx.createRadialGradient(cx, cy - h * 0.08, 0, cx, cy - h * 0.08, Math.hypot(w, h) * 0.62);
   g.addColorStop(0, '#0a0e1a'); g.addColorStop(0.58, '#05060b'); g.addColorStop(1, '#020203');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   if (rPx < Math.hypot(w, h) / 2 * 1.05){
-    const R = rPx * 1.25, a = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, R);
+    const R = rPx * 1.25, a = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
     a.addColorStop(0, 'rgba(110,160,255,.5)'); a.addColorStop(0.79, 'rgba(110,160,255,.5)');
     a.addColorStop(0.84, 'rgba(90,140,255,.22)'); a.addColorStop(0.92, 'rgba(60,110,230,.07)'); a.addColorStop(1, 'rgba(40,80,200,0)');
-    ctx.fillStyle = a; ctx.beginPath(); ctx.arc(w / 2, h / 2, R, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = a; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -8663,7 +8911,7 @@ async function histRecord(){
   const card = document.getElementById('histRecCard').checked;
   const hold = Math.max(1, Math.round(HIST_REC_FPS / dps));
   const fadeN = fades && hold >= 4 ? Math.max(2, Math.round(hold * 0.5)) : 0;
-  const rec = hist.rec = { busy: true, cancel: false };
+  const rec = hist.rec = { busy: true, cancel: false, crop };
   const ui = (msg, frac) => {
     document.getElementById('histRecMsg').textContent = msg;
     document.getElementById('histRecBar').style.width = (Math.max(0, Math.min(1, frac || 0)) * 100).toFixed(1) + '%';
@@ -8719,7 +8967,7 @@ async function histRecord(){
     if (crop.globeMode){
       const saved = { w: globe.w, h: globe.h, dpr: globe.dpr, gw: globe.glCanvas.width, gh: globe.glCanvas.height, ow: globe.ovCanvas.width, oh: globe.ovCanvas.height, dist: globe.dist };
       restoreGlobe = () => {
-        globe.recording = false; globe.halfOverride = 0; globe.dist = saved.dist;
+        globe.recording = false; globe.halfOverride = 0; globe.offX = globe.offY = 0; globe.dist = saved.dist;
         globe.w = saved.w; globe.h = saved.h; globe.dpr = saved.dpr;
         globe.glCanvas.width = saved.gw; globe.glCanvas.height = saved.gh; globe.ovCanvas.width = saved.ow; globe.ovCanvas.height = saved.oh;
         globeRequestDraw();
@@ -8732,7 +8980,13 @@ async function histRecord(){
         const f = 1 / Math.tan(GLOBE_FOV / 2);
         globe.halfOverride = Math.min(W, H) / 2;
         globe.dist = Math.sqrt(1 + (f / 0.92) ** 2);
-      } else globe.halfOverride = Math.min(saved.w, saved.h) / 2 * zoomUp;
+      } else {
+        // The frame's part of the screen, wherever it sits: the ball's middle
+        // lands where it is in the frame, scaled up to the video.
+        globe.halfOverride = Math.min(saved.w, saved.h) / 2 * zoomUp;
+        globe.offX = (saved.w / 2 - crop.x) * zoomUp - W / 2;
+        globe.offY = (saved.h / 2 - crop.y) * zoomUp - H / 2;
+      }
       globe.w = W; globe.h = H; globe.dpr = 1;
       globe.glCanvas.width = W; globe.glCanvas.height = H; globe.ovCanvas.width = W; globe.ovCanvas.height = H;
       ui('Fetching the ground…', 0);
@@ -8751,8 +9005,8 @@ async function histRecord(){
       ground = await histRecGround(view, W, H);
     } else {
       const map = mapController.map;
-      const c = map.getCenter(), k = Math.pow(2, map.getZoom()) * zoomUp;
-      view = { k, ox: c.lng - W / k / 2, oz: -c.lat - H / k / 2, w: W, h: H };
+      const tl = map.containerPointToLatLng([crop.x, crop.y]), k = Math.pow(2, map.getZoom()) * zoomUp;
+      view = { k, ox: tl.lng, oz: -tl.lat, w: W, h: H };
       ui('Fetching the ground…', 0);
       ground = await histRecGround(view, W, H);
     }
@@ -8902,6 +9156,7 @@ async function histRecord(){
   document.getElementById('histRecGo').addEventListener('click', () => histRecord());
   document.getElementById('histRecStop').addEventListener('click', () => { if (hist.rec) hist.rec.cancel = true; });
   window.addEventListener('resize', () => histRecFrame());
+  document.getElementById('histFrame').addEventListener('pointerdown', histFrameDrag);
   document.addEventListener('keydown', (e) => {
     if (!hist.on || (/input|textarea|select/i.test((e.target && e.target.tagName) || '') && e.target !== range)) return;
     if (e.key === ' ' && e.target === document.body){ e.preventDefault(); histPlay(!hist.playing); }
@@ -9083,6 +9338,11 @@ class MapController{
         meta: () => { if (hist.on) return hist.frame ? fmt(hist.frame.stats.towns) : ''; const n = townsForActiveView(state.towns || []).length; return n ? fmt(n) : ''; } },
       { group: 'server', label: 'Town markers', globe: true,
         get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); if (hist.on) histPaint(); } },
+      { group: 'server', label: 'Nation borders', globe: true,
+        get: () => showLiveBorders, set: (v) => { showLiveBorders = v; liveBordersUpdate(); },
+        meta: () => (!showLiveBorders || hist.on ? '' : liveBorders.busy && !liveBorders.frame ? 'working…'
+          : liveBorders.source === 'live' ? 'live' : liveBorders.source ? histDateText(liveBorders.source, true) : ''),
+        when: () => mapWorld !== 'moon' },
       { group: 'server', label: 'Nation names', globe: true,
         get: () => showNationNames, set: (v) => { showNationNames = v; globeRequestDraw(); if (hist.on) histPaint(); } },
       { group: 'server', label: 'Players', globe: true,
@@ -9106,7 +9366,7 @@ class MapController{
         when: () => currentScope() !== 'global' || perkSeesEthiopia() },
       // Ethiopia's own drawn borders: the Worker never sends them to a visa
       // holder, so the row would switch nothing on.
-      { group: 'ethiopia', label: 'Nation claims', globe: true,
+      { group: 'ethiopia', label: 'Drawn claims', globe: true,
         get: () => showNationClaims, set: (v) => { showNationClaims = v; renderNationClaimAreas(); globeRequestDraw(); },
         when: () => !viewerIsPerk() },
       { group: 'ethiopia', label: 'Ice highways', globe: true,
@@ -10073,6 +10333,7 @@ function setMapWorld(world){
   }
   refreshMapLayers();
   renderNationClaimAreas();
+  liveBordersUpdate();
   if (mapController.syncLayerToggles) mapController.syncLayerToggles();
 }
 
@@ -11923,22 +12184,25 @@ function moonBox(){
   if (moonGeo.p) return moonGeo.p;
   moonGeo.p = (async () => {
     try {
-      const c = JSON.parse(localStorage.getItem('moon-box-v1') || 'null');
+      const c = JSON.parse(localStorage.getItem('moon-box-v2') || 'null');
       if (c && c.box && Date.now() - c.at < 7 * 864e5){ moonGeo.max = c.max || MOON_MAX_NATIVE_ZOOM; return (moonGeo.box = c.box); }
     } catch (_e) { /* look again */ }
+    /* The moon's closest folder (one block a pixel) is the highest one that
+       has pictures; counted from the pictures themselves, which cannot be
+       wrong, and only then from the map's settings file. Guessing it (3)
+       is what left the moon blurry and drawn at the wrong size. */
     let max = null;
-    try {
-      const r = await fetch(MOON_TILE_BASE + '/settings.json');
-      if (r.ok){ const j = await r.json(); const m = j && j.zoom && j.zoom.max; if (Number.isInteger(m) && m >= 0 && m < 10) max = m; }
-    } catch (_e) { /* found from the pictures instead */ }
-    if (max === null){
-      // The highest folder with a picture near the middle is the closest one.
-      for (let f = 7; f >= 1 && max === null; f--){
-        const hits = await Promise.all([[0, 0], [-1, -1], [0, -1], [-1, 0]].map(([x, z]) => globeLoadImage(`${MOON_TILE_BASE}/${f}/${x}_${z}.png`)));
-        if (hits.some(Boolean)) max = f;
-      }
-      if (max === null) max = MOON_MAX_NATIVE_ZOOM;
+    for (let f = 8; f >= 1 && max === null; f--){
+      const hits = await Promise.all([[0, 0], [-1, -1], [0, -1], [-1, 0]].map(([x, z]) => globeLoadImage(`${MOON_TILE_BASE}/${f}/${x}_${z}.png`)));
+      if (hits.some(Boolean)) max = f;
     }
+    if (max === null){
+      try {
+        const r = await fetch(MOON_TILE_BASE + '/settings.json');
+        if (r.ok){ const j = await r.json(); const m = j && j.zoom && j.zoom.max; if (Number.isInteger(m) && m >= 0 && m < 10) max = m; }
+      } catch (_e) { /* the default, then */ }
+    }
+    if (max === null) max = MOON_MAX_NATIVE_ZOOM;
     moonGeo.max = max;
     const S = 512 * Math.pow(2, max);              // blocks across one of its coarsest pictures
     const got = new Map();
@@ -11990,7 +12254,7 @@ function moonBox(){
       if (c > a && d > b){ box.x0 = Math.max(box.x0, Math.floor(a)); box.x1 = Math.min(box.x1, Math.ceil(c + S / 256)); box.z0 = Math.max(box.z0, Math.floor(b)); box.z1 = Math.min(box.z1, Math.ceil(d + S / 256)); }
     } catch (_e) { /* the whole pictures will do */ }
     moonGeo.box = box;
-    try { localStorage.setItem('moon-box-v1', JSON.stringify({ at: Date.now(), box: moonGeo.box, max })); } catch (_e) { /* fine */ }
+    try { localStorage.removeItem('moon-box-v1'); localStorage.setItem('moon-box-v2', JSON.stringify({ at: Date.now(), box: moonGeo.box, max })); } catch (_e) { /* fine */ }
     return moonGeo.box;
   })();
   moonGeo.p.catch(() => { moonGeo.p = null; });
@@ -12168,6 +12432,7 @@ function worldApplied(){
   }
   renderNationClaimAreas();
   irlRankSoon();
+  if (showLiveBorders) liveBordersUpdate();
 }
 
 async function refreshWorldSnapshot(force){

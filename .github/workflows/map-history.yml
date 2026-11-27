@@ -1,1 +1,38 @@
+# Keeps a daily copy of who held what on EarthMC's map, for the timelapse.
+# The copy is stored in Cloudflare by the site's Worker, not in this repo.
+# Runs every day by itself; "Run workflow" on the Actions tab runs it now,
+# and its "wayback" choice fills in past days from the Wayback Machine.
+name: Map history
 
+on:
+  schedule:
+    - cron: '17 5 * * *'      # 05:17 UTC every day
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'today = record now · wayback = fill in past days from the Wayback Machine'
+        type: choice
+        options: [today, wayback]
+        default: today
+
+permissions:
+  contents: read
+
+concurrency:
+  group: map-history
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Record the map
+        env:
+          HISTORY_KEY: ${{ secrets.HISTORY_KEY }}
+          HISTORY_URL: https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev
+        run: node tools/map-history.mjs ${{ github.event.inputs.mode == 'wayback' && '--wayback' || '' }}

@@ -7,10 +7,22 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Karla:wght@400;500;600&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Karla:wght@400;500;600;700&family=Martian+Mono:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/base.css?v=3">
 
 <style>
+/* ===========================================================================
+   GOVERNMENT
+
+   Two branches and a House, set like a printed register of the state rather
+   than a dashboard. The Republic in the emblem's blue, the Crown in its gold;
+   the flag's three colours stay on the page edge and under the title, and
+   nowhere else, so they mean "Ethiopia" and not decoration.
+
+   Class names here are deliberately not the theme's (.branch, .region,
+   .chamber, .person): the shared theme restyles those on every page, and
+   this layout needs to be its own.
+   =========================================================================== */
 .back{
   display:inline-block; margin-bottom:1rem;
   font-family:var(--data); font-size:var(--step--1);
@@ -18,162 +30,164 @@
   text-decoration:none;
 }
 .back:hover{ color:var(--gold); }
-
-.topbar{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:1.6rem; }
+.topbar{ display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1.6rem; }
 .topbar .spacer{ margin-left:auto; }
+.topbar a.btn{ text-decoration:none; }
+.topbar .btn.war{ border-color:color-mix(in srgb, var(--red) 45%, transparent); color:#ff9b9b; }
 
-.masthead{ border-bottom:1px solid var(--rule-soft); padding-bottom:1.2rem; margin-bottom:1.8rem; }
-.masthead h1{ font-size:var(--step-3); letter-spacing:-.03em; }
-/* Was tracked-out mono caps — the commonest tell of a generated page, and it
-   sat under every heading on the site. A subtitle is a phrase, so it is set
-   like one: the display face, italic, in gold. */
-.masthead .sub{ font-family:var(--display); font-weight:400; font-style:italic;
-  font-size:var(--step-1); letter-spacing:-.01em; color:var(--gold); margin:.35rem 0 0; }
-.masthead p{ color:var(--text-mid); margin:.9rem 0 0; max-width:38rem; }
+.masthead{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:1.5rem; align-items:start;
+  padding-bottom:1.4rem; margin-bottom:1.4rem; }
+.masthead .lede{ max-width:40rem; color:var(--text-mid); margin:.9rem 0 0; line-height:1.6; }
+.masthead .seal{ width:clamp(4.5rem, 8vw, 6.5rem); height:auto; opacity:.9; }
+@media (max-width:640px){ .masthead{ grid-template-columns:1fr; } .masthead .seal{ display:none; } }
 
-/* --- branches ------------------------------------------------------------ */
-.branches{ display:grid; grid-template-columns:1fr 1fr; gap:.9rem; }
-@media (max-width:880px){ .branches{ grid-template-columns:1fr; } }
+/* The tally: three facts, one line, read before anything else. */
+.tally{ display:flex; flex-wrap:wrap; gap:.4rem 2rem; margin:0 0 1.8rem; font-size:.9rem; color:var(--text-low); }
+.tally b{ font-family:var(--data); font-weight:600; color:var(--text); font-size:1.05rem; margin-right:.3rem; }
+.tally span{ white-space:nowrap; }
 
-.branch{
-  background:var(--ink-raised); border:1px solid var(--rule);
-  border-top:2px solid var(--accent); border-radius:var(--r-md); padding:1.1rem 1.2rem 1.3rem;
-}
-.branch.rep{ --accent:var(--green); }
-.branch.mon{ --accent:var(--gold); }
-.branch h2{ font-size:var(--step-1); }
-.branch .kind{
-  font-family:var(--data); font-size:var(--step--1); letter-spacing:.1em;
-  text-transform:uppercase; color:var(--text-low); margin:.2rem 0 1.1rem;
-}
+/* --- the two wings -------------------------------------------------------- */
+.wings{ display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; }
+@media (max-width:900px){ .wings{ grid-template-columns:1fr; } }
 
-.office{ padding:.6rem 0; border-bottom:1px solid var(--rule-soft); }
-.office:last-child{ border-bottom:none; }
-.office-name{
-  font-family:var(--data); font-size:var(--step--1); letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-low); margin-bottom:.4rem;
-  display:flex; justify-content:space-between; gap:.6rem;
-}
-.people{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:flex-start; }
+.wing{ --w:var(--blue); position:relative; border-radius:var(--r-lg); border:1px solid var(--line);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--w) 7%, transparent), transparent 9rem), var(--surface);
+  padding:1.3rem 1.4rem 1.1rem; overflow:hidden; }
+.wing.crown{ --w:var(--gold); }
+.wing::before{ content:''; position:absolute; left:0; right:0; top:0; height:2px;
+  background:linear-gradient(90deg, var(--w), color-mix(in srgb, var(--w) 20%, transparent)); }
+.wing-head{ display:flex; align-items:baseline; justify-content:space-between; gap:1rem; margin-bottom:1.1rem; }
+.wing-head h2{ font-family:var(--hud); font-weight:700; font-size:1.2rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--text); margin:0; }
+.wing-head .what{ font-family:var(--display); font-style:italic; font-size:.95rem; color:color-mix(in srgb, var(--w) 75%, white); }
 
-/* --- a person ------------------------------------------------------------ */
-.person{
-  display:inline-flex; align-items:center; gap:.45rem;
-  padding:.25rem .6rem .25rem .3rem;
-  background:var(--ink); border:1px solid var(--rule);
-  border-left:3px solid var(--party, transparent);
-  border-radius:var(--r-sm); font-family:var(--data); font-size:.78rem;
-  /* A chip is one line of text tall. Pinning the height stops any image
-     inside it — a face that 404s to a placeholder, or a party logo served at
-     its natural size — from stretching the row into a tall empty box, which
-     is exactly what was happening to the President and Emperor cards. */
-  max-height:2.1rem;
-  overflow:hidden;
-}
-.person .face{
-  width:22px; height:22px; min-width:22px; min-height:22px;
-  max-width:22px; max-height:22px;
-  border-radius:2px; object-fit:cover;
-  image-rendering:pixelated; background:var(--ink-high); flex:none;
-}
-.person .who{ color:var(--text); }
-.person .who.unnamed{ color:var(--text-low); font-style:italic; }
-.person .tag{
-  font-size:.66rem; color:var(--party, var(--text-low));
-  padding-left:.4rem; border-left:1px solid var(--rule);
-  display:inline-flex; align-items:center; gap:.25rem; white-space:nowrap;
-}
-/* Same reasoning as .face: an unconstrained logo is the one thing on this
-   page that can come from an arbitrary URL somebody typed into the admin
-   panel, so its size is not left to the image. */
-.person .plogo{
-  width:14px; height:14px; min-width:14px; max-width:14px;
-  max-height:14px; border-radius:2px; object-fit:cover; flex:none;
-}
-.person.head{ border-color:var(--gold); }
-.person.vacant{ color:var(--text-low); font-style:italic; border-style:dashed; padding:.25rem .6rem; }
+/* The head of each wing, as a portrait. */
+.sovereign{ display:flex; gap:1.1rem; align-items:center; padding:.2rem 0 1.2rem; margin-bottom:.3rem;
+  border-bottom:1px solid var(--line); }
+.bust{ flex:none; width:5.6rem; height:5.6rem; border-radius:12px; position:relative; overflow:hidden;
+  background:radial-gradient(80% 80% at 50% 25%, color-mix(in srgb, var(--w) 22%, transparent), transparent 70%), #0d0b09;
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--w) 45%, transparent), 0 10px 30px -12px color-mix(in srgb, var(--w) 45%, transparent); }
+.bust img{ position:absolute; left:50%; bottom:0; width:78%; transform:translateX(-50%); image-rendering:pixelated; }
+.bust.empty{ box-shadow:0 0 0 1px var(--line-hot); background:#0d0b09; }
+.bust.empty svg{ position:absolute; inset:18% 22% 0; color:var(--line-hot); }
+.sovereign .title{ margin:0; font-family:var(--display); font-style:italic; font-size:.95rem; color:var(--text-low); }
+.sovereign .name{ margin:.15rem 0 0; font-family:var(--display); font-weight:600; font-size:clamp(1.35rem, 1.1rem + 1vw, 1.75rem);
+  line-height:1.15; overflow-wrap:anywhere; }
+.sovereign .name.vacant{ color:var(--text-low); font-weight:400; font-style:italic; }
+.sovereign .also{ margin:.35rem 0 0; font-size:.84rem; color:var(--text-low); }
 
-/* --- house --------------------------------------------------------------- */
-.section{ margin-top:2.6rem; }
-.section-head{
-  position:relative;
-  display:flex; align-items:baseline; gap:.8rem; flex-wrap:wrap;
-  border-bottom:1px solid var(--rule); padding-bottom:.7rem; margin-bottom:1rem;
-}
-/* The flag as a section marker, matching the rest of the site. Repeating the
-   three bands here means the identity does structural work on every page
-   instead of living only in the left edge. */
-.section-head::after{ content:''; position:absolute; left:0; bottom:-1px;
-  width:3.2rem; height:2px; background:linear-gradient(90deg,
-    var(--green) 0 33.33%, var(--gold) 33.33% 66.66%, var(--red) 66.66% 100%); }
-.section-head h2{ font-size:var(--step-2); }
-.section-head .meta{
-  margin-left:auto; font-family:var(--data); font-size:var(--step--1); color:var(--text-low);
+/* The Republic's register: office, a leader of dots, who holds it. */
+.register{ list-style:none; margin:0; padding:0; }
+.register li{ display:flex; align-items:center; gap:.6rem; padding:.55rem 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.register li:last-child{ border-bottom:0; }
+.register .office{ font-family:var(--display); font-size:1rem; white-space:nowrap; }
+.register .dots{ flex:1; min-width:1rem; height:1px; margin-top:.45rem;
+  background-image:radial-gradient(circle, rgba(245,241,232,.22) 1px, transparent 1.2px); background-size:6px 2px; background-repeat:repeat-x; }
+.register .holders{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.35rem .8rem; }
+@media (max-width:520px){
+  .register li{ flex-wrap:wrap; gap:.3rem .6rem; }
+  .register .dots{ display:none; }
+  .register .holders{ width:100%; justify-content:flex-start; }
 }
 
-.regions{ display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:.7rem; }
-.region{
-  background:var(--ink-raised); border:1px solid var(--rule);
-  border-radius:var(--r-md); padding:.8rem .9rem;
-}
-.region-head{
-  display:flex; align-items:baseline; justify-content:space-between; gap:.5rem;
-  margin-bottom:.6rem;
-}
-.region-head .rn{ font-family:var(--display); font-weight:600; font-size:var(--step-0); }
-.region-head .seats{
-  font-family:var(--data); font-size:.66rem; color:var(--text-low);
-  letter-spacing:.05em; text-transform:uppercase;
-}
-.region .people{ flex-direction:column; align-items:flex-start; }
-.region.short{ border-color:var(--red-dim); }
-.region.short .seats{ color:var(--red); }
+/* A person, wherever one appears: their head, then their name. */
+.pp{ display:inline-flex; align-items:center; gap:.45rem; min-width:0; font-size:.92rem; font-weight:600; color:var(--text); }
+.pp img, .pp .noface{ width:22px; height:22px; flex:none; border-radius:4px; image-rendering:pixelated; background:#0d0b09; }
+.pp .noface{ display:inline-block; box-shadow:inset 0 0 0 1px var(--line-hot); }
+.pp .nm{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pp .nm.unlinked{ font-style:italic; font-weight:400; color:var(--text-mid); }
+.pp .pt{ font-size:.68rem; font-weight:700; padding:.05rem .35rem; border-radius:4px; color:var(--party);
+  border:1px solid color-mix(in srgb, var(--party) 50%, transparent); }
+.vac{ font-family:var(--display); font-style:italic; color:var(--text-low); font-size:.95rem; }
 
-/* --- the chamber ---------------------------------------------------------
-   The House drawn as seats. It answers a question the region cards below do
-   not: what the balance of the chamber actually is, and how many seats are
-   empty. The cards answer the other half — which region is short — so both
-   earn their place.
-   --------------------------------------------------------------------------- */
-.chamber{ background:var(--ink-raised); border:1px solid var(--rule);
-  border-radius:var(--r-lg); padding:1.2rem 1.3rem 1rem; margin-bottom:1rem; }
-.chamber-top{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;
-  margin-bottom:.2rem; }
-.chamber h3{ font-family:var(--display); font-size:var(--step-1); margin:0; }
-.chamber .cap{ font-family:var(--data); font-size:.62rem; color:var(--text-low);
-  margin:0 0 .9rem; }
-.chamber .views{ margin-left:auto; display:flex; gap:.3rem; }
-.chamber .views .btn{ padding:.28rem .7rem; font-size:.66rem; }
-.chamber svg{ display:block; width:100%; height:auto; }
+/* The Crown's ranks: a row of faces under each rank, higher ranks larger. */
+.rank{ padding:.85rem 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.rank:last-child{ border-bottom:0; padding-bottom:.2rem; }
+.rank-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:.6rem; }
+.rank-head h3{ margin:0; font-family:var(--display); font-weight:400; font-size:1.02rem; }
+.rank-head .n{ font-family:var(--data); font-size:.72rem; color:var(--text-low); }
+.court{ display:grid; grid-template-columns:repeat(auto-fill, minmax(var(--cell, 5.4rem), 1fr)); gap:.7rem .5rem; }
+.courtier{ display:flex; flex-direction:column; align-items:center; gap:.35rem; min-width:0; text-align:center; }
+.courtier img, .courtier .noface{ width:var(--face, 34px); height:var(--face, 34px); border-radius:6px; image-rendering:pixelated;
+  background:#0d0b09; box-shadow:0 0 0 1px rgba(255,255,255,.06); }
+.courtier .noface{ display:block; box-shadow:inset 0 0 0 1px var(--line-hot); }
+.courtier .nm{ max-width:100%; font-size:.76rem; font-weight:600; color:var(--text-mid); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.courtier .nm.unlinked{ font-style:italic; font-weight:400; color:var(--text-low); }
+.rank.r1{ --face:42px; --cell:6.2rem; } .rank.r2{ --face:36px; } .rank.r3{ --face:32px; } .rank.r4, .rank.r5{ --face:28px; --cell:5rem; }
 
-.seat{ cursor:pointer; transition:opacity .12s ease; }
-.seat:hover{ opacity:.7; }
-.seat.vacant{ cursor:default; }
+/* --- the House ------------------------------------------------------------ */
+.block{ margin-top:2.8rem; }
+.block-head{ display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.block-head h2{ margin:0; font-family:var(--hud); font-weight:700; font-size:1.15rem; letter-spacing:.08em; text-transform:uppercase; }
+.block-head .meta{ margin-left:auto; font-size:.86rem; color:var(--text-low); }
 
-.chamber .legend{ display:flex; flex-wrap:wrap; gap:.85rem; margin-top:.9rem;
-  padding-top:.85rem; border-top:1px solid var(--rule-soft); }
-.chamber .leg{ display:flex; align-items:center; gap:.4rem; font-size:.8rem; }
-.chamber .leg i{ width:.75rem; height:.75rem; border-radius:999px; display:inline-block; }
-.chamber .leg b{ font-family:var(--data); font-variant-numeric:tabular-nums; }
-.chamber .leg .nm{ color:var(--text-mid); }
-.chamber .readout{ min-height:2.2rem; margin-top:.5rem; font-family:var(--data);
-  font-size:.7rem; color:var(--text-low); }
-.chamber .readout b{ color:var(--text); font-family:var(--body); font-size:.88rem; }
+.hall{ border-radius:var(--r-lg); border:1px solid var(--line); background:var(--surface); padding:1.1rem 1.3rem 1.2rem; }
+.hall-top{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+.hall-top p{ margin:0; font-size:.88rem; color:var(--text-low); }
+.hall-top .views{ margin-left:auto; display:flex; gap:.3rem; }
+.hall-top .views .btn{ padding:.3rem .75rem; font-size:.76rem; }
+.hall svg{ display:block; width:100%; max-width:52rem; height:auto; margin:.4rem auto 0; overflow:visible; }
+.hall svg .lbl{ font-family:var(--body); font-size:12.5px; font-weight:600; fill:var(--text-mid); }
+.hall svg .lbl .c{ font-family:var(--data); font-weight:400; font-size:10.5px; fill:var(--text-low); }
+.hall svg .lead{ stroke:rgba(245,241,232,.16); stroke-width:1; fill:none; }
+.hall svg .well-n{ font-family:var(--display); font-weight:600; font-size:52px; fill:var(--text); }
+.hall svg .well-k{ font-family:var(--body); font-size:13px; fill:var(--text-low); }
+.hall svg .well-w{ font-family:var(--body); font-size:12px; font-weight:600; }
+.hall svg .maj{ font-family:var(--data); font-size:10px; fill:var(--text-low); }
+.seat{ cursor:pointer; transition:opacity .15s ease; }
+.seat.dim{ opacity:.16; }
 
-/* --- parties ------------------------------------------------------------- */
+/* The share of the House, region by region: a strip, solid where the seats
+   are filled and hatched where they are empty. */
+.share{ display:flex; height:14px; border-radius:7px; overflow:hidden; margin:1.1rem 0 .8rem; gap:2px; }
+.share > span{ position:relative; min-width:6px; background:repeating-linear-gradient(135deg,
+    color-mix(in srgb, var(--rc) 40%, transparent) 0 3px, color-mix(in srgb, var(--rc) 14%, transparent) 3px 6px);
+  cursor:pointer; transition:opacity .15s ease; }
+.share > span > i{ position:absolute; left:0; top:0; bottom:0; background:var(--rc); }
+.share > span.dim{ opacity:.25; }
+.key{ display:grid; grid-template-columns:repeat(auto-fill, minmax(15rem, 1fr)); gap:.35rem 1.2rem; margin:0; padding:0; list-style:none; }
+.key li{ display:flex; align-items:baseline; gap:.5rem; font-size:.88rem; cursor:pointer; padding:.15rem 0; }
+.key li::before{ content:''; flex:none; width:.7rem; height:.7rem; border-radius:3px; background:var(--rc); transform:translateY(.05rem); }
+.key li b{ font-weight:600; }
+.key li span{ margin-left:auto; font-family:var(--data); font-size:.74rem; color:var(--text-low); white-space:nowrap; }
+.key li.dim{ opacity:.35; }
+.readout{ min-height:1.4rem; margin-top:.8rem; font-size:.86rem; color:var(--text-low); }
+.readout b{ color:var(--text); }
+
+.seats-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(14.5rem, 1fr)); gap:.7rem; margin-top:.9rem; }
+.rcard{ --rc:#888; position:relative; border-radius:var(--r-md); border:1px solid var(--line); background:var(--surface);
+  padding:.8rem .9rem .85rem 1.05rem; transition:border-color .15s ease, opacity .15s ease; }
+.rcard::before{ content:''; position:absolute; left:0; top:.7rem; bottom:.7rem; width:3px; border-radius:0 3px 3px 0; background:var(--rc); }
+.rcard.dim{ opacity:.4; }
+.rcard-head{ display:flex; align-items:baseline; justify-content:space-between; gap:.6rem; margin-bottom:.55rem; }
+.rcard-head .rn{ font-family:var(--display); font-weight:600; font-size:1.02rem; }
+.rcard-head .st{ font-family:var(--data); font-size:.72rem; color:var(--text-low); white-space:nowrap; }
+.rcard-head .st.short{ color:#ff8f8f; }
+.rcard-head .st.over{ color:var(--gold); }
+.rcard .reps{ display:flex; flex-direction:column; gap:.4rem; }
+.rcard .none{ font-family:var(--display); font-style:italic; color:var(--text-low); font-size:.92rem; }
+
+.legend{ display:flex; flex-wrap:wrap; gap:.4rem 1rem; margin-top:.9rem; }
+.legend span{ display:inline-flex; align-items:center; gap:.4rem; font-size:.86rem; color:var(--text-mid); }
+.legend i{ width:.75rem; height:.75rem; border-radius:50%; display:inline-block; }
+.legend b{ font-family:var(--data); color:var(--text); }
+
+/* --- elections and parties (citizens) ------------------------------------- */
+.callout{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap; border-radius:var(--r-md); border:1px solid var(--line);
+  background:var(--surface); padding:1rem 1.15rem; }
+.callout .t{ font-family:var(--display); font-weight:600; font-size:1.15rem; }
+.callout .s{ font-size:.86rem; color:var(--text-low); margin-top:.15rem; }
+.callout .btn{ margin-left:auto; text-decoration:none; }
+.links{ display:flex; gap:1.4rem; flex-wrap:wrap; margin-top:.9rem; font-size:.9rem; }
+.links a{ color:var(--gold); text-decoration:none; }
+.links a:hover{ text-decoration:underline; }
+
 .party-list{ display:flex; flex-wrap:wrap; gap:.5rem; }
-.party-chip{
-  display:inline-flex; align-items:center; gap:.5rem;
-  padding:.4rem .7rem; background:var(--ink-raised);
-  border:1px solid var(--rule); border-left:3px solid var(--party,var(--rule));
-  border-radius:var(--r-sm);
-}
-.party-chip img{
-  width:22px; height:22px; min-width:22px; max-width:22px; max-height:22px;
-  border-radius:2px; object-fit:cover; flex:none;
-}
+.party-chip{ display:inline-flex; align-items:center; gap:.5rem; padding:.4rem .7rem; }
+.party-chip img{ width:22px; height:22px; min-width:22px; max-width:22px; max-height:22px; border-radius:2px; object-fit:cover; flex:none; }
 .party-chip .pn{ font-family:var(--display); font-weight:600; font-size:.9rem; }
 .party-chip .pc{ font-family:var(--data); font-size:.66rem; color:var(--text-low); }
+[hidden]{ display:none !important; }
 
 /* --- admin --------------------------------------------------------------- */
 .admin{
@@ -247,12 +261,12 @@ footer{
 <div class="shell">
 
   <div class="topbar">
-    <a class="back" href="index.html">&#8592; <span data-en="Ecosystem" data-am="ሥርዓት">Ecosystem</span></a>
+    <a class="back" href="index.html" id="backLink">&#8592; <span id="backText" data-en="Ecosystem" data-am="ሥርዓት">Ecosystem</span></a>
     <span class="spacer"></span>
-    <a class="btn" href="elections.html"
-       style="text-decoration:none;border-color:var(--gold-dim);color:var(--gold)">Elections</a>
-    <a class="btn" href="war.html" id="warLink" hidden
-       style="text-decoration:none;border-color:var(--red-dim);color:var(--red)">War Department</a>
+    <!-- Both stay hidden until the page knows the visitor can open them: a
+         visa holder never sees either, and War only shows for Defence. -->
+    <a class="btn" href="elections.html" id="electionsLink" hidden>Elections</a>
+    <a class="btn war" href="war.html" id="warLink" hidden>War Department</a>
     <div class="lang" role="group" aria-label="Language">
       <button class="btn" type="button" data-set-lang="en" aria-pressed="true">EN</button>
       <button class="btn" type="button" data-set-lang="am" aria-pressed="false" lang="am">አማርኛ</button>
@@ -261,55 +275,71 @@ footer{
   </div>
 
   <header class="masthead">
-    <h1 data-slot="title" data-en="Government" data-am="መንግሥት">Government</h1>
-    <p data-slot="subtitle" class="sub" data-en="Offices of State" data-am="የመንግሥት ሹመቶች">Offices of State</p>
-    <p data-en="Who holds each office in both branches, taken live from Discord roles."
-       data-am="በሁለቱም ቅርንጫፎች ያሉ ሹመቶችን ማን እንደያዘ፣ በቀጥታ ከዲስኮርድ ሚናዎች።">
-      Who holds each office in both branches, taken live from Discord roles.
-    </p>
+    <div>
+      <h1 data-slot="title" data-en="Government" data-am="መንግሥት">Government</h1>
+      <p data-slot="subtitle" class="sub" data-en="Offices of State" data-am="የመንግሥት ሹመቶች">Offices of State</p>
+      <p class="lede" data-en="The Republic of Ethiopia governs itself through two branches: a democratic Republic, whose offices are elected, and a meritocratic Crown. Every name here is read live from the Discord server."
+         data-am="የኢትዮጵያ ሪፐብሊክ በሁለት ቅርንጫፎች ይተዳደራል፤ ሹመቶቹ በምርጫ የሚያዙበት ዴሞክራሲያዊ ሪፐብሊክ እና በብቃት ላይ የተመሠረተ ዘውድ። እዚህ ያለው እያንዳንዱ ስም በቀጥታ ከዲስኮርድ ይነበባል።">
+        The Republic of Ethiopia governs itself through two branches: a democratic Republic, whose offices are elected,
+        and a meritocratic Crown. Every name here is read live from the Discord server.
+      </p>
+    </div>
+    <svg class="seal" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+      <circle cx="50" cy="50" r="46" fill="#17539e"/>
+      <g fill="#edb912">
+        <polygon points="50.00,20.00 56.74,40.73 78.53,40.73 60.90,53.54 67.63,74.27 50.00,61.46 32.37,74.27 39.10,53.54 21.47,40.73 43.26,40.73"/>
+        <path d="M48.50,17.03 L51.50,17.03 L51.04,4.01 L48.96,4.01 Z
+                 M80.89,38.39 L81.82,41.24 L94.06,36.78 L93.41,34.80 Z
+                 M70.59,75.79 L68.17,77.55 L76.19,87.82 L77.88,86.59 Z
+                 M31.83,77.55 L29.41,75.79 L22.12,86.59 L23.81,87.82 Z
+                 M18.18,41.24 L19.11,38.39 L6.59,34.80 L5.94,36.78 Z"/>
+      </g>
+    </svg>
   </header>
 
-  <div class="branches">
-    <section class="branch rep">
-      <h2 data-en="Republic" data-am="ሪፐብሊክ">Republic</h2>
-      <p class="kind" data-en="Elected offices" data-am="የተመረጡ ሹመቶች">Elected offices</p>
+  <p class="tally" id="tally" aria-live="polite">&nbsp;</p>
+
+  <div class="wings">
+    <section class="wing republic" aria-labelledby="repTitle">
+      <div class="wing-head">
+        <h2 id="repTitle" data-en="The Republic" data-am="ሪፐብሊክ">The Republic</h2>
+        <span class="what" data-en="Elected by citizens" data-am="በዜጎች የሚመረጥ">Elected by citizens</span>
+      </div>
       <div id="republic"><p class="empty">Loading…</p></div>
     </section>
 
-    <section class="branch mon">
-      <h2 data-en="Monarchy" data-am="ንጉሠ ነገሥት">Monarchy</h2>
-      <p class="kind" data-en="Crown and council" data-am="ዘውድና ምክር ቤት">Crown and council</p>
+    <section class="wing crown" aria-labelledby="crownTitle">
+      <div class="wing-head">
+        <h2 id="crownTitle" data-en="The Crown" data-am="ዘውድ">The Crown</h2>
+        <span class="what" data-en="A meritocratic monarchy" data-am="በብቃት ላይ የተመሠረተ ዘውድ">A meritocratic monarchy</span>
+      </div>
       <div id="monarchy"><p class="empty">Loading…</p></div>
     </section>
   </div>
 
-  <p style="margin:1.2rem 0 0;font-family:var(--body);font-size:var(--step--1);
-    display:flex;gap:1.2rem;flex-wrap:wrap">
-    <a href="elections.html" style="color:var(--gold);text-decoration:none">
-      Elections &#8594;</a>
-    <a href="growth.html" style="color:var(--gold);text-decoration:none">
-      Past governments and how the nation grew under each</a>
-  </p>
-
-  <section class="section">
-    <div class="section-head">
-      <h2 data-en="House of Representatives" data-am="የተወካዮች ምክር ቤት">House of Representatives</h2>
+  <section class="block" aria-labelledby="houseTitle">
+    <div class="block-head">
+      <h2 id="houseTitle" data-en="House of Representatives" data-am="የተወካዮች ምክር ቤት">House of Representatives</h2>
       <span class="meta" id="houseMeta">&mdash;</span>
     </div>
     <div id="chamber"></div>
-    <div id="house"><p class="empty">Loading…</p></div>
+    <div id="house"></div>
   </section>
 
-  <section class="section">
-    <div class="section-head">
+  <section class="block" id="electionsBlock" hidden>
+    <div class="block-head">
       <h2>Elections</h2>
       <span class="meta" id="electionMeta">&mdash;</span>
     </div>
     <div id="electionCard"></div>
+    <p class="links">
+      <a href="elections.html">Past elections and the record &#8594;</a>
+      <a href="growth.html">Past governments and how the nation grew under each &#8594;</a>
+    </p>
   </section>
 
-  <section class="section" id="partiesSection" hidden>
-    <div class="section-head">
+  <section class="block" id="partiesSection" hidden>
+    <div class="block-head">
       <h2 data-en="Parties" data-am="ፓርቲዎች">Parties</h2>
       <span class="meta" id="partyMeta">&mdash;</span>
     </div>
@@ -434,7 +464,7 @@ footer{
   </section>
 
   <footer>
-    <span>Ethiopia</span>
+    <span>Republic of Ethiopia</span>
     <span id="stamp">&nbsp;</span>
   </footer>
 </div>
@@ -446,19 +476,10 @@ footer{
 
 var API = 'https://earthmc-ethiopia-proxy.ethiopianempire2.workers.dev';
 
-/* There used to be a hardcoded REGIONS list here, and a grid of population
-   boxes built from it. Both are gone.
-
-   The list was wrong the moment anyone added or renamed a region in the panel
-   above, and nothing reconciled the two — so the Recalculate button could
-   apportion seats to regions that no longer existed while ignoring ones that
-   did. The population boxes were worse: whatever was typed into them decided
-   the seat split, which meant the apportionment was only ever as honest as
-   the person filling in the form.
-
-   Both now come from the Worker, which reads residents, towns and chunks from
-   the live sweep. The working it used comes back with the result and is shown
-   below it, so a disputed split can be checked rather than believed. */
+/* Regions and the House's seat counts both come from the Worker, which reads
+   residents, towns and chunks from the live sweep; the admin panel's own
+   working is shown under Recalculate so a disputed split can be checked
+   rather than believed. */
 
 var $ = function(id){ return document.getElementById(id); };
 var esc = function(s){
@@ -468,7 +489,8 @@ var esc = function(s){
 };
 var num = function(n){ return (Number(n) || 0).toLocaleString('en-US'); };
 
-var me = null, parties = [];
+var me = null, parties = [], gov = null;
+var isVisa = false;      // an Ethiopia Perk visitor: sees the state, not its machinery
 
 async function api(path, opts){
   var res = await fetch(API + path, Object.assign({ credentials:'include' }, opts || {}));
@@ -504,71 +526,99 @@ document.querySelectorAll('[data-set-lang]').forEach(function(b){
 });
 try { if (localStorage.getItem('ethiopia-lang') === 'am') applyLang('am'); } catch (e) {}
 
-/* --- rendering ------------------------------------------------------------ */
+/* --- people ---------------------------------------------------------------- */
+var HEAD = function(name, size){ return 'https://minotar.net/helm/' + encodeURIComponent(name) + '/' + (size || 44) + '.png'; };
 
-/* Faces come from a player's Minecraft name. Until a name is set there is no
-   face to show, so the chip shows the Discord name in italics instead of a
-   broken image — an unset name should look unset, not broken.
-
-   Both images carry explicit width and height attributes as well as CSS.
-   Without them the browser reserves the image's NATURAL size until it loads
-   and then reflows, which is what made the President and Emperor chips open
-   as tall empty boxes before settling. */
-function personChip(p, isHead){
-  if (!p) return '<span class="person vacant" data-en="vacant" data-am="ክፍት">vacant</span>';
-
-  var face = p.mcName
-    ? '<img class="face" width="22" height="22" src="https://minotar.net/helm/' +
-      encodeURIComponent(p.mcName) +
-      '/22.png" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
-    : '<span class="face" aria-hidden="true"></span>';
-
-  var name = p.mcName
-    ? '<span class="who">' + esc(p.mcName) + '</span>'
-    : '<span class="who unnamed">' + esc(p.discordName) + '</span>';
-
-  var tag = '';
-  if (p.party) {
-    tag = '<span class="tag">' +
-      (p.party.imageUrl ? '<img class="plogo" width="14" height="14" src="' +
-        esc(p.party.imageUrl) + '" alt="" loading="lazy" onerror="this.remove()">' : '') +
-      esc(p.party.abbrev || p.party.name) + '</span>';
-  }
-
-  var style = p.party && p.party.colour ? ' style="--party:' + esc(p.party.colour) + '"' : '';
-  return '<span class="person' + (isHead ? ' head' : '') + '"' + style + '>' +
-         face + name + tag + '</span>';
+/* A face, or an empty square when nobody has linked a Minecraft name yet:
+   an unset name should look unset, not broken. Width and height are set on
+   the element so nothing reflows when the image arrives. */
+function face(p, size){
+  return p && p.mcName
+    ? '<img src="' + HEAD(p.mcName, size * 2) + '" width="' + size + '" height="' + size + '" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+    : '<span class="noface" aria-hidden="true"></span>';
+}
+function nameOf(p){ return p ? (p.mcName || p.discordName || 'Unknown') : ''; }
+function partyTag(p){
+  if (!p || !p.party) return '';
+  return ' <span class="pt" style="--party:' + esc(p.party.colour || '#958d7d') + '">' + esc(p.party.abbrev || p.party.name) + '</span>';
+}
+function pp(p){
+  return '<span class="pp">' + face(p, 22) +
+    '<span class="nm' + (p.mcName ? '' : ' unlinked') + '">' + esc(nameOf(p)) + '</span>' + partyTag(p) + '</span>';
 }
 
-function renderBranch(host, offices){
+/* --- the two wings ------------------------------------------------------- */
+var SILHOUETTE = '<svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+  '<rect x="18" y="4" width="24" height="24" rx="2"/><path d="M8 60V44c0-6 4-10 10-10h24c6 0 10 4 10 10v16"/></svg>';
+
+function sovereign(office){
+  var hs = (office && office.holders) || [];
+  var p = hs[0] || null;
+  var bust = p && p.mcName
+    ? '<div class="bust"><img src="https://minotar.net/bust/' + encodeURIComponent(p.mcName) + '/160.png" width="160" height="160" alt="" onerror="this.remove()"></div>'
+    : '<div class="bust empty">' + SILHOUETTE + '</div>';
+  var also = [];
+  if (p && p.mcName && p.discordName && p.discordName.toLowerCase() !== p.mcName.toLowerCase()) also.push(esc(p.discordName) + ' on Discord');
+  if (p && p.party) also.push(esc(p.party.name));
+  if (hs.length > 1) also.push('with ' + hs.slice(1).map(function(h){ return esc(nameOf(h)); }).join(', '));
+  return '<div class="sovereign">' + bust + '<div>' +
+    '<p class="title">' + esc(office.title) + '</p>' +
+    (p ? '<p class="name">' + esc(nameOf(p)) + '</p>' : '<p class="name vacant" data-en="Vacant" data-am="ክፍት">Vacant</p>') +
+    (also.length ? '<p class="also">' + also.join(' · ') + '</p>' : '') +
+    '</div></div>';
+}
+
+function renderRepublic(offices){
+  var host = $('republic');
   if (!offices || !offices.length){ host.innerHTML = '<p class="empty">No offices recorded.</p>'; return; }
-  host.innerHTML = offices.map(function(o){
-    var chips = (o.holders && o.holders.length)
-      ? o.holders.map(function(h){ return personChip(h, o.isHead); }).join('')
-      : personChip(null);
-    var count = (o.holders && o.holders.length > 1)
-      ? '<span>' + o.holders.length + '</span>' : '';
-    return '<div class="office"><div class="office-name"><span>' + esc(o.title) + '</span>' +
-           count + '</div><div class="people">' + chips + '</div></div>';
+  var head = offices.filter(function(o){ return o.isHead; })[0];
+  var rest = offices.filter(function(o){ return o !== head; });
+  host.innerHTML = (head ? sovereign(head) : '') +
+    '<ul class="register">' + rest.map(function(o){
+      var hs = o.holders || [];
+      return '<li><span class="office">' + esc(o.title) + '</span><span class="dots" aria-hidden="true"></span>' +
+        '<span class="holders">' + (hs.length ? hs.map(pp).join('') : '<span class="vac">vacant</span>') + '</span></li>';
+    }).join('') + '</ul>';
+}
+
+function renderCrown(offices){
+  var host = $('monarchy');
+  if (!offices || !offices.length){ host.innerHTML = '<p class="empty">No offices recorded.</p>'; return; }
+  var head = offices.filter(function(o){ return o.isHead; })[0];
+  var rest = offices.filter(function(o){ return o !== head; });
+  host.innerHTML = (head ? sovereign(head) : '') + rest.map(function(o, i){
+    var hs = o.holders || [];
+    return '<div class="rank r' + Math.min(5, i + 1) + '"><div class="rank-head"><h3>' + esc(o.title) + '</h3>' +
+      '<span class="n">' + (hs.length ? hs.length : '') + '</span></div>' +
+      (hs.length
+        ? '<div class="court">' + hs.map(function(p){
+            return '<span class="courtier" title="' + esc(nameOf(p)) + '">' + face(p, 42) +
+              '<span class="nm' + (p.mcName ? '' : ' unlinked') + '">' + esc(nameOf(p)) + '</span></span>';
+          }).join('') + '</div>'
+        : '<span class="vac">vacant</span>') +
+      '</div>';
   }).join('');
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * THE CHAMBER
+ * THE HOUSE
  *
- * Rows and seat size are DERIVED from the seat count rather than fixed, so
- * changing the House size in the admin panel below reshapes this without
- * anyone touching the drawing code. Twenty seats wants two generous rows;
- * sixty wants four smaller ones.
+ * Coloured by region, because the House is apportioned by region and nothing
+ * else decides a seat today. The colours are the regions' own on the map, so
+ * a seat reads as "Amhara" at a glance in either place. Parties are off for
+ * now; the moment any representative has one, a By party view appears beside
+ * By region and the well counts towards a majority again.
  *
- * Two groupings, because the House is organised by region but contested by
- * party, and a single arc can only order by one of them:
- *   by party   — contiguous blocs, which is what a hemicycle is FOR
- *   by region  — seats in regional order, still coloured by party, so you can
- *                see which regions are solidly one way
+ * Rows and seat size are derived from the count, so changing the House size
+ * in the admin panel reshapes the drawing without touching this code.
  * ═════════════════════════════════════════════════════════════════════════ */
-var chamberView = 'party';
+var chamberView = 'region';
 var chamberSeats = [];
+var regionColour = {};
+var REGION_PALETTE = ['#5b8def', '#e0894a', '#4fb286', '#c46aa8', '#9a86e0', '#d1a93f',
+  '#4fb3c4', '#d0654f', '#8bb04f', '#b08463', '#6f7fd6', '#c9837a'];
+var baseRegion = function(r){ return String(r || '').replace(' (unconfirmed)', ''); };
+function colourOf(region){ return regionColour[baseRegion(region)] || '#7d7466'; }
 
 function rowsFor(count){
   if (count <= 12) return 1;
@@ -578,119 +628,61 @@ function rowsFor(count){
   return 5;
 }
 
-/* Seats spread across rows in proportion to each row's arc length, so spacing
-   between neighbours stays even instead of the inner row bunching up. */
+/* Seats spread across rows in proportion to each row's arc length, so the
+   spacing between neighbours stays even, and ordered by ANGLE around the arc
+   so a region's seats sit together across both rows. */
 function seatLayout(count, opts){
-  var rows = opts.rows, rInner = opts.rInner, rOuter = opts.rOuter;
-  var cx = opts.cx, cy = opts.cy;
-
+  var rows = opts.rows, rInner = opts.rInner, rOuter = opts.rOuter, cx = opts.cx, cy = opts.cy;
   var radii = [];
-  for (var r = 0; r < rows; r++){
-    radii.push(rows === 1 ? rOuter : rInner + (rOuter - rInner) * (r / (rows - 1)));
-  }
-
+  for (var r = 0; r < rows; r++) radii.push(rows === 1 ? rOuter : rInner + (rOuter - rInner) * (r / (rows - 1)));
   var total = radii.reduce(function(a, b){ return a + b; }, 0);
   var perRow = radii.map(function(rad){ return Math.max(1, Math.round(count * rad / total)); });
-
-  /* Rounding rarely lands on the exact total, so the difference is settled on
-     the outermost row where one seat either way is least noticeable. */
   var sum = perRow.reduce(function(a, b){ return a + b; }, 0);
   perRow[rows - 1] += count - sum;
   if (perRow[rows - 1] < 1) perRow[rows - 1] = 1;
-
   var out = [];
   for (var ri = 0; ri < rows; ri++){
-    var nSeats = perRow[ri], rad = radii[ri];
-    for (var i = 0; i < nSeats; i++){
-      /* Half-step inset at each end so the outermost seats sit inside the arc
-         rather than exactly on the horizontal, which reads as falling off. */
-      var t = nSeats === 1 ? 0.5 : (i + 0.5) / nSeats;
+    var n = perRow[ri], rad = radii[ri];
+    for (var i = 0; i < n; i++){
+      var t = n === 1 ? 0.5 : (i + 0.5) / n;
       var ang = Math.PI - t * Math.PI;
       out.push({ x: cx + Math.cos(ang) * rad, y: cy - Math.sin(ang) * rad, ang: ang, r: rad });
     }
   }
-
-  /* Ordered by ANGLE around the arc, not by x. Sorting by x looks equivalent
-     but is not: a seat halfway along the inner row sits at a very different x
-     from the same angle on the outer row, so an x sort interleaves the rows
-     and the blocs come out looking scattered instead of contiguous — which is
-     exactly what the first version did. */
   return out.sort(function(a, b){ return b.ang - a.ang || a.r - b.r; });
 }
 
-/* Flattens the region-shaped API response into one seat per element, with the
-   unfilled ones included — a vacant seat is a seat, and it is the thing most
-   worth seeing. */
+/* One seat per element, vacancies included: an empty seat is a seat, and the
+   thing most worth seeing. Representatives with no region role already hold
+   one of the House's seats, we just do not know which, so they are seated in
+   a vacancy rather than added on top. */
 function seatsFromHouse(house, totalSeats){
-  var seats = [];
-  var floating = [];
-
+  var seats = [], floating = [];
   (house || []).forEach(function(r){
     var holders = r.holders || [];
-
-    /* An Unassigned member is NOT an extra seat. They are a representative
-       whose region role is not set — they already hold one of the House's
-       seats, we simply do not know which. Adding them on top is what made the
-       chamber read 21 while the header read 20. They are set aside here and
-       seated in a vacancy below. */
-    if (r.region === 'Unassigned'){
-      holders.forEach(function(h){ floating.push(h); });
-      return;
-    }
-
+    if (r.region === 'Unassigned'){ holders.forEach(function(h){ floating.push(h); }); return; }
     var count = typeof r.seats === 'number' ? r.seats : holders.length;
     for (var i = 0; i < Math.max(count, holders.length); i++){
       var h = holders[i] || null;
-      seats.push({
-        region: r.region,
-        who: h ? (h.mcName || h.discordName) : null,
-        party: h && h.party ? h.party : null,
-        independent: h ? !!h.independent : false,
-        overflow: i >= count,   // a region holding more members than it has seats
-      });
+      seats.push({ region: r.region, person: h, party: h && h.party ? h.party : null, overflow: i >= count });
     }
   });
-
-  /* Seat the unassigned into vacancies, oldest vacancy first. Their region
-     shows as unknown rather than being invented. */
   for (var v = 0; v < seats.length && floating.length; v++){
-    if (seats[v].who) continue;
+    if (seats[v].person) continue;
     var h = floating.shift();
-    seats[v] = {
-      region: seats[v].region + ' (unconfirmed)',
-      who: h.mcName || h.discordName,
-      party: h.party || null,
-      independent: !!h.independent,
-      unassigned: true,
-    };
+    seats[v] = { region: seats[v].region + ' (unconfirmed)', person: h, party: h.party || null, unassigned: true };
   }
-
-  /* Anyone still left genuinely exceeds the chamber — shown rather than
-     dropped, because a House with more members than seats is a real problem
-     somebody needs to see. */
-  floating.forEach(function(h){
-    seats.push({
-      region: 'Unassigned', who: h.mcName || h.discordName,
-      party: h.party || null, independent: !!h.independent, overflow: true,
-    });
-  });
-
-  /* The authoritative total wins. If the regions add up to fewer seats than
-     the House is meant to have, the difference is drawn as vacant. */
+  floating.forEach(function(h){ seats.push({ region: 'Unassigned', person: h, party: h.party || null, overflow: true }); });
   if (typeof totalSeats === 'number' && totalSeats > seats.length){
-    while (seats.length < totalSeats){
-      seats.push({ region: 'Unallocated', who: null, party: null });
-    }
+    while (seats.length < totalSeats) seats.push({ region: 'Unallocated', person: null, party: null });
   }
   return seats;
 }
 
-/* One place that counts seats by party, so the legend and the majority
-   marker can never disagree with each other. */
-function byPartyFor(seats){
+function partiesInHouse(seats){
   var out = {};
   seats.forEach(function(s){
-    if (!s.who || !s.party) return;
+    if (!s.person || !s.party) return;
     var k = s.party.name || s.party.abbrev;
     if (!out[k]) out[k] = { n: 0, colour: s.party.colour };
     out[k].n++;
@@ -698,269 +690,294 @@ function byPartyFor(seats){
   return out;
 }
 
+/* Region names around the arc, each tied to its seats by a short leader.
+   Labels on each side are pushed apart until they no longer touch, and the
+   drawing's box is measured from where they end up, so nothing is cut off at
+   the top or the sides however many regions there are. */
+function placeLabels(groups, cx, cy, R){
+  var L = [], Rt = [], C = [];
+  groups.forEach(function(g){
+    var c = Math.cos(g.mid), s = Math.sin(g.mid);
+    var lab = { g: g, x: cx + c * R, y: cy - s * R };
+    if (c < -0.18) { lab.anchor = 'end'; L.push(lab); }
+    else if (c > 0.18) { lab.anchor = 'start'; Rt.push(lab); }
+    else { lab.anchor = 'middle'; lab.y -= 6; C.push(lab); }
+  });
+  var spread = function(list){
+    list.sort(function(a, b){ return a.y - b.y; });
+    for (var i = 1; i < list.length; i++) if (list[i].y - list[i - 1].y < 17) list[i].y = list[i - 1].y + 17;
+  };
+  spread(L); spread(Rt);
+  C.sort(function(a, b){ return a.x - b.x; });
+  for (var k = 1; k < C.length; k++) if (C[k].x - C[k - 1].x < 96) C[k].x = C[k - 1].x + 96;
+  return L.concat(Rt, C);
+}
+
 function renderChamber(){
   var host = $('chamber');
   if (!host) return;
-  if (!chamberSeats.length){ host.innerHTML = ''; return; }
+  if (!chamberSeats.length){ host.innerHTML = '<p class="empty">No seats recorded.</p>'; return; }
 
-  var count = chamberSeats.length;
+  var seats = chamberSeats;
+  var count = seats.length;
   var rows = rowsFor(count);
-
-  /* Geometry scales with the count so a bigger House does not overflow and a
-     small one does not look lost in the middle of an empty canvas. */
-  var cx = 320, cy = 300, rOuter = 250;
-  var rInner = rows === 1 ? rOuter : rOuter - (rows * 40);
-  var pts = seatLayout(count, { rows: rows, rInner: rInner, rOuter: rOuter, cx: cx, cy: cy });
-
-  /* Radius from the gap between the two closest seats, so they never touch and
-     never float apart — and floored at 6px so a large House stays tappable. */
+  var rOuter = 250;
+  var rInner = rows === 1 ? rOuter : rOuter - rows * 42;
+  var pts = seatLayout(count, { rows: rows, rInner: rInner, rOuter: rOuter, cx: 0, cy: 0 });
   var minGap = Infinity;
   for (var i = 1; i < pts.length; i++){
-    var d = Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+    var d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
     if (d > 0 && d < minGap) minGap = d;
   }
-  var rad = Math.max(6, Math.min(16, (minGap || 30) * 0.42));
+  var rad = Math.max(6, Math.min(17, (minGap || 30) * 0.43));
+  /* On a phone the drawing shrinks to under half size, so region names would
+     be too small to read. They are left out there (the key below names every
+     region) and the words in the well are set larger to survive the shrink. */
+  var narrow = host.clientWidth > 0 && host.clientWidth < 560;
+  var big = narrow ? 1.7 : 1;
 
-  var ordered = chamberSeats.slice();
+  var partyCounts = partiesInHouse(seats);
+  var hasParties = Object.keys(partyCounts).length > 0 || parties.length > 0;
+  if (!hasParties) chamberView = 'region';
+
+  var ordered = seats.slice();
   if (chamberView === 'party'){
-    /* Blocs: same party together, vacant last. Independents sit between the
-       parties and the vacancies rather than being lumped with either. */
     ordered.sort(function(a, b){
-      var ak = a.party ? a.party.name : (a.who ? 'zz-independent' : 'zzz-vacant');
-      var bk = b.party ? b.party.name : (b.who ? 'zz-independent' : 'zzz-vacant');
+      var ak = a.party ? a.party.name : (a.person ? 'zz-independent' : 'zzz-vacant');
+      var bk = b.party ? b.party.name : (b.person ? 'zz-independent' : 'zzz-vacant');
       return ak.localeCompare(bk);
     });
   } else {
-    /* Sorted on the region's real name. An unconfirmed seat carries a
-       "(unconfirmed)" suffix for the readout, and sorting on that split Afar
-       into two separate groups on the arc with a gap between them — one
-       region, drawn as two. */
-    var baseName = function(r){ return String(r).replace(' (unconfirmed)', ''); };
+    // Each region's own seats together, the filled ones first within it.
     ordered.sort(function(a, b){
-      return baseName(a.region).localeCompare(baseName(b.region));
+      return baseRegion(a.region).localeCompare(baseRegion(b.region)) || (b.person ? 1 : 0) - (a.person ? 1 : 0);
     });
   }
 
-  /* The canvas has to hold the labels, not just the seats. Region names sit
-     well outside the arc and were being cut off at both ends — "Addis Ababa"
-     rendered as "baba", "Somalia" as "Somal". The box is widened and the
-     whole drawing shifted to match. */
-  var pad = chamberView === 'region' ? 120 : 20;
-  var vbW = 640 + pad * 2;
-  var svgH = Math.round(cy + rad + 16);
-  var html = '<svg viewBox="' + (-pad) + ' 0 ' + vbW + ' ' + svgH + '" role="img" ' +
-    'aria-label="House seating">';
+  /* The House is its seats in force. A region holding more representatives
+     than it has seats still draws them, ringed in gold, because that is a
+     problem someone should see, but they do not make the House bigger. */
+  var over = seats.filter(function(s){ return s.overflow; }).length;
+  var size = count - over;
+  var filled = seats.filter(function(s){ return s.person && !s.overflow; }).length;
+  var vacant = seats.filter(function(s){ return !s.person; }).length;
+  var majority = Math.floor(size / 2) + 1;
 
-  var majority = Math.floor(count / 2) + 1;
+  var parts = [];
+  // The floor, which closes the semicircle.
+  parts.push('<line x1="' + (-rOuter - rad - 10) + '" y1="' + (rad + 6) + '" x2="' + (rOuter + rad + 10) + '" y2="' + (rad + 6) + '" stroke="rgba(245,241,232,.12)"/>');
+
+  // The majority line: the one thing a hemicycle exists to show.
+  var majAng = Math.PI - (majority / Math.max(1, count)) * Math.PI;
+  var p1 = { x: Math.cos(majAng) * (rInner - rad - 8), y: -Math.sin(majAng) * (rInner - rad - 8) };
+  var p2 = { x: Math.cos(majAng) * (rOuter + rad + 6), y: -Math.sin(majAng) * (rOuter + rad + 6) };
+  parts.push('<line x1="' + p1.x.toFixed(1) + '" y1="' + p1.y.toFixed(1) + '" x2="' + p2.x.toFixed(1) + '" y2="' + p2.y.toFixed(1) + '" stroke="rgba(245,241,232,.4)" stroke-width="1.2" stroke-dasharray="3 4"/>');
+  var lr = rInner - rad - 24;
+  parts.push('<text class="maj" style="font-size:' + (10 * big) + 'px" x="' + (Math.cos(majAng) * lr).toFixed(1) + '" y="' + (-Math.sin(majAng) * lr).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle">' + majority + ' to pass</text>');
+
+  // The well.
   var lead = null;
-  var partyCounts = byPartyFor(chamberSeats);
-  Object.keys(partyCounts).forEach(function(k){
-    var c = partyCounts[k].n;
-    if (!lead || c > lead.n) lead = { name: k, n: c };
-  });
-
-  /* The floor of the chamber. Without it the seats float in space; one
-     hairline gives them something to stand on and closes the semicircle. */
-  html += '<line x1="' + (cx - rOuter - rad - 8) + '" y1="' + (cy + rad + 4) + '" ' +
-    'x2="' + (cx + rOuter + rad + 8) + '" y2="' + (cy + rad + 4) + '" ' +
-    'stroke="#322c24" stroke-width="1"/>';
-
-  /* --- the majority line -------------------------------------------------
-     THE thing a hemicycle exists to show. Drawn across the arc at the point
-     where seat N/2+1 falls, so a bloc either visibly reaches past it or
-     visibly does not — which is the question, answered without counting.
-
-     Placed by proportion of the arc rather than between two specific seats:
-     seats are ordered by angle across two rows, so "between seat 10 and 11"
-     is not a single angular position, but "eleven twentieths of the way
-     round" always is. */
-  var majAng = Math.PI - (majority / count) * Math.PI;
-  var mx1 = cx + Math.cos(majAng) * (rInner - rad - 10);
-  var my1 = cy - Math.sin(majAng) * (rInner - rad - 10);
-  var mx2 = cx + Math.cos(majAng) * (rOuter + rad + 10);
-  var my2 = cy - Math.sin(majAng) * (rOuter + rad + 10);
-
-  html += '<line x1="' + mx1.toFixed(1) + '" y1="' + my1.toFixed(1) + '" ' +
-    'x2="' + mx2.toFixed(1) + '" y2="' + my2.toFixed(1) + '" ' +
-    'stroke="#f4efe4" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>';
-
-  /* Labelled at the INNER end of the line, not the outer. Outside the arc it
-     shared a radius with the region names and landed within 30px of whichever
-     one happened to sit near the centre — "Gambela 2" printed straight
-     through "11 to pass". Inside, nothing else competes for the space. */
-  var lblR = rInner - rad - 22;
-  var lbx = cx + Math.cos(majAng) * lblR;
-  var lby = cy - Math.sin(majAng) * lblR;
-  html += '<text x="' + lbx.toFixed(1) + '" y="' + lby.toFixed(1) + '" ' +
-    'text-anchor="middle" dominant-baseline="middle" ' +
-    'font-family="Martian Mono, monospace" font-size="9" fill="#a89e8c">' +
-    majority + ' to pass</text>';
-
-  /* The well of the chamber: who leads, and whether that is enough. */
-  if (lead){
+  Object.keys(partyCounts).forEach(function(k){ if (!lead || partyCounts[k].n > lead.n) lead = { name: k, n: partyCounts[k].n }; });
+  if (chamberView === 'party' && lead){
     var has = lead.n >= majority;
-    html += '<text x="' + cx + '" y="' + (cy - 88) + '" text-anchor="middle" ' +
-      'font-family="Fraunces, Georgia, serif" font-size="46" font-weight="600" ' +
-      'fill="' + (has ? '#189d4d' : '#f4efe4') + '">' + lead.n + '</text>';
-    html += '<text x="' + cx + '" y="' + (cy - 64) + '" text-anchor="middle" ' +
-      'font-family="Karla, sans-serif" font-size="12" fill="#b3a894">' +
-      esc(lead.name.length > 28 ? lead.name.slice(0, 27) + '…' : lead.name) + '</text>';
-    html += '<text x="' + cx + '" y="' + (cy - 42) + '" text-anchor="middle" ' +
-      'font-family="Martian Mono, monospace" font-size="10" fill="' +
-      (has ? '#189d4d' : '#cf2029') + '">' +
-      (has ? 'has a majority' : (majority - lead.n) + ' short of a majority') +
-      '</text>';
+    parts.push('<text class="well-n" x="0" y="-74" text-anchor="middle">' + lead.n + '</text>');
+    parts.push('<text class="well-k" x="0" y="-50" text-anchor="middle">' + esc(lead.name.length > 28 ? lead.name.slice(0, 27) + '…' : lead.name) + '</text>');
+    parts.push('<text class="well-w" x="0" y="-30" text-anchor="middle" fill="' + (has ? 'var(--green)' : '#ff8f8f') + '">' +
+      (has ? 'has a majority' : (majority - lead.n) + ' short of a majority') + '</text>');
   } else {
-    html += '<text x="' + cx + '" y="' + (cy - 70) + '" text-anchor="middle" ' +
-      'font-family="Karla, sans-serif" font-size="12" fill="#837866">' +
-      'No party holds a seat</text>';
+    parts.push('<text class="well-n" style="font-size:' + (52 * Math.min(big, 1.2)) + 'px" x="0" y="' + (narrow ? -52 : -74) + '" text-anchor="middle">' + filled + '</text>');
+    parts.push('<text class="well-k" style="font-size:' + (13 * big) + 'px" x="0" y="' + (narrow ? -22 : -50) + '" text-anchor="middle">of ' + size + ' seats filled</text>');
+    var notes = [];
+    if (vacant) notes.push('<tspan fill="#ff8f8f">' + vacant + ' empty</tspan>');
+    if (over) notes.push('<tspan fill="var(--gold)">' + over + ' over their region</tspan>');
+    if (notes.length) parts.push('<text class="well-w" style="font-size:' + (12 * big) + 'px" x="0" y="' + (narrow ? 6 : -30) + '" text-anchor="middle">' + notes.join('<tspan fill="#958d7d"> · </tspan>') + '</text>');
   }
 
+  // The seats.
   ordered.forEach(function(s, i){
-    var p = pts[i];
-    if (!p) return;
-    var vacant = !s.who;
-    var col = s.party && s.party.colour ? s.party.colour
-      : (s.who ? '#837866' : 'none');
-    /* A ring in the chamber's own background colour separates neighbouring
-       seats of the same party — without it a bloc merges into one solid band
-       and stops reading as individual people. */
-    var ring = vacant ? 'stroke="#4a4238" stroke-width="2" stroke-dasharray="3 3" '
-      : s.unassigned ? 'stroke="#edb912" stroke-width="2" '
-      : 'stroke="#241f19" stroke-width="1.5" ';
-
-    html += '<circle class="seat' + (vacant ? ' vacant' : '') + '" ' +
-      'cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + rad.toFixed(1) + '" ' +
-      'fill="' + (vacant ? 'none' : col) + '" ' + ring +
-      'data-who="' + esc(s.who || '') + '" ' +
-      'data-region="' + esc(s.region) + '" ' +
-      'data-party="' + esc(s.party ? (s.party.name || s.party.abbrev || '') : '') + '">' +
-      '<title>' + esc(s.who ? s.who + ' · ' + s.region : 'Vacant · ' + s.region) + '</title>' +
-      '</circle>';
+    var p = pts[i]; if (!p) return;
+    var col = chamberView === 'party'
+      ? (s.party && s.party.colour ? s.party.colour : '#8a8173')
+      : colourOf(s.region);
+    var attrs = s.person
+      ? 'fill="' + esc(col) + '" stroke="#151311" stroke-width="2"'
+      : 'fill="' + esc(col) + '" fill-opacity=".08" stroke="' + esc(col) + '" stroke-opacity=".75" stroke-width="1.6" stroke-dasharray="3 2.5"';
+    parts.push('<circle class="seat" data-i="' + i + '" data-r="' + esc(baseRegion(s.region)) + '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + rad.toFixed(1) + '" ' + attrs + '/>');
+    if (s.overflow || s.unassigned){
+      parts.push('<circle data-r="' + esc(baseRegion(s.region)) + '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (rad + 3).toFixed(1) + '" fill="none" stroke="var(--gold)" stroke-width="1.3" pointer-events="none"/>');
+    }
   });
 
-  /* --- region labels ----------------------------------------------------
-     Only in region view, and this is what makes that view mean anything:
-     without them, reordering the seats by region just moves dots about with
-     no way to tell where one region ends and the next begins.
-
-     Each label sits at its group's mean angle, pushed outside the arc. */
-  if (chamberView === 'region'){
-    var base = function(r){ return String(r).replace(' (unconfirmed)', ''); };
+  // Region labels, in region view.
+  var minX = -rOuter - rad - 12, maxX = rOuter + rad + 12, minY = -rOuter - rad - 12;
+  if (chamberView === 'region' && !narrow){
     var groups = [];
     ordered.forEach(function(s, i){
       if (!pts[i]) return;
-      var nm = base(s.region);
-      var last = groups[groups.length - 1];
+      var nm = baseRegion(s.region), last = groups[groups.length - 1];
       if (last && last.name === nm) last.idx.push(i);
       else groups.push({ name: nm, idx: [i] });
     });
-
-    /* A leader line from the label to its own seats, because a name floating
-       near an arc does not say which dots it belongs to — and with ten
-       regions around a semicircle, guessing is exactly what the first version
-       asked people to do. */
     groups.forEach(function(g){
-      var angs = g.idx.map(function(i){ return pts[i].ang; });
-      var mid = angs.reduce(function(a, b){ return a + b; }, 0) / angs.length;
-
-      /* Pushed out beyond the majority marker's own label so the two can
-         never sit on top of each other, which is what put "Gambela 2" through
-         "11 to pass". */
-      var tickR = rOuter + rad + 6;
-      var lr = rOuter + rad + 40;
-      var lx = cx + Math.cos(mid) * lr;
-      var ly = cy - Math.sin(mid) * lr;
-
-      html += '<line x1="' + (cx + Math.cos(mid) * tickR).toFixed(1) + '" ' +
-        'y1="' + (cy - Math.sin(mid) * tickR).toFixed(1) + '" ' +
-        'x2="' + (cx + Math.cos(mid) * (lr - 8)).toFixed(1) + '" ' +
-        'y2="' + (cy - Math.sin(mid) * (lr - 8)).toFixed(1) + '" ' +
-        'stroke="#3a332a" stroke-width="1"/>';
-
-      var anchor = Math.abs(lx - cx) < 30 ? 'middle' : (lx < cx ? 'end' : 'start');
-      html += '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" ' +
-        'text-anchor="' + anchor + '" dominant-baseline="middle" ' +
-        'font-family="Martian Mono, monospace" font-size="9" fill="#a89e8c">' +
-        esc(g.name) + ' <tspan fill="#837866">' + g.idx.length + '</tspan></text>';
+      g.mid = g.idx.reduce(function(a, i){ return a + pts[i].ang; }, 0) / g.idx.length;
+    });
+    var labs = placeLabels(groups, 0, 0, rOuter + rad + 34);
+    labs.forEach(function(l){
+      var g = l.g, text = esc(g.name), countTxt = g.idx.length;
+      var w = g.name.length * 7.4 + String(countTxt).length * 7 + 8;
+      var startX = l.anchor === 'end' ? l.x - w : l.anchor === 'middle' ? l.x - w / 2 : l.x;
+      minX = Math.min(minX, startX - 6); maxX = Math.max(maxX, startX + w + 6); minY = Math.min(minY, l.y - 14);
+      var ex = Math.cos(g.mid) * (rOuter + rad + 5), ey = -Math.sin(g.mid) * (rOuter + rad + 5);
+      var tx = l.anchor === 'end' ? l.x + 4 : l.anchor === 'start' ? l.x - 4 : l.x;
+      var ty = l.anchor === 'middle' ? l.y + 6 : l.y;
+      parts.push('<path class="lead" data-r="' + text + '" d="M' + ex.toFixed(1) + ' ' + ey.toFixed(1) + ' L' + tx.toFixed(1) + ' ' + ty.toFixed(1) + '"/>');
+      parts.push('<text class="lbl" data-r="' + text + '" x="' + l.x.toFixed(1) + '" y="' + l.y.toFixed(1) + '" text-anchor="' + l.anchor + '" dominant-baseline="middle">' +
+        text + ' <tspan class="c">' + countTxt + '</tspan></text>');
     });
   }
 
-  html += '</svg>';
+  var vbX = Math.floor(minX), vbY = Math.floor(minY), vbW = Math.ceil(maxX - minX), vbH = Math.ceil(rad + 14 - minY);
+  var svg = '<svg viewBox="' + vbX + ' ' + vbY + ' ' + vbW + ' ' + vbH + '" role="img" aria-label="The House: ' +
+    filled + ' of ' + size + ' seats filled">' + parts.join('') + '</svg>';
 
-  /* --- legend, from the same count the majority marker uses --- */
-  var byParty = partyCounts;
-  var vacant = 0, indep = 0;
-  chamberSeats.forEach(function(s){
-    if (!s.who) vacant++;
-    else if (!s.party) indep++;
-  });
+  /* Below the arc: each region's share of the House, filled and empty. */
+  var below = '';
+  if (chamberView === 'region'){
+    var byRegion = [];
+    ((gov && gov.house) || []).forEach(function(r){
+      if (r.region === 'Unassigned') return;
+      byRegion.push({ name: r.region, seats: typeof r.seats === 'number' ? r.seats : 0, held: (r.holders || []).length });
+    });
+    // Same order as the arc, so the strip reads left to right like the seats.
+    byRegion.sort(function(a, b){ return a.name.localeCompare(b.name); });
+    var inForce = byRegion.reduce(function(a, r){ return a + r.seats; }, 0) || 1;
+    below = '<div class="share" aria-hidden="true">' + byRegion.filter(function(r){ return r.seats > 0; }).map(function(r){
+        var f = Math.min(1, r.held / Math.max(1, r.seats));
+        return '<span data-r="' + esc(r.name) + '" style="flex:' + r.seats + ';--rc:' + esc(colourOf(r.name)) + '" title="' + esc(r.name) + '"><i style="width:' + (f * 100).toFixed(1) + '%"></i></span>';
+      }).join('') + '</div>' +
+      '<ul class="key">' + byRegion.map(function(r){
+        var pct = r.seats / inForce * 100;
+        return '<li data-r="' + esc(r.name) + '" style="--rc:' + esc(colourOf(r.name)) + '"><b>' + esc(r.name) + '</b>' +
+          '<span>' + r.seats + (r.seats === 1 ? ' seat' : ' seats') + ' · ' + (pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)) + '%</span></li>';
+      }).join('') + '</ul>';
+  } else {
+    var indep = seats.filter(function(s){ return s.person && !s.party; }).length;
+    below = '<div class="legend">' + Object.keys(partyCounts).sort().map(function(k){
+        return '<span><i style="background:' + esc(partyCounts[k].colour || '#8a8173') + '"></i>' + esc(k) + ' <b>' + partyCounts[k].n + '</b></span>';
+      }).join('') +
+      (indep ? '<span><i style="background:#8a8173"></i>Independent <b>' + indep + '</b></span>' : '') +
+      (vacant ? '<span><i style="border:1.5px dashed #8a8173"></i>Vacant <b>' + vacant + '</b></span>' : '') + '</div>';
+  }
 
-  var legend = Object.keys(byParty).sort().map(function(k){
-    return '<span class="leg"><i style="background:' + esc(byParty[k].colour || '#837866') +
-      '"></i><span class="nm">' + esc(k) + '</span> <b>' + byParty[k].n + '</b></span>';
-  }).join('');
-  if (indep) legend += '<span class="leg"><i style="background:#837866"></i>' +
-    '<span class="nm">Independent</span> <b>' + indep + '</b></span>';
-  if (vacant) legend += '<span class="leg"><i style="border:2px dashed #4a4238"></i>' +
-    '<span class="nm">Vacant</span> <b>' + vacant + '</b></span>';
-
-  host.innerHTML =
-    '<div class="chamber"><div class="chamber-top"><h3>The chamber</h3>' +
-      '<span class="views">' +
-        '<button class="btn" type="button" data-view="party"' +
-          (chamberView === 'party' ? ' aria-pressed="true"' : '') + '>By party</button>' +
-        '<button class="btn" type="button" data-view="region"' +
-          (chamberView === 'region' ? ' aria-pressed="true"' : '') + '>By region</button>' +
-      '</span></div>' +
-    '<p class="cap">' + (count - vacant) + ' of ' + count + ' seats filled' +
-      (vacant ? ' · ' + vacant + ' vacant' : '') + '</p>' +
-    html +
-    '<div class="legend">' + legend + '</div>' +
-    '<div class="readout" id="seatReadout">Hover or tap a seat.</div></div>';
+  host.innerHTML = '<div class="hall" id="hall"><div class="hall-top">' +
+      '<p>' + (chamberView === 'region' ? 'Coloured by region, as on the map.' : 'Coloured by party.') +
+        ' Hover or tap a seat.</p>' +
+      (hasParties ? '<span class="views">' +
+        '<button class="btn" type="button" data-view="region"' + (chamberView === 'region' ? ' aria-pressed="true"' : '') + '>By region</button>' +
+        '<button class="btn" type="button" data-view="party"' + (chamberView === 'party' ? ' aria-pressed="true"' : '') + '>By party</button>' +
+        '</span>' : '') +
+    '</div>' + svg + below + '<div class="readout" id="seatReadout">&nbsp;</div></div>';
 
   host.querySelectorAll('[data-view]').forEach(function(b){
-    b.addEventListener('click', function(){
-      chamberView = b.dataset.view;
-      renderChamber();
-    });
+    b.addEventListener('click', function(){ chamberView = b.dataset.view; renderChamber(); });
   });
 
   var out = $('seatReadout');
-  host.querySelectorAll('.seat').forEach(function(el){
+  host.querySelectorAll('circle.seat').forEach(function(el){
+    var s = ordered[Number(el.dataset.i)];
     var show = function(){
-      out.innerHTML = el.dataset.who
-        ? '<b>' + esc(el.dataset.who) + '</b> · ' + esc(el.dataset.region) +
-          (el.dataset.party ? ' · ' + esc(el.dataset.party) : ' · Independent')
-        : 'Vacant seat · ' + esc(el.dataset.region);
+      var where = esc(baseRegion(s.region));
+      if (!s.person){ out.innerHTML = '<b>Empty seat</b> · ' + where; }
+      else {
+        out.innerHTML = '<b>' + esc(nameOf(s.person)) + '</b> · ' + where +
+          (s.party ? ' · ' + esc(s.party.name) : '') +
+          (s.unassigned ? ' · their region role is missing, so the region is a guess' : '') +
+          (s.overflow && !s.unassigned ? ' · more representatives than ' + where + ' has seats' : '');
+      }
+      focusRegion(baseRegion(s.region));
     };
     el.addEventListener('mouseenter', show);
     el.addEventListener('click', show);
   });
+  host.querySelector('svg').addEventListener('mouseleave', function(){ focusRegion(null); out.innerHTML = '&nbsp;'; });
+  host.querySelectorAll('.share > span, .key li').forEach(function(el){
+    el.addEventListener('mouseenter', function(){ focusRegion(el.dataset.r); });
+    el.addEventListener('mouseleave', function(){ focusRegion(null); });
+    el.addEventListener('click', function(){ focusRegion(el.dataset.r); });
+  });
 }
 
-function renderHouse(house, totalSeats, filled){
-  var host = $('house');
-  if (!house || !house.length){ host.innerHTML = '<p class="empty">No seats recorded.</p>'; return; }
-  $('houseMeta').textContent = filled + ' of ' + totalSeats + ' seats filled';
+var lastNarrow = null;
+window.addEventListener('resize', function(){
+  var host = $('chamber'); if (!host || !chamberSeats.length) return;
+  var n = host.clientWidth < 560;
+  if (n !== lastNarrow){ lastNarrow = n; renderChamber(); }
+});
 
-  chamberSeats = seatsFromHouse(house, totalSeats);
+/* One region lit, the rest dimmed: in the arc, the strip, the key and the
+   cards below, so all four always agree on which region is meant. */
+function focusRegion(name){
+  document.querySelectorAll('#chamber [data-r], #house .rcard').forEach(function(el){
+    el.classList.toggle('dim', !!name && el.dataset.r !== name);
+  });
+}
+
+function renderHouse(house){
+  var host = $('house');
+  if (!house || !house.length){ host.innerHTML = ''; $('chamber').innerHTML = '<p class="empty">No seats recorded.</p>'; return; }
+
+  regionColour = {};
+  var k = 0;
+  house.forEach(function(r){
+    if (r.region === 'Unassigned') return;
+    regionColour[r.region] = r.colour || REGION_PALETTE[k % REGION_PALETTE.length];
+    k++;
+  });
+
+  /* The seats in force are the regions' allocations added up. The Worker's
+     own total used to be a fixed 20 while the House had been resized, which
+     is how the page said "21 of 20" over a chamber of 24. */
+  var inForce = house.reduce(function(a, r){ return a + (r.region === 'Unassigned' ? 0 : (typeof r.seats === 'number' ? r.seats : 0)); }, 0);
+  var reps = house.reduce(function(a, r){ return a + (r.holders || []).length; }, 0);
+  chamberSeats = seatsFromHouse(house, inForce);
+  $('houseMeta').textContent = reps + (reps === 1 ? ' representative' : ' representatives') + ' · ' + inForce + ' seats';
   renderChamber();
 
-  host.innerHTML = '<div class="regions">' + house.map(function(r){
-    var held = r.holders ? r.holders.length : 0;
-    var seats = typeof r.seats === 'number' ? r.seats : 1;
-    // A region holding fewer members than it has seats is flagged, because an
-    // empty seat is a thing someone needs to act on, not a display detail.
-    var short = (r.region !== 'Unassigned' && held < seats) ? ' short' : '';
-    var chips = held
-      ? r.holders.map(function(h){ return personChip(h); }).join('')
-      : personChip(null);
-    return '<div class="region' + short + '">' +
-      '<div class="region-head"><span class="rn">' + esc(r.region) + '</span>' +
-      '<span class="seats">' + held + ' / ' + seats + '</span></div>' +
-      '<div class="people">' + chips + '</div></div>';
+  var cards = house.slice().sort(function(a, b){
+    if (a.region === 'Unassigned') return 1;
+    if (b.region === 'Unassigned') return -1;
+    return a.region.localeCompare(b.region);
+  });
+  host.innerHTML = '<div class="seats-grid">' + cards.map(function(r){
+    var held = (r.holders || []).length;
+    var seatsN = typeof r.seats === 'number' ? r.seats : 1;
+    var st, cls = '';
+    if (r.region === 'Unassigned'){ st = held + ' without a region role'; cls = ' over'; }
+    else if (held < seatsN){ st = held + ' of ' + seatsN + ' · ' + (seatsN - held) + ' empty'; cls = ' short'; }
+    else if (held > seatsN){ st = held + ' for ' + seatsN + (seatsN === 1 ? ' seat' : ' seats'); cls = ' over'; }
+    else st = held + ' of ' + seatsN;
+    return '<div class="rcard" data-r="' + esc(r.region) + '" style="--rc:' + esc(r.region === 'Unassigned' ? 'var(--gold)' : colourOf(r.region)) + '">' +
+      '<div class="rcard-head"><span class="rn">' + esc(r.region) + '</span><span class="st' + cls + '">' + st + '</span></div>' +
+      '<div class="reps">' + (held ? r.holders.map(pp).join('') : '<span class="none">No representative yet</span>') + '</div></div>';
   }).join('') + '</div>';
+
+  host.querySelectorAll('.rcard').forEach(function(el){
+    el.addEventListener('mouseenter', function(){ focusRegion(el.dataset.r); });
+    el.addEventListener('mouseleave', function(){ focusRegion(null); });
+  });
+}
+
+function renderTally(){
+  if (!gov) return;
+  var rep = { filled: 0, total: 0 };
+  (gov.republic || []).forEach(function(o){ rep.total++; if ((o.holders || []).length) rep.filled++; });
+  var crown = (gov.monarchy || []).reduce(function(a, o){ return a + (o.holders || []).length; }, 0);
+  var house = chamberSeats.filter(function(s){ return !s.overflow; }).length;
+  var seated = chamberSeats.filter(function(s){ return s.person && !s.overflow; }).length;
+  $('tally').innerHTML =
+    '<span><b>' + rep.filled + '/' + rep.total + '</b>Republic offices filled</span>' +
+    '<span><b>' + crown + '</b>in the Crown</span>' +
+    '<span><b>' + seated + '/' + house + '</b>House seats filled</span>';
 }
 
 function renderParties(){
@@ -1309,7 +1326,7 @@ function ethiopiaProfileChip(me){
   var who = me.mcName
     ? esc(me.mcName) + (me.discordName ? ' \u00b7 ' + esc(me.discordName) : '')
     : esc(me.discordName || 'Signed in');
-  return face + head + who + ' \u00b7 ' + esc(me.tier);
+  return face + head + who + ' \u00b7 ' + esc(me.tier === 'perk' ? 'visa' : me.tier);
 }
 
 function renderAuth(){
@@ -1328,11 +1345,11 @@ function renderAuth(){
   }
 }
 
-/* --- load ----------------------------------------------------------------- */
-/* A live election is the single most time-sensitive thing this page could
-   tell anyone, so it gets a card rather than a link in a list — and it says
-   what phase it is in, because "there is an election" and "voting closes in
-   two hours" ask completely different things of the reader. */
+
+/* --- elections ------------------------------------------------------------- */
+/* A live election is the most time-sensitive thing this page could tell a
+   citizen, so it gets a card that says what phase it is in: "there is an
+   election" and "voting closes in two hours" ask different things. */
 async function renderElectionCard(){
   var host = $('electionCard'), meta = $('electionMeta');
   if (!host) return;
@@ -1340,82 +1357,99 @@ async function renderElectionCard(){
   try {
     var d = await api('/api/elections/live');
     live = d && d.live;
-  } catch (e) { /* signed out, or elections not migrated yet */ }
+  } catch (e) { /* elections not migrated yet */ }
 
   if (!live){
-    host.innerHTML = '<p class="empty" style="text-align:left">No election is running. ' +
-      '<a href="elections.html" style="color:var(--gold)">Past elections and the record &#8594;</a></p>';
+    host.innerHTML = '<div class="callout"><div><div class="t">No election is running</div>' +
+      '<div class="s">The next one is announced in the Discord server.</div></div></div>';
     if (meta) meta.textContent = 'nothing scheduled';
     return;
   }
-
   var voting = live.status === 'voting';
   if (meta) meta.textContent = voting ? 'voting is open' : 'nominations are open';
-  host.innerHTML =
-    '<div style="background:var(--ink-raised);border:1px solid var(--rule);' +
-      'border-left:3px solid ' + (voting ? 'var(--green)' : 'var(--gold)') + ';' +
-      'border-radius:var(--r-md);padding:1rem 1.1rem;display:flex;gap:1rem;' +
-      'align-items:center;flex-wrap:wrap">' +
-      '<div><div style="font-family:var(--display);font-weight:600;font-size:var(--step-1)">' +
-        esc(live.name) + '</div>' +
-      '<div style="font-family:var(--data);font-size:.7rem;color:var(--text-mid);margin-top:.2rem">' +
-        (voting ? 'Voting is open' : 'Nominations are open') +
-        (live.acted ? ' · you have already ' + (voting ? 'voted' : 'applied') : '') +
-      '</div></div>' +
-      '<a class="btn" href="elections.html" style="margin-left:auto;text-decoration:none;' +
-        'border-color:' + (voting ? 'var(--green)' : 'var(--gold)') + '">' +
-        (voting ? 'Cast your ballot' : 'Stand or see who is') + '</a>' +
-    '</div>';
+  host.innerHTML = '<div class="callout" style="border-color:' + (voting ? 'color-mix(in srgb, var(--green) 45%, transparent)' : 'color-mix(in srgb, var(--gold) 45%, transparent)') + '">' +
+    '<div><div class="t">' + esc(live.name) + '</div>' +
+    '<div class="s">' + (voting ? 'Voting is open' : 'Nominations are open') +
+      (live.acted ? ' · you have already ' + (voting ? 'voted' : 'applied') : '') + '</div></div>' +
+    '<a class="btn" href="elections.html">' + (voting ? 'Cast your ballot' : 'Stand, or see who is') + '</a></div>';
 }
 
 async function loadParties(){
+  if (isVisa) return;
   try { parties = (await api('/api/parties')).parties || []; renderParties(); }
   catch (e) { /* not signed in, or migration 003 not applied yet */ }
 }
 
+/* --- load ------------------------------------------------------------------ */
+var adminWired = false;
+
+/* Called at start and again after every admin change. Only the data is
+   reloaded: the admin panel's buttons are wired once, the first time, so a
+   save does not end up firing twice, three times, four… */
 async function load(){
   try { me = await api('/api/me'); } catch (e) { me = null; }
+  isVisa = !!(me && me.signedIn && me.tier === 'perk');
   renderAuth();
 
-  var signedIn = !!(me && me.signedIn &&
-    ['citizen','treasurer','manager'].indexOf(me.tier) !== -1);
+  var member = !!(me && me.signedIn && ['citizen','treasurer','manager'].indexOf(me.tier) !== -1);
 
-  if (me && me.tier === 'manager') { wireAdmin(); wireAdminExtras(); }
+  /* A visa shows the state, not its machinery: no elections, no War
+     Department, no parties, and the way back leads to the visa. */
+  $('electionsLink').hidden = !member;
+  $('electionsBlock').hidden = !member;
+  if (isVisa){
+    $('backLink').href = 'perk.html';
+    $('backText').removeAttribute('data-en'); $('backText').removeAttribute('data-am');
+    $('backText').textContent = 'Your visa';
+  }
+
+  if (me && me.tier === 'manager' && !adminWired) { adminWired = true; wireAdmin(); wireAdminExtras(); }
+
+  await loadParties();
 
   try {
-    var gov = await api('/api/government');
-    renderBranch($('republic'), gov.republic);
-    renderBranch($('monarchy'), gov.monarchy);
-    renderHouse(gov.house, gov.houseSeats, gov.houseFilled);
+    gov = await api('/api/government');
+    renderRepublic(gov.republic);
+    renderCrown(gov.monarchy);
+    renderHouse(gov.house);
+    renderTally();
     $('stamp').textContent = 'Live from Discord roles';
   } catch (err) {
-    var msg = signedIn
+    var msg = (member || isVisa)
       ? (err.status === 503
           ? 'The bot token is not set on the Worker yet, so the roster cannot be read.'
           : 'Government records unavailable: ' + err.message)
-      : 'Sign in with Discord to view the government record.';
-    $('republic').innerHTML = '<p class="empty">' + esc(msg) + '</p>';
-    $('monarchy').innerHTML = '<p class="empty">' + esc(msg) + '</p>';
-    $('house').innerHTML = '<p class="empty">' + esc(msg) + '</p>';
-    $('stamp').textContent = signedIn ? 'Roster unavailable' : 'Not signed in';
+      : 'Sign in with Discord to see who holds each office.';
+    ['republic', 'monarchy'].forEach(function(id){ $(id).innerHTML = '<p class="empty">' + esc(msg) + '</p>'; });
+    $('chamber').innerHTML = '<p class="empty">' + esc(msg) + '</p>';
+    $('house').innerHTML = '';
+    $('tally').innerHTML = '&nbsp;';
+    $('stamp').textContent = (member || isVisa) ? 'Roster unavailable' : 'Not signed in';
   }
 
-  await loadParties();
-  await renderElectionCard();
+  if (member) await renderElectionCard();
 
-  /* The War Department link appears only for someone who can actually open it.
-     Showing it to everyone and letting the page refuse them is a worse
-     experience than not advertising a door they cannot use — and it quietly
-     tells the whole nation the department exists and who is in it. */
-  try {
-    var w = await api('/api/war/watch');
-    if (w && w.ok) $('warLink').hidden = false;
-  } catch (e) { /* not Defence, not a manager — the link stays hidden */ }
+  /* The War Department link appears only for someone who can open it, and
+     never on a visa, whatever roles the visitor holds. */
+  if (member && !isVisa){
+    try {
+      var w = await api('/api/war/watch');
+      if (w && w.ok) $('warLink').hidden = false;
+    } catch (e) { /* not Defence: the link stays hidden */ }
+  }
+
+  /* The election banner is for citizens. A visitor cannot vote, so it is
+     only loaded for someone who can. */
+  if (member && !document.getElementById('electionBannerScript')){
+    var sc = document.createElement('script');
+    sc.id = 'electionBannerScript';
+    sc.src = 'assets/election-banner.js?v=1';
+    document.body.appendChild(sc);
+  }
 }
 
 load();
 </script>
 <script src="assets/pagetext.js?v=1"></script>
-<script src="assets/election-banner.js?v=1"></script>
 </body>
 </html>

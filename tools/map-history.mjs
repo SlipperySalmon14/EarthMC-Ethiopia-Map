@@ -166,7 +166,11 @@ function snapshot(data, date, taken, source){
    locally with --out. */
 async function store(date, text, data, source, taken){
   const { file: snap, summary } = snapshot(data, date, taken, source);
-  if (snap.towns.length < 300){
+  /* A sanity floor, to catch a file that has changed shape (that reads as
+     next to no towns). Lower for old copies: Terra Nostra's first days really
+     did have only a few hundred towns. */
+  const floor = source === 'wayback' ? 20 : 300;
+  if (snap.towns.length < floor){
     // Better no day than a wrong one: the file has probably changed shape.
     throw new Error(`${date}: only ${snap.towns.length} towns read — the map file may have changed format; not saved`);
   }
@@ -189,11 +193,17 @@ async function store(date, text, data, source, taken){
       if (res.ok) return res.json();
       const msg = await res.text();
       if (res.status >= 500 && attempt < 3){ await sleep(5000 * attempt); continue; }
-      throw new Error(`Worker said HTTP ${res.status}: ${msg.slice(0, 200)}`);
+      const err = new Error(`Worker said HTTP ${res.status}: ${msg.slice(0, 200)}`);
+      err.worker = res.status;
+      throw err;
     }
   };
   await put(`${WORKER}/api/internal/history/${date}`, day, { 'X-History-Summary': encodeURIComponent(JSON.stringify(summary)) });
-  await put(`${WORKER}/api/internal/history/${date}/raw`, raw);
+  /* EarthMC's original file is kept for days read live, so they can be read
+     again if this reading ever needs fixing. Not for Wayback days: the
+     Wayback Machine already keeps those, and skipping the copy saves one of
+     Cloudflare's 1,000 free storage writes a day per day recorded. */
+  if (source !== 'wayback') await put(`${WORKER}/api/internal/history/${date}/raw`, raw);
   console.log(line + ' · saved');
 }
 
@@ -239,31 +249,52 @@ async function recordWayback(){
   if (!rows) throw new Error('the Wayback Machine did not answer');
   const captures = rows.slice(1).map(([ts, original]) => ({ ts, original, date: `${ts.slice(0, 4)}-${ts.slice(4, 6)}-${ts.slice(6, 8)}` }))
     .filter(c => c.date >= NOSTRA_FROM);
-  // The latest copy each day: the fullest picture of that day.
+  // Every copy of each day, newest first: the latest is the fullest picture
+  // of that day, and the earlier ones stand in if it won't download or read.
   const byDay = new Map();
-  captures.forEach(c => { const had = byDay.get(c.date); if (!had || c.ts > had.ts) byDay.set(c.date, c); });
-  const todo = [...byDay.values()].filter(c => !done.has(c.date)).sort((a, b) => a.ts.localeCompare(b.ts));
+  captures.forEach(c => { let l = byDay.get(c.date); if (!l) byDay.set(c.date, l = []); l.push(c); });
+  byDay.forEach(l => l.sort((x, y) => y.ts.localeCompare(x.ts)));
+  const todo = [...byDay.keys()].filter(d => !done.has(d)).sort();
   console.log(`Wayback has ${captures.length} saved cop${captures.length === 1 ? 'y' : 'ies'} of the map file since ${NOSTRA_FROM}, ` +
     `on ${byDay.size} day(s); ${todo.length} not recorded yet.`);
 
-  let saved = 0, failed = 0;
-  for (const c of todo){
+  const download = async (c) => {
     const url = `https://web.archive.org/web/${c.ts}id_/${c.original}`;
-    let text = null;
-    for (let attempt = 1; attempt <= 3 && text === null; attempt++){
+    for (let attempt = 1; attempt <= 3; attempt++){
       try {
         const res = await fetch(url, { headers: { 'User-Agent': UA } });
-        if (res.ok) text = await res.text();
-        else if (res.status === 429 || res.status >= 500){ console.log(`${c.date}: HTTP ${res.status}, waiting…`); await sleep(60000 * attempt); }
-        else break;
+        if (res.ok) return await res.text();
+        if (res.status === 429 || res.status >= 500){ console.log(`${c.date}: HTTP ${res.status}, waiting…`); await sleep(60000 * attempt); }
+        else return null;
       } catch (e){ await sleep(20000 * attempt); }
     }
-    try {
-      if (text === null) throw new Error('could not download');
-      await store(c.date, text, JSON.parse(text), 'wayback', `${c.date}T${c.ts.slice(8, 10)}:${c.ts.slice(10, 12)}:${c.ts.slice(12, 14)}Z`);
-      saved++;
-    } catch (e){ failed++; console.log(`${c.date}: skipped (${e.message})`); }
-    await sleep(8000);      // be gentle: one copy every few seconds
+    return null;
+  };
+
+  let saved = 0, failed = 0, refusedInARow = 0;
+  for (const date of todo){
+    let ok = false, why = 'could not download';
+    for (const c of byDay.get(date)){
+      const text = await download(c);
+      if (text === null){ await sleep(+process.env.GAP_MS || 4000); continue; }
+      try {
+        await store(date, text, JSON.parse(text), 'wayback', `${date}T${c.ts.slice(8, 10)}:${c.ts.slice(10, 12)}:${c.ts.slice(12, 14)}Z`);
+        ok = true; refusedInARow = 0;
+        break;
+      } catch (e){
+        why = e.message;
+        if (e.worker){ refusedInARow++; break; }       // Cloudflare's answer, not the copy's fault
+      }
+      await sleep(+process.env.GAP_MS || 4000);
+    }
+    if (ok) saved++;
+    else { failed++; console.log(`${date}: skipped (${why})`); }
+    if (refusedInARow >= 3){
+      console.log('Cloudflare refused three days in a row, most likely the free plan\'s 1,000 storage writes for today. ' +
+        'Stopping here; run "wayback" again after 7 pm Eastern (midnight UTC) and it carries on from the first missing day.');
+      break;
+    }
+    await sleep(+process.env.GAP_MS || 8000);      // be gentle: one day every few seconds
   }
   console.log(`Done: ${saved} day(s) added from the Wayback Machine, ${failed} skipped.`);
 }

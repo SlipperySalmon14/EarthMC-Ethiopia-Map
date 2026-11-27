@@ -510,6 +510,9 @@ body.gui-hidden .view-switcher,
 body.gui-hidden header,
 body.gui-hidden #publicNotice,
 body.gui-hidden .map-layers-toggle,
+body.gui-hidden .layers-panel,
+body.gui-hidden .globe-zoom,
+body.gui-hidden .globe-readout,
 body.gui-hidden .leaflet-control-container,
 body.gui-hidden .leaflet-control-attribution,
 body.gui-hidden .split-banner,
@@ -575,6 +578,12 @@ body.gui-hidden .map-pane{
     inset: 0;
     z-index: 900;
     display: none;
+    /* The desktop rule's 68% cap still applied here, so the "full screen"
+       map only covered two thirds of a phone, with the panels showing
+       through on the right. */
+    flex: none;
+    max-width: none;
+    width: auto;
   }
   body.map-open-mode .map-pane{ display: block; }
   body.map-open-mode{ overflow: hidden; }  /* stop the page scrolling behind it */
@@ -618,6 +627,7 @@ body.gui-hidden .map-pane{
 
   /* Leaflet's own controls sit top-left too — push them clear of the X. */
   body.map-open-mode .leaflet-top.leaflet-left{ margin-top: 3.2rem; }
+  body.map-open-mode .globe-zoom{ top: 3.6rem; }
 
   /* Bigger touch targets throughout. */
   .view-tab{ font-size: .8rem; padding: .5rem .9rem; }
@@ -1534,6 +1544,103 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
 .nt-label{ transform:translate(-50%,-120%); white-space:nowrap; font-family:var(--font-body); font-weight:700; font-size:12px;
   color:#fde68a; text-shadow:0 0 4px #000, 0 0 4px #000; text-align:center; pointer-events:none; }
 .nt-label span{ display:block; font-size:10px; font-weight:600; color:#e2e8f0; }
+
+/* =========================================================================
+   MAP PANEL: view, world and layers, as switches
+   ========================================================================= */
+.layers-panel{
+  position:absolute; left:10px; bottom:46px; z-index:1200;
+  width:13.6rem; max-height:calc(100% - 7rem); overflow-y:auto; overscroll-behavior:contain;
+  padding:.6rem .7rem .55rem;
+  background:rgba(14,12,10,.86); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.09); border-radius:12px;
+  box-shadow:0 14px 34px -12px rgba(0,0,0,.7);
+  color:var(--parchment); font-family:var(--font-body); font-size:.8rem;
+  scrollbar-width:thin;
+}
+.lp-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:.15rem; }
+.lp-head b{ font-weight:700; font-size:.86rem; letter-spacing:.01em; }
+.lp-fold{ width:1.4rem; height:1.4rem; border:0; border-radius:6px; background:none; cursor:pointer; position:relative; color:var(--muted); }
+.lp-fold::before{ content:''; position:absolute; left:50%; top:50%; width:.45rem; height:.45rem; margin:-.32rem 0 0 -.23rem;
+  border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(45deg); }
+.lp-fold:hover{ background:rgba(255,255,255,.07); color:var(--parchment); }
+.lp-open{ display:none; }
+.layers-panel.collapsed{ width:auto; padding:0; overflow:visible; }
+.layers-panel.collapsed .lp-head, .layers-panel.collapsed .lp-body{ display:none; }
+.layers-panel.collapsed .lp-open{
+  display:inline-flex; align-items:center; gap:.45rem; border:0; background:none; cursor:pointer;
+  color:var(--parchment); font:600 .8rem var(--font-body); padding:.5rem .8rem;
+}
+.layers-panel.collapsed .lp-open::before{ content:''; width:.8rem; height:.8rem; border-radius:3px;
+  background:linear-gradient(135deg, var(--brass) 0 45%, transparent 45%), linear-gradient(135deg, transparent 55%, rgba(255,255,255,.45) 55%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.25); }
+
+.lp-seg{ display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:.45rem; padding:2px;
+  background:rgba(255,255,255,.05); border-radius:9px; }
+.lp-seg button{ border:0; background:none; color:var(--muted); font:600 .76rem var(--font-body); padding:.4rem 0; border-radius:7px; cursor:pointer;
+  transition:background .15s ease, color .15s ease; }
+.lp-seg button:hover:not([disabled]){ color:var(--parchment); }
+.lp-seg button[aria-pressed="true"]{ background:var(--brass); color:#141006; }
+.lp-seg button[disabled]{ opacity:.35; cursor:not-allowed; }
+
+.lp-group{ margin:.8rem 0 .15rem; font:600 .6rem var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted-dim); }
+.lp-row{ position:relative; display:flex; align-items:center; gap:.6rem; padding:.3rem .1rem; border-radius:6px; cursor:pointer; }
+.lp-row:hover{ background:rgba(255,255,255,.035); }
+.lp-row input{ position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+.lp-sw{ position:relative; flex:none; width:28px; height:16px; border-radius:999px; background:rgba(255,255,255,.15);
+  transition:background .18s ease, box-shadow .18s ease; }
+.lp-sw::after{ content:''; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:#d8d2c5;
+  box-shadow:0 1px 2px rgba(0,0,0,.4); transition:transform .18s ease, background .18s ease; }
+.lp-row input:checked + .lp-sw{ background:var(--brass); box-shadow:0 0 10px rgba(252,209,22,.25); }
+.lp-row input:checked + .lp-sw::after{ transform:translateX(12px); background:#141006; }
+.lp-row input:focus-visible + .lp-sw{ outline:2px solid var(--brass-hi); outline-offset:2px; }
+.lp-name{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lp-meta{ flex:none; font:.66rem var(--font-mono); color:var(--muted); font-variant-numeric:tabular-nums; }
+.lp-row.unavailable{ cursor:default; }
+.lp-row.unavailable .lp-sw, .lp-row.unavailable .lp-name{ opacity:.38; }
+.lp-row.unavailable:hover{ background:none; }
+@media (max-width: 760px){
+  .layers-panel{ width:12.4rem; bottom:44px; font-size:.78rem; }
+}
+
+/* =========================================================================
+   GLOBE
+   ========================================================================= */
+.globe{ position:absolute; inset:0; z-index:1100; overflow:hidden; touch-action:none;
+  background:radial-gradient(120% 95% at 50% 42%, #0a0e1a 0%, #05060b 58%, #020203 100%); }
+.globe[hidden]{ display:none; }
+.globe canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.globe-ov{ cursor:grab; }
+.globe-ov:active{ cursor:grabbing; }
+.globe-glow{ position:absolute; border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle closest-side, rgba(110,160,255,.5) 0 79%, rgba(90,140,255,.22) 84%, rgba(60,110,230,.07) 92%, rgba(40,80,200,0) 100%); }
+.globe-zoom{ position:absolute; top:10px; left:10px; display:flex; flex-direction:column; border-radius:10px; overflow:hidden;
+  border:1px solid rgba(255,255,255,.1); background:rgba(14,12,10,.86); box-shadow:0 8px 20px -10px rgba(0,0,0,.7); }
+.globe-zoom button{ width:34px; height:32px; border:0; background:none; color:var(--parchment); font:600 1.1rem var(--font-body); cursor:pointer; }
+.globe-zoom button + button{ border-top:1px solid rgba(255,255,255,.08); }
+.globe-zoom button:hover{ background:rgba(255,255,255,.07); color:var(--brass-hi); }
+.globe-readout{ position:absolute; left:10px; bottom:10px; padding:.35rem .6rem; border-radius:10px; pointer-events:none;
+  background:rgba(15,13,11,.82); border:1px solid rgba(255,255,255,.1); color:var(--brass-hi); font:.76rem var(--font-mono); }
+.globe-tip{ position:absolute; z-index:2; pointer-events:none; transform:translateY(-100%); padding:.28rem .55rem; border-radius:8px;
+  background:rgba(14,12,10,.92); border:1px solid rgba(255,255,255,.12); color:var(--parchment); font:600 .76rem var(--font-body); white-space:nowrap; }
+.globe-card{ position:absolute; top:10px; right:10px; z-index:3; width:15rem; padding:.8rem .85rem .85rem; border-radius:12px;
+  background:rgba(14,12,10,.92); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.1); color:var(--parchment);
+  box-shadow:0 18px 40px -14px rgba(0,0,0,.8); font-family:var(--font-body); }
+.gc-x{ position:absolute; top:.35rem; right:.45rem; border:0; background:none; color:var(--muted); font-size:1.1rem; cursor:pointer; }
+.gc-head{ display:flex; align-items:center; gap:.6rem; padding-right:1rem; }
+.gc-head img{ border-radius:5px; image-rendering:pixelated; }
+.gc-head b{ display:block; font-size:.98rem; }
+.gc-head span{ font-size:.74rem; color:var(--muted); }
+.gc-figs{ display:grid; grid-template-columns:repeat(3, 1fr); gap:.4rem; margin:.7rem 0 .2rem; }
+.gc-figs b{ display:block; font:600 .86rem var(--font-mono); }
+.gc-figs span{ font-size:.64rem; color:var(--muted); }
+.gc-line{ margin:.35rem 0 0; font-size:.74rem; color:var(--muted); }
+.gc-go{ margin-top:.7rem; width:100%; border:1px solid rgba(252,209,22,.45); background:rgba(252,209,22,.08); color:var(--brass-hi);
+  border-radius:8px; padding:.45rem; font:600 .76rem var(--font-body); cursor:pointer; }
+.gc-go:hover{ background:rgba(252,209,22,.16); }
+.globe-status{ position:absolute; left:50%; bottom:14px; transform:translateX(-50%); margin:0; padding:.4rem .8rem; border-radius:999px;
+  background:rgba(14,12,10,.9); border:1px solid rgba(255,255,255,.1); color:var(--parchment); font:.76rem var(--font-body); white-space:nowrap; }
+body.globe-on .map-close{ z-index:1300; }
 </style>
 </head>
 <body>
@@ -1570,6 +1677,20 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
     <main class="map-pane">
       <button type="button" id="mapCloseBtn" class="map-close" title="Back to panels" aria-label="Close map">✕</button>
       <div id="map"></div>
+      <!-- The globe: drawn over the flat map, which keeps its place underneath. -->
+      <div id="globe" class="globe" hidden>
+        <div class="globe-glow" id="globeGlow" aria-hidden="true"></div>
+        <canvas class="globe-gl" id="globeGl"></canvas>
+        <canvas class="globe-ov" id="globeOv" tabindex="0" aria-label="Globe of the server. Drag to turn it, scroll or pinch to zoom."></canvas>
+        <div class="globe-zoom">
+          <button type="button" id="globeIn" aria-label="Zoom in">+</button>
+          <button type="button" id="globeOut" aria-label="Zoom out">&minus;</button>
+        </div>
+        <div class="globe-readout" id="globeReadout"></div>
+        <div class="globe-tip" id="globeTip" hidden></div>
+        <div class="globe-card" id="globeCard" hidden></div>
+        <p class="globe-status" id="globeStatus" hidden></p>
+      </div>
       <div style="position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(16,14,11,.88); border: 1px solid var(--line); color: var(--muted); font-family: var(--font-mono); font-size: .72rem; padding: .3rem .6rem; border-radius: var(--radius-sm); box-shadow: var(--shadow-panel); pointer-events: none; z-index: 14;" id="publicNotice">
         <span class="public-only" id="publicNoticeText">View only</span>
         <span class="admin-only" style="color: var(--brass-hi);">Editing — changes save automatically</span>
@@ -4880,6 +5001,787 @@ class RegionManager{
   }
 }
 
+
+/* =========================================================================
+   GLOBE VIEW
+
+   The same server, wrapped onto a sphere. EarthMC's world is a Miller
+   projection of Earth (see REAL-WORLD BORDERS), so the flat terrain cannot
+   be pasted onto a ball as it is: rows near the poles are stretched far more
+   than rows near the equator. The globe takes squaremap's coarsest images
+   (one 512px picture per 16,384 blocks, 48 of them for the whole world),
+   undoes the Miller stretch row by row into a plain latitude/longitude
+   picture, and hands that to WebGL as the sphere's skin.
+
+   The map stops at about 84°N and has no Antarctica, so the last rows of
+   real ground are stretched over the caps. That is what EarthMC's own globe
+   does too, and it is the honest thing to show: there is no land there.
+
+   Everything drawn ON the globe (towns, players, real-world borders, names)
+   goes on a plain 2D canvas over the WebGL one, recomputed each frame from
+   the same data the flat map uses, so the two views never disagree.
+
+   Zooming in past the closest the globe allows drops you into the flat map
+   at the same spot, which is where detail lives.
+   ========================================================================= */
+const GLOBE_BLOCKS_PER_TILE = 16384;          // squaremap folder 0
+const GLOBE_TILES_X = [-4, 3];                // ±64,512 blocks east to west
+const GLOBE_TILES_Z = [-3, 2];
+const GLOBE_FOV = 30 * Math.PI / 180;
+const GLOBE_MIN_DIST = 1.3, GLOBE_MAX_DIST = 6.5;
+const GLOBE_D2R = Math.PI / 180;
+
+const globe = {
+  on: false, built: false,
+  el: null, glCanvas: null, ovCanvas: null, ctx: null, glow: null,
+  gl: null, prog: null, loc: null, buf: null, count: 0, tex: null, hasTex: false,
+  texState: 'none',            // none | loading | ready | failed
+  viaWorker: false,            // tiles fetched through the Worker
+  lat: 9, lon: 40, dist: 2.6,  // what the camera looks at, and from how far
+  vLat: 0, vLon: 0,            // inertia, degrees per frame
+  w: 0, h: 0, dpr: 1,
+  queued: false,
+  pointers: new Map(), drag: null, pinch: null, moved: 0,
+  hits: [], hover: null, card: null,
+  terrain: true,               // the globe's own terrain switch
+  heads: new Map(),
+  vecCache: new Map(),         // "x|z" -> unit vector
+  calibKey: '',
+};
+
+/* --- where things are ----------------------------------------------------- */
+function globeLonLat(x, z){
+  const c = irlState.calib;
+  const lon = (x - c.xW) / (c.xE - c.xW) * 360 - 180;
+  const k = (c.xE - c.xW) / (2 * Math.PI);
+  const y = (c.eqZ - z) / (k * (c.ys || 1));
+  let f;
+  if (c.proj === 'mercator') f = 2 * Math.atan(Math.exp(y)) - Math.PI / 2;
+  else if (c.proj === 'equirect') f = y;
+  else f = 2.5 * (Math.atan(Math.exp(y / 1.25)) - Math.PI / 4);      // Miller
+  return [lon, Math.max(-90, Math.min(90, f / GLOBE_D2R))];
+}
+function globeVec(lon, lat){
+  const a = lon * GLOBE_D2R, b = lat * GLOBE_D2R;
+  return [Math.cos(b) * Math.sin(a), Math.sin(b), Math.cos(b) * Math.cos(a)];
+}
+function globeVecOfBlock(x, z){
+  const ck = JSON.stringify(irlState.calib);
+  if (ck !== globe.calibKey){ globe.calibKey = ck; globe.vecCache.clear(); }
+  const key = Math.round(x) + '|' + Math.round(z);
+  let v = globe.vecCache.get(key);
+  if (!v){
+    const [lon, lat] = globeLonLat(x, z);
+    v = globeVec(lon, lat);
+    if (globe.vecCache.size > 20000) globe.vecCache.clear();
+    globe.vecCache.set(key, v);
+  }
+  return v;
+}
+
+/* The camera turns the ball so (lat, lon) faces it: a turn about the poles,
+   then a tilt. Kept as one 3×3 matrix, used by WebGL and by the overlay. */
+function globeMatrix(){
+  const cy = Math.cos(-globe.lon * GLOBE_D2R), sy = Math.sin(-globe.lon * GLOBE_D2R);
+  const cx = Math.cos(globe.lat * GLOBE_D2R), sx = Math.sin(globe.lat * GLOBE_D2R);
+  return [cy, 0, sy,  sx * sy, cx, -sx * cy,  -cx * sy, sx, cx * cy];   // row-major
+}
+function globeApply(M, v){
+  return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2],
+          M[3] * v[0] + M[4] * v[1] + M[5] * v[2],
+          M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
+}
+/* Screen position of a point on the ball, or null on the far side. */
+/* The field of view is measured across the window's SHORTER side, so a
+   tall phone sees the whole ball as a wide monitor does. */
+function globeHalf(){ return Math.min(globe.w, globe.h) / 2; }
+function globeProject(M, v){
+  const q = globeApply(M, v);
+  if (q[2] < 1 / globe.dist + 0.004) return null;
+  const f = 1 / Math.tan(GLOBE_FOV / 2), d = globe.dist - q[2], s = globeHalf();
+  return [globe.w / 2 + f * q[0] / d * s, globe.h / 2 - f * q[1] / d * s, q[2]];
+}
+/* The other way: which point of the ball is under a screen pixel. */
+function globePick(px, py){
+  const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf();
+  const nx = (px - globe.w / 2) / s, ny = (globe.h / 2 - py) / s;
+  let dx = nx / f, dy = ny / f, dz = -1;
+  const len = Math.hypot(dx, dy, dz); dx /= len; dy /= len; dz /= len;
+  const oz = globe.dist;                      // ray from (0, 0, dist)
+  const b = oz * dz, c = oz * oz - 1, disc = b * b - c;
+  if (disc < 0) return null;
+  const t = -b - Math.sqrt(disc);
+  const q = [dx * t, dy * t, oz + dz * t];
+  const M = globeMatrix();                    // rotation: inverse is the transpose
+  const p = [M[0] * q[0] + M[3] * q[1] + M[6] * q[2],
+             M[1] * q[0] + M[4] * q[1] + M[7] * q[2],
+             M[2] * q[0] + M[5] * q[1] + M[8] * q[2]];
+  const lat = Math.asin(Math.max(-1, Math.min(1, p[1]))) / GLOBE_D2R;
+  const lon = Math.atan2(p[0], p[2]) / GLOBE_D2R;
+  const [x, z] = irlToMc(lon, lat);
+  return { lat, lon, x, z };
+}
+/* How many screen pixels the ball's radius covers. */
+function globeRadiusPx(){
+  const f = 1 / Math.tan(GLOBE_FOV / 2);
+  return globeHalf() * f / Math.sqrt(globe.dist * globe.dist - 1);
+}
+
+/* --- building it --------------------------------------------------------- */
+function globeEnsureBuilt(){
+  if (globe.built) return true;
+  globe.el = document.getElementById('globe');
+  globe.glCanvas = document.getElementById('globeGl');
+  globe.ovCanvas = document.getElementById('globeOv');
+  globe.glow = document.getElementById('globeGlow');
+  if (!globe.el || !globe.glCanvas) return false;
+  globe.ctx = globe.ovCanvas.getContext('2d');
+
+  const gl = globe.glCanvas.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false });
+  if (!gl){
+    globeStatus('This browser cannot draw the globe (no WebGL). The flat map still works.');
+    return false;
+  }
+  globe.gl = gl;
+  const sh = (type, src) => {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, `
+    attribute vec3 aPos; attribute vec2 aUv;
+    uniform mat4 uProj; uniform mat3 uRot; uniform float uDist;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vView;
+    void main(){
+      vec3 p = uRot * aPos;
+      vN = p; vUv = aUv;
+      vView = normalize(vec3(0.0, 0.0, uDist) - p);
+      gl_Position = uProj * vec4(p.x, p.y, p.z - uDist, 1.0);
+    }`));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
+    precision mediump float;
+    uniform sampler2D uTex; uniform float uHasTex; uniform float uBright;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vView;
+    void main(){
+      vec3 n = normalize(vN);
+      vec3 base = uHasTex > 0.5 ? texture2D(uTex, vUv).rgb : vec3(0.09, 0.15, 0.30);
+      float diff = max(dot(n, normalize(vec3(-0.42, 0.5, 0.76))), 0.0);
+      vec3 col = base * (0.66 + 0.44 * diff) * uBright;
+      float rim = pow(1.0 - max(dot(n, normalize(vView)), 0.0), 2.6);
+      col = mix(col, vec3(0.42, 0.62, 1.0), rim * 0.6);
+      gl_FragColor = vec4(col, 1.0);
+    }`));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  globe.prog = prog;
+  globe.loc = {
+    aPos: gl.getAttribLocation(prog, 'aPos'), aUv: gl.getAttribLocation(prog, 'aUv'),
+    uProj: gl.getUniformLocation(prog, 'uProj'), uRot: gl.getUniformLocation(prog, 'uRot'),
+    uDist: gl.getUniformLocation(prog, 'uDist'), uTex: gl.getUniformLocation(prog, 'uTex'),
+    uHasTex: gl.getUniformLocation(prog, 'uHasTex'), uBright: gl.getUniformLocation(prog, 'uBright'),
+  };
+
+  // A latitude/longitude mesh. The seam column is doubled (u = 0 and u = 1)
+  // so the texture does not wrap backwards across it.
+  const SEG_LON = 128, SEG_LAT = 64;
+  const pos = [], uv = [], idx = [];
+  for (let i = 0; i <= SEG_LAT; i++){
+    const lat = 90 - i / SEG_LAT * 180;
+    for (let j = 0; j <= SEG_LON; j++){
+      const lon = -180 + j / SEG_LON * 360;
+      pos.push(...globeVec(lon, lat));
+      uv.push(j / SEG_LON, i / SEG_LAT);
+    }
+  }
+  for (let i = 0; i < SEG_LAT; i++){
+    for (let j = 0; j < SEG_LON; j++){
+      const a = i * (SEG_LON + 1) + j, b = a + SEG_LON + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+  const mk = (target, data) => { const b = gl.createBuffer(); gl.bindBuffer(target, b); gl.bufferData(target, data, gl.STATIC_DRAW); return b; };
+  globe.buf = {
+    pos: mk(gl.ARRAY_BUFFER, new Float32Array(pos)),
+    uv: mk(gl.ARRAY_BUFFER, new Float32Array(uv)),
+    idx: mk(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx)),
+  };
+  globe.count = idx.length;
+
+  globeWire();
+  new ResizeObserver(() => globeResize()).observe(globe.el);
+  globe.built = true;
+  return true;
+}
+
+function globeResize(){
+  if (!globe.el) return;
+  const r = globe.el.getBoundingClientRect();
+  globe.dpr = Math.min(2, window.devicePixelRatio || 1);
+  globe.w = Math.max(1, r.width); globe.h = Math.max(1, r.height);
+  [globe.glCanvas, globe.ovCanvas].forEach(c => {
+    c.width = Math.round(globe.w * globe.dpr); c.height = Math.round(globe.h * globe.dpr);
+  });
+  globeRequestDraw();
+}
+
+function globeStatus(text){
+  const el = document.getElementById('globeStatus');
+  if (!el) return;
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+/* The skin: 48 squaremap images into one mosaic, then the Miller stretch
+   undone row by row into a 2:1 latitude/longitude picture for WebGL. */
+function globeTileUrl(tx, tz){
+  return globe.viaWorker
+    ? `${CONFIG.CORS_PROXY.replace(/\/+$/, '')}/tiles/minecraft_overworld/0/${tx}_${tz}.png`
+    : `${TERRAIN_BASE_URL}/0/${tx}_${tz}.png`;
+}
+function globeLoadImage(url){
+  return new Promise((resolve) => {
+    const img = new Image();
+    // Needed to hand the picture to WebGL. Squaremap sends the header that
+    // allows it; if it ever stops, the Worker serves the same images.
+    img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function globeBuildTexture(){
+  if (globe.texState === 'loading' || globe.texState === 'ready') return;
+  globe.texState = 'loading';
+  const gl = globe.gl;
+
+  // One image near the middle of the world decides how to fetch the rest.
+  const probe = await globeLoadImage(globeTileUrl(0, 0));
+  if (!probe && !globe.viaWorker){ globe.viaWorker = true; }
+
+  const small = IS_SMALL_SCREEN;
+  const tilePx = small ? 256 : 512;
+  const cols = GLOBE_TILES_X[1] - GLOBE_TILES_X[0] + 1, rows = GLOBE_TILES_Z[1] - GLOBE_TILES_Z[0] + 1;
+  const mos = document.createElement('canvas');
+  mos.width = cols * tilePx; mos.height = rows * tilePx;
+  const mctx = mos.getContext('2d', { willReadFrequently: true });
+
+  const jobs = [];
+  for (let tz = GLOBE_TILES_Z[0]; tz <= GLOBE_TILES_Z[1]; tz++)
+    for (let tx = GLOBE_TILES_X[0]; tx <= GLOBE_TILES_X[1]; tx++) jobs.push([tx, tz]);
+  let done = 0, got = 0;
+  const worker = async () => {
+    while (jobs.length){
+      const [tx, tz] = jobs.shift();
+      const img = await globeLoadImage(globeTileUrl(tx, tz));
+      if (img){ mctx.drawImage(img, (tx - GLOBE_TILES_X[0]) * tilePx, (tz - GLOBE_TILES_Z[0]) * tilePx, tilePx, tilePx); got++; }
+      done++;
+      globeStatus(`Wrapping the world… ${Math.round(done / (cols * rows) * 100)}%`);
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  if (!got){
+    globe.texState = 'failed';
+    globeStatus('The globe’s images did not load. Check your connection and switch to Globe again.');
+    return;
+  }
+
+  /* Where the real ground starts and stops. Above and below are transparent
+     in squaremap, and those rows are what gets stretched over the caps. */
+  let top = 0, bottom = mos.height - 1;
+  try {
+    const xs = [0.2, 0.35, 0.5, 0.65, 0.8].map(f => Math.round(mos.width * f));
+    const cols2 = xs.map(x => mctx.getImageData(x, 0, 1, mos.height).data);
+    const solid = (y) => cols2.filter(d => d[y * 4 + 3] > 200).length >= 3;
+    while (top < mos.height - 1 && !solid(top)) top++;
+    while (bottom > top && !solid(bottom)) bottom--;
+  } catch (_e){
+    // A picture without the cross-origin header taints the canvas. Go again
+    // through the Worker, once.
+    if (!globe.viaWorker){ globe.viaWorker = true; globe.texState = 'none'; return globeBuildTexture(); }
+  }
+
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 2048;
+  const W = Math.min(small ? 2048 : 4096, maxTex), H = W / 2;
+  const eq = document.createElement('canvas');
+  eq.width = W; eq.height = H;
+  const ectx = eq.getContext('2d');
+  ectx.fillStyle = '#1c2c5c';            // ocean, under any hole in the ground
+  ectx.fillRect(0, 0, W, H);
+  const bpp = GLOBE_BLOCKS_PER_TILE / tilePx;
+  const x0 = GLOBE_TILES_X[0] * GLOBE_BLOCKS_PER_TILE, z0 = GLOBE_TILES_Z[0] * GLOBE_BLOCKS_PER_TILE;
+  const c = irlState.calib;
+  const sx = (c.xW - x0) / bpp, sw = (c.xE - c.xW) / bpp;
+  for (let j = 0; j < H; j++){
+    const lat = 90 - (j + 0.5) / H * 180;
+    let sy = (irlToMc(0, lat)[1] - z0) / bpp;
+    sy = Math.min(Math.max(sy, top + 0.5), bottom - 0.5);
+    ectx.drawImage(mos, sx, sy, sw, 1, 0, j, W, 1);
+  }
+  mos.width = mos.height = 0;            // free the mosaic
+
+  try {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, eq);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
+    if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT,
+      Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+    globe.tex = tex; globe.hasTex = true;
+  } catch (_e){
+    if (!globe.viaWorker){ globe.viaWorker = true; globe.texState = 'none'; return globeBuildTexture(); }
+    globe.texState = 'failed';
+    globeStatus('The globe’s images could not be used here. The flat map still works.');
+    return;
+  }
+  eq.width = eq.height = 0;
+  globe.texState = 'ready';
+  globeStatus('');
+  globeRequestDraw();
+}
+
+/* --- drawing -------------------------------------------------------------- */
+function globeRequestDraw(){
+  if (!globe.on || globe.queued) return;
+  globe.queued = true;
+  requestAnimationFrame(globeFrame);
+}
+
+function globeFrame(){
+  globe.queued = false;
+  if (!globe.on) return;
+
+  // Inertia after a fling.
+  if (Math.abs(globe.vLat) > 0.002 || Math.abs(globe.vLon) > 0.002){
+    globe.lon = ((globe.lon + globe.vLon + 540) % 360) - 180;
+    globe.lat = Math.max(-80, Math.min(80, globe.lat + globe.vLat));
+    globe.vLat *= 0.92; globe.vLon *= 0.92;
+    globeRequestDraw();
+  } else { globe.vLat = globe.vLon = 0; }
+
+  const gl = globe.gl;
+  const M = globeMatrix();
+  gl.viewport(0, 0, globe.glCanvas.width, globe.glCanvas.height);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  gl.useProgram(globe.prog);
+
+  const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf(), n = 0.01, fa = 50;
+  const fx = f * s / (globe.w / 2), fy = f * s / (globe.h / 2);
+  gl.uniformMatrix4fv(globe.loc.uProj, false, new Float32Array([
+    fx, 0, 0, 0,  0, fy, 0, 0,  0, 0, (fa + n) / (n - fa), -1,  0, 0, 2 * fa * n / (n - fa), 0]));
+  // Column-major for WebGL: transpose of the row-major M.
+  gl.uniformMatrix3fv(globe.loc.uRot, false, new Float32Array([M[0], M[3], M[6], M[1], M[4], M[7], M[2], M[5], M[8]]));
+  gl.uniform1f(globe.loc.uDist, globe.dist);
+  gl.uniform1f(globe.loc.uHasTex, globe.hasTex && globe.terrain ? 1 : 0);
+  gl.uniform1f(globe.loc.uBright, showDim ? 0.62 : 1.0);
+  if (globe.tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, globe.tex); gl.uniform1i(globe.loc.uTex, 0); }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, globe.buf.pos);
+  gl.enableVertexAttribArray(globe.loc.aPos);
+  gl.vertexAttribPointer(globe.loc.aPos, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, globe.buf.uv);
+  gl.enableVertexAttribArray(globe.loc.aUv);
+  gl.vertexAttribPointer(globe.loc.aUv, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, globe.buf.idx);
+  gl.drawElements(gl.TRIANGLES, globe.count, gl.UNSIGNED_SHORT, 0);
+
+  // The atmosphere: a soft halo sized to the ball, behind it.
+  const r = globeRadiusPx();
+  if (globe.glow){
+    globe.glow.style.width = globe.glow.style.height = (r * 2.5) + 'px';
+    globe.glow.style.left = (globe.w / 2 - r * 1.25) + 'px';
+    globe.glow.style.top = (globe.h / 2 - r * 1.25) + 'px';
+  }
+
+  globeDrawOverlay(M, r);
+  globeUpdateReadout();
+}
+
+function globeHead(name){
+  let img = globe.heads.get(name);
+  if (!img){
+    img = new Image();
+    img.onload = () => globeRequestDraw();
+    img.src = `https://minotar.net/helm/${encodeURIComponent(name)}/32.png`;
+    globe.heads.set(name, img);
+    if (globe.heads.size > 800) globe.heads.delete(globe.heads.keys().next().value);
+  }
+  return img;
+}
+
+function globeStar(ctx, x, y, r){
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++){
+    const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+    ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+}
+
+function globeDrawOverlay(M, rPx){
+  const ctx = globe.ctx, dpr = globe.dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, globe.w, globe.h);
+  const hits = [];
+  // How big things are drawn grows as you come closer: 1 far out, ~2.5 close in.
+  const zoomK = Math.max(1, Math.min(2.6, rPx / 320));
+
+  /* Today's countries, if that layer is on. The data is already latitude
+     and longitude, so on a globe it needs no projection at all. */
+  if (irlState.on && irlState.raw){
+    // Turned into points on the ball once per dataset, not every frame.
+    if (globe.irlFor !== irlState.raw){
+      globe.irlFor = irlState.raw;
+      globe.irlRings = [];
+      irlState.raw.forEach(c => c.polys.forEach(poly => poly.forEach(ring => {
+        globe.irlRings.push(ring.map(([lon, lat]) => globeVec(lon, lat)));
+      })));
+    }
+    ctx.lineWidth = 0.7;
+    ctx.strokeStyle = 'rgba(255,255,255,.38)';
+    ctx.beginPath();
+    globe.irlRings.forEach(ring => {
+      let pen = false;
+      for (let i = 0; i < ring.length; i++){
+        const p = globeProject(M, ring[i]);
+        if (!p){ pen = false; continue; }
+        if (pen) ctx.lineTo(p[0], p[1]); else { ctx.moveTo(p[0], p[1]); pen = true; }
+      }
+    });
+    ctx.stroke();
+  }
+
+  /* Towns: a dot each in its nation's colour, sized by population; capitals
+     as stars when town markers are on. */
+  if (showClaims || showTowns){
+    const towns = townsForActiveView(state.towns || []);
+    const capitals = [];
+    towns.forEach(t => {
+      if (typeof t.homeX !== 'number') return;
+      const p = globeProject(M, globeVecOfBlock(t.homeX, t.homeZ));
+      if (!p) return;
+      const tc = townColors(t);
+      const rad = Math.max(1.4, Math.min(4.5, Math.sqrt(Math.max(1, t.population || 1)) * 0.55)) * zoomK * 0.8;
+      if (t.isCapital && showTowns){ capitals.push([p, t, tc]); return; }
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], rad, 0, Math.PI * 2);
+      ctx.fillStyle = t.isRuined ? COLORS.danger : tc.fill;
+      ctx.fill();
+      if (rad > 2.2){ ctx.lineWidth = 0.8; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.stroke(); }
+      hits.push({ x: p[0], y: p[1], r: Math.max(rad, 4), kind: 'town', t });
+    });
+    capitals.forEach(([p, t, tc]) => {
+      const rad = 4.2 * zoomK;
+      globeStar(ctx, p[0], p[1], rad);
+      ctx.fillStyle = COLORS.brassHi; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.stroke();
+      hits.push({ x: p[0], y: p[1], r: rad + 2, kind: 'town', t });
+    });
+
+    /* Nation names, once close enough to read them: the biggest nations
+       first, and a name that would sit on top of one already drawn is
+       skipped rather than stacked. */
+    if (rPx > 520){
+      const byNation = new Map();
+      towns.forEach(t => {
+        if (!t.nationName || typeof t.homeX !== 'number') return;
+        const e = byNation.get(t.nationName) || { n: 0, cap: null, any: t };
+        e.n++; if (t.isCapital) e.cap = t;
+        byNation.set(t.nationName, e);
+      });
+      const boxes = [];
+      if (!globe.font) globe.font = (getComputedStyle(document.body).getPropertyValue('--font-body') || '').trim() || 'sans-serif';
+      ctx.font = `600 ${Math.round(11 + zoomK * 1.5)}px ${globe.font}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      [...byNation.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 80).forEach(([name, e]) => {
+        if (e.n < 3) return;
+        const t = e.cap || e.any;
+        const p = globeProject(M, globeVecOfBlock(t.homeX, t.homeZ));
+        if (!p) return;
+        const w = ctx.measureText(name).width, h = 16, x = p[0], y = p[1] - 8 * zoomK;
+        const box = [x - w / 2 - 4, y - h, x + w / 2 + 4, y + 2];
+        if (boxes.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) return;
+        boxes.push(box);
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,8,10,.75)'; ctx.strokeText(name, x, y);
+        ctx.fillStyle = '#f5f1e8'; ctx.fillText(name, x, y);
+      });
+    }
+  }
+
+  /* Players, as their heads, like EarthMC's own globe. */
+  if (showPlayers){
+    const size = Math.round(14 * Math.min(1.5, zoomK));
+    onlinePlayers.forEach(pl => {
+      const p = globeProject(M, globeVecOfBlock(pl.x, pl.z));
+      if (!p) return;
+      const name = pl.name || pl.display_name || 'Player';
+      const img = globeHead(name);
+      const x = Math.round(p[0] - size / 2), y = Math.round(p[1] - size / 2);
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(x - 1.5, y - 1.5, size + 3, size + 3);
+      if (img.complete && img.naturalWidth){
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, x, y, size, size);
+        ctx.imageSmoothingEnabled = true;
+      }
+      hits.push({ x: p[0], y: p[1], r: size / 2 + 2, kind: 'player', pl, name });
+    });
+  }
+
+  globe.hits = hits;
+}
+
+function globeUpdateReadout(){
+  const el = document.getElementById('globeReadout');
+  if (!el) return;
+  const h = globe.hover;
+  if (!h || !h.ground){ el.textContent = `${Math.abs(globe.lat).toFixed(1)}°${globe.lat >= 0 ? 'N' : 'S'} · ${Math.abs(globe.lon).toFixed(1)}°${globe.lon >= 0 ? 'E' : 'W'}`; return; }
+  el.textContent = `X ${Math.round(h.ground.x).toLocaleString()} · Z ${Math.round(h.ground.z).toLocaleString()}`;
+}
+
+/* --- hand and wheel ----------------------------------------------------- */
+function globeHitAt(x, y){
+  let best = null, bd = Infinity;
+  for (let i = globe.hits.length - 1; i >= 0; i--){
+    const h = globe.hits[i];
+    const d = Math.hypot(h.x - x, h.y - y);
+    if (d <= h.r + 3 && d < bd){ best = h; bd = d; }
+  }
+  return best;
+}
+
+function globeShowTip(hit, x, y){
+  const tip = document.getElementById('globeTip');
+  if (!tip) return;
+  if (!hit){ tip.hidden = true; return; }
+  tip.textContent = hit.kind === 'player' ? hit.name
+    : hit.t.name + (hit.t.nationName ? ' · ' + hit.t.nationName : '');
+  tip.hidden = false;
+  tip.style.left = Math.min(globe.w - 10, x + 12) + 'px';
+  tip.style.top = (y - 10) + 'px';
+}
+
+function globeShowCard(hit){
+  const card = document.getElementById('globeCard');
+  if (!card) return;
+  if (!hit){ card.hidden = true; globe.card = null; return; }
+  globe.card = hit;
+  let body;
+  if (hit.kind === 'player'){
+    body = `<div class="gc-head">${playerHead(hit.name, 28)}<div><b>${escapeHtml(hit.name)}</b><span>online now</span></div></div>`;
+  } else {
+    const t = hit.t;
+    body = `<div class="gc-head">${t.mayor ? playerHead(t.mayor, 28) : ''}<div><b>${escapeHtml(t.name)}</b>
+        <span>${escapeHtml(t.nationName || 'No nation')}${t.isCapital ? ' · capital' : ''}</span></div></div>
+      <div class="gc-figs"><div><b>${CoordUtils.fmt(t.population)}</b><span>residents</span></div>
+        <div><b>${CoordUtils.fmt(t.townBlocks)}</b><span>chunks</span></div>
+        <div><b>${CoordUtils.fmt(t.balance)}g</b><span>bank</span></div></div>
+      ${t.mayor ? `<p class="gc-line">Mayor ${escapeHtml(t.mayor)}</p>` : ''}`;
+  }
+  card.innerHTML = `<button type="button" class="gc-x" aria-label="Close">×</button>${body}
+    <button type="button" class="gc-go">Show on the flat map</button>`;
+  card.hidden = false;
+  card.querySelector('.gc-x').onclick = () => globeShowCard(null);
+  card.querySelector('.gc-go').onclick = () => {
+    const x = hit.kind === 'player' ? hit.pl.x : hit.t.homeX;
+    const z = hit.kind === 'player' ? hit.pl.z : hit.t.homeZ;
+    setMapProjection('flat', { x, z, zoom: 1 });
+  };
+}
+
+function globeWire(){
+  const el = globe.el, ov = globe.ovCanvas;
+  const local = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+  ov.addEventListener('pointerdown', (e) => {
+    ov.setPointerCapture(e.pointerId);
+    globe.pointers.set(e.pointerId, local(e));
+    globe.vLat = globe.vLon = 0;
+    globe.moved = 0;
+    if (globe.pointers.size === 2){
+      const [a, b] = [...globe.pointers.values()];
+      globe.pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), dist: globe.dist };
+      globe.drag = null;
+    } else {
+      globe.drag = { p: local(e), t: performance.now() };
+    }
+  });
+  ov.addEventListener('pointermove', (e) => {
+    const p = local(e);
+    if (globe.pointers.has(e.pointerId)) globe.pointers.set(e.pointerId, p);
+    if (globe.pinch && globe.pointers.size === 2){
+      const [a, b] = [...globe.pointers.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      globeZoomTo(1 + (globe.pinch.dist - 1) * (globe.pinch.d / Math.max(1, d)), null);
+      return;
+    }
+    if (globe.drag){
+      const dx = p[0] - globe.drag.p[0], dy = p[1] - globe.drag.p[1];
+      globe.moved += Math.abs(dx) + Math.abs(dy);
+      const k = 1 / globeRadiusPx() / GLOBE_D2R;     // degrees per pixel at the centre
+      const dLon = -dx * k, dLat = dy * k;
+      globe.lon = ((globe.lon + dLon + 540) % 360) - 180;
+      globe.lat = Math.max(-80, Math.min(80, globe.lat + dLat));
+      const now = performance.now(), dt = Math.max(8, now - globe.drag.t);
+      globe.vLon = dLon / dt * 16; globe.vLat = dLat / dt * 16;
+      globe.drag = { p, t: now };
+      globeShowTip(null);
+      globeRequestDraw();
+      return;
+    }
+    const hit = globeHitAt(p[0], p[1]);
+    globe.hover = { hit, ground: globePick(p[0], p[1]) };
+    ov.style.cursor = hit ? 'pointer' : 'grab';
+    globeShowTip(hit, p[0], p[1]);
+    globeUpdateReadout();
+  });
+  const end = (e) => {
+    globe.pointers.delete(e.pointerId);
+    if (globe.pointers.size < 2) globe.pinch = null;
+    if (globe.drag && globe.pointers.size === 0){
+      if (performance.now() - globe.drag.t > 80){ globe.vLat = globe.vLon = 0; }
+      if (globe.moved < 5){
+        const p = local(e);
+        globeShowCard(globeHitAt(p[0], p[1]));
+        globe.vLat = globe.vLon = 0;
+      }
+      globe.drag = null;
+      globeRequestDraw();
+    }
+  };
+  ov.addEventListener('pointerup', end);
+  ov.addEventListener('pointercancel', end);
+  ov.addEventListener('pointerleave', () => { globe.hover = null; globeShowTip(null); globeUpdateReadout(); });
+
+  ov.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const p = local(e);
+    const next = 1 + (globe.dist - 1) * Math.exp(e.deltaY * 0.0016);
+    globeZoomTo(next, p);
+  }, { passive: false });
+
+  ov.addEventListener('keydown', (e) => {
+    const step = 6 * (globe.dist - 1) / 3;
+    if (e.key === 'ArrowLeft') globe.lon -= step;
+    else if (e.key === 'ArrowRight') globe.lon += step;
+    else if (e.key === 'ArrowUp') globe.lat = Math.min(80, globe.lat + step);
+    else if (e.key === 'ArrowDown') globe.lat = Math.max(-80, globe.lat - step);
+    else if (e.key === '+' || e.key === '=') return globeZoomTo(1 + (globe.dist - 1) * 0.7, null);
+    else if (e.key === '-') return globeZoomTo(1 + (globe.dist - 1) / 0.7, null);
+    else return;
+    e.preventDefault();
+    globe.lon = ((globe.lon + 540) % 360) - 180;
+    globeRequestDraw();
+  });
+
+  ov.addEventListener('dblclick', (e) => {
+    const p = local(e);
+    const g = globePick(p[0], p[1]);
+    if (g){ globe.lat = Math.max(-80, Math.min(80, g.lat)); globe.lon = g.lon; }
+    globeZoomTo(1 + (globe.dist - 1) * 0.55, null);
+  });
+
+  document.getElementById('globeIn').addEventListener('click', () => globeZoomTo(1 + (globe.dist - 1) * 0.7, null));
+  document.getElementById('globeOut').addEventListener('click', () => globeZoomTo(1 + (globe.dist - 1) / 0.7, null));
+}
+
+/* Zooming past the closest the globe allows lands in the flat map, at the
+   point under the cursor (or the middle), which is where the detail is. */
+function globeZoomTo(next, at){
+  if (next < GLOBE_MIN_DIST - 0.02){
+    const g = at ? globePick(at[0], at[1]) : globePick(globe.w / 2, globe.h / 2);
+    const [x, z] = g ? [g.x, g.z] : irlToMc(globe.lon, globe.lat);
+    setMapProjection('flat', { x, z, zoom: -3 });
+    return;
+  }
+  /* Toward the cursor: the ground under it before the zoom is turned back
+     under it afterwards, so you zoom into what you are pointing at. */
+  const before = at ? globePick(at[0], at[1]) : null;
+  globe.dist = Math.max(GLOBE_MIN_DIST, Math.min(GLOBE_MAX_DIST, next));
+  if (before){
+    // A few small corrections converge on it; one is only roughly right.
+    for (let i = 0; i < 4; i++){
+      const after = globePick(at[0], at[1]);
+      if (!after) break;
+      let dl = before.lon - after.lon;
+      if (dl > 180) dl -= 360; else if (dl < -180) dl += 360;
+      globe.lon = ((globe.lon + dl + 540) % 360) - 180;
+      globe.lat = Math.max(-80, Math.min(80, globe.lat + (before.lat - after.lat)));
+    }
+  }
+  globeRequestDraw();
+}
+
+/* --- switching ------------------------------------------------------------- */
+/* Flat-map zoom to globe distance, chosen by how big the ball looks: at the
+   flat map's widest the whole globe sits in the window with room around it;
+   at -3 it is close enough that the next step in is the flat map again. */
+const GLOBE_ZOOM_DIST = [[-7, 4.8], [-6, 3.3], [-5, 2.2], [-4, 1.65], [-3, 1.4], [-2, 1.3]];
+function globeDistForZoom(zm){
+  if (zm <= GLOBE_ZOOM_DIST[0][0]) return GLOBE_ZOOM_DIST[0][1];
+  for (let i = 1; i < GLOBE_ZOOM_DIST.length; i++){
+    const [z1, d1] = GLOBE_ZOOM_DIST[i];
+    if (zm <= z1){ const [z0, d0] = GLOBE_ZOOM_DIST[i - 1]; return d0 + (d1 - d0) * (zm - z0) / (z1 - z0); }
+  }
+  return GLOBE_MIN_DIST;
+}
+function globeZoomForDist(d){
+  for (let i = 0; i < GLOBE_ZOOM_DIST.length; i++) if (d >= GLOBE_ZOOM_DIST[i][1]) return GLOBE_ZOOM_DIST[i][0];
+  return -2;
+}
+
+let mapProjection = 'flat';
+try { if (localStorage.getItem('map-projection') === 'globe') mapProjection = 'globe-pending'; } catch (_e) {}
+
+function setMapProjection(mode, at){
+  const map = mapController && mapController.map;
+  if (mode === 'globe'){
+    if (mapWorld === 'moon') setMapWorld('earth');      // the globe is Earth
+    if (!globeEnsureBuilt()) { mapProjection = 'flat'; return; }
+    if (map){
+      const c = CoordUtils.latLngToMc(map.getCenter());
+      const [lon, lat] = globeLonLat(c.x, c.z);
+      if (Number.isFinite(lon) && Number.isFinite(lat)){
+        globe.lon = lon; globe.lat = Math.max(-75, Math.min(75, lat));
+      }
+      // The whole ball first, turned to where you were; zoom in from there.
+      globe.dist = Math.max(4.4, globeDistForZoom(map.getZoom()));
+    }
+    mapProjection = 'globe';
+    globe.on = true;
+    globe.el.hidden = false;
+    document.body.classList.add('globe-on');
+    globeResize();
+    if (globe.texState === 'none' || globe.texState === 'failed') globeBuildTexture();
+    if (showPlayers && !playerPollTimer) setShowPlayers(true);
+  } else {
+    mapProjection = 'flat';
+    globe.on = false;
+    if (globe.el) globe.el.hidden = true;
+    document.body.classList.remove('globe-on');
+    globeShowCard(null); globeShowTip(null);
+    if (map){
+      if (at) map.setView(CoordUtils.mcToLatLng(at.x, at.z), at.zoom, { animate: false });
+      else if (globe.built){
+        const [x, z] = irlToMc(globe.lon, globe.lat);
+        map.setView(CoordUtils.mcToLatLng(x, z), globeZoomForDist(globe.dist), { animate: false });
+      }
+      map.invalidateSize();
+    }
+  }
+  try { localStorage.setItem('map-projection', mapProjection); } catch (_e) {}
+  if (mapController && mapController.syncLayerToggles) mapController.syncLayerToggles();
+}
+
 /* =========================================================================
    7. MAP CONTROLLER
    L.CRS.Simple is used so native EarthMC X/Z blocks ARE the map's plane —
@@ -5031,107 +5933,206 @@ class MapController{
     this.map.addControl(new ReadoutControl());
   }
 
+  /* The map's own panel: which view (globe or flat), which world, and every
+     layer as a switch, sorted by what it is. "The server" is EarthMC's data,
+     "Ethiopia" is the Republic's own drawing (citizens only), "Earth" is the
+     ground and today's real borders. Lives beside the map rather than in it,
+     so it stays put when the globe is showing. */
   _setupLayerToggles(){
     const self = this;
-    // Recorded so a control elsewhere (the Town Activity switch in the
-    // sidebar) can push its state back into these checkboxes.
     this._layerCheckboxes = [];
+    const fmt = (n) => CoordUtils.fmt(n);
     const rows = [
-      { label: 'Terra Luna (moon)', get: () => mapWorld === 'moon',
-        set: (v) => setMapWorld(v ? 'moon' : 'earth') },
-      { label: 'Nation range', get: () => showNationRange,
+      // THE SERVER
+      { group: 'server', label: 'Town borders', globe: true,
+        get: () => showClaims, set: (v) => { showClaims = v; refreshMapLayers(); },
+        meta: () => { const n = townsForActiveView(state.towns || []).length; return n ? fmt(n) : ''; } },
+      { group: 'server', label: 'Town markers', globe: true,
+        get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); } },
+      { group: 'server', label: 'Players', globe: true,
+        get: () => showPlayers, set: (v) => setShowPlayers(v),
+        meta: () => (showPlayers && onlinePlayers.length ? fmt(onlinePlayers.length) : '') },
+      { group: 'server', label: 'Nation range', globe: false,
+        get: () => showNationRange,
         set: (v) => { showNationRange = v; renderNationRange(); renderNationCard(); },
         when: () => mapWorld !== 'moon' },
-      // This one traces each TOWN's claimed chunks — it is the town layer, and
-      // calling it "Nation claims" was wrong. Nation claims are the separate,
-      // admin-drawn borders below.
-      { label: 'Towns', get: () => showClaims, set: (v) => { showClaims = v; refreshMapLayers(); } },
+      { group: 'server', label: 'Chunk borders', globe: false,
+        get: () => showChunkGrid, set: (v) => setChunkGrid(v),
+        meta: () => (showChunkGrid && self.map.getZoom() < -1 ? 'zoom in' : '') },
+      // ETHIOPIA
+      { group: 'ethiopia', label: 'Regions', globe: false,
+        get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
+        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
+      { group: 'ethiopia', label: 'Counties', globe: false,
+        get: () => showCounties, set: (v) => setShowCounties(v),
+        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
       // Ethiopia's own drawn borders: the Worker never sends them to a visa
       // holder, so the row would switch nothing on.
-      { label: 'Nation claims', get: () => showNationClaims, set: (v) => {
-          showNationClaims = v; renderNationClaimAreas();
-        }, when: () => !viewerIsPerk() },
-      // Ethiopia's own political regions. Hidden from this box in the Global
-      // view, where regions aren't drawn at all — `when` controls that.
-      { label: 'Regions', get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
-        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
-      { label: 'Real-world borders', get: () => irlState.on, set: (v) => setShowIrl(v) },
-      { label: 'Counties', get: () => showCounties, set: (v) => setShowCounties(v),
-        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
-      { label: 'Ice highways', get: () => showHighways, set: (v) => {
-          showHighways = v; renderHighways(); renderHighwayRoute();
-        }, when: () => currentScope() !== 'global' },
-      { label: 'Town markers', get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); } },
-      { label: 'Chunk borders', get: () => showChunkGrid, set: (v) => setChunkGrid(v) },
-      { label: 'Players', get: () => showPlayers, set: (v) => setShowPlayers(v) },
-      { label: 'Terrain', get: () => showTerrain, set: (v) => {
+      { group: 'ethiopia', label: 'Nation claims', globe: false,
+        get: () => showNationClaims, set: (v) => { showNationClaims = v; renderNationClaimAreas(); },
+        when: () => !viewerIsPerk() },
+      { group: 'ethiopia', label: 'Ice highways', globe: false,
+        get: () => showHighways, set: (v) => { showHighways = v; renderHighways(); renderHighwayRoute(); },
+        when: () => currentScope() !== 'global' },
+      // EARTH
+      { group: 'earth', label: 'Real-world borders', globe: true,
+        get: () => irlState.on, set: (v) => { setShowIrl(v); globeRequestDraw(); },
+        meta: () => (irlState.on && irlState.loading ? 'loading' : ''),
+        when: () => mapWorld !== 'moon' },
+      /* The globe keeps its own terrain switch. Its picture is one small
+         image, so phones (where flat terrain starts off to save memory)
+         still get a real globe rather than a blue ball. */
+      { group: 'earth', label: 'Terrain', globe: true,
+        get: () => (mapProjection === 'globe' ? globe.terrain : showTerrain), set: (v) => {
+          if (mapProjection === 'globe'){ globe.terrain = v; globeRequestDraw(); return; }
           showTerrain = v;
           if (v) self.terrainLayer.addTo(self.map);
           else self.map.removeLayer(self.terrainLayer);
           applyZoomCap();
         } },
-      { label: 'Dim terrain', get: () => showDim, set: (v) => {
+      { group: 'earth', label: 'Dim terrain', globe: true,
+        needs: () => (mapProjection === 'globe' ? globe.terrain : showTerrain),
+        get: () => showDim, set: (v) => {
           showDim = v;
-          // Dim by lowering the tile layer's own opacity rather than laying a
-          // dark sheet over it. The terrain already renders at 0.6 over a
-          // near-black background, so an overlay had little left to darken —
-          // it read as a barely-perceptible flicker. Driving the layer
-          // opacity directly is both stronger and simpler: no extra element,
-          // no stacking order to get wrong, and claim borders and markers are
-          // untouched because they're separate layers.
+          // The layer's own opacity, not a dark sheet over it: stronger, and
+          // borders and markers above are untouched.
           if (self.terrainLayer) self.terrainLayer.setOpacity(v ? TERRAIN_OPACITY_DIM : TERRAIN_OPACITY_NORMAL);
+          globeRequestDraw();
         } },
     ];
-    const LayersControl = L.Control.extend({
-      options: { position: 'bottomleft' },
-      onAdd: () => {
-        const panel = L.DomUtil.create('div', 'map-layers-toggle');
-        const title = document.createElement('div');
-        title.className = 'layers-title';
-        title.textContent = 'Map layers';
-        panel.appendChild(title);
-        rows.forEach(row => {
-          const label = document.createElement('label');
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.checked = row.get();
-          const text = document.createElement('span');
-          text.textContent = row.label;
-          label.appendChild(checkbox);
-          label.appendChild(text);
-          checkbox.addEventListener('change', (e) => {
-            // A confirmed Leaflet bug (github.com/Leaflet/Leaflet/issues/7750):
-            // disableClickPropagation on a PARENT container can intermittently
-            // swallow events on its own children, not just parents further up —
-            // exactly the "checkbox toggle sometimes does nothing, no error
-            // logged" symptom seen here. Explicitly stopping propagation on
-            // the checkbox's OWN event, inside its OWN listener, doesn't hit
-            // that bug — this is always delivered correctly per the same
-            // issue thread — and still keeps clicks from reaching the map
-            // underneath, which is what disableClickPropagation(panel) below
-            // was for in the first place.
-            L.DomEvent.stopPropagation(e);
-            row.set(checkbox.checked);
-          });
-          panel.appendChild(label);
-          self._layerCheckboxes.push({ row, checkbox, label });
+    const GROUPS = { server: 'The server', ethiopia: 'Ethiopia', earth: 'Earth' };
+
+    const pane = document.querySelector('.map-pane') || document.getElementById('map').parentNode;
+    const panel = document.createElement('div');
+    panel.className = 'layers-panel';
+    panel.id = 'layersPanel';
+    let collapsed = IS_SMALL_SCREEN;
+    try { const s = localStorage.getItem('map-layers-collapsed'); if (s !== null) collapsed = s === '1'; } catch (_e) {}
+    panel.classList.toggle('collapsed', collapsed);
+
+    const head = document.createElement('div');
+    head.className = 'lp-head';
+    head.innerHTML = '<b>Map</b><button type="button" class="lp-fold" aria-label="Hide the layers" title="Hide the layers"></button>';
+    panel.appendChild(head);
+    const opener = document.createElement('button');
+    opener.type = 'button'; opener.className = 'lp-open'; opener.textContent = 'Layers';
+    panel.appendChild(opener);
+    const fold = (v) => {
+      collapsed = v; panel.classList.toggle('collapsed', v);
+      try { localStorage.setItem('map-layers-collapsed', v ? '1' : '0'); } catch (_e) {}
+    };
+    head.querySelector('.lp-fold').addEventListener('click', () => fold(true));
+    opener.addEventListener('click', () => fold(false));
+
+    const body = document.createElement('div');
+    body.className = 'lp-body';
+    panel.appendChild(body);
+
+    // Two segmented choices: how the world is drawn, and which world.
+    const seg = (name, options) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'lp-seg'; wrap.setAttribute('role', 'group'); wrap.setAttribute('aria-label', name);
+      options.forEach(o => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = o.label; b.dataset.value = o.value;
+        b.addEventListener('click', () => { if (!b.disabled) o.pick(); });
+        wrap.appendChild(b);
+      });
+      body.appendChild(wrap);
+      return wrap;
+    };
+    this._segView = seg('View', [
+      { label: 'Globe', value: 'globe', pick: () => setMapProjection('globe') },
+      { label: 'Flat', value: 'flat', pick: () => setMapProjection('flat') },
+    ]);
+    this._segWorld = seg('World', [
+      { label: 'Earth', value: 'earth', pick: () => setMapWorld('earth') },
+      { label: 'Moon', value: 'moon', pick: () => { if (mapProjection === 'globe') setMapProjection('flat'); setMapWorld('moon'); } },
+    ]);
+
+    this._layerGroups = {};
+    Object.keys(GROUPS).forEach(g => {
+      const h = document.createElement('div');
+      h.className = 'lp-group'; h.textContent = GROUPS[g];
+      body.appendChild(h);
+      self._layerGroups[g] = h;
+      rows.filter(r => r.group === g).forEach(row => {
+        const label = document.createElement('label');
+        label.className = 'lp-row';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.setAttribute('role', 'switch');
+        checkbox.checked = row.get();
+        const sw = document.createElement('span'); sw.className = 'lp-sw'; sw.setAttribute('aria-hidden', 'true');
+        const text = document.createElement('span'); text.className = 'lp-name'; text.textContent = row.label;
+        const meta = document.createElement('span'); meta.className = 'lp-meta';
+        label.append(checkbox, sw, text, meta);
+        checkbox.addEventListener('change', (e) => {
+          // Stopped on the checkbox's own event: Leaflet issue 7750, where a
+          // parent's click blocker could swallow it, and the map must not
+          // see the click either.
+          e.stopPropagation();
+          row.set(checkbox.checked);
+          self.syncLayerToggles();
         });
-        L.DomEvent.disableClickPropagation(panel);
-        return panel;
-      },
+        body.appendChild(label);
+        self._layerCheckboxes.push({ row, checkbox, label, meta });
+      });
     });
-    this.map.addControl(new LayersControl());
+
+    ['click', 'dblclick', 'mousedown', 'pointerdown', 'wheel', 'touchstart'].forEach(ev =>
+      panel.addEventListener(ev, (e) => e.stopPropagation(), { passive: true }));
+    pane.appendChild(panel);
+    this._layersPanel = panel;
+    this.map.on('zoomend', () => self.updateLayerMeta());
+    this.syncLayerToggles();
   }
 
-  // Re-reads every layer row's current value into its checkbox. Called when
-  // something outside this control changes one of those values.
-  syncLayerToggles(){
-    (this._layerCheckboxes || []).forEach(({ row, checkbox, label }) => {
-      checkbox.checked = row.get();
-      // Rows can be view-scoped: a row whose `when` is false is hidden rather
-      // than disabled, so the box only ever offers layers that exist here.
-      if (label) label.style.display = (row.when && !row.when()) ? 'none' : '';
+  // Counts and hints on the right of each row: towns shown, players online,
+  // "zoom in" for chunk borders while the map is too far out to draw them.
+  updateLayerMeta(){
+    const globeOn = typeof mapProjection !== 'undefined' && mapProjection === 'globe';
+    (this._layerCheckboxes || []).forEach(({ row, meta }) => {
+      if (!meta) return;
+      if (globeOn && !row.globe){ meta.textContent = 'flat map'; return; }
+      let t = '';
+      try { t = row.meta ? row.meta() : ''; } catch (_e) { t = ''; }
+      meta.textContent = t;
     });
+  }
+
+  // Re-reads every switch from the real state. Called whenever something
+  // outside the panel changes a layer, the view or the world.
+  syncLayerToggles(){
+    const globeOn = typeof mapProjection !== 'undefined' && mapProjection === 'globe';
+    const shown = { server: 0, ethiopia: 0, earth: 0 };
+    (this._layerCheckboxes || []).forEach(({ row, checkbox, label }) => {
+      let visible = true;
+      try { visible = !(row.when && !row.when()); } catch (_e) { visible = true; }
+      checkbox.checked = row.get();
+      if (label){
+        label.style.display = visible ? '' : 'none';
+        const off = (globeOn && !row.globe) || (row.needs && !row.needs());
+        label.classList.toggle('unavailable', !!off);
+        checkbox.disabled = !!off;
+      }
+      if (visible) shown[row.group]++;
+    });
+    Object.keys(this._layerGroups || {}).forEach(g => {
+      this._layerGroups[g].style.display = shown[g] ? '' : 'none';
+    });
+    const mark = (wrap, value, disabledFn) => {
+      if (!wrap) return;
+      wrap.querySelectorAll('button').forEach(b => {
+        b.setAttribute('aria-pressed', String(b.dataset.value === value));
+        const dis = disabledFn ? disabledFn(b.dataset.value) : false;
+        b.disabled = dis;
+        b.title = dis ? 'The globe shows Earth only' : '';
+      });
+    };
+    mark(this._segView, globeOn ? 'globe' : 'flat', (v) => v === 'globe' && mapWorld === 'moon');
+    mark(this._segWorld, mapWorld);
+    this.updateLayerMeta();
   }
 
   _setupGeoman(){
@@ -5404,6 +6405,8 @@ function refreshMapLayers(){
     // to see and hard to click. Re-drawing them here puts them back on top.
     renderHighways();
     renderNationRange();
+    globeRequestDraw();
+    if (mapController.updateLayerMeta) mapController.updateLayerMeta();
     if (viewerIsPerk()){
       // Tracking or untracking Ethiopia shows or hides its regions' switches.
       applyRegionVisibility();
@@ -6952,6 +7955,8 @@ async function fetchOnlinePlayers(){
       auditLog.log(`Player data fields: ${Object.keys(onlinePlayers[0]).join(', ')}`, 'info');
     }
     renderPlayers();
+    globeRequestDraw();
+    if (mapController.updateLayerMeta) mapController.updateLayerMeta();
   } catch(err){
     auditLog.log(`Player positions unavailable — ${err.message}`, 'warn');
   } finally {
@@ -11035,6 +12040,7 @@ function irlSetCountries(list){
   list = list.filter(c => c.polys.length && !/antarctic/i.test(c.name))
     .map(c => ({ name: c.name, polys: c.polys.map(poly => poly.map(unwrap)) }));
   irlState.raw = list;
+  globeRequestDraw();
   irlProject();
   renderIrl();
 }
@@ -13839,6 +14845,9 @@ loadRegionsFromBackend(); // rehydrate the shared, persisted regions + highways
 viewerReady.then(async () => {
   if (viewerLocked) return;
   const wanted = new URLSearchParams(location.search).get('nation');
+  // Whoever left on the globe comes back to it.
+  if (mapProjection === 'globe-pending' && !(wanted && wanted.trim())) setMapProjection('globe');
+  else if (mapProjection === 'globe-pending') mapProjection = 'flat';
   if (wanted && wanted.trim()){
     const name = wanted.trim();
     state.targetNations.add(name);

@@ -1643,6 +1643,97 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
 }
 
 /* =========================================================================
+   NATIONS OVER TIME
+   A strip along the bottom of the map: the day in the display face, the
+   towns line of the whole history under the slider, a brass needle for the
+   day shown. Names on the map are set in spaced capitals, like an atlas.
+   ========================================================================= */
+.hist-canvas{ image-rendering:auto; }
+.hist-bar{
+  position:absolute; z-index:1250; left:calc(13.6rem + 22px); right:12px; bottom:12px; max-width:980px;
+  display:grid; grid-template-columns:auto 1fr auto auto; grid-template-rows:auto auto; align-items:center; gap:.35rem .9rem;
+  padding:.55rem .8rem .5rem .6rem; border-radius:14px;
+  background:linear-gradient(180deg, rgba(22,19,15,.93), rgba(12,11,9,.95));
+  border:1px solid rgba(237,185,18,.22); box-shadow:0 18px 40px -16px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.04);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); color:var(--parchment);
+}
+.hist-bar[hidden]{ display:none; }
+.hist-ctrl{ grid-row:1; grid-column:1; display:flex; align-items:center; gap:.25rem; }
+.hist-play{ position:relative; width:38px; height:38px; border-radius:50%; border:0; cursor:pointer;
+  background:radial-gradient(circle at 35% 30%, #ffd84d, var(--brass) 55%, #a87f06); box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 4px 14px -4px rgba(237,185,18,.55); }
+.hist-play::before{ content:''; position:absolute; left:14px; top:11px; border-style:solid; border-width:8px 0 8px 13px; border-color:transparent transparent transparent #17120a; }
+.hist-play.playing::before{ left:13px; top:12px; width:4px; height:14px; border:0; background:#17120a; box-shadow:8px 0 0 #17120a; }
+.hist-play:focus-visible{ outline:2px solid var(--parchment); outline-offset:2px; }
+.hist-step{ width:24px; height:30px; border:0; background:none; color:var(--muted); font:600 1.25rem var(--font-display); cursor:pointer; border-radius:6px; }
+.hist-step:hover{ color:var(--parchment); background:rgba(255,255,255,.05); }
+.hist-when{ grid-row:1; grid-column:2; display:flex; flex-direction:column; min-width:0; line-height:1.1; }
+.hist-eyebrow{ font:600 .58rem var(--font-mono); letter-spacing:.22em; text-transform:uppercase; color:var(--brass); }
+.hist-when b{ font:600 1.32rem var(--font-display); letter-spacing:.01em; white-space:nowrap; font-variant-numeric:lining-nums; }
+.hist-source{ font:.58rem var(--font-mono); color:var(--muted-dim); margin-top:.12rem; white-space:nowrap; }
+.hist-track{ grid-row:2; grid-column:1 / -1; position:relative; height:46px; margin:0 .2rem; }
+.hist-spark{ position:absolute; left:0; right:0; top:3px; height:28px; width:100%; overflow:visible; }
+.hist-spark .hs-area{ fill:rgba(237,185,18,.10); }
+.hist-spark .hs-line{ fill:none; stroke:rgba(237,185,18,.55); stroke-width:1.4; vector-effect:non-scaling-stroke; }
+.hist-needle{ position:absolute; top:0; height:32px; width:2px; margin-left:-1px; background:var(--brass); box-shadow:0 0 10px rgba(237,185,18,.7); pointer-events:none; transition:left .12s linear; }
+.hist-needle::after{ content:''; position:absolute; left:-3px; top:-3px; width:8px; height:8px; border-radius:50%; background:var(--brass); }
+.hist-track input[type=range]{ position:absolute; left:0; right:0; top:0; width:100%; height:34px; margin:0; opacity:0; cursor:pointer; }
+.hist-months{ position:absolute; left:0; right:0; bottom:0; height:12px; border-top:1px solid rgba(255,255,255,.09); }
+.hist-months span{ position:absolute; top:2px; transform:translateX(-1px); padding-left:3px; border-left:1px solid rgba(255,255,255,.16);
+  font:.56rem var(--font-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); line-height:1; }
+.hist-figs{ grid-row:1; grid-column:3; display:flex; gap:1.1rem; }
+.hist-figs div{ display:flex; flex-direction:column; line-height:1.1; }
+.hist-figs b{ font:600 .9rem var(--font-mono); font-variant-numeric:tabular-nums; }
+.hist-figs span{ font-size:.62rem; color:var(--muted); white-space:nowrap; }
+.hist-figs em{ font-style:normal; font-family:var(--font-mono); }
+.hist-figs em.up{ color:#8fd18a; } .hist-figs em.down{ color:#e98a7c; }
+.hist-opts{ grid-row:1; grid-column:4; display:flex; align-items:center; gap:.3rem; }
+.hist-opts button{ border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04); color:var(--parchment);
+  font:600 .66rem var(--font-mono); letter-spacing:.04em; padding:.32rem .5rem; border-radius:7px; cursor:pointer; white-space:nowrap; }
+.hist-opts button:hover{ border-color:rgba(237,185,18,.5); color:var(--brass-hi); }
+.hist-opts .hist-x{ border:0; background:none; font-size:1.1rem; color:var(--muted); padding:.1rem .35rem; }
+.hist-status{ position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%); margin:0; white-space:nowrap;
+  padding:.35rem .75rem; border-radius:999px; background:rgba(14,12,10,.92); border:1px solid rgba(255,255,255,.1); font:.74rem var(--font-body); }
+.hist-status[hidden]{ display:none; }
+.hist-tip{ position:absolute; z-index:1260; pointer-events:none; transform:translateY(-100%); padding:.28rem .55rem; border-radius:8px;
+  background:rgba(14,12,10,.92); border:1px solid rgba(255,255,255,.12); color:var(--parchment); font:600 .76rem var(--font-body); white-space:nowrap; }
+.hist-tip[hidden]{ display:none; }
+.hist-label{ background:none; border:0; }
+.hist-label span{ position:absolute; left:0; top:0; transform:translate(-50%, -50%); white-space:nowrap; pointer-events:none;
+  font-family:var(--font-display); font-weight:600; text-transform:uppercase; color:#f7f1e3; line-height:1;
+  text-shadow:0 0 3px rgba(10,9,8,.9), 0 0 8px rgba(10,9,8,.65), 0 1px 1px rgba(10,9,8,.9); }
+.hist-cap{ background:none; border:0; }
+.hist-cap i{ position:absolute; left:-5px; top:-5px; width:10px; height:10px; background:#f5f1e8;
+  clip-path:polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); filter:drop-shadow(0 0 1px #000); }
+.hist-cap span{ position:absolute; left:8px; top:-7px; white-space:nowrap; font:600 .74rem var(--font-body); color:#f5f1e8;
+  text-shadow:0 0 3px rgba(10,9,8,.95), 0 1px 1px rgba(10,9,8,.9); }
+.hist-pop{ min-width:12rem; font-family:var(--font-body); }
+.hist-pop-when{ display:block; font:.6rem var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--brass); margin-bottom:.2rem; }
+.hist-pop b{ display:flex; align-items:center; gap:.45rem; font:600 1.02rem var(--font-display); }
+.hist-pop b i{ width:.8rem; height:.8rem; border-radius:3px; box-shadow:0 0 0 1px rgba(255,255,255,.25); }
+.hist-pop-figs{ display:grid; grid-template-columns:repeat(3, 1fr); gap:.4rem; margin:.55rem 0 .3rem; }
+.hist-pop-figs strong{ display:block; font:600 .86rem var(--font-mono); }
+.hist-pop-figs span{ font-size:.64rem; color:var(--muted); }
+.hist-pop p{ margin:.25rem 0 0; font-size:.72rem; color:var(--muted); }
+body.hist-on .globe-readout{ display:none; }
+/* The bar sits in the map, whose width depends on the sidebar too, so it
+   sizes itself by its own width rather than the window's. */
+.hist-bar{ container-type:inline-size; container-name:histbar; }
+@container histbar (max-width: 640px){
+  .hist-figs div:nth-child(3){ display:none; }
+  .hist-source{ display:none; }
+}
+@container histbar (max-width: 500px){
+  .hist-figs{ display:none; }
+  .hist-step{ display:none; }
+  .hist-when b{ font-size:1.1rem; }
+}
+@media (max-width: 760px){
+  .hist-bar{ left:8px; right:8px; bottom:8px; padding:.5rem .6rem; gap:.3rem .6rem; }
+  .hist-track{ height:40px; }
+  body.hist-on .layers-panel{ bottom:124px; }
+}
+
+/* =========================================================================
    GLOBE
    ========================================================================= */
 .globe{ position:absolute; inset:0; z-index:1100; overflow:hidden; touch-action:none;
@@ -1722,6 +1813,32 @@ body.globe-on .map-close{ z-index:1300; }
       <button type="button" id="mapCloseBtn" class="map-close" title="Back to panels" aria-label="Close map">✕</button>
       <div id="map"></div>
       <!-- The globe: drawn over the flat map, which keeps its place underneath. -->
+      <div class="hist-tip" id="histTip" hidden></div>
+      <div class="hist-bar" id="histBar" hidden>
+        <div class="hist-ctrl">
+          <button type="button" class="hist-step" id="histPrev" aria-label="Day before">&lsaquo;</button>
+          <button type="button" class="hist-play" id="histPlay" aria-label="Play"></button>
+          <button type="button" class="hist-step" id="histNext" aria-label="Day after">&rsaquo;</button>
+        </div>
+        <div class="hist-when">
+          <span class="hist-eyebrow">Terra Nostra</span>
+          <b id="histDate">—</b>
+          <span class="hist-source" id="histSource"></span>
+        </div>
+        <div class="hist-track">
+          <svg class="hist-spark" id="histSpark" aria-hidden="true" preserveAspectRatio="none"></svg>
+          <i class="hist-needle" id="histNeedle" aria-hidden="true"></i>
+          <input type="range" id="histRange" min="0" max="0" value="0" step="1" aria-label="Day to show">
+          <div class="hist-months" id="histMonths" aria-hidden="true"></div>
+        </div>
+        <div class="hist-figs" id="histFigs"></div>
+        <div class="hist-opts">
+          <button type="button" id="histSpeed" title="Playback speed">1×</button>
+          <button type="button" id="histReach" title="How far a nation's land reaches from its towns: close (512 blocks), normal (1,024) or wide (2,048)">Reach</button>
+          <button type="button" class="hist-x" id="histClose" aria-label="Close the timeline">×</button>
+        </div>
+        <p class="hist-status" id="histStatus" hidden></p>
+      </div>
       <div id="globe" class="globe" hidden>
         <div class="globe-glow" id="globeGlow" aria-hidden="true"></div>
         <canvas class="globe-gl" id="globeGl"></canvas>
@@ -5503,6 +5620,7 @@ function globeFrame(){
   gl.drawElements(gl.TRIANGLES, globe.count, gl.UNSIGNED_SHORT, 0);
 
   if (globe.terrain) globeDrawTiles(gl, V);
+  if (hist.on && hist.frame) globeDrawHistoryGL(gl);
 
   // The atmosphere: a soft halo sized to the ball, behind it.
   const r = globeRadiusPx();
@@ -6008,15 +6126,18 @@ function globeDrawOverlay(M, rPx, V){
   if (showCounties && ethiopiaShown) globeDrawCounties(ctx, V, areas);
   if (showNationClaims && viewerIsCitizen()) globeDrawNationClaims(ctx, V, areas);
 
-  const towns = (showClaims || showTowns) ? townsForActiveView(state.towns || []) : [];
-  if (showClaims) globeDrawTownClaims(ctx, V, towns, areas, hits, zoomK);
+  // History replaces the live towns while it is open.
+  const live = !hist.on;
+  const towns = live && (showClaims || showTowns) ? townsForActiveView(state.towns || []) : [];
+  if (live && showClaims) globeDrawTownClaims(ctx, V, towns, areas, hits, zoomK);
   if (showChunkGrid && V.bpp <= 16 / CHUNK_MIN_PX) globeDrawChunkGrid(ctx, V);
   if (showHighways && scope !== 'global' && viewerIsCitizen()) globeDrawHighways(ctx, V, hits, zoomK);
-  if (showNationRange) globeDrawRange(ctx, V, hits, areas, zoomK);
+  if (live && showNationRange) globeDrawRange(ctx, V, hits, areas, zoomK);
+  if (hist.on) globeDrawHistoryLabels(ctx, V, hits);
 
   /* Town markers: a dot each in its nation's colour, sized by population;
      capitals as stars. */
-  if (showTowns){
+  if (live && showTowns){
     const capitals = [];
     const byFill = new Map();
     towns.forEach(t => {
@@ -6049,7 +6170,7 @@ function globeDrawOverlay(M, rPx, V){
   /* Nation names, once close enough to read them: the biggest nations
      first, and a name that would sit on top of one already drawn is
      skipped rather than stacked. */
-  if ((showClaims || showTowns) && rPx > 520){
+  if (live && (showClaims || showTowns) && rPx > 520){
     const boxes = [];
     ctx.font = `600 ${Math.round(11 + zoomK * 1.5)}px ${globe.font}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineJoin = 'round';
@@ -6069,7 +6190,7 @@ function globeDrawOverlay(M, rPx, V){
   }
 
   /* Players, as their heads, like EarthMC's own globe. */
-  if (showPlayers){
+  if (live && showPlayers){
     const size = Math.round(14 * Math.min(1.5, zoomK));
     onlinePlayers.forEach(pl => {
       const p = globeProject(M, globeVecOfBlock(pl.x, pl.z));
@@ -6099,6 +6220,11 @@ function globeDrawOverlay(M, rPx, V){
    there (on the flat map, too, the reach answers only along its edge). */
 const GLOBE_AREA_RANK = { town: 0, county: 1, region: 2, nation: 3, country: 5 };
 function globeAreaAt(x, y){
+  if (hist.on && hist.frame){
+    const g = globePick(x, y);
+    const n = g ? histCellAt(g.x, g.z) : null;
+    return n ? { kind: 'histNation', label: histTipText(n), n, ground: g } : null;
+  }
   const areas = globe.areas || [];
   let g = null, best = null, bestRank = Infinity;
   for (let i = areas.length - 1; i >= 0; i--){
@@ -6404,6 +6530,8 @@ function globeShowCard(hit){
       <div><b>${escapeHtml(r.name || 'Region')}</b><span>Region of ${escapeHtml(HOME_NATION)}${towns ? ' · ' + towns + ' towns' : ''}</span></div></div>`;
   } else if (hit.kind === 'label'){
     body = `<div class="gc-head"><div><b>${escapeHtml(hit.label)}</b></div></div>`;
+  } else if (hit.kind === 'histNation'){
+    body = histNationHtml(hit.n);
   } else {
     const t = hit.t;
     body = `<div class="gc-head">${t.mayor ? playerHead(t.mayor, 28) : ''}<div><b>${escapeHtml(t.name)}</b>
@@ -6604,6 +6732,904 @@ function setMapProjection(mode, at){
 }
 
 /* =========================================================================
+   NATIONS OVER TIME
+   Every day recorded by the map-history Action (kept by the Worker under
+   /history/), drawn as nations' land and played back as a timelapse.
+
+   A day is turned into territory on a grid of 64-block cells:
+     1. every claimed chunk marks its cell with the town's nation;
+     2. from those cells each nation spreads over LAND only, a ring at a time
+        (alternating square and diagonal steps, which approximates a circle),
+        out to the chosen reach; where two nations meet, whichever got there
+        first keeps it, so the line falls halfway between their towns;
+     3. land no nation reaches stays wilderness, and the sea stays sea:
+        water is read from squaremap's own coarsest pictures, so a nation
+        does not leap a strait it has no towns across.
+   Nationless towns show as grey patches that do not spread.
+
+   The picture is one canvas, 2048 x 1536 cells, painted in place for each
+   day: the flat map shows it directly (no image is ever encoded), and the
+   globe gets the same picture unrolled onto the ball.
+   ========================================================================= */
+const HIST_CELL = 64;                                                    // blocks per cell
+const HIST_X0 = GLOBE_TILES_X[0] * GLOBE_BLOCKS_PER_TILE;                // -65,536
+const HIST_Z0 = GLOBE_TILES_Z[0] * GLOBE_BLOCKS_PER_TILE;                // -49,152
+const HIST_W = (GLOBE_TILES_X[1] - GLOBE_TILES_X[0] + 1) * GLOBE_BLOCKS_PER_TILE / HIST_CELL;   // 2048
+const HIST_H = (GLOBE_TILES_Z[1] - GLOBE_TILES_Z[0] + 1) * GLOBE_BLOCKS_PER_TILE / HIST_CELL;   // 1536
+const HIST_NATIONLESS = 65535;
+const HIST_REACHES = [[512, 'Close'], [1024, 'Reach'], [2048, 'Wide']];   // blocks a nation's land spreads from its towns
+const HIST_SPEEDS = [2, 4, 8];                                          // days a second
+
+const hist = {
+  on: false,
+  index: null, indexAt: 0,
+  pos: -1, want: -1, frame: null,
+  playing: false, speedI: 0, reachI: 1, stepAt: 0, timer: null,
+  busy: false,
+  days: new Map(),           // date -> Promise of the day's file
+  landP: null, landNote: '',
+  canvas: null, ctx: null,   // the territory, one pixel per cell
+  overlay: null, labels: null, claims: null, panes: false, hooked: false,
+  eq: null, tex: null, texFor: null, rowMap: null, rowMapFor: '',
+  font: '',
+};
+
+function histOn(){ return hist.on; }
+function histBase(){ return CONFIG.CORS_PROXY.replace(/\/+$/, ''); }
+function histHex(c){
+  const h = cleanHex(c);
+  if (!h) return null;
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function histNice(name){ return String(name || '').replace(/_/g, ' '); }
+function histDateText(iso, short){
+  const [y, m, d] = iso.split('-').map(Number);
+  const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];
+  return short ? `${d} ${mon}` : `${d} ${mon} ${y}`;
+}
+function histStatus(text){
+  const el = document.getElementById('histStatus');
+  if (!el) return;
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+/* ---- data ---------------------------------------------------------------- */
+async function histLoadIndex(force){
+  if (hist.index && !force && Date.now() - hist.indexAt < 10 * 60 * 1000) return hist.index;
+  const r = await fetch(histBase() + '/history/index.json', { cache: 'no-cache' });
+  if (!r.ok) throw new Error('the list of days did not load (HTTP ' + r.status + ')');
+  const j = await r.json();
+  hist.index = (Array.isArray(j.days) ? j.days : [])
+    .filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  hist.indexAt = Date.now();
+  return hist.index;
+}
+
+async function histUnpack(buf){
+  const u8 = new Uint8Array(buf);
+  // Something on the way may already have unpacked it.
+  if (u8[0] !== 0x1f || u8[1] !== 0x8b) return JSON.parse(new TextDecoder().decode(u8));
+  if (typeof DecompressionStream === 'undefined'){
+    throw new Error('this browser is too old to open the history files (anything from 2023 on can)');
+  }
+  const stream = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+
+/* A day's file, fetched once and kept for the next few looks. */
+function histDay(date){
+  let p = hist.days.get(date);
+  if (p){ hist.days.delete(date); hist.days.set(date, p); return p; }
+  p = (async () => {
+    const r = await fetch(`${histBase()}/history/${date}.json.gz`);
+    if (!r.ok) throw new Error(`${histDateText(date)} did not load (HTTP ${r.status})`);
+    return histUnpack(await r.arrayBuffer());
+  })();
+  p.catch(() => { if (hist.days.get(date) === p) hist.days.delete(date); });
+  hist.days.set(date, p);
+  while (hist.days.size > (IS_SMALL_SCREEN ? 5 : 10)) hist.days.delete(hist.days.keys().next().value);
+  return p;
+}
+
+/* Land and sea, one cell each, read from squaremap's whole-world pictures
+   (the same 48 the globe is wrapped in, so usually already downloaded). */
+function histLand(){
+  if (hist.landP) return hist.landP;
+  hist.landP = (async () => {
+    const c = document.createElement('canvas');
+    c.width = HIST_W; c.height = HIST_H;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    const per = GLOBE_BLOCKS_PER_TILE / HIST_CELL;     // 256 cells across one picture
+    const jobs = [];
+    for (let tz = GLOBE_TILES_Z[0]; tz <= GLOBE_TILES_Z[1]; tz++)
+      for (let tx = GLOBE_TILES_X[0]; tx <= GLOBE_TILES_X[1]; tx++) jobs.push([tx, tz]);
+    let got = 0;
+    const work = async () => {
+      while (jobs.length){
+        const [tx, tz] = jobs.shift();
+        const img = await globeLoadImage(globeTileUrl(tx, tz));
+        if (img){ ctx.drawImage(img, (tx - GLOBE_TILES_X[0]) * per, (tz - GLOBE_TILES_Z[0]) * per, per, per); got++; }
+      }
+    };
+    await Promise.all([work(), work(), work(), work(), work(), work()]);
+    let px = null;
+    try { px = got ? ctx.getImageData(0, 0, HIST_W, HIST_H).data : null; }
+    catch (_e){
+      // A picture without the cross-origin header: try once more through the Worker.
+      if (!globe.viaWorker){ globe.viaWorker = true; hist.landP = null; c.width = c.height = 0; return histLand(); }
+    }
+    const land = new Uint8Array(HIST_W * HIST_H);
+    if (!px){
+      land.fill(1);
+      hist.landNote = 'The map pictures did not load, so land could not be told from sea.';
+      return land;
+    }
+    /* Water is the blue that leads: squaremap paints the sea from deep navy to
+       warm-ocean turquoise, and nothing on land is that blue in bulk. Snow and
+       ice are white and count as land; outside the world is transparent. */
+    for (let i = 0, j = 0; i < land.length; i++, j += 4){
+      const r = px[j], g = px[j + 1], b = px[j + 2], a = px[j + 3];
+      land[i] = (a > 100 && !(b > r + 28 && b + 12 >= g)) ? 1 : 0;
+    }
+    c.width = c.height = 0;
+    return land;
+  })();
+  hist.landP.catch(() => { hist.landP = null; });
+  return hist.landP;
+}
+
+/* ---- a day into territory ----------------------------------------------- */
+function histCompute(snap, land, reach){
+  const W = HIST_W, H = HIST_H, N = W * H;
+  const owner = new Uint16Array(N);
+  const claimed = new Uint8Array(N);
+  const list = Array.isArray(snap.nations) ? snap.nations.slice(0, 65000) : [];
+  const nations = list.map(([name, fill, outline], k) => {
+    const f = histHex(fill) || histHex(stableColorFor(name, CONFIG.NATION_PALETTE));
+    return { id: k + 1, name, rgb: f, edge: histHex(outline) || f,
+      towns: 0, residents: 0, chunks: 0, cells: 0, capital: null, label: null };
+  });
+  const cx0 = HIST_X0 / 16, cz0 = HIST_Z0 / 16, step = HIST_CELL / 16;
+  let towns = 0, chunks = 0, residents = 0, nationless = 0;
+  const capitals = [];
+  const shapes = [];         // each town's exact claim, for drawing close up
+
+  // 1. Claims.
+  for (const t of (snap.towns || [])){
+    const [name, ni, cap, res, mayor, runs] = t;
+    const nat = ni >= 0 && ni < nations.length ? nations[ni] : null;
+    const id = nat ? nat.id : HIST_NATIONLESS;
+    let n = 0, sx = 0, sz = 0;
+    let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+    if (Array.isArray(runs)){
+      for (let k = 0; k + 2 < runs.length; k += 3){
+        const cz = runs[k], ca = runs[k + 1], len = runs[k + 2];
+        n += len; sx += (ca + len / 2) * len; sz += (cz + 0.5) * len;
+        if (ca < bx0) bx0 = ca; if (ca + len > bx1) bx1 = ca + len; if (cz < bz0) bz0 = cz; if (cz + 1 > bz1) bz1 = cz + 1;
+        const row = Math.floor((cz - cz0) / step);
+        if (row < 0 || row >= H) continue;
+        const c0 = Math.max(0, Math.floor((ca - cx0) / step));
+        const c1 = Math.min(W - 1, Math.floor((ca + len - 1 - cx0) / step));
+        for (let c = c0; c <= c1; c++){
+          const i = row * W + c;
+          // A nation's claim wins a cell over a nationless one.
+          if (!claimed[i] || owner[i] === HIST_NATIONLESS) owner[i] = id;
+          claimed[i] = 1;
+        }
+      }
+    }
+    towns++; chunks += n; residents += res || 0;
+    if (n) shapes.push({ id, runs, x0: bx0 * 16, z0: bz0 * 16, x1: bx1 * 16, z1: bz1 * 16 });
+    if (nat){
+      nat.towns++; nat.residents += res || 0; nat.chunks += n;
+      if (cap && n){ nat.capital = { name, x: sx / n * 16, z: sz / n * 16 }; capitals.push(nat); }
+    } else nationless++;
+  }
+
+  // 2. Each nation spreads over land, ring by ring.
+  const R = Math.max(0, Math.round(reach / HIST_CELL));
+  let a = new Int32Array(N), b = new Int32Array(N), na = 0;
+  for (let i = 0; i < N; i++) if (claimed[i] && owner[i] !== HIST_NATIONLESS) a[na++] = i;
+  for (let ring = 1; ring <= R && na; ring++){
+    const diag = ring % 2 === 0;
+    let nb = 0;
+    for (let k = 0; k < na; k++){
+      const i = a[k], o = owner[i], x = i % W;
+      const L = x > 0, Rr = x < W - 1, U = i >= W, D = i < N - W;
+      let j;
+      if (L){ j = i - 1; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+      if (Rr){ j = i + 1; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+      if (U){ j = i - W; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+      if (D){ j = i + W; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+      if (diag){
+        if (L && U){ j = i - W - 1; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+        if (Rr && U){ j = i - W + 1; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+        if (L && D){ j = i + W - 1; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+        if (Rr && D){ j = i + W + 1; if (!owner[j] && land[j]){ owner[j] = o; b[nb++] = j; } }
+      }
+    }
+    const t = a; a = b; b = t; na = nb;
+  }
+  a = b = null;
+
+  // 3. How deep each cell sits inside its own nation (two-pass chamfer, 3 per
+  //    step, 4 per diagonal): the deepest cell is where the name goes.
+  const dist = new Uint16Array(N);
+  for (let y = 0; y < H; y++){
+    for (let x = 0; x < W; x++){
+      const i = y * W + x, o = owner[i];
+      if (!o || o === HIST_NATIONLESS) continue;
+      // A neighbour of the same nation passes its depth on; anything else is an edge.
+      let m = (x > 0 && owner[i - 1] === o) ? dist[i - 1] + 3 : 3;
+      if (y > 0){
+        let v = owner[i - W] === o ? dist[i - W] + 3 : 3; if (v < m) m = v;
+        v = (x > 0 && owner[i - W - 1] === o) ? dist[i - W - 1] + 4 : 4; if (v < m) m = v;
+        v = (x < W - 1 && owner[i - W + 1] === o) ? dist[i - W + 1] + 4 : 4; if (v < m) m = v;
+      } else if (3 < m) m = 3;
+      dist[i] = m > 65000 ? 65000 : m;
+    }
+  }
+  for (let y = H - 1; y >= 0; y--){
+    for (let x = W - 1; x >= 0; x--){
+      const i = y * W + x, o = owner[i];
+      if (!o || o === HIST_NATIONLESS) continue;
+      let m = dist[i];
+      let v = (x < W - 1 && owner[i + 1] === o) ? dist[i + 1] + 3 : 3; if (v < m) m = v;
+      if (y < H - 1){
+        v = owner[i + W] === o ? dist[i + W] + 3 : 3; if (v < m) m = v;
+        v = (x < W - 1 && owner[i + W + 1] === o) ? dist[i + W + 1] + 4 : 4; if (v < m) m = v;
+        v = (x > 0 && owner[i + W - 1] === o) ? dist[i + W - 1] + 4 : 4; if (v < m) m = v;
+      } else if (3 < m) m = 3;
+      dist[i] = m;
+    }
+  }
+
+  // 4. Paint: land a nation holds at a light wash, its towns' own land
+  //    stronger with a pale rim, and a dark line where it ends.
+  const img = new ImageData(W, H);
+  const px = img.data;
+  const grey = [150, 140, 125];
+  const best = new Uint16Array(nations.length + 1), bestAt = new Int32Array(nations.length + 1).fill(-1);
+  for (let i = 0; i < N; i++){
+    const o = owner[i];
+    if (!o) continue;
+    const isN = o !== HIST_NATIONLESS;
+    const nat = isN ? nations[o - 1] : null;
+    const c = isN ? nat.rgb : grey;
+    const x = i % W;
+    const edge = x === 0 || owner[i - 1] !== o || x === W - 1 || owner[i + 1] !== o ||
+                 i < W || owner[i - W] !== o || i >= N - W || owner[i + W] !== o;
+    const j = i * 4;
+    if (edge){
+      const e = isN ? nat.edge : grey;
+      const k = (e[0] + e[1] + e[2]) > 600 ? 0.42 : 0.6;    // a white border would vanish; darken it
+      px[j] = e[0] * k; px[j + 1] = e[1] * k; px[j + 2] = e[2] * k; px[j + 3] = 235;
+    } else if (claimed[i]){
+      const rim = !claimed[i - 1] || !claimed[i + 1] || !claimed[i - W] || !claimed[i + W];
+      if (rim){ px[j] = c[0] * 0.55 + 115; px[j + 1] = c[1] * 0.55 + 115; px[j + 2] = c[2] * 0.55 + 115; px[j + 3] = 225; }
+      else { px[j] = c[0]; px[j + 1] = c[1]; px[j + 2] = c[2]; px[j + 3] = 200; }
+    } else {
+      px[j] = c[0]; px[j + 1] = c[1]; px[j + 2] = c[2]; px[j + 3] = 118;
+    }
+    if (isN){
+      nat.cells++;
+      if (dist[i] > best[o]){ best[o] = dist[i]; bestAt[o] = i; }
+    }
+  }
+  nations.forEach(n => {
+    const i = bestAt[n.id];
+    if (i < 0 || !n.towns) return;
+    const cx = i % W, cz = (i - cx) / W;
+    n.label = { x: HIST_X0 + (cx + 0.5) * HIST_CELL, z: HIST_Z0 + (cz + 0.5) * HIST_CELL, r: best[n.id] / 3 * HIST_CELL };
+  });
+  const order = nations.filter(n => n.label).sort((p, q) => q.cells - p.cells);
+  order.forEach((n, k) => { n.rank = k + 1; });
+
+  return {
+    date: snap.date, owner, img, nations, order, capitals, shapes,
+    stats: { towns, chunks, residents, nationless, nations: nations.filter(n => n.towns).length },
+  };
+}
+
+/* ---- showing a day ------------------------------------------------------- */
+function histPaint(frame){
+  if (!hist.canvas){
+    hist.canvas = document.createElement('canvas');
+    hist.canvas.width = HIST_W; hist.canvas.height = HIST_H;
+    hist.canvas.className = 'hist-canvas';
+    hist.ctx = hist.canvas.getContext('2d');
+  }
+  hist.ctx.putImageData(frame.img, 0, 0);
+  hist.texFor = null;                  // the globe's copy is out of date
+  histFlatShow();
+  if (hist.claims) hist.claims.redraw();
+  histFlatLabels();
+  globeRequestDraw();
+  histBarUpdate();
+}
+
+/* The flat map shows the canvas itself, stretched over the world, in its
+   own pane under every vector layer. */
+function histFlatShow(){
+  const mc = mapController;
+  if (!mc || !mc.map || !hist.canvas) return;
+  const map = mc.map;
+  if (!hist.panes){
+    map.createPane('histPane');
+    map.getPane('histPane').style.zIndex = 350;
+    map.getPane('histPane').style.pointerEvents = 'none';
+    map.createPane('histLabelPane');
+    map.getPane('histLabelPane').style.zIndex = 640;
+    map.getPane('histLabelPane').style.pointerEvents = 'none';
+    hist.panes = true;
+  }
+  if (!hist.overlay){
+    const CanvasOverlay = L.ImageOverlay.extend({
+      _initImage(){
+        const el = this._image = this._url;
+        L.DomUtil.addClass(el, 'leaflet-image-layer');
+        if (this._zoomAnimated) L.DomUtil.addClass(el, 'leaflet-zoom-animated');
+        el.onselectstart = L.Util.falseFn;
+        el.onmousemove = L.Util.falseFn;
+      },
+    });
+    const bounds = L.latLngBounds(
+      CoordUtils.mcToLatLng(HIST_X0, HIST_Z0 + HIST_H * HIST_CELL),
+      CoordUtils.mcToLatLng(HIST_X0 + HIST_W * HIST_CELL, HIST_Z0));
+    hist.overlay = new CanvasOverlay(hist.canvas, bounds, { pane: 'histPane', interactive: false });
+  }
+  if (!map.hasLayer(hist.overlay)) hist.overlay.addTo(map);
+  if (!hist.claims) hist.claims = new HistClaimsLayer();
+  if (!map.hasLayer(hist.claims)) hist.claims.addTo(map);
+  else hist.claims.redraw();
+  if (!hist.hooked){
+    hist.hooked = true;
+    map.on('zoomend', histFlatLabelSizes);
+    map.on('moveend', histFlatLabelSizes);
+    map.on('mousemove', histFlatHover);
+    map.on('mouseout', () => histTip(null));
+    map.on('click', histFlatClick);
+  }
+}
+
+/* Close in, the 64-block wash is too coarse to show a town, so each town's
+   exact claim (stored chunk by chunk for every day) is drawn crisply over
+   it. Repainted when the map stops moving; hidden while a zoom animates. */
+const HIST_CLAIMS_FROM_ZOOM = -4;
+let HistClaimsLayer = null;
+if (typeof L !== 'undefined' && L.Layer && L.Layer.extend){
+  HistClaimsLayer = L.Layer.extend({
+    onAdd(map){
+      this._map = map;
+      this._c = L.DomUtil.create('canvas', 'hist-claims');
+      map.getPane('histPane').appendChild(this._c);
+      map.on('moveend zoomend resize viewreset', this.redraw, this);
+      map.on('zoomstart', this._hide, this);
+      this.redraw();
+    },
+    onRemove(map){
+      L.DomUtil.remove(this._c);
+      map.off('moveend zoomend resize viewreset', this.redraw, this);
+      map.off('zoomstart', this._hide, this);
+    },
+    _hide(){ if (this._c) this._c.style.visibility = 'hidden'; },
+    redraw(){
+      const map = this._map, c = this._c;
+      if (!map || !c) return;
+      const size = map.getSize(), dpr = Math.min(2, window.devicePixelRatio || 1);
+      c.width = Math.round(size.x * dpr); c.height = Math.round(size.y * dpr);
+      c.style.width = size.x + 'px'; c.style.height = size.y + 'px';
+      L.DomUtil.setPosition(c, map.containerPointToLayerPoint([0, 0]));
+      c.style.visibility = '';
+      const f = hist.frame;
+      const z = map.getZoom();
+      if (!f || z < HIST_CLAIMS_FROM_ZOOM) return;
+      const ctx = c.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const k = Math.pow(2, z);
+      const tl = map.containerPointToLatLng([0, 0]), br = map.containerPointToLatLng([size.x, size.y]);
+      const ox = tl.lng, oz = -tl.lat, ex = br.lng, ez = -br.lat;
+      histDrawShapes(ctx, f, (x) => (x - ox) * k, (zz) => (zz - oz) * k, ox, oz, ex, ez, k);
+    },
+  });
+}
+
+/* Each visible town's runs as filled strips, a nation at a time. */
+function histDrawShapes(ctx, f, sx, sz, x0, z0, x1, z1, k){
+  const byNation = new Map();
+  for (const s of f.shapes){
+    if (s.x1 < x0 || s.x0 > x1 || s.z1 < z0 || s.z0 > z1) continue;
+    let l = byNation.get(s.id); if (!l) byNation.set(s.id, l = []);
+    l.push(s);
+  }
+  const w16 = 16 * k;
+  byNation.forEach((list, id) => {
+    const nat = id === HIST_NATIONLESS ? null : f.nations[id - 1];
+    const c = nat ? nat.rgb : [150, 140, 125];
+    ctx.beginPath();
+    for (const s of list){
+      const r = s.runs;
+      for (let q = 0; q + 2 < r.length; q += 3){
+        ctx.rect(sx(r[q + 1] * 16), sz(r[q] * 16), r[q + 2] * w16, w16);
+      }
+    }
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},.82)`;
+    ctx.fill();
+  });
+}
+
+function histFont(){
+  if (!hist.font) hist.font = (getComputedStyle(document.body).getPropertyValue('--font-display') || '').trim() || 'Georgia, serif';
+  return hist.font;
+}
+
+/* Nation names on the flat map, each sized to the land it is written across. */
+function histFlatLabels(){
+  const mc = mapController;
+  if (!mc || !mc.map || !hist.frame) return;
+  if (!hist.labels) hist.labels = L.layerGroup().addTo(mc.map);
+  else if (!mc.map.hasLayer(hist.labels)) hist.labels.addTo(mc.map);
+  hist.labels.clearLayers();
+  hist.frame.order.slice(0, 160).forEach(n => {
+    const m = L.marker(CoordUtils.mcToLatLng(n.label.x, n.label.z), {
+      pane: 'histLabelPane', interactive: false, keyboard: false,
+      icon: L.divIcon({ className: 'hist-label', html: `<span>${escapeHtml(histNice(n.name))}</span>`, iconSize: null }),
+    });
+    m._hist = n;
+    hist.labels.addLayer(m);
+  });
+  hist.frame.capitals.forEach(n => {
+    const m = L.marker(CoordUtils.mcToLatLng(n.capital.x, n.capital.z), {
+      pane: 'histLabelPane', interactive: false, keyboard: false,
+      icon: L.divIcon({ className: 'hist-cap', html: `<i></i><span>${escapeHtml(histNice(n.capital.name))}</span>`, iconSize: null }),
+    });
+    m._histCap = n;
+    hist.labels.addLayer(m);
+  });
+  histFlatLabelSizes();
+}
+
+function histFlatLabelSizes(){
+  const mc = mapController;
+  if (!hist.on || !hist.labels || !mc || !mc.map) return;
+  const map = mc.map, z = map.getZoom(), ppb = Math.pow(2, z);
+  const size = map.getSize();
+  const boxes = [];
+  const fits = (b) => !boxes.some(o => !(b[2] < o[0] || b[0] > o[2] || b[3] < o[1] || b[1] > o[3]));
+  const caps = [], names = [];
+  hist.labels.eachLayer(m => (m._hist ? names : caps).push(m));
+  names.forEach(m => {
+    const el = m.getElement();
+    if (!el) return;
+    const n = m._hist;
+    const p = map.latLngToContainerPoint(m.getLatLng());
+    let fs = Math.min(30, n.label.r * ppb * 0.5);
+    const span = el.firstChild;
+    if (fs < 8.5 || p.x < -200 || p.y < -60 || p.x > size.x + 200 || p.y > size.y + 60){ el.style.display = 'none'; return; }
+    el.style.display = '';
+    span.style.fontSize = fs + 'px';
+    span.style.letterSpacing = (fs * 0.14) + 'px';
+    // Too long for its land: shrink to fit, or leave it out. A name may run a
+    // little past the deepest circle, since land is rarely round.
+    const room = n.label.r * 3.2 * ppb;
+    let w = span.offsetWidth;
+    if (w > room){ fs *= room / w; if (fs < 8.5){ el.style.display = 'none'; return; } span.style.fontSize = fs + 'px'; span.style.letterSpacing = (fs * 0.14) + 'px'; w = span.offsetWidth; }
+    const h = span.offsetHeight;
+    const box = [p.x - w / 2, p.y - h / 2, p.x + w / 2, p.y + h / 2];
+    if (!fits(box)){ el.style.display = 'none'; return; }
+    boxes.push(box);
+  });
+  caps.forEach(m => {
+    const el = m.getElement();
+    if (!el) return;
+    el.style.display = z >= -4 ? '' : 'none';
+  });
+}
+
+function histCellAt(x, z){
+  if (!hist.frame) return null;
+  const cx = Math.floor((x - HIST_X0) / HIST_CELL), cz = Math.floor((z - HIST_Z0) / HIST_CELL);
+  if (cx < 0 || cz < 0 || cx >= HIST_W || cz >= HIST_H) return null;
+  const o = hist.frame.owner[cz * HIST_W + cx];
+  if (!o) return null;
+  if (o === HIST_NATIONLESS) return { nationless: true };
+  return hist.frame.nations[o - 1] || null;
+}
+
+function histTip(text, x, y){
+  const tip = document.getElementById('histTip');
+  if (!tip) return;
+  if (!text){ tip.hidden = true; return; }
+  tip.textContent = text;
+  tip.hidden = false;
+  tip.style.left = (x + 14) + 'px';
+  tip.style.top = (y - 10) + 'px';
+}
+function histTipText(n){
+  if (!n) return null;
+  if (n.nationless) return 'Towns with no nation';
+  return `${histNice(n.name)} · ${CoordUtils.fmt(n.towns)} town${n.towns === 1 ? '' : 's'}`;
+}
+
+function histFlatHover(e){
+  if (!hist.on || mapProjection === 'globe'){ return; }
+  const n = histCellAt(e.latlng.lng, -e.latlng.lat);
+  histTip(histTipText(n), e.containerPoint.x, e.containerPoint.y);
+}
+
+function histNationHtml(n){
+  if (!n || n.nationless) return '<div class="hist-pop"><b>Towns with no nation</b><p>Their own land only; nationless towns do not spread.</p></div>';
+  const f = hist.frame, fmt = CoordUtils.fmt;
+  return `<div class="hist-pop">
+    <span class="hist-pop-when">${escapeHtml(histDateText(f.date))}</span>
+    <b><i style="background:rgb(${n.rgb.join(',')})"></i>${escapeHtml(histNice(n.name))}</b>
+    <div class="hist-pop-figs">
+      <div><strong>${fmt(n.towns)}</strong><span>towns</span></div>
+      <div><strong>${fmt(n.residents)}</strong><span>people</span></div>
+      <div><strong>${fmt(n.chunks)}</strong><span>chunks</span></div>
+    </div>
+    <p>${n.capital ? 'Capital ' + escapeHtml(histNice(n.capital.name)) + ' · ' : ''}#${n.rank} by land that day</p>
+  </div>`;
+}
+
+function histFlatClick(e){
+  if (!hist.on || mapProjection === 'globe') return;
+  const n = histCellAt(e.latlng.lng, -e.latlng.lat);
+  if (!n) return;
+  L.popup({ maxWidth: 280, className: 'hist-popup' }).setLatLng(e.latlng).setContent(histNationHtml(n)).openOn(mapController.map);
+}
+
+/* ---- the globe's copy ---------------------------------------------------- */
+/* The territory unrolled into longitude and latitude (the way the ball's own
+   skin is), and handed to WebGL. Redone only when the day changes. */
+function histGlobeTexture(gl){
+  if (!hist.canvas || !hist.frame) return null;
+  const key = hist.frame.date + '|' + globeCalibVer;
+  if (hist.texFor === key && hist.tex) return hist.tex;
+  const EW = IS_SMALL_SCREEN ? 1024 : 2048, EH = EW / 2;
+  if (!hist.eq){ hist.eq = document.createElement('canvas'); hist.eq.width = EW; hist.eq.height = EH; }
+  const ectx = hist.eq.getContext('2d');
+  ectx.clearRect(0, 0, EW, EH);
+  ectx.imageSmoothingEnabled = true;
+  const c = irlState.calib;
+  if (hist.rowMapFor !== JSON.stringify(c)){
+    hist.rowMap = new Float32Array(EH);
+    for (let j = 0; j < EH; j++){
+      const lat = 90 - (j + 0.5) / EH * 180;
+      hist.rowMap[j] = (irlToMc(0, lat)[1] - HIST_Z0) / HIST_CELL;
+    }
+    hist.rowMapFor = JSON.stringify(c);
+  }
+  const sx = (c.xW - HIST_X0) / HIST_CELL, sw = (c.xE - c.xW) / HIST_CELL;
+  for (let j = 0; j < EH; j++){
+    const sy = hist.rowMap[j];
+    if (!(sy >= 0 && sy < HIST_H - 1)) continue;
+    ectx.drawImage(hist.canvas, sx, sy, sw, 1, 0, j, EW, 1);
+  }
+  if (!hist.tex) hist.tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, hist.tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, hist.eq);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  // Smooth when magnified: a 64-block cell blown up reads as a painted wash
+  // rather than a mosaic.
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  hist.texFor = key;
+  return hist.tex;
+}
+
+/* Drawn over the ground on the ball itself, after the sharper pictures. */
+function globeDrawHistoryGL(gl){
+  const tex = histGlobeTexture(gl);
+  if (!tex) return;
+  gl.uniform1f(globe.loc.uScale, 1);
+  gl.uniform1f(globe.loc.uTile, 1);
+  gl.uniform1f(globe.loc.uHasTex, 1);
+  gl.uniform1f(globe.loc.uBright, 1.05);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.depthFunc(gl.LEQUAL);
+  gl.depthMask(false);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.bindBuffer(gl.ARRAY_BUFFER, globe.buf.pos);
+  gl.vertexAttribPointer(globe.loc.aPos, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, globe.buf.uv);
+  gl.vertexAttribPointer(globe.loc.aUv, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, globe.buf.idx);
+  gl.drawElements(gl.TRIANGLES, globe.count, gl.UNSIGNED_SHORT, 0);
+  gl.disable(gl.BLEND);
+  gl.depthMask(true);
+  gl.depthFunc(gl.LESS);
+}
+
+/* Names and capitals on the ball, and close in, each town's exact claim. */
+function globeDrawHistoryLabels(ctx, V, hits){
+  const f = hist.frame;
+  if (!f) return;
+  if (V.bpp < 10) globeDrawHistoryShapes(ctx, V, f);
+  const R = globeBlocksPerRad();
+  const boxes = [];
+  const font = histFont();
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  const capsShown = V.bpp < 40;
+  if (capsShown){
+    f.capitals.forEach(n => {
+      const p = globeProject(V.M, globeVecOfBlock(n.capital.x, n.capital.z));
+      if (!p || p[0] < -20 || p[1] < -20 || p[0] > V.w + 20 || p[1] > V.h + 20) return;
+      globeStar(ctx, p[0], p[1], 4.2);
+      ctx.fillStyle = '#f5f1e8'; ctx.fill();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(8,8,10,.85)'; ctx.stroke();
+      boxes.push([p[0] - 5, p[1] - 5, p[0] + 5, p[1] + 5]);
+      if (V.bpp < 12){
+        ctx.font = `600 12px ${globe.font || 'sans-serif'}`;
+        ctx.textAlign = 'left';
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,8,10,.8)'; ctx.strokeText(histNice(n.capital.name), p[0] + 7, p[1]);
+        ctx.fillStyle = '#f5f1e8'; ctx.fillText(histNice(n.capital.name), p[0] + 7, p[1]);
+        ctx.textAlign = 'center';
+      }
+      hits.push({ x: p[0], y: p[1], r: 7, kind: 'label', label: histNice(n.capital.name) + ' · capital of ' + histNice(n.name) });
+    });
+  }
+  for (const n of f.order.slice(0, 160)){
+    const p = globeProject(V.M, globeVecOfBlock(n.label.x, n.label.z));
+    if (!p || p[0] < -100 || p[1] < -40 || p[0] > V.w + 100 || p[1] > V.h + 40) continue;
+    const pxPerBlock = V.F / Math.max(1e-6, V.d - p[2]) / R;
+    let fs = Math.min(30, n.label.r * pxPerBlock * 0.5);
+    if (fs < 8.5) continue;
+    const text = histNice(n.name).toUpperCase();
+    const spacing = (t, size) => { ctx.font = `600 ${size}px ${font}`; if ('letterSpacing' in ctx) ctx.letterSpacing = (size * 0.14) + 'px'; return ctx.measureText(t).width; };
+    let w = spacing(text, fs);
+    const room = n.label.r * 3.2 * pxPerBlock;
+    if (w > room){ fs *= room / w; if (fs < 8.5) continue; w = spacing(text, fs); }
+    const box = [p[0] - w / 2 - 2, p[1] - fs * 0.6, p[0] + w / 2 + 2, p[1] + fs * 0.6];
+    if (boxes.some(o => !(box[2] < o[0] || box[0] > o[2] || box[3] < o[1] || box[1] > o[3]))) continue;
+    boxes.push(box);
+    ctx.lineWidth = Math.max(2.5, fs * 0.22); ctx.strokeStyle = 'rgba(10,9,8,.72)'; ctx.strokeText(text, p[0], p[1]);
+    ctx.fillStyle = '#f7f1e3'; ctx.fillText(text, p[0], p[1]);
+  }
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  ctx.restore();
+}
+
+function globeDrawHistoryShapes(ctx, V, f){
+  const R = globeBlocksPerRad(), M = V.M;
+  const proj = (x, z) => {
+    const [lon, lat] = globeLonLat(x, z);
+    const a = lon * GLOBE_D2R, b = lat * GLOBE_D2R, cb = Math.cos(b);
+    const vx = cb * Math.sin(a), vy = Math.sin(b), vz = cb * Math.cos(a);
+    const qx = M[0] * vx + M[1] * vy + M[2] * vz, qy = M[3] * vx + M[4] * vy + M[5] * vz, qz = M[6] * vx + M[7] * vy + M[8] * vz;
+    if (qz < V.zl) return null;
+    const d = V.d - qz;
+    return [V.cx + V.F * qx / d, V.cy - V.F * qy / d];
+  };
+  const byNation = new Map();
+  for (const s of f.shapes){
+    const cx = (s.x0 + s.x1) / 2, cz = (s.z0 + s.z1) / 2;
+    const rad = Math.hypot(s.x1 - s.x0, s.z1 - s.z0) / 2 / R;
+    if (!globeSeen(V, globeVecOfBlock(cx, cz), rad)) continue;
+    let l = byNation.get(s.id); if (!l) byNation.set(s.id, l = []);
+    l.push(s);
+  }
+  byNation.forEach((list, id) => {
+    const nat = id === HIST_NATIONLESS ? null : f.nations[id - 1];
+    const c = nat ? nat.rgb : [150, 140, 125];
+    ctx.beginPath();
+    for (const s of list){
+      const r = s.runs;
+      for (let q = 0; q + 2 < r.length; q += 3){
+        const z0 = r[q] * 16, x0 = r[q + 1] * 16, x1 = x0 + r[q + 2] * 16, z1 = z0 + 16;
+        const a = proj(x0, z0), b = proj(x1, z0), cc = proj(x1, z1), d = proj(x0, z1);
+        if (!a || !b || !cc || !d) continue;
+        ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(cc[0], cc[1]); ctx.lineTo(d[0], d[1]); ctx.closePath();
+      }
+    }
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},.82)`;
+    ctx.fill();
+  });
+}
+
+/* ---- the timeline -------------------------------------------------------- */
+async function histOpen(){
+  hist.on = true;
+  document.body.classList.add('hist-on');
+  if (mapWorld === 'moon' && typeof setMapWorld === 'function') setMapWorld('earth');
+  const bar = document.getElementById('histBar');
+  if (bar) bar.hidden = false;
+  refreshMapLayers();
+  if (typeof renderPlayers === 'function') renderPlayers();
+  histStatus('Loading the days…');
+  try {
+    await histLoadIndex();
+  } catch (err){
+    histStatus('History unavailable: ' + err.message);
+    return;
+  }
+  if (!hist.on) return;
+  if (!hist.index.length){ histStatus('No days recorded yet. The recorder adds one every morning.'); return; }
+  histBarBuild();
+  histStatus('');
+  histGo(hist.pos >= 0 ? hist.pos : hist.index.length - 1);
+  if (mapController && mapController.syncLayerToggles) mapController.syncLayerToggles();
+}
+
+function histClose(){
+  hist.on = false;
+  hist.playing = false;
+  clearInterval(hist.timer); hist.timer = null;
+  document.body.classList.remove('hist-on');
+  const bar = document.getElementById('histBar');
+  if (bar) bar.hidden = true;
+  histTip(null);
+  const mc = mapController;
+  if (mc && mc.map){
+    if (hist.overlay && mc.map.hasLayer(hist.overlay)) mc.map.removeLayer(hist.overlay);
+    if (hist.labels && mc.map.hasLayer(hist.labels)) mc.map.removeLayer(hist.labels);
+    if (hist.claims && mc.map.hasLayer(hist.claims)) mc.map.removeLayer(hist.claims);
+    mc.map.closePopup();
+  }
+  refreshMapLayers();
+  if (typeof renderPlayers === 'function') renderPlayers();
+  globeRequestDraw();
+  if (mc && mc.syncLayerToggles) mc.syncLayerToggles();
+}
+
+function histGo(i){
+  if (!hist.index || !hist.index.length) return;
+  hist.want = Math.max(0, Math.min(hist.index.length - 1, i));
+  const range = document.getElementById('histRange');
+  if (range) range.value = String(hist.want);
+  histBarUpdate(true);
+  histPump();
+}
+
+/* Shows whatever day is wanted, skipping ones asked for and passed while
+   the last was still being worked out, so scrubbing never queues up. */
+async function histPump(){
+  if (hist.busy) return;
+  hist.busy = true;
+  try {
+    while (hist.on && hist.want >= 0 && (hist.want !== hist.pos || !hist.frame || hist.frameReach !== hist.reachI)){
+      const i = hist.want, d = hist.index[i];
+      const slow = setTimeout(() => histStatus(`Loading ${histDateText(d.date)}…`), 350);
+      let snap, land;
+      try { [snap, land] = await Promise.all([histDay(d.date), histLand()]); }
+      finally { clearTimeout(slow); }
+      if (!hist.on) break;
+      if (hist.want !== i) continue;          // moved on while it loaded
+      histStatus(hist.landNote || '');
+      snap.date = snap.date || d.date;
+      hist.frame = histCompute(snap, land, HIST_REACHES[hist.reachI][0]);
+      hist.frameReach = hist.reachI;
+      hist.pos = i;
+      histPaint(hist.frame);
+      // The next few days, fetched ahead while this one is looked at.
+      if (hist.playing) for (let k = 1; k <= 3; k++) if (hist.index[i + k]) histDay(hist.index[i + k].date);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  } catch (err){
+    histStatus(String(err && err.message || err));
+    hist.playing = false; histBarUpdate();
+  } finally {
+    hist.busy = false;
+  }
+}
+
+function histPlay(on){
+  hist.playing = on;
+  clearInterval(hist.timer); hist.timer = null;
+  if (on){
+    if (hist.pos >= hist.index.length - 1) histGo(0);     // from the start again
+    hist.stepAt = performance.now();
+    hist.timer = setInterval(() => {
+      if (!hist.on || !hist.playing) return;
+      if (hist.busy || hist.want !== hist.pos) return;     // still drawing the last one
+      const now = performance.now();
+      const per = 1000 / HIST_SPEEDS[hist.speedI];
+      if (now - hist.stepAt < per) return;
+      const steps = Math.max(1, Math.floor((now - hist.stepAt) / per));
+      hist.stepAt = now;
+      if (hist.pos >= hist.index.length - 1){ histPlay(false); return; }
+      histGo(hist.pos + steps);
+    }, 40);
+  }
+  histBarUpdate();
+}
+
+/* The bar's fixed parts, built once per list of days: the towns line under
+   the slider, and a tick at each month. */
+function histBarBuild(){
+  const days = hist.index;
+  const range = document.getElementById('histRange');
+  range.max = String(days.length - 1);
+  const spark = document.getElementById('histSpark');
+  const max = Math.max(1, ...days.map(d => d.towns || 0));
+  const n = Math.max(1, days.length - 1);
+  // Gaps (days the archive missed) stay gaps: the line is drawn by date.
+  const t0 = Date.parse(days[0].date), t1 = Date.parse(days[days.length - 1].date), span = Math.max(1, t1 - t0);
+  const pts = days.map(d => [((Date.parse(d.date) - t0) / span) * 100, 100 - (d.towns || 0) / max * 92]);
+  spark.setAttribute('viewBox', '0 0 100 100');
+  spark.innerHTML = `<path class="hs-area" d="M0,100 ${pts.map(p => `L${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')} L100,100 Z"/>
+    <path class="hs-line" d="${pts.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')}"/>`;
+  const months = document.getElementById('histMonths');
+  const seen = new Set();
+  months.innerHTML = days.map(d => {
+    const m = d.date.slice(0, 7);
+    if (seen.has(m)) return '';
+    seen.add(m);
+    const x = ((Date.parse(d.date) - t0) / span) * 100;
+    return x > 97 ? '' : `<span style="left:${x.toFixed(2)}%">${histDateText(d.date).split(' ')[1]}</span>`;
+  }).join('');
+  // The slider steps through recorded days; its track is laid out by date,
+  // so a day's position on the track matches the line above it.
+  hist.trackX = days.map(d => (Date.parse(d.date) - t0) / span);
+  void n;
+}
+
+function histBarUpdate(soft){
+  const days = hist.index;
+  if (!days || !days.length) return;
+  const i = hist.want >= 0 ? hist.want : days.length - 1;
+  const d = days[i];
+  const dateEl = document.getElementById('histDate');
+  if (dateEl) dateEl.textContent = histDateText(d.date);
+  const needle = document.getElementById('histNeedle');
+  if (needle && hist.trackX) needle.style.left = (hist.trackX[i] * 100) + '%';
+  const range = document.getElementById('histRange');
+  if (range && !soft) range.value = String(i);
+  const play = document.getElementById('histPlay');
+  if (play){
+    play.classList.toggle('playing', hist.playing);
+    play.setAttribute('aria-label', hist.playing ? 'Pause' : 'Play');
+  }
+  const sp = document.getElementById('histSpeed');
+  if (sp) sp.textContent = (hist.speedI === 0 ? '1×' : hist.speedI === 1 ? '2×' : '4×');
+  const rc = document.getElementById('histReach');
+  if (rc) rc.textContent = HIST_REACHES[hist.reachI][1];
+  const figs = document.getElementById('histFigs');
+  if (figs){
+    const f = hist.frame && hist.frame.date === d.date ? hist.frame.stats : null;
+    const fmt = CoordUtils.fmt;
+    const towns = f ? f.towns : d.towns, nations = f ? f.nations : d.nations, people = f ? f.residents : d.residents;
+    const prev = days[Math.max(0, i - 7)];
+    const delta = i >= 7 && typeof d.towns === 'number' && typeof prev.towns === 'number' ? d.towns - prev.towns : null;
+    figs.innerHTML = `<div><b>${fmt(towns)}</b><span>towns${delta === null ? '' : ` <em class="${delta >= 0 ? 'up' : 'down'}">${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))} in a week</em>`}</span></div>
+      <div><b>${fmt(nations)}</b><span>nations</span></div>
+      <div><b>${fmt(people)}</b><span>people</span></div>`;
+  }
+  const note = document.getElementById('histSource');
+  if (note) note.textContent = d.source === 'wayback' ? 'from the Wayback Machine' : d.source === 'live' ? 'recorded that morning' : '';
+}
+
+(function histWire(){
+  const range = document.getElementById('histRange');
+  if (!range) return;
+  range.addEventListener('input', () => { const v = Number(range.value); histPlay(false); histGo(v); });
+  document.getElementById('histPlay').addEventListener('click', () => histPlay(!hist.playing));
+  document.getElementById('histSpeed').addEventListener('click', () => { hist.speedI = (hist.speedI + 1) % HIST_SPEEDS.length; histBarUpdate(); });
+  document.getElementById('histReach').addEventListener('click', () => {
+    hist.reachI = (hist.reachI + 1) % HIST_REACHES.length;
+    histBarUpdate();
+    hist.pos = -1; histPump();
+  });
+  document.getElementById('histClose').addEventListener('click', () => histClose());
+  document.getElementById('histPrev').addEventListener('click', () => { histPlay(false); histGo((hist.want >= 0 ? hist.want : 0) - 1); });
+  document.getElementById('histNext').addEventListener('click', () => { histPlay(false); histGo((hist.want >= 0 ? hist.want : 0) + 1); });
+  document.addEventListener('keydown', (e) => {
+    if (!hist.on || /input|textarea|select/i.test((e.target && e.target.tagName) || '') && e.target !== range) return;
+    if (e.key === ' ' && e.target === document.body){ e.preventDefault(); histPlay(!hist.playing); }
+    else if (e.key === '[' ){ histPlay(false); histGo(hist.want - 1); }
+    else if (e.key === ']'){ histPlay(false); histGo(hist.want + 1); }
+  });
+})();
+
+/* =========================================================================
    7. MAP CONTROLLER
    L.CRS.Simple is used so native EarthMC X/Z blocks ARE the map's plane —
    no basemap tiles, no lat/lng projection. Geoman's toolbar is pinned
@@ -6765,11 +7791,18 @@ class MapController{
     const fmt = (n) => CoordUtils.fmt(n);
     const rows = [
       // THE SERVER
+      // HISTORY: the server's nations on any recorded day, played as a timelapse.
+      { group: 'history', label: 'Timelapse', globe: true,
+        get: () => hist.on, set: (v) => (v ? histOpen() : histClose()),
+        meta: () => (hist.index && hist.index.length ? fmt(hist.index.length) + ' days' : ''),
+        when: () => mapWorld !== 'moon' },
+      // THE SERVER
       { group: 'server', label: 'Town borders', globe: true,
         get: () => showClaims, set: (v) => { showClaims = v; refreshMapLayers(); },
-        meta: () => { const n = townsForActiveView(state.towns || []).length; return n ? fmt(n) : ''; } },
+        meta: () => { if (hist.on) return 'paused'; const n = townsForActiveView(state.towns || []).length; return n ? fmt(n) : ''; } },
       { group: 'server', label: 'Town markers', globe: true,
-        get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); } },
+        get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); },
+        meta: () => (hist.on ? 'paused' : '') },
       { group: 'server', label: 'Players', globe: true,
         get: () => showPlayers, set: (v) => setShowPlayers(v),
         meta: () => (showPlayers && onlinePlayers.length ? fmt(onlinePlayers.length) : '') },
@@ -6823,7 +7856,7 @@ class MapController{
           globeRequestDraw();
         } },
     ];
-    const GROUPS = { server: 'The server', ethiopia: 'Ethiopia', earth: 'Earth' };
+    const GROUPS = { history: 'History', server: 'The server', ethiopia: 'Ethiopia', earth: 'Earth' };
 
     const pane = document.querySelector('.map-pane') || document.getElementById('map').parentNode;
     const panel = document.createElement('div');
@@ -7617,7 +8650,7 @@ function clearClaimIndex(){
 
 function renderNationClaims(allTowns){
   let towns = townsForActiveView(allTowns);
-  if (!showClaims){ clearClaimIndex(); placeAllMarkers(); return; }
+  if (!showClaims || hist.on){ clearClaimIndex(); placeAllMarkers(); return; }
 
   /* Low quality drops claim outlines entirely — they are the most expensive
      layer, and on a phone that is the right trade. But a finished plan is now
@@ -7720,6 +8753,7 @@ function renderNationClaims(allTowns){
 
 function setMapWorld(world){
   if (mapWorld === world) return;
+  if (world === 'moon' && hist.on) histClose();
   mapWorld = world;
   const layer = mapController.terrainLayer;
   if (layer){
@@ -7792,7 +8826,7 @@ function renderNationRange(){
   const group = mapController.rangeLayerGroup;
   if (!group) return;
   group.clearLayers();
-  if (!showNationRange || mapWorld === 'moon') return;
+  if (!showNationRange || mapWorld === 'moon' || hist.on) return;
 
   const nation = rangeNation();
   if (!nation) return;
@@ -8701,7 +9735,7 @@ function placeAllMarkers(){
 function renderTownMarkers(allTowns){
   const group = mapController.townsLayerGroup;
   if (!markerZoomHooked){ markerZoomHooked = true; mapController.map.on('zoomend', placeAllMarkers); }
-  if (!showTowns){ group.clearLayers(); markerIndex.clear(); return; }
+  if (!showTowns || hist.on){ group.clearLayers(); markerIndex.clear(); return; }
   const towns = townsForActiveView(allTowns);
   const interactive = !drawModeArmed();
   const keep = new Set();
@@ -8838,7 +9872,7 @@ function renderPlayers(){
   const mc = mapController;
   if (!mc || !mc.playersLayerGroup) return;
   mc.playersLayerGroup.clearLayers();
-  if (!showPlayers) return;
+  if (!showPlayers || hist.on) return;
 
   // Only what's on screen. Each of these is a real DOM node, and the server
   // regularly has 400+ people online — rendering the lot is what would put a

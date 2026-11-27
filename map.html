@@ -1835,6 +1835,9 @@ body.hist-recording .hr-field, body.hist-recording .hr-dates, body.hist-recordin
 .globe-ov:active{ cursor:grabbing; }
 .globe-glow{ position:absolute; border-radius:50%; pointer-events:none;
   background:radial-gradient(circle closest-side, rgba(110,160,255,.5) 0 79%, rgba(90,140,255,.22) 84%, rgba(60,110,230,.07) 92%, rgba(40,80,200,0) 100%); }
+/* No air on the moon: a faint pale rim of reflected light instead. */
+.globe.moon{ background:radial-gradient(120% 95% at 50% 42%, #101012 0%, #060607 58%, #020203 100%); }
+.globe.moon .globe-glow{ background:radial-gradient(circle closest-side, rgba(230,228,220,.16) 0 79%, rgba(220,218,210,.07) 84%, rgba(200,200,200,.02) 92%, rgba(200,200,200,0) 100%); }
 .globe-zoom{ position:absolute; top:10px; left:10px; display:flex; flex-direction:column; border-radius:10px; overflow:hidden;
   border:1px solid rgba(255,255,255,.1); background:rgba(14,12,10,.86); box-shadow:0 8px 20px -10px rgba(0,0,0,.7); }
 .globe-zoom button{ width:34px; height:32px; border:0; background:none; color:var(--parchment); font:600 1.1rem var(--font-body); cursor:pointer; }
@@ -4678,10 +4681,15 @@ function tracedOutlinesFor(town){
     source = [...set].map(k => k.split(',').map(Number));
   }
 
-  const hit = outlineCache.get(town.name);
+  if (!town.isMoon){
+    const onMoon = moonChunkFilter(source);
+    if (onMoon){ source = source.filter(c => !onMoon(c)); key += '|m'; }
+  }
+  const ck = town.isMoon ? town.name + '@moon' : town.name;
+  const hit = outlineCache.get(ck);
   if (hit && hit.key === key) return hit.rings;
   const rings = traceChunkOutlines(source);
-  outlineCache.set(town.name, { key, rings });
+  outlineCache.set(ck, { key, rings });
   // Bounded, like activityMemo. A world scan touches thousands of towns and
   // each entry holds full traced geometry, so without a ceiling this grows
   // for the life of the session. The cap sits above MAX_CLAIM_TOWNS so the
@@ -5442,8 +5450,25 @@ const globe = {
 };
 
 /* --- where things are ----------------------------------------------------- */
+/* Which world the ball is, and how blocks wrap onto it. Earth uses the
+   real-world calibration; the moon is wrapped plainly (its map's width round
+   the equator, its height pole to pole), from the box its pictures fill. */
+function globeOnMoon(){ return mapWorld === 'moon' && !!moonGeo.box; }
+function globeCalib(){
+  if (!globeOnMoon()) return irlState.calib;
+  const b = moonGeo.box, W = b.x1 - b.x0;
+  return { xW: b.x0, xE: b.x1, eqZ: (b.z0 + b.z1) / 2, ys: 2 * (b.z1 - b.z0) / W, proj: 'equirect' };
+}
+/* The other way: longitude and latitude back to blocks. */
+function globeToBlock(lon, lat){
+  if (!globeOnMoon()) return irlToMc(lon, lat);
+  const c = globeCalib(), k = (c.xE - c.xW) / (2 * Math.PI);
+  return [c.xW + (lon + 180) / 360 * (c.xE - c.xW), c.eqZ - lat * GLOBE_D2R * k * c.ys];
+}
+/* The coarsest and finest picture folders of the world on the ball. */
+function globeMaxFolder(){ return globeOnMoon() ? (moonGeo.max || MOON_MAX_NATIVE_ZOOM) : 5; }
 function globeLonLat(x, z){
-  const c = irlState.calib;
+  const c = globeCalib();
   const lon = (x - c.xW) / (c.xE - c.xW) * 360 - 180;
   const k = (c.xE - c.xW) / (2 * Math.PI);
   const y = (c.eqZ - z) / (k * (c.ys || 1));
@@ -5510,7 +5535,7 @@ function globePick(px, py){
              M[2] * q[0] + M[5] * q[1] + M[8] * q[2]];
   const lat = Math.asin(Math.max(-1, Math.min(1, p[1]))) / GLOBE_D2R;
   const lon = Math.atan2(p[0], p[2]) / GLOBE_D2R;
-  const [x, z] = irlToMc(lon, lat);
+  const [x, z] = globeToBlock(lon, lat);
   return { lat, lon, x, z };
 }
 /* How many screen pixels the ball's radius covers. */
@@ -5553,7 +5578,7 @@ function globeEnsureBuilt(){
     }`));
   gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
     precision highp float;
-    uniform sampler2D uTex; uniform float uHasTex; uniform float uBright; uniform float uTile;
+    uniform sampler2D uTex; uniform float uHasTex; uniform float uBright; uniform float uTile; uniform float uMoon;
     varying vec2 vUv; varying vec3 vN; varying vec3 vView;
     void main(){
       vec3 n = normalize(vN);
@@ -5562,7 +5587,7 @@ function globeEnsureBuilt(){
       float diff = max(dot(n, normalize(vec3(-0.42, 0.5, 0.76))), 0.0);
       vec3 col = base * (0.66 + 0.44 * diff) * uBright;
       float rim = pow(1.0 - max(dot(n, normalize(vView)), 0.0), 2.6);
-      col = mix(col, vec3(0.42, 0.62, 1.0), rim * 0.6);
+      col = mix(col, uMoon > 0.5 ? vec3(0.86, 0.85, 0.82) : vec3(0.42, 0.62, 1.0), rim * (uMoon > 0.5 ? 0.16 : 0.6));
       gl_FragColor = vec4(col, uTile > 0.5 ? t.a : 1.0);
     }`));
   gl.linkProgram(prog);
@@ -5574,6 +5599,7 @@ function globeEnsureBuilt(){
     uDist: gl.getUniformLocation(prog, 'uDist'), uTex: gl.getUniformLocation(prog, 'uTex'),
     uHasTex: gl.getUniformLocation(prog, 'uHasTex'), uBright: gl.getUniformLocation(prog, 'uBright'),
     uScale: gl.getUniformLocation(prog, 'uScale'), uTile: gl.getUniformLocation(prog, 'uTile'),
+    uMoon: gl.getUniformLocation(prog, 'uMoon'),
   };
 
   // A latitude/longitude mesh. The seam column is doubled (u = 0 and u = 1)
@@ -5648,7 +5674,9 @@ function globeLoadImage(url){
 
 async function globeBuildTexture(){
   if (globe.texState === 'loading' || globe.texState === 'ready') return;
+  if (mapWorld === 'moon') return globeBuildMoonTexture();
   globe.texState = 'loading';
+  globe.texWorld = 'earth';
   const gl = globe.gl;
 
   // One image near the middle of the world decides how to fetch the rest.
@@ -5728,7 +5756,8 @@ async function globeBuildTexture(){
     const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
     if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT,
       Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
-    globe.tex = tex; globe.hasTex = true;
+    globe.tex = tex; globe.hasTex = true; globe.skinBpp = (c.xE - c.xW) / W;
+    if (mapWorld !== 'earth'){ globeStashSkin('earth'); return; }   // the moon was picked meanwhile
   } catch (_e){
     if (!globe.viaWorker){ globe.viaWorker = true; globe.texState = 'none'; return globeBuildTexture(); }
     globe.texState = 'failed';
@@ -5739,6 +5768,85 @@ async function globeBuildTexture(){
   globe.texState = 'ready';
   globeStatus('');
   globeRequestDraw();
+}
+
+/* The moon's skin: its coarsest pictures, which already lie the way the
+   ball wraps them (see globeCalib), scaled into one 2:1 picture. */
+async function globeBuildMoonTexture(){
+  globe.texState = 'loading';
+  globe.texWorld = 'moon';
+  const gl = globe.gl;
+  const b = await moonBox().catch(() => null);
+  if (!b){ globe.texState = 'failed'; globeStatus('The moon’s map could not be found.'); return; }
+  globeCheckCalib();
+  const small = IS_SMALL_SCREEN;
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 2048;
+  const W = Math.min(small ? 2048 : 4096, maxTex), H = W / 2;
+  const eq = document.createElement('canvas');
+  eq.width = W; eq.height = H;
+  const ectx = eq.getContext('2d');
+  ectx.fillStyle = '#2a2a2e'; ectx.fillRect(0, 0, W, H);
+  const S = 512 * Math.pow(2, moonGeo.max || MOON_MAX_NATIVE_ZOOM);
+  const sx = W / (b.x1 - b.x0), sy = H / (b.z1 - b.z0);
+  const jobs = [];
+  for (let tz = Math.floor(b.z0 / S); tz * S < b.z1; tz++) for (let tx = Math.floor(b.x0 / S); tx * S < b.x1; tx++) jobs.push([tx, tz]);
+  let done = 0, got = 0;
+  const total = jobs.length;
+  const work = async () => {
+    while (jobs.length){
+      const [tx, tz] = jobs.shift();
+      const img = await globeLoadImage(`${MOON_TILE_BASE}/0/${tx}_${tz}.png`);
+      if (img){ ectx.drawImage(img, (tx * S - b.x0) * sx, (tz * S - b.z0) * sy, S * sx + 0.5, S * sy + 0.5); got++; }
+      globeStatus(`Wrapping the moon… ${Math.round(++done / total * 100)}%`);
+    }
+  };
+  await Promise.all([work(), work(), work(), work()]);
+  if (!got){ globe.texState = 'failed'; globeStatus('The moon’s images did not load.'); return; }
+  try {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, eq);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    globe.tex = tex; globe.hasTex = true; globe.skinBpp = (b.x1 - b.x0) / W;
+  } catch (_e){
+    globe.texState = 'failed'; globeStatus('The moon’s images could not be used here.'); return;
+  }
+  eq.width = eq.height = 0;
+  globe.texState = 'ready';
+  if (mapWorld !== 'moon'){ globeStashSkin('moon'); return; }
+  globeStatus('');
+  globeRequestDraw();
+}
+
+/* Each world keeps its skin once made; switching worlds swaps them and
+   drops the sharper pictures, which belong to the other world. */
+function globeStashSkin(world){
+  globe.skins = globe.skins || {};
+  globe.skins[world] = { tex: globe.tex, hasTex: globe.hasTex, state: globe.texState, bpp: globe.skinBpp };
+  globe.tex = null; globe.hasTex = false; globe.texState = 'none';
+}
+function globeSwitchWorld(){
+  if (!globe.built) return;
+  const want = mapWorld === 'moon' ? 'moon' : 'earth';
+  if (globe.texWorld === want && globe.texState !== 'none') return;
+  if (globe.texWorld && globe.texState === 'ready') globeStashSkin(globe.texWorld);
+  globeTiles.cache.forEach(e => globeTileFree(e));
+  globeTiles.cache.clear();
+  globe.vecCache.clear();
+  const s = globe.skins && globe.skins[want];
+  globe.texWorld = want;
+  if (globe.el) globe.el.classList.toggle('moon', want === 'moon');
+  if (s && s.state === 'ready'){ globe.tex = s.tex; globe.hasTex = s.hasTex; globe.texState = 'ready'; globe.skinBpp = s.bpp; }
+  else { globe.tex = null; globe.hasTex = false; globe.texState = 'none'; }
+  globeCheckCalib();
+  if (globe.on){
+    if (globe.texState !== 'ready') globeBuildTexture();
+    globeRequestDraw();
+  }
 }
 
 /* --- drawing -------------------------------------------------------------- */
@@ -5782,6 +5890,7 @@ function globeFrame(){
   gl.uniform1f(globe.loc.uDist, globe.dist);
   gl.uniform1f(globe.loc.uHasTex, globe.hasTex && globe.terrain ? 1 : 0);
   gl.uniform1f(globe.loc.uBright, showDim ? 0.62 : 1.0);
+  gl.uniform1f(globe.loc.uMoon, globeOnMoon() ? 1 : 0);
   /* The coarse ball sits a little under the surface (ten blocks far out, a
      couple close in), so the sharper pictures laid over it always win the
      depth test. Close in it has to hug the ground, or what shows of it while
@@ -5848,10 +5957,10 @@ function globeStar(ctx, x, y, r){
    projects; nothing is re-read or re-traced while you turn the globe. */
 let globeCalibVer = 0;
 function globeCheckCalib(){
-  const ck = JSON.stringify(irlState.calib);
+  const ck = mapWorld + JSON.stringify(globeCalib());
   if (ck !== globe.calibKey){ globe.calibKey = ck; globe.vecCache.clear(); globeCalibVer++; }
 }
-function globeBlocksPerRad(){ const c = irlState.calib; return (c.xE - c.xW) / (2 * Math.PI); }
+function globeBlocksPerRad(){ const c = globeCalib(); return (c.xE - c.xW) / (2 * Math.PI); }
 
 /* Per frame: what the projection needs, worked out once. */
 function globeView(M){
@@ -6128,7 +6237,7 @@ function globeDrawTownClaims(ctx, V, towns, areas, hits, zoomK){
   const groups = new Map(), dots = new Map();
   const M = V.M;
   for (const t of towns){
-    if (t.isMoon) continue;
+    if (!!t.isMoon !== (mapWorld === 'moon')) continue;
     const ax = typeof t.homeX === 'number' ? t.homeX : t.mcX, az = typeof t.homeX === 'number' ? t.homeZ : t.mcZ;
     if (typeof ax !== 'number') continue;
     const chunks = t.townBlocks || (t.claimChunks ? t.claimChunks.length : 0) || 1;
@@ -6300,21 +6409,21 @@ function globeDrawOverlay(M, rPx, V){
   // How big things are drawn grows as you come closer: 1 far out, ~2.5 close in.
   const zoomK = Math.max(1, Math.min(2.6, rPx / 320));
   const scope = currentScope();
-  const ethiopiaShown = (viewerIsCitizen() && scope !== 'global') || perkSeesEthiopia();
+  const ethiopiaShown = mapWorld !== 'moon' && ((viewerIsCitizen() && scope !== 'global') || perkSeesEthiopia());
 
   // Bottom to top, the same order as the flat map.
-  if (irlState.on && irlState.raw) globeDrawIrl(ctx, V, areas);
+  if (irlState.on && irlState.raw && mapWorld !== 'moon') globeDrawIrl(ctx, V, areas);
   if (hist.on) globeDrawHistory(ctx, V, 'land');
   if (showRegions && ethiopiaShown) globeDrawRegions(ctx, V, areas, zoomK);
   if (showCounties && ethiopiaShown) globeDrawCounties(ctx, V, areas);
-  if (showNationClaims && viewerIsCitizen()) globeDrawNationClaims(ctx, V, areas);
+  if (showNationClaims && viewerIsCitizen() && mapWorld !== 'moon') globeDrawNationClaims(ctx, V, areas);
 
   // History replaces the live towns while it is open.
   const live = !hist.on;
   const towns = live && (showClaims || showTowns) ? townsForActiveView(state.towns || []) : [];
   if (live && showClaims) globeDrawTownClaims(ctx, V, towns, areas, hits, zoomK);
   if (showChunkGrid && V.bpp <= 16 / CHUNK_MIN_PX) globeDrawChunkGrid(ctx, V);
-  if (showHighways && scope !== 'global' && viewerIsCitizen()) globeDrawHighways(ctx, V, hits, zoomK);
+  if (showHighways && scope !== 'global' && viewerIsCitizen() && mapWorld !== 'moon') globeDrawHighways(ctx, V, hits, zoomK);
   if (live && showNationRange) globeDrawRange(ctx, V, hits, areas, zoomK);
   if (hist.on) globeDrawHistory(ctx, V, 'labels');
 
@@ -6324,7 +6433,7 @@ function globeDrawOverlay(M, rPx, V){
     const capitals = [];
     const byFill = new Map();
     towns.forEach(t => {
-      if (typeof t.homeX !== 'number' || t.isMoon) return;
+      if (typeof t.homeX !== 'number' || !!t.isMoon !== (mapWorld === 'moon')) return;
       const p = globeProject(M, globeVecOfBlock(t.homeX, t.homeZ));
       if (!p || p[0] < -10 || p[1] < -10 || p[0] > V.w + 10 || p[1] > V.h + 10) return;
       const tc = townColors(t);
@@ -6373,7 +6482,7 @@ function globeDrawOverlay(M, rPx, V){
   }
 
   /* Players, as their heads, like EarthMC's own globe. */
-  if (live && showPlayers){
+  if (live && showPlayers && mapWorld !== 'moon'){
     const size = Math.round(14 * Math.min(1.5, zoomK));
     onlinePlayers.forEach(pl => {
       const p = globeProject(M, globeVecOfBlock(pl.x, pl.z));
@@ -6435,8 +6544,9 @@ function globeAreaAt(x, y){
    arrived yet shows its parent (or the skin) until it does. */
 const globeTiles = { cache: new Map(), inFlight: 0, frame: 0, idx: new Map() };
 const GLOBE_TILE_BUDGET = IS_SMALL_SCREEN ? 18 : 36;
-function globeTileSpan(f){ return 512 * Math.pow(2, 5 - f); }
+function globeTileSpan(f){ return 512 * Math.pow(2, globeMaxFolder() - f); }
 function globeTileSrc(f, tx, tz){
+  if (globeOnMoon()) return `${MOON_TILE_BASE}/${f}/${tx}_${tz}.png`;
   return globe.viaWorker
     ? `${CONFIG.CORS_PROXY.replace(/\/+$/, '')}/tiles/minecraft_overworld/${f}/${tx}_${tz}.png`
     : `${TERRAIN_BASE_URL}/${f}/${tx}_${tz}.png`;
@@ -6447,18 +6557,21 @@ function globeTileSrc(f, tx, tz){
    the middle first, within a budget. */
 function globeSelectTiles(V){
   const R = globeBlocksPerRad();
-  if (V.bpp > 40) return [];
+  const skin = globe.skinBpp || 32, top = globeMaxFolder();
+  if (V.bpp > skin * 1.25) return [];
   const M = V.M;
   const picks = [];
   for (let gy = 0; gy <= 4; gy++) for (let gx = 0; gx <= 6; gx++){
     const g = globePick(gx / 6 * V.w, gy / 4 * V.h);
     if (g) picks.push(g);
   }
-  const worldX = irlState.calib.xE, worldZ = GLOBE_TILES_Z[1] * GLOBE_BLOCKS_PER_TILE + GLOBE_BLOCKS_PER_TILE;
-  const worldZ0 = GLOBE_TILES_Z[0] * GLOBE_BLOCKS_PER_TILE;
+  const mb = globeOnMoon() ? moonGeo.box : null;
+  const worldX0 = mb ? mb.x0 : -irlState.calib.xE, worldX = mb ? mb.x1 : irlState.calib.xE;
+  const worldZ = mb ? mb.z1 : GLOBE_TILES_Z[1] * GLOBE_BLOCKS_PER_TILE + GLOBE_BLOCKS_PER_TILE;
+  const worldZ0 = mb ? mb.z0 : GLOBE_TILES_Z[0] * GLOBE_BLOCKS_PER_TILE;
   const node = (f, tx, tz) => {
     const S = globeTileSpan(f), x0 = tx * S, z0 = tz * S;
-    if (x0 >= worldX || x0 + S <= -worldX || z0 >= worldZ || z0 + S <= worldZ0) return null;
+    if (x0 >= worldX || x0 + S <= worldX0 || z0 >= worldZ || z0 + S <= worldZ0) return null;
     let best = null, bestD = Infinity, seen = false;
     for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++){
       const x = x0 + S * i / 2, z = z0 + S * j / 2;
@@ -6485,7 +6598,7 @@ function globeSelectTiles(V){
     let pxPerBlock = 0;
     if (p0 && p1) pxPerBlock = Math.max(pxPerBlock, Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / step);
     if (p0 && p2) pxPerBlock = Math.max(pxPerBlock, Math.hypot(p2[0] - p0[0], p2[1] - p0[1]) / step);
-    const texelPx = Math.pow(2, 5 - f) * pxPerBlock;
+    const texelPx = Math.pow(2, top - f) * pxPerBlock;
     return { f, tx, tz, d: bestD, texelPx, pxPerBlock };
   };
 
@@ -6493,9 +6606,9 @@ function globeSelectTiles(V){
   const roots = [];
   const S1 = globeTileSpan(1);
   for (let tz = Math.floor(worldZ0 / S1); tz * S1 < worldZ; tz++){
-    for (let tx = Math.floor(-worldX / S1); tx * S1 < worldX; tx++){
+    for (let tx = Math.floor(worldX0 / S1); tx * S1 < worldX; tx++){
       const nd = node(1, tx, tz);
-      if (nd && nd.pxPerBlock * 32 > 1.4) roots.push(nd);
+      if (nd && nd.pxPerBlock * skin > 1.4) roots.push(nd);
     }
   }
   roots.sort((a, b) => a.d - b.d);
@@ -6503,7 +6616,7 @@ function globeSelectTiles(V){
   const leaves = [];
   while (queue.length){
     const nd = queue.shift();
-    if (nd.f < 5 && nd.texelPx > 1.25 && leaves.length + queue.length + 4 <= GLOBE_TILE_BUDGET){
+    if (nd.f < top && nd.texelPx > 1.25 && leaves.length + queue.length + 4 <= GLOBE_TILE_BUDGET){
       const kids = [];
       for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++){
         const k = node(nd.f + 1, nd.tx * 2 + a, nd.tz * 2 + b);
@@ -6575,7 +6688,7 @@ function globeTileLoad(nd){
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
       gl.generateMipmap(gl.TEXTURE_2D);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, e.f >= 5 ? gl.NEAREST : gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, e.f >= globeMaxFolder() ? gl.NEAREST : gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
@@ -6878,10 +6991,11 @@ function setMapProjection(mode, at){
   if (globe.recording) return;
   const map = mapController && mapController.map;
   if (mode === 'globe'){
-    if (mapWorld === 'moon') setMapWorld('earth');      // the globe is Earth
     if (!globeEnsureBuilt()) { mapProjection = 'flat'; return; }
+    globeSwitchWorld();
     if (map){
       const c = CoordUtils.latLngToMc(map.getCenter());
+      globeCheckCalib();
       const [lon, lat] = globeLonLat(c.x, c.z);
       if (Number.isFinite(lon) && Number.isFinite(lat)){
         globe.lon = lon; globe.lat = Math.max(-75, Math.min(75, lat));
@@ -6905,7 +7019,7 @@ function setMapProjection(mode, at){
     if (map){
       if (at) map.setView(CoordUtils.mcToLatLng(at.x, at.z), at.zoom, { animate: false });
       else if (globe.built){
-        const [x, z] = irlToMc(globe.lon, globe.lat);
+        const [x, z] = globeToBlock(globe.lon, globe.lat);
         map.setView(CoordUtils.mcToLatLng(x, z), globeZoomForDist(globe.dist), { animate: false });
       }
       map.invalidateSize();
@@ -6945,7 +7059,8 @@ const HIST_NATIONLESS = 65535;
 const HIST_WILD = 65534;                                                // unclaimed land, when outlines are traced
 const HIST_REACHES = [[640, 'Close'], [1280, 'Normal'], [2560, 'Wide']];   // blocks a nation's land spreads from its towns
 const HIST_SPEEDS = [2, 4, 8];                                          // days a second on screen
-const HIST_TOWNS_FROM_K = 1 / 8;                                        // screen px per block from which towns are drawn
+const HIST_TOWNS_FROM_K = 1 / 24;                                       // screen px per block from which towns are drawn
+const HIST_DOTS_FROM_K = 1 / 72;                                        // ... and town markers
 const HIST_FILL_ALPHA = 0.6;                                            // how strongly the land is tinted, all of it alike
 const HIST_LINE_ALPHA = 0.66;                                           // ... and the borders
 const HIST_FINE_FROM_K = 1 / 56;                                        // ... and the finer outlines
@@ -7012,8 +7127,8 @@ function histStyle(rgb){
   return {
     fill: `rgb(${soft.join(',')})`,
     band: `rgb(${deep.join(',')})`,
-    town: `rgba(${rgb.join(',')},.38)`,
-    townEdge: `rgba(${deep.join(',')},.85)`,
+    town: `rgba(${rgb.join(',')},.3)`,
+    townEdge: `rgb(${rgb.join(',')})`,
     solid: `rgb(${rgb.join(',')})`,
   };
 }
@@ -7356,7 +7471,7 @@ function histScratch(){
   return hist.scratch;
 }
 
-function histCompute(snap, land, reach){
+function histCompute(snap, land, reach, moon){
   const W = HIST_W, H = HIST_H, N = W * H;
   const S = histScratch();
   const owner = new Uint16Array(N);
@@ -7372,9 +7487,21 @@ function histCompute(snap, land, reach){
   const capitals = [], shapes = [];
   const free = new Uint8Array(N);          // claimed by towns with no nation
 
-  // 1. Claims.
+  // 1. Claims. A town living on earth leaves out its moon outposts (the map
+  //    file has them on the same plane; see moonBox).
+  const inMoon = (cz, ca, len) => { const x = (ca + len / 2) * 16, z = cz * 16 + 8; return x >= moon.x0 && x < moon.x1 && z >= moon.z0 && z < moon.z1; };
   for (const t of (snap.towns || [])){
-    const [name, ni, cap, res, , runs] = t;
+    const [name, ni, cap, res] = t;
+    let runs = t[5];
+    if (moon && Array.isArray(runs)){
+      let inside = 0, all = 0;
+      for (let k = 0; k + 2 < runs.length; k += 3){ all += runs[k + 2]; if (inMoon(runs[k], runs[k + 1], runs[k + 2])) inside += runs[k + 2]; }
+      if (inside && inside * 2 < all){
+        const keep = [];
+        for (let k = 0; k + 2 < runs.length; k += 3) if (!inMoon(runs[k], runs[k + 1], runs[k + 2])) keep.push(runs[k], runs[k + 1], runs[k + 2]);
+        runs = keep;
+      }
+    }
     const nat = ni >= 0 && ni < nations.length ? nations[ni] : null;
     const id = nat ? nat.id : HIST_NATIONLESS;
     let n = 0, sx = 0, sz = 0;
@@ -7396,7 +7523,7 @@ function histCompute(snap, land, reach){
       }
     }
     towns++; chunks += n; residents += res || 0;
-    if (n) shapes.push({ id, name, runs, x0: bx0 * 16, z0: bz0 * 16, x1: bx1 * 16, z1: bz1 * 16 });
+    if (n) shapes.push({ id, name, runs, cap: !!cap, res: res || 0, cx: sx / n * 16, cz: sz / n * 16, x0: bx0 * 16, z0: bz0 * 16, x1: bx1 * 16, z1: bz1 * 16 });
     if (nat){
       nat.towns++; nat.residents += res || 0; nat.chunks += n;
       if (cap && n){ nat.capital = { name, x: sx / n * 16, z: sz / n * 16 }; capitals.push(nat); }
@@ -7410,16 +7537,23 @@ function histCompute(snap, land, reach){
   const g = S.g, sy = S.sy, v = S.v, z = S.z;
   for (let i = 0; i < N; i++) if (owner[i] === HIST_NATIONLESS) free[i] = 1;
   const site = (i) => claimed[i] && !free[i];
-  for (let x = 0; x < W; x++){
-    let last = -1;
-    for (let y = 0, i = x; y < H; y++, i += W){
-      if (site(i)) last = y;
-      if (last >= 0){ g[i] = (y - last) * (y - last); sy[i] = last; } else { g[i] = INF; sy[i] = -1; }
+  // Down each column to the nearest claim above and below, swept a row at a
+  // time (all columns together) so memory is read in order.
+  const near = S.v;
+  near.fill(-1);
+  for (let y = 0, i = 0; y < H; y++){
+    for (let x = 0; x < W; x++, i++){
+      if (claimed[i] && !free[i]) near[x] = y;
+      const l = near[x];
+      if (l >= 0){ g[i] = (y - l) * (y - l); sy[i] = l; } else { g[i] = INF; sy[i] = -1; }
     }
-    last = -1;
-    for (let y = H - 1, i = x + (H - 1) * W; y >= 0; y--, i -= W){
-      if (site(i)) last = y;
-      if (last >= 0){ const d = (last - y) * (last - y); if (d < g[i]){ g[i] = d; sy[i] = last; } }
+  }
+  near.fill(-1);
+  for (let y = H - 1; y >= 0; y--){
+    for (let x = 0, i = y * W; x < W; x++, i++){
+      if (claimed[i] && !free[i]) near[x] = y;
+      const l = near[x];
+      if (l >= 0){ const d = (l - y) * (l - y); if (d < g[i]){ g[i] = d; sy[i] = l; } }
     }
   }
   for (let y = 0; y < H; y++){
@@ -7582,7 +7716,7 @@ function histLayer(ctx, alpha, draw){
   ctx.restore();
 }
 /* list: [style, fill path, line path or null, size in px] per nation. */
-function histPaintLand(ctx, list, k){
+function histPaintLand(ctx, list, k, towns){
   const { band, edge } = histLineWidths(k);
   histLayer(ctx, HIST_FILL_ALPHA, (c) => {
     for (const [st, fp] of list){ c.fillStyle = st.fill; c.fill(fp, 'evenodd'); }
@@ -7595,19 +7729,50 @@ function histPaintLand(ctx, list, k){
       c.globalAlpha = 0.34; c.lineWidth = band * 0.8; c.stroke(lp);
       c.restore();
     }
+    // A town always sits inside its own nation's colour, all of it.
+    if (towns) towns.forEach((p, st) => { if (st !== HIST_GREY_STYLE){ c.fillStyle = st.fill; c.fill(p, 'evenodd'); } });
   });
   histLayer(ctx, HIST_LINE_ALPHA, (c) => {
     c.strokeStyle = 'rgb(26,21,15)'; c.lineWidth = edge;
     for (const [, , lp] of list) if (lp) c.stroke(lp);
+    if (towns){
+      c.globalCompositeOperation = 'destination-out';
+      towns.forEach((p) => c.fill(p, 'evenodd'));
+      c.globalCompositeOperation = 'source-over';
+    }
   });
 }
+/* Town borders (the layer switch), in the nation's colour inside and out. */
 function histPaintTowns(ctx, groups, k){
+  if (!showClaims) return;
   ctx.lineJoin = 'miter';
-  ctx.lineWidth = k >= 1 ? 1.3 : 1;
+  ctx.lineWidth = k >= 1 ? 1.4 : k >= 1 / 6 ? 1.1 : 0.9;
   groups.forEach((p, st) => {
     ctx.fillStyle = st.town; ctx.fill(p, 'evenodd');
     ctx.strokeStyle = st.townEdge; ctx.stroke(p);
   });
+}
+/* Town markers (the layer switch): a dot per town, sized by its people. */
+function histPaintDots(ctx, f, at, k){
+  if (!showTowns || k < HIST_DOTS_FROM_K) return;
+  const byStyle = new Map();
+  const grow = Math.max(1, Math.min(2.2, k * 24));
+  for (const s of f.shapes){
+    if (s.cap && s.id !== HIST_NATIONLESS) continue;                 // capitals have their stars
+    const p = at(s.cx, s.cz);
+    if (!p || p[0] < -8 || p[1] < -8 || p[0] > ctx.canvas.width + 8 || p[1] > ctx.canvas.height + 8) continue;
+    const st = histStyleOf(f, s.id);
+    let l = byStyle.get(st); if (!l) byStyle.set(st, l = []);
+    l.push(p[0], p[1], Math.max(1.6, Math.min(4.2, Math.sqrt(Math.max(1, s.res)) * 0.7)) * grow);
+  }
+  ctx.save();
+  ctx.lineWidth = 0.9; ctx.strokeStyle = 'rgba(12,10,8,.7)';
+  byStyle.forEach((l, st) => {
+    ctx.beginPath();
+    for (let i = 0; i < l.length; i += 3){ ctx.moveTo(l[i] + l[i + 2], l[i + 1]); ctx.arc(l[i], l[i + 1], l[i + 2], 0, Math.PI * 2); }
+    ctx.fillStyle = st.solid; ctx.fill(); ctx.stroke();
+  });
+  ctx.restore();
 }
 function histStyleOf(f, id){ return id === HIST_NATIONLESS ? HIST_GREY_STYLE : (f.nations[id - 1] || {}).style || HIST_GREY_STYLE; }
 
@@ -7636,19 +7801,21 @@ function histRender2D(ctx, f, view, opts){
     }
     if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
   });
-  ctx.save();
-  histPaintLand(ctx, list, k);
+  let groups = null;
   if (k >= HIST_TOWNS_FROM_K){
-    const groups = new Map();
+    groups = new Map();
     for (const s of f.shapes){
       if (s.x1 < vx0 || s.x0 > vx1 || s.z1 < vz0 || s.z0 > vz1) continue;
       const st = histStyleOf(f, s.id);
       let p = groups.get(st); if (!p) groups.set(st, p = new Path2D());
       for (const r of histTownRings(s)) trace(p, r.p, true);
     }
-    histPaintTowns(ctx, groups, k);
   }
+  ctx.save();
+  histPaintLand(ctx, list, k, groups);
+  if (groups) histPaintTowns(ctx, groups, k);
   ctx.restore();
+  histPaintDots(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], k);
   if (o.labels !== false){
     histLabels2D(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], () => k, k, w, h, o.scale || 1);
   }
@@ -7883,10 +8050,9 @@ function globeDrawHistory(ctx, V, part){
     }
     if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
   });
-  ctx.save();
-  histPaintLand(ctx, list, k);
+  let groups = null;
   if (k >= HIST_TOWNS_FROM_K){
-    const groups = new Map();
+    groups = new Map();
     for (const s of f.shapes){
       const c = globeVecOfBlock((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2);
       if (!globeSeen(V, c, Math.hypot(s.x1 - s.x0, s.z1 - s.z0) / 2 / R)) continue;
@@ -7894,9 +8060,12 @@ function globeDrawHistory(ctx, V, part){
       let p = groups.get(st); if (!p) groups.set(st, p = new Path2D());
       for (const r of histTownRings(s)){ const e = histGlobeRing(r); globeProjectRing(V, e); globePathFill(p, V, e.n); }
     }
-    histPaintTowns(ctx, groups, k);
   }
+  ctx.save();
+  histPaintLand(ctx, list, k, groups);
+  if (groups) histPaintTowns(ctx, groups, k);
   ctx.restore();
+  histPaintDots(ctx, f, (x, z) => { const p = globeProject(V.M, globeVecOfBlock(x, z)); return p ? [p[0], p[1]] : null; }, k);
 }
 
 /* ---- hover and click ----------------------------------------------------- */
@@ -8005,12 +8174,118 @@ function histGo(i){
   histPump();
 }
 
-/* Works a day out from what is loaded (or loads it). */
-async function histFrameFor(i, reachI){
+/* ---- working days out, off the main thread --------------------------------
+   Turning a day into territory is the slow part (a distance worked out for
+   each of three million cells, then outlines traced and smoothed). It runs
+   in background workers, several days at once, each fetching its own day,
+   so the page stays smooth and the next days are ready before they are
+   needed: playback reads ahead, and a video is made several times faster.
+   The workers run the very same functions as the page (their source is
+   handed over as text). If workers cannot start, the page does the work. */
+const histPool = { workers: [], idle: [], queue: [], waiting: new Map(), seq: 0, failed: false, ready: null };
+function histPoolSize(){
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined') return 0;
+  return IS_SMALL_SCREEN ? 1 : Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 1));
+}
+function histWorkerSource(){
+  const consts = { HIST_CELL, HIST_X0, HIST_Z0, HIST_W, HIST_H, HIST_NATIONLESS, HIST_WILD, HIST_GREY,
+    HIST_DX, HIST_DY, HIST_RX, HIST_RY, HIST_LX, HIST_LY, HIST_SX, HIST_SY };
+  const fns = [histCompute, histScratch, histTrace, histDP, histChaikin, histChaikinClosed, histArea, histReverse,
+    histSmooth, histToBlocks, histRingObj, histStyle, histHex, cleanHex, stableColorFor, histUnpack, histDateText];
+  return `'use strict';
+const CONFIG = { NATION_PALETTE: ${JSON.stringify(CONFIG.NATION_PALETTE)} };
+const hist = { scratch: null };
+${Object.entries(consts).map(([k, v]) => `const ${k} = ${JSON.stringify(v)};`).join('\n')}
+${fns.map(f => f.toString()).join('\n\n')}
+let LAND = null;
+onmessage = async (e) => {
+  const m = e.data;
+  if (m.land){ LAND = m.land; return; }
+  try {
+    const r = await fetch(m.url);
+    if (!r.ok) throw new Error(histDateText(m.date) + ' did not load (HTTP ' + r.status + ')');
+    const snap = await histUnpack(await r.arrayBuffer());
+    snap.date = snap.date || m.date;
+    const f = histCompute(snap, LAND, m.reach, m.moon);
+    postMessage({ id: m.id, f }, [f.owner.buffer, f.free.buffer]);
+  } catch (err){ postMessage({ id: m.id, error: String(err && err.message || err) }); }
+};`;
+}
+function histPoolInit(){
+  if (histPool.ready) return histPool.ready;
+  histPool.ready = (async () => {
+    const n = histPoolSize();
+    if (!n) return false;
+    const land = await histLand();
+    try {
+      const url = URL.createObjectURL(new Blob([histWorkerSource()], { type: 'text/javascript' }));
+      for (let i = 0; i < n; i++){
+        const w = new Worker(url);
+        w.onmessage = (e) => histPoolDone(w, e.data);
+        w.onerror = (e) => { e.preventDefault(); histPoolBroken(); };
+        w.postMessage({ land });
+        histPool.workers.push(w); histPool.idle.push(w);
+      }
+      return true;
+    } catch (_e){
+      histPoolBroken();
+      return false;
+    }
+  })();
+  return histPool.ready;
+}
+function histPoolBroken(){
+  histPool.failed = true;
+  histPool.ready = Promise.resolve(false);
+  histPool.workers.forEach(w => { try { w.terminate(); } catch (_e) { /* gone */ } });
+  histPool.workers = []; histPool.idle = []; histPool.queue = [];
+  histPool.waiting.forEach(j => j.reject(new Error('worker stopped')));
+  histPool.waiting.clear();
+}
+function histPoolRun(msg){
+  return new Promise((resolve, reject) => {
+    const id = ++histPool.seq;
+    histPool.waiting.set(id, { resolve, reject });
+    histPool.queue.push(Object.assign({ id }, msg));
+    histPoolKick();
+  });
+}
+function histPoolKick(){
+  while (histPool.idle.length && histPool.queue.length) histPool.idle.pop().postMessage(histPool.queue.shift());
+}
+function histPoolDone(w, data){
+  histPool.idle.push(w);
+  histPoolKick();
+  const job = histPool.waiting.get(data.id);
+  if (!job) return;
+  histPool.waiting.delete(data.id);
+  if (data.error) job.reject(new Error(data.error)); else job.resolve(data.f);
+}
+
+/* A day's territory, from the cache, a worker, or (failing those) here. */
+function histFrameFor(i, reachI){
   const d = hist.index[i];
-  const [snap, land] = await Promise.all([histDay(d.date), histLand()]);
-  snap.date = snap.date || d.date;
-  return histCompute(snap, land, HIST_REACHES[reachI][0]);
+  if (!d) return Promise.reject(new Error('no such day'));
+  const key = d.date + '|' + reachI;
+  if (!hist.frames) hist.frames = new Map();
+  let p = hist.frames.get(key);
+  if (p){ hist.frames.delete(key); hist.frames.set(key, p); return p; }
+  p = (async () => {
+    const moon = await moonBox().catch(() => null);
+    const reach = HIST_REACHES[reachI][0];
+    if (await histPoolInit()){
+      try { return await histPoolRun({ url: `${histBase()}/history/${d.date}.json.gz`, date: d.date, reach, moon }); }
+      catch (err){ if (!histPool.failed) throw err; }       // a worker died: do it here instead
+    }
+    const [snap, land] = await Promise.all([histDay(d.date), histLand()]);
+    snap.date = snap.date || d.date;
+    return histCompute(snap, land, reach, moon);
+  })();
+  p.catch(() => { if (hist.frames.get(key) === p) hist.frames.delete(key); });
+  hist.frames.set(key, p);
+  const cap = IS_SMALL_SCREEN ? 4 : Math.max(8, histPoolSize() * 2 + 4);
+  while (hist.frames.size > cap) hist.frames.delete(hist.frames.keys().next().value);
+  return p;
 }
 
 async function histPump(){
@@ -8019,20 +8294,19 @@ async function histPump(){
   try {
     while (hist.on && hist.want >= 0 && (hist.want !== hist.pos || !hist.frame || hist.frameReach !== hist.reachI)){
       if (hist.rec && hist.rec.busy) break;
-      const i = hist.want, d = hist.index[i];
+      const i = hist.want, d = hist.index[i], reachI = hist.reachI;
       const slow = setTimeout(() => histStatus(`Loading ${histDateText(d.date)}…`), 350);
-      let snap, land;
-      try { [snap, land] = await Promise.all([histDay(d.date), histLand()]); }
+      let f;
+      try { f = await histFrameFor(i, reachI); }
       finally { clearTimeout(slow); }
       if (!hist.on) break;
-      if (hist.want !== i) continue;
+      if (hist.want !== i || hist.reachI !== reachI) continue;
       histStatus(hist.landNote || '');
-      snap.date = snap.date || d.date;
-      hist.frame = histCompute(snap, land, HIST_REACHES[hist.reachI][0]);
-      hist.frameReach = hist.reachI;
+      hist.frame = f;
+      hist.frameReach = reachI;
       hist.pos = i;
       histPaint(true);
-      if (hist.playing) for (let k = 1; k <= 3; k++) if (hist.index[i + k]) histDay(hist.index[i + k].date);
+      if (hist.playing) for (let k = 1; k <= Math.max(2, histPoolSize() + 1); k++) if (hist.index[i + k]) histFrameFor(i + k, reachI);
       await new Promise(r => setTimeout(r, 0));
     }
   } catch (err){
@@ -8482,7 +8756,7 @@ async function histRecord(){
     for (let i = from; i <= to; i++){
       if (rec.cancel) throw new Error('cancelled');
       ui(`${histDateText(hist.index[i].date)} · day ${i - from + 1} of ${to - from + 1}`, (i - from) / (to - from + 1));
-      for (let k = 1; k <= 2; k++) if (hist.index[i + k] && i + k <= to) histDay(hist.index[i + k].date);
+      for (let k = 1; k <= Math.max(2, histPoolSize() * 2); k++) if (i + k <= to) histFrameFor(i + k, hist.reachI);
       const f = await histFrameFor(i, hist.reachI);
       drawDay(curCanvas, f);
       for (let r = 0; r < hold; r++){
@@ -8759,11 +9033,10 @@ class MapController{
         when: () => mapWorld !== 'moon' },
       // THE SERVER
       { group: 'server', label: 'Town borders', globe: true,
-        get: () => showClaims, set: (v) => { showClaims = v; refreshMapLayers(); },
-        meta: () => { if (hist.on) return 'paused'; const n = townsForActiveView(state.towns || []).length; return n ? fmt(n) : ''; } },
+        get: () => showClaims, set: (v) => { showClaims = v; refreshMapLayers(); if (hist.on) histPaint(); },
+        meta: () => { if (hist.on) return hist.frame ? fmt(hist.frame.stats.towns) : ''; const n = townsForActiveView(state.towns || []).length; return n ? fmt(n) : ''; } },
       { group: 'server', label: 'Town markers', globe: true,
-        get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); },
-        meta: () => (hist.on ? 'paused' : '') },
+        get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); if (hist.on) histPaint(); } },
       { group: 'server', label: 'Players', globe: true,
         get: () => showPlayers, set: (v) => setShowPlayers(v),
         meta: () => (showPlayers && onlinePlayers.length ? fmt(onlinePlayers.length) : '') },
@@ -8864,7 +9137,7 @@ class MapController{
     ]);
     this._segWorld = seg('World', [
       { label: 'Earth', value: 'earth', pick: () => setMapWorld('earth') },
-      { label: 'Moon', value: 'moon', pick: () => { if (mapProjection === 'globe') setMapProjection('flat'); setMapWorld('moon'); } },
+      { label: 'Moon', value: 'moon', pick: () => setMapWorld('moon') },
     ]);
 
     this._layerGroups = {};
@@ -8947,7 +9220,7 @@ class MapController{
         b.title = dis ? 'The globe shows Earth only' : '';
       });
     };
-    mark(this._segView, globeOn ? 'globe' : 'flat', (v) => v === 'globe' && mapWorld === 'moon');
+    mark(this._segView, globeOn ? 'globe' : 'flat');
     mark(this._segWorld, mapWorld);
     this.updateLayerMeta();
   }
@@ -9397,7 +9670,7 @@ function nationColorsUncached(nationName){
   const stats = nationStatsFor(nationName);
   const fill = stats && cleanHex(stats.fill);
   if (fill){
-    return { fill, outline: cleanHex(stats.outline) || fill };
+    return { fill, outline: fill };
   }
   const gen = stableColorFor(nationName, CONFIG.NATION_PALETTE);
   return { fill: gen, outline: gen };
@@ -9440,10 +9713,14 @@ function townColors(town){
     }
   }
   if (colorByActivity) return activityColors(town);
-  /* Exactly what EarthMC's map paints this town, when its map file is loaded
-     and the town is still in the nation the map knew it in. */
+  /* A nation's towns all in the nation's one colour (the one most of them
+     carry on EarthMC's map), inside and out, so a nation reads as one.
+     EarthMC paints some towns with their own colours or a grey fill under
+     the nation's outline; those are evened out here. A town with no nation
+     keeps exactly what EarthMC's map paints it. */
+  if (town.nationName) return nationColors(town.nationName);
   const own = MAP_TOWN_COLORS.get(town.name);
-  if (own && own.nation === (town.nationName || null)) return own;
+  if (own && !own.nation) return own;
   return nationColors(town.nationName);
 }
 
@@ -9727,6 +10004,17 @@ function setMapWorld(world){
   auditLog.log(world === 'moon'
     ? 'Showing Terra Luna — earth towns are hidden'
     : 'Showing earth', 'info');
+  /* On the globe, the ball becomes the other world, turned to its middle
+     and pulled back to show it whole. */
+  if (mapProjection === 'globe' && globe.on){
+    (world === 'moon' ? moonBox() : Promise.resolve()).catch(() => null).then(() => {
+      if (mapWorld !== world) return;
+      if (world === 'moon' && !moonGeo.box){ setMapProjection('flat'); return; }
+      globeSwitchWorld();
+      globe.lon = 0; globe.lat = world === 'moon' ? 0 : 9; globe.dist = Math.max(globe.dist, 2.6);
+      globeRequestDraw();
+    });
+  }
   refreshMapLayers();
   renderNationClaimAreas();
   if (mapController.syncLayerToggles) mapController.syncLayerToggles();
@@ -11565,6 +11853,153 @@ function smTown(m, world){
   };
 }
 
+/* ---- earth and moon ------------------------------------------------------
+   EarthMC's map files do not keep the worlds apart: the earth file carries
+   moon outposts and the moon file carries every earth town, all on one
+   coordinate plane. So each town's land is sorted here. Where the moon's
+   map is drawn is found once from its own pictures (and remembered for a
+   week); land inside that box belongs to the moon when most of the town's
+   land is outside it, i.e. the town lives on earth and that piece is an
+   outpost on the moon. A town living inside the box keeps everything on
+   earth, because that land is just as likely to be, say, Nigeria. */
+const moonGeo = { box: null, p: null };
+function moonBox(){
+  if (moonGeo.p) return moonGeo.p;
+  moonGeo.p = (async () => {
+    try {
+      const c = JSON.parse(localStorage.getItem('moon-box-v1') || 'null');
+      if (c && c.box && Date.now() - c.at < 7 * 864e5){ moonGeo.max = c.max || MOON_MAX_NATIVE_ZOOM; return (moonGeo.box = c.box); }
+    } catch (_e) { /* look again */ }
+    let max = MOON_MAX_NATIVE_ZOOM;
+    try {
+      const r = await fetch(MOON_TILE_BASE + '/settings.json');
+      if (r.ok){ const j = await r.json(); const m = j && j.zoom && j.zoom.max; if (Number.isInteger(m) && m >= 0 && m < 10) max = m; }
+    } catch (_e) { /* the default will do */ }
+    moonGeo.max = max;
+    const S = 512 * Math.pow(2, max);              // blocks across one of its coarsest pictures
+    const got = new Map();
+    const load = (tx, tz) => {
+      const k = tx + ',' + tz;
+      if (!got.has(k)) got.set(k, globeLoadImage(`${MOON_TILE_BASE}/0/${tx}_${tz}.png`));
+      return got.get(k);
+    };
+    let bx0 = -1, bx1 = 0, bz0 = -1, bz1 = 0, found = null;
+    for (let step = 0; step < 12; step++){
+      const jobs = [];
+      for (let z = bz0; z <= bz1; z++) for (let x = bx0; x <= bx1; x++) jobs.push([x, z]);
+      const imgs = await Promise.all(jobs.map(([x, z]) => load(x, z)));
+      let e = null;
+      jobs.forEach(([x, z], i) => {
+        if (!imgs[i]) return;
+        if (!e) e = [x, x, z, z];
+        else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); e[2] = Math.min(e[2], z); e[3] = Math.max(e[3], z); }
+      });
+      if (!e) break;
+      found = e;
+      let grow = false;
+      if (e[0] === bx0){ bx0--; grow = true; }
+      if (e[1] === bx1){ bx1++; grow = true; }
+      if (e[2] === bz0){ bz0--; grow = true; }
+      if (e[3] === bz1){ bz1++; grow = true; }
+      if (!grow) break;
+    }
+    if (!found) return null;
+    const box = { x0: found[0] * S, x1: (found[1] + 1) * S, z0: found[2] * S, z1: (found[3] + 1) * S };
+    /* The outermost pictures are partly empty; trimmed to what is drawn. */
+    try {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 512;
+      const cx = cv.getContext('2d', { willReadFrequently: true });
+      let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+      for (const [k, pr] of got){
+        const img = await pr;
+        if (!img) continue;
+        const [tx, tz] = k.split(',').map(Number);
+        if (tx !== found[0] && tx !== found[1] && tz !== found[2] && tz !== found[3]) continue;
+        cx.clearRect(0, 0, 512, 512); cx.drawImage(img, 0, 0, 512, 512);
+        const px = cx.getImageData(0, 0, 512, 512).data;
+        for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2){
+          if (px[(y * 512 + x) * 4 + 3] < 128) continue;
+          const bx = tx * S + x * S / 512, bz = tz * S + y * S / 512;
+          if (bx < a) a = bx; if (bx > c) c = bx; if (bz < b) b = bz; if (bz > d) d = bz;
+        }
+      }
+      if (c > a && d > b){ box.x0 = Math.max(box.x0, Math.floor(a)); box.x1 = Math.min(box.x1, Math.ceil(c + S / 256)); box.z0 = Math.max(box.z0, Math.floor(b)); box.z1 = Math.min(box.z1, Math.ceil(d + S / 256)); }
+    } catch (_e) { /* the whole pictures will do */ }
+    moonGeo.box = box;
+    try { localStorage.setItem('moon-box-v1', JSON.stringify({ at: Date.now(), box: moonGeo.box, max })); } catch (_e) { /* fine */ }
+    return moonGeo.box;
+  })();
+  moonGeo.p.catch(() => { moonGeo.p = null; });
+  return moonGeo.p;
+}
+moonBox().then((b) => { if (b) try { outlineCache.clear(); refreshMapLayers(); } catch (_e) { /* not built yet */ } }).catch(() => {});
+function inMoonBox(x, z){
+  const b = moonGeo.box;
+  return !!b && x >= b.x0 && x < b.x1 && z >= b.z0 && z < b.z1;
+}
+function smRingArea(r){
+  let a = 0;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] + r[i][0]) * (r[j][1] - r[i][1]);
+  return Math.abs(a / 2);
+}
+function smRingMid(r){
+  let x = 0, z = 0;
+  r.forEach(p => { x += p[0]; z += p[1]; });
+  return [x / r.length, z / r.length];
+}
+/* Chunks of a town that lie on the moon (by the rule above), or null. */
+function moonChunkFilter(chunks){
+  if (!moonGeo.box || !chunks || !chunks.length) return null;
+  let inside = 0;
+  for (const c of chunks) if (inMoonBox(c[0] * 16 + 8, c[1] * 16 + 8)) inside++;
+  if (!inside || inside * 2 >= chunks.length) return null;      // lives inside the box, or has nothing there
+  return (c) => inMoonBox(c[0] * 16 + 8, c[1] * 16 + 8);
+}
+function smSplitWorlds(earth, moon){
+  if (!moonGeo.box) return earth.concat(moon);
+  const out = [], moonParts = new Map();
+  const earthNames = new Set(earth.map(t => t.name));
+  const homeOutside = new Map();
+  earth.forEach(t => {
+    const rings = t._outline || [];
+    let inA = 0, outA = 0;
+    rings.forEach(r => { const a = smRingArea(r), m = smRingMid(r); if (inMoonBox(m[0], m[1])) inA += a; else outA += a; });
+    const away = outA > inA;
+    homeOutside.set(t.name, away);
+    const moonRings = away ? rings.filter(r => { const m = smRingMid(r); return inMoonBox(m[0], m[1]); }) : [];
+    if (!moonRings.length){ out.push(t); return; }
+    const keep = rings.filter(r => !moonRings.includes(r));
+    t._outline = keep;
+    t.claimChunks = smChunksOf(keep);
+    t.townBlocks = t.claimChunks.length;
+    moonParts.set(t.name, { from: t, rings: moonRings });
+    out.push(t);
+  });
+  moon.forEach(t => {
+    if (!earthNames.has(t.name)){ out.push(t); return; }          // lives on the moon
+    if (!homeOutside.get(t.name)) return;                          // an earth town, already placed
+    const rings = (t._outline || []).filter(r => { const m = smRingMid(r); return inMoonBox(m[0], m[1]); });
+    if (!rings.length) return;
+    const had = moonParts.get(t.name);
+    const key = (r) => r.length + ':' + r[0][0] + ',' + r[0][1];
+    if (had){ const ks = new Set(had.rings.map(key)); rings.forEach(r => { if (!ks.has(key(r))) had.rings.push(r); }); }
+    else moonParts.set(t.name, { from: t, rings });
+  });
+  moonParts.forEach(({ from, rings }) => {
+    const chunks = smChunksOf(rings);
+    if (!chunks.length) return;
+    const [mx, mz] = smRingMid(rings[0]);
+    let home = chunks[0], best = Infinity;
+    chunks.forEach(c => { const d = (c[0] * 16 + 8 - mx) ** 2 + (c[1] * 16 + 8 - mz) ** 2; if (d < best){ best = d; home = c; } });
+    out.push(Object.assign({}, from, {
+      world: 'earthmc_moon', isMoon: true, isCapital: false,
+      _outline: rings, claimChunks: chunks, townBlocks: chunks.length,
+      homeX: home[0] * 16 + 8, homeZ: home[1] * 16 + 8, mcX: Math.round(mx), mcZ: Math.round(mz),
+    }));
+  });
+  return out;
+}
+
 async function smFetchMarkers(world){
   const direct = `https://map.earthmc.net/tiles/${world}/markers.json`;
   let data = null;
@@ -11614,7 +12049,7 @@ function smAdopt(towns){
   const votes = new Map();       // nation -> Map("fill|outline" -> count)
   towns.forEach(t => {
     if (t._outline && t.claimChunks.length){
-      outlineCache.set(t.name, { key: chunkSetKey(t.claimChunks), rings: t._outline });
+      outlineCache.set(t.isMoon ? t.name + '@moon' : t.name, { key: chunkSetKey(t.claimChunks), rings: t._outline });
     }
     const c = t._colors;
     if (c && c.fill){
@@ -11622,8 +12057,7 @@ function smAdopt(towns){
       if (t.nationName){
         const k = t.nationName.toLowerCase();
         let v = votes.get(k); if (!v) votes.set(k, v = new Map());
-        const key = c.fill + '|' + (c.outline || c.fill);
-        v.set(key, (v.get(key) || 0) + 1);
+        v.set(c.fill, (v.get(c.fill) || 0) + 1);
       }
     }
     delete t._colors;
@@ -11631,8 +12065,7 @@ function smAdopt(towns){
   MAP_NATION_COLORS.clear();
   votes.forEach((v, k) => {
     const [best] = [...v.entries()].sort((a, b) => b[1] - a[1]);
-    const [fill, outline] = best[0].split('|');
-    MAP_NATION_COLORS.set(k, { fill, outline });
+    MAP_NATION_COLORS.set(k, { fill: best[0], outline: best[0] });
   });
   // Every nation's colour is worked out again from the new table.
   nationColorCache.clear();
@@ -11645,7 +12078,14 @@ function worldMerge(mapTowns, details){
   const out = [], seen = new Set();
   mapTowns.forEach(t => {
     const d = details.get(t.name);
-    out.push(d || t); seen.add(t.name);
+    seen.add(t.name);
+    if (t.isMoon && !(d && d.isMoon)){ out.push(t); return; }   // a moon outpost stays as the map drew it
+    if (d && !d.isMoon && !d._moonSorted){
+      d._moonSorted = true;
+      const onMoon = moonChunkFilter(d.claimChunks);
+      if (onMoon) d.claimChunks = d.claimChunks.filter(c => !onMoon(c));
+    }
+    out.push(d || t);
   });
   details.forEach((d, name) => { if (!seen.has(name)) out.push(d); });
   return out;
@@ -11675,8 +12115,9 @@ async function refreshWorldSnapshot(force){
     const [earth, moon] = await Promise.all([
       smFetchMarkers('minecraft_overworld'),
       smFetchMarkers('earthmc_moon').catch(() => []),
+      moonBox().catch(() => null),
     ]);
-    const mapTowns = earth.concat(moon);
+    const mapTowns = smSplitWorlds(earth, moon);
     // Fewer than a few hundred towns means the file has changed shape under
     // us: fall back to the API rather than show a half-empty world.
     if (mapTowns.length > 300){
@@ -11765,9 +12206,11 @@ async function worldFetchDetails(blocking){
 // Towns the Global view should show on top of its tracked nations.
 function worldTownsForView(){
   if (!worldCache.enabled || !worldCache.towns.length) return [];
-  const base = worldCache.nationlessOnly
-    ? worldCache.towns.filter(t => !t.nationName)
-    : worldCache.towns;
+  /* Only the world on screen. The scan holds both, and this list used to
+     be added on top of the filtered one unfiltered — every earth town
+     showed on the moon, and moon outposts on earth. */
+  const moon = mapWorld === 'moon';
+  const base = worldCache.towns.filter(t => (moon ? t.isMoon : !t.isMoon) && (!worldCache.nationlessOnly || !t.nationName));
   // Ethiopia rides along when every town is loaded (or it's tracked here);
   // otherwise Global stays about the other nations.
   return homeShownInGlobal()

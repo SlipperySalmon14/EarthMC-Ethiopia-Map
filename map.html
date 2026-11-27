@@ -1741,7 +1741,7 @@ body.hist-recording .hist-video i{ animation:hrPulse 1.1s ease-in-out infinite; 
 .hr-seg{ display:grid; grid-auto-flow:column; grid-auto-columns:1fr; padding:3px; gap:3px; border-radius:10px;
   background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.07); }
 .hr-seg button{ display:flex; align-items:center; justify-content:center; gap:.38rem; padding:.42rem .2rem; border:0; border-radius:7px; cursor:pointer;
-  background:none; color:var(--muted); font:600 .74rem var(--font-mono); transition:background .15s ease, color .15s ease; }
+  background:none; color:var(--muted); font:600 .74rem var(--font-mono); white-space:nowrap; transition:background .15s ease, color .15s ease; }
 .hr-seg button:hover{ color:var(--parchment); }
 .hr-seg button[aria-pressed="true"]{ background:linear-gradient(180deg, rgba(237,185,18,.22), rgba(237,185,18,.1)); color:var(--brass-hi);
   box-shadow:inset 0 0 0 1px rgba(237,185,18,.35); }
@@ -1947,6 +1947,13 @@ body.globe-on .map-close{ z-index:1300; }
               <button type="button" data-i="1" aria-pressed="true">4</button>
               <button type="button" data-i="2" aria-pressed="false">8</button>
               <button type="button" data-i="3" aria-pressed="false">15</button>
+            </div>
+          </div>
+          <div class="hr-field">
+            <span>Area</span>
+            <div class="hr-seg" data-group="area">
+              <button type="button" data-i="0" aria-pressed="true">This view</button>
+              <button type="button" data-i="1" aria-pressed="false">Whole map</button>
             </div>
           </div>
           <div class="hr-field">
@@ -6894,9 +6901,12 @@ const HIST_Z0 = GLOBE_TILES_Z[0] * GLOBE_BLOCKS_PER_TILE;                // -49,
 const HIST_W = (GLOBE_TILES_X[1] - GLOBE_TILES_X[0] + 1) * GLOBE_BLOCKS_PER_TILE / HIST_CELL;   // 2048
 const HIST_H = (GLOBE_TILES_Z[1] - GLOBE_TILES_Z[0] + 1) * GLOBE_BLOCKS_PER_TILE / HIST_CELL;   // 1536
 const HIST_NATIONLESS = 65535;
+const HIST_WILD = 65534;                                                // unclaimed land, when outlines are traced
 const HIST_REACHES = [[640, 'Close'], [1280, 'Normal'], [2560, 'Wide']];   // blocks a nation's land spreads from its towns
 const HIST_SPEEDS = [2, 4, 8];                                          // days a second on screen
-const HIST_TOWNS_FROM_K = 1 / 32;                                       // screen px per block from which towns are drawn
+const HIST_TOWNS_FROM_K = 1 / 8;                                        // screen px per block from which towns are drawn
+const HIST_FILL_ALPHA = 0.5;                                            // how strongly the land is tinted, all of it alike
+const HIST_LINE_ALPHA = 0.66;                                           // ... and the borders
 const HIST_FINE_FROM_K = 1 / 56;                                        // ... and the finer outlines
 
 const hist = {
@@ -6947,25 +6957,22 @@ function histFonts(){
 }
 
 /* ---- colour --------------------------------------------------------------
-   EarthMC's colours are picked in-game and are often at full blast. Washed
-   over the terrain they are eased a little toward parchment (same hue, less
-   shout); the shading inside each border and the border itself are the
-   colour deepened; towns are the colour itself, with a lifted rim. Very
-   light and very dark nations get borders that still show. */
+   Drawn like a political map: each nation one flat colour (its own, eased a
+   little toward parchment so the loud ones do not shout), tinted a shade
+   deeper just inside its borders, with one thin dark line for the border
+   itself. Land and lines are each painted solid and then laid over the
+   terrain at one strength, so nothing doubles up where shapes meet. */
 function histStyle(rgb){
   const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
   const mix = (a, b, t) => Math.round(a + (b - a) * t);
-  const P = [236, 226, 204];
-  const soft = rgb.map((v, i) => mix(v, P[i], 0.14));
-  const deep = lum > 200 ? rgb.map(v => Math.round(v * 0.36)) : lum < 45 ? rgb.map(v => mix(v, 210, 0.4)) : rgb.map(v => Math.round(v * 0.52));
-  const rim = rgb.map(v => mix(v, 255, 0.5));
+  const P = [240, 232, 214];
+  const soft = rgb.map((v, i) => mix(v, P[i], lum < 60 ? 0.3 : 0.16));
+  const deep = lum > 200 ? rgb.map(v => Math.round(v * 0.5)) : rgb.map(v => Math.round(v * 0.62));
   return {
-    fill: `rgba(${soft.join(',')},${lum > 200 ? 0.30 : 0.38})`,
-    band: `rgba(${rgb.join(',')},.20)`,
-    band2: `rgba(${deep.join(',')},.20)`,
-    edge: `rgba(${deep.join(',')},.92)`,
-    town: `rgba(${rgb.join(',')},.86)`,
-    rim: `rgba(${rim.join(',')},.9)`,
+    fill: `rgb(${soft.join(',')})`,
+    band: `rgb(${deep.join(',')})`,
+    town: `rgba(${rgb.join(',')},.38)`,
+    townEdge: `rgba(${deep.join(',')},.85)`,
     solid: `rgb(${rgb.join(',')})`,
   };
 }
@@ -7035,6 +7042,7 @@ function histLand(){
       if (!globe.viaWorker){ globe.viaWorker = true; hist.landP = null; c.width = c.height = 0; return histLand(); }
     }
     const land = new Uint8Array(HIST_W * HIST_H);
+    hist.worldBox = { x0: HIST_X0, z0: HIST_Z0, x1: HIST_X0 + HIST_W * HIST_CELL, z1: HIST_Z0 + HIST_H * HIST_CELL };
     if (!px){
       land.fill(1);
       hist.landNote = 'The map pictures did not load, so land could not be told from sea.';
@@ -7045,6 +7053,12 @@ function histLand(){
       const r = px[j], g = px[j + 1], b = px[j + 2], a = px[j + 3];
       land[i] = (a > 100 && !(b > r + 28 && b + 12 >= g)) ? 1 : 0;
     }
+    // Where the world itself is drawn (land or sea), for fitting it whole.
+    let c0 = HIST_W, c1 = -1, r0 = HIST_H, r1 = -1;
+    for (let y = 0; y < HIST_H; y++) for (let x = 0; x < HIST_W; x++){
+      if (px[(y * HIST_W + x) * 4 + 3] > 100){ if (x < c0) c0 = x; if (x > c1) c1 = x; if (y < r0) r0 = y; if (y > r1) r1 = y; }
+    }
+    if (c1 > c0 && r1 > r0) hist.worldBox = { x0: HIST_X0 + c0 * HIST_CELL, z0: HIST_Z0 + r0 * HIST_CELL, x1: HIST_X0 + (c1 + 1) * HIST_CELL, z1: HIST_Z0 + (r1 + 1) * HIST_CELL };
     c.width = c.height = 0;
     return land;
   })();
@@ -7086,7 +7100,7 @@ function histTrace(grid, W, H, skip, withNodes){
         if (used[i] & (1 << s)) continue;
         const sx = x + HIST_SX[s], sy = y + HIST_SY[s];
         if (!edge(sx, sy, s, o)){ used[i] |= 1 << s; continue; }
-        const pts = [], node = [];
+        const pts = [], node = [], left = [];
         let vx = sx, vy = sy, d = s, guard = 0;
         for (;;){
           used[(vy + HIST_RY[d]) * W + vx + HIST_RX[d]] |= 1 << d;
@@ -7094,11 +7108,11 @@ function histTrace(grid, W, H, skip, withNodes){
           const r = (d + 1) & 3, l = (d + 3) & 3;
           const nd = edge(vx, vy, r, o) ? r : edge(vx, vy, d, o) ? d : edge(vx, vy, l, o) ? l : -1;
           const nn = withNodes && isNode(vx, vy);
-          if (nd !== d || nn){ pts.push(vx, vy); node.push(nn ? 1 : 0); }
+          if (nd !== d || nn){ pts.push(vx, vy); node.push(nn ? 1 : 0); left.push(nd >= 0 ? at(vx + HIST_LX[nd], vy + HIST_LY[nd]) : 0); }
           if (nd < 0 || (vx === sx && vy === sy && nd === s) || ++guard > 4 * W * H) break;
           d = nd;
         }
-        if (pts.length >= 6) rings.push({ o, pts, node });
+        if (pts.length >= 6) rings.push({ o, pts, node, left });
       }
     }
   }
@@ -7174,9 +7188,11 @@ function histReverse(p){
 /* One traced ring, smoothed. It is cut at its nodes into stretches; each
    stretch is put in a fixed order (by its ends), straightened and rounded,
    then put back. The neighbour on the other side of a stretch gets the very
-   same curve, because it does the very same thing to the very same points. */
+   same curve, because it does the very same thing to the very same points.
+   Returns the outline to fill, and the stretches that get a border line:
+   all of them but those along the water, where the coast says enough. */
 function histSmooth(rg, tol, times){
-  const P = rg.pts, N = rg.node, n = N.length;
+  const P = rg.pts, N = rg.node, Lf = rg.left, n = N.length;
   const key = (i) => P[i * 2 + 1] * 8192 + P[i * 2];
   let first = -1;
   for (let i = 0; i < n; i++) if (N[i]){ first = i; break; }
@@ -7191,29 +7207,46 @@ function histSmooth(rg, tol, times){
     q.push(q[0], q[1]);
     const s = histDP(q, tol);
     s.length -= 2;
-    return s.length >= 6 ? histChaikinClosed(s, times) : histChaikinClosed(q.slice(0, -2), times);
+    const fill = s.length >= 6 ? histChaikinClosed(s, times) : histChaikinClosed(q.slice(0, -2), times);
+    return { fill, lines: Lf[0] ? [{ p: fill, closed: true }] : [] };
   }
-  const out = [];
-  let a = first;
+  const out = [], lines = [];
+  let a = first, prevLine = false;
   do {
     let b = (a + 1) % n;
     while (!N[b]) b = (b + 1) % n;
     const run = [];
-    for (let i = a; ; i = (i + 1) % n){ run.push(P[i * 2], P[i * 2 + 1]); if (i === b && run.length > 2) break; if (i === b && a !== b) break; }
+    for (let i = a; ; i = (i + 1) % n){ run.push(P[i * 2], P[i * 2 + 1]); if (i === b && (run.length > 2 || a !== b)) break; }
     const m = run.length / 2;
     const ka = key(a), kb = key(b);
     const rev = ka > kb || (ka === kb && m > 2 && (run[3] * 8192 + run[2]) > (run[m * 2 - 3] * 8192 + run[m * 2 - 4]));
     let s = histChaikin(histDP(rev ? histReverse(run) : run, tol), times);
     if (rev) s = histReverse(s);
     for (let i = out.length ? 2 : 0; i < s.length; i++) out.push(s[i]);
+    const isLine = Lf[a] !== 0;
+    if (isLine){
+      if (prevLine){ const l = lines[lines.length - 1].p; for (let i = 2; i < s.length; i++) l.push(s[i]); }
+      else lines.push({ p: s.slice(), closed: false });
+    }
+    prevLine = isLine;
     a = b;
   } while (a !== first);
   out.length -= 2;                       // the last point is the first
-  return out;
+  // A line running through the starting node joins up with the first one.
+  if (lines.length > 1 && prevLine && Lf[first] !== 0){
+    const last = lines.pop(), head = lines[0];
+    head.p = last.p.concat(head.p.slice(2));
+  } else if (lines.length === 1 && prevLine && Lf[first] !== 0 && lines[0].p.length >= out.length) lines[0].closed = true;
+  return { fill: out, lines };
 }
 
-/* A ring in blocks, with its box. */
-function histRingObj(p, scale, x0, z0){
+/* A ring in blocks, with its box (and its border lines, if given). */
+function histToBlocks(p, scale, x0, z0){
+  const q = new Float64Array(p.length);
+  for (let i = 0; i < p.length; i += 2){ q[i] = x0 + p[i] * scale; q[i + 1] = z0 + p[i + 1] * scale; }
+  return q;
+}
+function histRingObj(p, scale, x0, z0, lines){
   const q = new Float64Array(p.length);
   let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
   for (let i = 0; i < p.length; i += 2){
@@ -7221,7 +7254,9 @@ function histRingObj(p, scale, x0, z0){
     q[i] = x; q[i + 1] = z;
     if (x < a) a = x; if (x > c) c = x; if (z < b) b = z; if (z > d) d = z;
   }
-  return { p: q, x0: a, z0: b, x1: c, z1: d };
+  const o = { p: q, x0: a, z0: b, x1: c, z1: d };
+  if (lines) o.lines = lines.map(l => ({ p: l.closed && l.p === p ? q : histToBlocks(l.p, scale, x0, z0), closed: l.closed }));
+  return o;
 }
 
 /* A town's exact claim as outline rings, traced once per distinct claim and
@@ -7275,6 +7310,7 @@ function histCompute(snap, land, reach){
   const cx0 = HIST_X0 / 16, cz0 = HIST_Z0 / 16, step = HIST_CELL / 16;
   let towns = 0, chunks = 0, residents = 0, nationless = 0;
   const capitals = [], shapes = [];
+  const free = new Uint8Array(N);          // claimed by towns with no nation
 
   // 1. Claims.
   for (const t of (snap.towns || [])){
@@ -7312,7 +7348,8 @@ function histCompute(snap, land, reach){
   //    and Huttenlocher), carrying the nearest claim along with the distance.
   const R = reach / HIST_CELL, R2 = R * R, INF = 1e12;
   const g = S.g, sy = S.sy, v = S.v, z = S.z;
-  const site = (i) => claimed[i] && owner[i] !== HIST_NATIONLESS;
+  for (let i = 0; i < N; i++) if (owner[i] === HIST_NATIONLESS) free[i] = 1;
+  const site = (i) => claimed[i] && !free[i];
   for (let x = 0; x < W; x++){
     let last = -1;
     for (let y = 0, i = x; y < H; y++, i += W){
@@ -7345,7 +7382,7 @@ function histCompute(snap, land, reach){
     for (let q = 0; q < W; q++){
       while (z[j + 1] < q) j++;
       const i = row + q;
-      if (owner[i] || !land[i]) continue;
+      if (free[i] ? false : (owner[i] || !land[i])) continue;
       const p = v[j], d = (q - p) * (q - p) + g[row + p];
       if (d <= R2) owner[i] = owner[sy[row + p] * W + p];
     }
@@ -7363,7 +7400,7 @@ function histCompute(snap, land, reach){
     if (i >= W && !seen[i - W] && owner[i - W] === o){ seen[i - W] = 1; qa[qn++] = i - W; }
     if (i < N - W && !seen[i + W] && owner[i + W] === o){ seen[i + W] = 1; qa[qn++] = i + W; }
   }
-  for (let i = 0; i < N; i++) if (owner[i] && !seen[i] && !claimed[i]) owner[i] = 0;
+  for (let i = 0; i < N; i++) if (owner[i] && owner[i] !== HIST_NATIONLESS && !seen[i]) owner[i] = free[i] ? HIST_NATIONLESS : 0;
 
   // 4. Where each nation's name goes: its deepest cell (two-pass chamfer).
   const dist = S.dist;
@@ -7407,16 +7444,21 @@ function histCompute(snap, land, reach){
   order.forEach((n, k) => { n.rank = k + 1; });
 
   // 5. Outlines: a finer set for close up and a lighter one for far out.
+  const tg = new Uint16Array(owner);
+  for (let i = 0; i < N; i++) if (!tg[i] && land[i]) tg[i] = HIST_WILD;
   const fine = new Map(), coarse = new Map();
-  const add = (m, o, r) => { let l = m.get(o); if (!l) m.set(o, l = []); l.push(r); };
-  for (const rg of histTrace(owner, W, H, (o) => o === HIST_NATIONLESS, true)){
+  const add = (m, o, sm) => { let l = m.get(o); if (!l) m.set(o, l = []); l.push(histRingObj(sm.fill, HIST_CELL, HIST_X0, HIST_Z0, sm.lines)); };
+  for (const rg of histTrace(tg, W, H, (o) => o >= HIST_WILD, true)){
+    // A speck touching nobody else's land can go when seen from far away;
+    // anything sharing a border stays, or its neighbour would show a gap.
+    const alone = rg.left.every(o => o === 0 || o === HIST_WILD);
     const area = histArea(rg.pts);
-    add(fine, rg.o, histRingObj(histSmooth(rg, 0.75, 2), HIST_CELL, HIST_X0, HIST_Z0));
-    if (area >= 6) add(coarse, rg.o, histRingObj(histSmooth(rg, 1.9, 2), HIST_CELL, HIST_X0, HIST_Z0));
+    add(fine, rg.o, histSmooth(rg, 0.75, 2));
+    if (!alone || area >= 4) add(coarse, rg.o, histSmooth(rg, 1.9, 2));
   }
 
   return {
-    date: snap.date, owner, nations, order, capitals, shapes,
+    date: snap.date, owner, free, nations, order, capitals, shapes,
     rings: { fine, coarse },
     stats: { towns, chunks, residents, nationless, nations: nations.filter(n => n.towns).length },
   };
@@ -7425,39 +7467,59 @@ function histCompute(snap, land, reach){
 /* ---- drawing -------------------------------------------------------------
    One routine for the flat map and the video. It draws in screen pixels
    (worked out in full precision here, not by a canvas transform, which would
-   wobble a few hundred thousand pixels from the origin):
-     land: a tinted wash, a soft deepening just inside each border (two
-     strokes, clipped to the nation), and a crisp border line;
-     towns: their real claims, solid, with a light rim close in;
-     names: spaced capitals, sized to the land they sit on, biggest first. */
+   wobble a few hundred thousand pixels from the origin). The land is painted
+   solid on a spare canvas and laid over the terrain at one strength, then
+   the borders the same way, so the tint is even everywhere and shared
+   borders are one line, not two. Towns appear only close in. */
 function histLineWidths(k){
   return {
-    band: Math.min(10, Math.max(2.4, k * 230)),
-    edge: Math.min(1.7, Math.max(0.8, k * 50)),
+    band: k < 1 / 90 ? 0 : Math.min(9, Math.max(2.5, k * 200)),
+    edge: Math.min(1.6, Math.max(0.7, k * 40)),
   };
 }
+function histLayer(ctx, alpha, draw){
+  const cv = ctx.canvas;
+  let Lc = hist.layerCanvas;
+  if (!Lc) Lc = hist.layerCanvas = document.createElement('canvas');
+  if (Lc.width !== cv.width || Lc.height !== cv.height){ Lc.width = cv.width; Lc.height = cv.height; }
+  const c = Lc.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, Lc.width, Lc.height);
+  c.setTransform(ctx.getTransform());
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  draw(c);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(Lc, 0, 0);
+  ctx.restore();
+}
+/* list: [style, fill path, line path or null, size in px] per nation. */
 function histPaintLand(ctx, list, k){
   const { band, edge } = histLineWidths(k);
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  for (const [st, fp] of list){ ctx.fillStyle = st.fill; ctx.fill(fp, 'evenodd'); }
-  for (const [st, fp, lp, size] of list){
-    if (size < 10) continue;
-    ctx.save();
-    ctx.clip(fp, 'evenodd');
-    ctx.strokeStyle = st.band; ctx.lineWidth = band * 2; ctx.stroke(lp);
-    ctx.strokeStyle = st.band2; ctx.lineWidth = band * 0.8; ctx.stroke(lp);
-    ctx.restore();
-  }
-  ctx.lineWidth = edge;
-  for (const [st, , lp] of list){ ctx.strokeStyle = st.edge; ctx.stroke(lp); }
+  histLayer(ctx, HIST_FILL_ALPHA, (c) => {
+    for (const [st, fp] of list){ c.fillStyle = st.fill; c.fill(fp, 'evenodd'); }
+    if (band) for (const [st, fp, lp, size] of list){
+      if (!lp || size < 14) continue;
+      c.save();
+      c.clip(fp, 'evenodd');
+      c.strokeStyle = st.band;
+      c.globalAlpha = 0.32; c.lineWidth = band * 2; c.stroke(lp);
+      c.globalAlpha = 0.34; c.lineWidth = band * 0.8; c.stroke(lp);
+      c.restore();
+    }
+  });
+  histLayer(ctx, HIST_LINE_ALPHA, (c) => {
+    c.strokeStyle = 'rgb(26,21,15)'; c.lineWidth = edge;
+    for (const [, , lp] of list) if (lp) c.stroke(lp);
+  });
 }
 function histPaintTowns(ctx, groups, k){
-  const rim = k >= 1 / 12;
   ctx.lineJoin = 'miter';
-  ctx.lineWidth = k >= 1 ? 1.4 : 1;
+  ctx.lineWidth = k >= 1 ? 1.3 : 1;
   groups.forEach((p, st) => {
     ctx.fillStyle = st.town; ctx.fill(p, 'evenodd');
-    if (rim){ ctx.strokeStyle = st.rim; ctx.stroke(p); }
+    ctx.strokeStyle = st.townEdge; ctx.stroke(p);
   });
 }
 function histStyleOf(f, id){ return id === HIST_NATIONLESS ? HIST_GREY_STYLE : (f.nations[id - 1] || {}).style || HIST_GREY_STYLE; }
@@ -7467,22 +7529,25 @@ function histRender2D(ctx, f, view, opts){
   const o = opts || {};
   const { k, ox, oz, w, h } = view;
   const m = 6 / k, vx0 = ox - m, vz0 = oz - m, vx1 = ox + w / k + m, vz1 = oz + h / k + m;
-  const ring = (path, r) => {
-    const p = r.p;
+  const trace = (path, p, closed) => {
     path.moveTo((p[0] - ox) * k, (p[1] - oz) * k);
     for (let i = 2; i < p.length; i += 2) path.lineTo((p[i] - ox) * k, (p[i + 1] - oz) * k);
-    path.closePath();
+    if (closed) path.closePath();
   };
   const list = [];
   f.rings[k >= HIST_FINE_FROM_K ? 'fine' : 'coarse'].forEach((rings, id) => {
-    let path = null, size = 0;
+    let fp = null, lp = null, size = 0;
     for (const r of rings){
       if (r.x1 < vx0 || r.x0 > vx1 || r.z1 < vz0 || r.z0 > vz1) continue;
-      if (!path) path = new Path2D();
-      ring(path, r);
+      if (!fp) fp = new Path2D();
+      trace(fp, r.p, true);
+      if (r.lines && r.lines.length){
+        if (!lp) lp = new Path2D();
+        for (const l of r.lines) trace(lp, l.p, l.closed);
+      }
       size = Math.max(size, (r.x1 - r.x0) * k, (r.z1 - r.z0) * k);
     }
-    if (path) list.push([histStyleOf(f, id), path, path, size]);
+    if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
   });
   ctx.save();
   histPaintLand(ctx, list, k);
@@ -7492,7 +7557,7 @@ function histRender2D(ctx, f, view, opts){
       if (s.x1 < vx0 || s.x0 > vx1 || s.z1 < vz0 || s.z0 > vz1) continue;
       const st = histStyleOf(f, s.id);
       let p = groups.get(st); if (!p) groups.set(st, p = new Path2D());
-      for (const r of histTownRings(s)) ring(p, r);
+      for (const r of histTownRings(s)) trace(p, r.p, true);
     }
     histPaintTowns(ctx, groups, k);
   }
@@ -7563,25 +7628,29 @@ function histLabels2D(ctx, f, at, ppb, kc, w, h, scale){
   ctx.restore();
 }
 
-/* The live flat map: one canvas the size of the view, repainted when the
-   map comes to rest, carried along and scaled while it pans and zooms. */
+/* The live flat map: one canvas a little larger than the view (so a pan
+   does not show bare edges), repainted when the map comes to rest, carried
+   along and scaled while it pans and zooms. A new day is painted on a spare
+   canvas and blended in over a fifth of a second; the blend is exact (old
+   times 1-t plus new times t), so nothing dims or flashes on the way. */
 let HistLayer = null;
 if (typeof L !== 'undefined' && L.Layer && L.Layer.extend){
   HistLayer = L.Layer.extend({
     onAdd(map){
       this._map = map;
       this._c = L.DomUtil.create('canvas', 'hist-layer leaflet-zoom-animated');
-      this._b = L.DomUtil.create('canvas', 'hist-layer leaflet-zoom-animated');
-      this._b.style.opacity = '0';
-      map.getPane('histPane').appendChild(this._b);
+      this._day = document.createElement('canvas');
+      this._old = document.createElement('canvas');
       map.getPane('histPane').appendChild(this._c);
-      map.on('moveend zoomend resize viewreset', this.redraw, this);
+      map.on('moveend resize viewreset', this.redraw, this);
       if (map._zoomAnimated) map.on('zoomanim', this._anim, this);
       this.redraw();
     },
     onRemove(map){
-      L.DomUtil.remove(this._c); L.DomUtil.remove(this._b);
-      map.off('moveend zoomend resize viewreset', this.redraw, this);
+      cancelAnimationFrame(this._raf); this._raf = 0;
+      L.DomUtil.remove(this._c);
+      this._key = '';
+      map.off('moveend resize viewreset', this.redraw, this);
       map.off('zoomanim', this._anim, this);
     },
     _anim(e){
@@ -7589,35 +7658,54 @@ if (typeof L !== 'undefined' && L.Layer && L.Layer.extend){
       const scale = this._map.getZoomScale(e.zoom, this._zoom);
       const offset = this._map._latLngBoundsToNewLayerBounds(this._bounds, e.zoom, e.center).min;
       L.DomUtil.setTransform(this._c, offset, scale);
-      this._b.style.opacity = '0';
     },
-    /* fade: a new day, drawn on the spare canvas and faded in over the old. */
     redraw(fade){
-      const map = this._map;
-      if (!map || !this._c) return;
-      if (fade === true && !matchMedia('(prefers-reduced-motion: reduce)').matches){
-        const t = this._c; this._c = this._b; this._b = t;
-      } else fade = false;
-      const c = this._c;
+      const map = this._map, c = this._c;
+      if (!map || !c) return;
+      cancelAnimationFrame(this._raf); this._raf = 0;
       const size = map.getSize(), dpr = Math.min(2, window.devicePixelRatio || 1);
-      if (c.width !== Math.round(size.x * dpr) || c.height !== Math.round(size.y * dpr)){
-        c.width = Math.round(size.x * dpr); c.height = Math.round(size.y * dpr);
-        c.style.width = size.x + 'px'; c.style.height = size.y + 'px';
+      const px = Math.round(size.x * 0.12), py = Math.round(size.y * 0.12);
+      const w = size.x + px * 2, h = size.y + py * 2, W = Math.round(w * dpr), H = Math.round(h * dpr);
+      const tl = map.containerPointToLatLng([-px, -py]), br = map.containerPointToLatLng([size.x + px, size.y + py]);
+      const key = [W, H, tl.lat.toFixed(3), tl.lng.toFixed(3), map.getZoom()].join('|');
+      fade = fade === true && key === this._key && this._has && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (fade){
+        if (this._old.width !== W || this._old.height !== H){ this._old.width = W; this._old.height = H; }
+        const oc = this._old.getContext('2d');
+        oc.clearRect(0, 0, W, H); oc.drawImage(c, 0, 0);
       }
-      L.DomUtil.setPosition(c, map.containerPointToLayerPoint([0, 0]));
-      this._bounds = map.getBounds(); this._zoom = map.getZoom();
+      if (c.width !== W || c.height !== H){ c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px'; }
+      L.DomUtil.setPosition(c, map.containerPointToLayerPoint([-px, -py]));
+      this._bounds = L.latLngBounds(tl, br); this._zoom = map.getZoom(); this._key = key;
+      const d = this._day;
+      if (d.width !== W || d.height !== H){ d.width = W; d.height = H; }
+      const dc = d.getContext('2d');
+      dc.setTransform(1, 0, 0, 1, 0, 0);
+      dc.clearRect(0, 0, W, H);
+      if (hist.frame){
+        dc.setTransform(dpr, 0, 0, dpr, 0, 0);
+        histRender2D(dc, hist.frame, { k: Math.pow(2, this._zoom), ox: tl.lng, oz: -tl.lat, w, h });
+      }
+      this._has = !!hist.frame;
       const ctx = c.getContext('2d');
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, c.width, c.height);
-      if (!hist.frame) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const tl = map.containerPointToLatLng([0, 0]);
-      histRender2D(ctx, hist.frame, { k: Math.pow(2, this._zoom), ox: tl.lng, oz: -tl.lat, w: size.x, h: size.y });
-      const back = this._b;
-      c.style.transition = back.style.transition = fade ? 'opacity .26s ease' : 'none';
-      c.style.zIndex = '2'; back.style.zIndex = '1';
-      c.style.opacity = '1';
-      back.style.opacity = '0';
+      const show = (t) => {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        ctx.clearRect(0, 0, W, H);
+        if (t >= 1){ ctx.drawImage(d, 0, 0); return; }
+        ctx.globalAlpha = 1 - t; ctx.drawImage(this._old, 0, 0);
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = t; ctx.drawImage(d, 0, 0);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      };
+      if (!fade){ show(1); return; }
+      const t0 = performance.now(), dur = 200;
+      const step = () => {
+        const t = Math.min(1, (performance.now() - t0) / dur);
+        show(t * t * (3 - 2 * t));
+        this._raf = t < 1 ? requestAnimationFrame(step) : 0;
+      };
+      show(0);
+      this._raf = requestAnimationFrame(step);
     },
   });
 }
@@ -7644,16 +7732,19 @@ function histFlatShow(fade){
 }
 
 /* ---- the globe ----------------------------------------------------------- */
-/* A ring as points on the ball, long edges cut so they follow its curve. */
+/* A ring (or an open line) as points on the ball, long edges cut so they
+   follow its curve. */
 const histGlobeMemo = new WeakMap();
-function histGlobeRing(r){
+function histGlobeRing(r, open){
   let e = histGlobeMemo.get(r);
   if (e && e.ver === globeCalibVer) return e;
   const src = r.p, pts = [];
   const n0 = src.length / 2;
   for (let i = 0; i < n0; i++){
-    const ax = src[i * 2], az = src[i * 2 + 1], j = (i + 1) % n0, bx = src[j * 2], bz = src[j * 2 + 1];
+    const ax = src[i * 2], az = src[i * 2 + 1];
     pts.push(ax, az);
+    if (open && i === n0 - 1) break;
+    const j = (i + 1) % n0, bx = src[j * 2], bz = src[j * 2 + 1];
     const cut = Math.min(40, Math.floor(Math.hypot(bx - ax, bz - az) / 192));
     for (let c = 1; c <= cut; c++){ const t = c / (cut + 1); pts.push(ax + (bx - ax) * t, az + (bz - az) * t); }
   }
@@ -7688,15 +7779,19 @@ function globeDrawHistory(ctx, V, part){
       k, V.w, V.h, 1);
     return;
   }
-  const add = (fp, lp, r) => { const e = histGlobeRing(r); globeProjectRing(V, e); globePathFill(fp, V, e.n); globePathLine(lp, V, e.n, true); };
   const list = [];
   f.rings[k >= HIST_FINE_FROM_K ? 'fine' : 'coarse'].forEach((rings, id) => {
     let fp = null, lp = null, size = 0;
     for (const r of rings){
       const e = histGlobeRing(r);
       if (!globeSeen(V, e.c, e.rad)) continue;
-      if (!fp){ fp = new Path2D(); lp = new Path2D(); }
-      add(fp, lp, r);
+      if (!fp) fp = new Path2D();
+      globeProjectRing(V, e); globePathFill(fp, V, e.n);
+      if (r.lines) for (const l of r.lines){
+        const le = histGlobeRing(l, !l.closed);
+        if (!lp) lp = new Path2D();
+        globeProjectRing(V, le); globePathLine(lp, V, le.n, l.closed);
+      }
       size = Math.max(size, e.rad * 2 * R * k);
     }
     if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
@@ -7724,6 +7819,7 @@ function histCellAt(x, z){
   if (cx < 0 || cz < 0 || cx >= HIST_W || cz >= HIST_H) return null;
   const o = hist.frame.owner[cz * HIST_W + cx];
   if (!o) return null;
+  if (hist.frame.free[cz * HIST_W + cx]) return { nationless: true };
   if (o === HIST_NATIONLESS) return { nationless: true };
   return hist.frame.nations[o - 1] || null;
 }
@@ -8013,9 +8109,31 @@ function histRecSummary(){
   const a = Number(document.getElementById('histRecFrom').value || 0), b = Number(document.getElementById('histRecTo').value || 0);
   const n = Math.abs(b - a) + 1, dps = HIST_REC_SPEEDS[histRecChoice('speed')];
   const secs = Math.round(n / dps + 1.5);
-  const where = mapProjection === 'globe' ? 'the globe, as it is turned now' : 'the flat map, at this zoom';
-  el.innerHTML = `<b>${n} days</b> · <b>${secs < 60 ? secs + ' s' : Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s'}</b> of video<br>What is inside the frame on ${where}. Move the map to change it.`;
+  const whole = histRecChoice('area') === 1, globeView = mapProjection === 'globe';
+  const where = whole
+    ? (globeView ? 'The whole globe, turned as it is now, filling the video.' : 'The whole map, fitted to the video edge to edge.')
+    : `What is inside the frame on ${globeView ? 'the globe, as it is turned now' : 'the flat map, at this zoom'}. Move the map to change it.`;
+  el.innerHTML = `<b>${n} days</b> · <b>${secs < 60 ? secs + ' s' : Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s'}</b> of video<br>${where}`;
   histRecFrame();
+}
+
+/* "Whole map": show it on screen too, filling the frame as near as the
+   map's zoom steps allow (the video itself fits it exactly). */
+async function histRecFit(){
+  if (histRecChoice('area') !== 1) return;
+  await histLand();
+  const c = histRecCrop();
+  if (c.globeMode){
+    const f = 1 / Math.tan(GLOBE_FOV / 2), half = Math.min(globe.w, globe.h) / 2;
+    const r = Math.min(c.w, c.h) * 0.46;
+    globe.dist = Math.sqrt(1 + (half * f / r) ** 2);
+    globe.vLat = globe.vLon = 0;
+    globeRequestDraw();
+  } else {
+    const B = hist.worldBox, map = mapController.map;
+    const k = Math.min(c.w / (B.x1 - B.x0), c.h / (B.z1 - B.z0));
+    map.setView(CoordUtils.mcToLatLng((B.x0 + B.x1) / 2, (B.z0 + B.z1) / 2), Math.floor(Math.log2(k) + 0.02));
+  }
 }
 
 function histLoadScript(src){
@@ -8051,7 +8169,7 @@ async function histRecGround(view, w, h){
   const bg = document.createElement('canvas');
   bg.width = w; bg.height = h;
   const ctx = bg.getContext('2d');
-  ctx.fillStyle = '#121d33'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#0d0c0a'; ctx.fillRect(0, 0, w, h);
   if (!showTerrain) return bg;
   const bpp = 1 / view.k;
   const f = Math.max(0, Math.min(5, 5 - Math.round(Math.log2(Math.max(1, bpp)))));
@@ -8185,18 +8303,26 @@ async function histRecord(){
 
     // What the camera sees.
     let view = null, ground = null;
+    const whole = histRecChoice('area') === 1;
     const zoomUp = W / crop.w;                      // video pixels per screen pixel
+    if (whole) await histLand();
     if (crop.globeMode){
-      const saved = { w: globe.w, h: globe.h, dpr: globe.dpr, gw: globe.glCanvas.width, gh: globe.glCanvas.height, ow: globe.ovCanvas.width, oh: globe.ovCanvas.height };
+      const saved = { w: globe.w, h: globe.h, dpr: globe.dpr, gw: globe.glCanvas.width, gh: globe.glCanvas.height, ow: globe.ovCanvas.width, oh: globe.ovCanvas.height, dist: globe.dist };
       restoreGlobe = () => {
-        globe.recording = false; globe.halfOverride = 0;
+        globe.recording = false; globe.halfOverride = 0; globe.dist = saved.dist;
         globe.w = saved.w; globe.h = saved.h; globe.dpr = saved.dpr;
         globe.glCanvas.width = saved.gw; globe.glCanvas.height = saved.gh; globe.ovCanvas.width = saved.ow; globe.ovCanvas.height = saved.oh;
         globeRequestDraw();
       };
       // The same framing as the box on screen.
       globe.recording = true;
-      globe.halfOverride = Math.min(saved.w, saved.h) / 2 * zoomUp;
+      globe.vLat = globe.vLon = 0;
+      if (whole){
+        // The whole ball, as large as fits.
+        const f = 1 / Math.tan(GLOBE_FOV / 2);
+        globe.halfOverride = Math.min(W, H) / 2;
+        globe.dist = Math.sqrt(1 + (f / 0.92) ** 2);
+      } else globe.halfOverride = Math.min(saved.w, saved.h) / 2 * zoomUp;
       globe.w = W; globe.h = H; globe.dpr = 1;
       globe.glCanvas.width = W; globe.glCanvas.height = H; globe.ovCanvas.width = W; globe.ovCanvas.height = H;
       ui('Fetching the ground…', 0);
@@ -8207,6 +8333,12 @@ async function histRecord(){
         if (!globeTiles.inFlight && t > 4) break;
         if (rec.cancel) throw new Error('cancelled');
       }
+    } else if (whole){
+      const B = hist.worldBox;
+      const k = Math.min(W / (B.x1 - B.x0), H / (B.z1 - B.z0)) * 0.98;
+      view = { k, ox: (B.x0 + B.x1) / 2 - W / k / 2, oz: (B.z0 + B.z1) / 2 - H / k / 2, w: W, h: H };
+      ui('Fetching the ground…', 0);
+      ground = await histRecGround(view, W, H);
     } else {
       const map = mapController.map;
       const c = map.getCenter(), k = Math.pow(2, map.getZoom()) * zoomUp;
@@ -8341,6 +8473,8 @@ async function histRecord(){
     if (hist.rec && hist.rec.busy) return;
     b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
     histRecSummary();
+    const g = b.parentElement.dataset.group;
+    if (g === 'area' || (g === 'size' && histRecChoice('area') === 1)) histRecFit();
   }));
   ['histRecFrom', 'histRecTo'].forEach(id => document.getElementById(id).addEventListener('change', histRecSummary));
   document.getElementById('histRecGo').addEventListener('click', () => histRecord());
@@ -17869,7 +18003,9 @@ function applyViewerGate(){
 
   // Ethiopia's own tabs disappear entirely rather than being disabled — a
   // greyed tab still tells you what exists.
-  [dom.viewTabEthiopia, dom.viewTabSettings].forEach(el => { if (el) el.hidden = !member; });
+  if (dom.viewTabEthiopia) dom.viewTabEthiopia.hidden = !member;
+  // Display settings are for anyone who can see the map, visa holders too.
+  if (dom.viewTabSettings) dom.viewTabSettings.hidden = !(member || perk);
   const home = document.querySelector('.home-link');
   if (home) home.style.display = member ? '' : 'none';
   // The button that used to open a password prompt now IS the permission
@@ -17883,7 +18019,7 @@ function applyViewerGate(){
   document.body.classList.toggle('planner', planningAccess.planner);
   if (!planningAccess.planner && activeView === 'planning') setSidebarView(member ? 'ethiopia' : 'global');
 
-  if (!member && activeView !== 'global') setSidebarView('global');
+  if (!member && activeView !== 'global' && !(perk && activeView === 'settings')) setSidebarView('global');
   // setSidebarView('ethiopia') runs at boot before loadViewer()'s fetch has
   // resolved, so applyRegionVisibility() and renderNationClaimAreas() both
   // first evaluate with viewerTier still at its 'unverified' default —

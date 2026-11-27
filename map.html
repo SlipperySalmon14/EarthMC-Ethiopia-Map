@@ -894,6 +894,25 @@ body.gui-hidden .gui-restore{ display: block; }
 .nc-row .nc-name{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .nc-row .nc-meta{ flex:none; color:var(--muted); font-size:.66rem; }
 .nc-detail{ margin-top:.7rem; padding-top:.7rem; border-top:1px solid var(--line); }
+
+/* The picked nation, above the town table. */
+.nation-card{ margin:.7rem 0 .2rem; padding:.75rem .85rem .8rem; border:1px solid var(--line); border-radius:var(--radius-md);
+  background:var(--panel-2); }
+.ncard-head{ display:flex; align-items:center; gap:.5rem; }
+.ncard-head h3{ flex:1; min-width:0; margin:0; font-family:var(--font-display); font-size:1.05rem; color:var(--parchment);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ncard-sw{ width:.7rem; height:.7rem; border-radius:3px; flex:none; box-shadow:0 0 0 1px rgba(255,255,255,.2); }
+.ncard-lead{ display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin:.45rem 0 .6rem; font-size:.78rem; color:var(--muted); }
+.ncard-lead b{ color:var(--parchment); font-weight:600; }
+.ncard-figs{ display:grid; grid-template-columns:repeat(auto-fit, minmax(5.2rem, 1fr)); gap:.5rem .7rem; }
+.ncard-figs b{ display:block; font-family:var(--font-mono); font-size:.92rem; color:var(--parchment); font-variant-numeric:tabular-nums; }
+.ncard-figs span{ font-size:.66rem; color:var(--muted); }
+.ncard-off{ display:flex; flex-direction:column; gap:.15rem; margin:.6rem 0 0; font-size:.72rem; color:var(--parchment); }
+.ncard-off i{ font-style:normal; color:var(--muted-dim); margin-right:.25rem; }
+.ncard-reach{ margin:.6rem 0 0; font-size:.74rem; color:var(--muted); }
+.ncard-reach b{ color:var(--brass-hi); }
+.ncard-range{ margin-top:.6rem; }
+.ncard-range.on{ border-color:var(--brass); color:var(--brass-hi); }
 .nc-detail h3{ font-family:var(--font-display); font-size:1rem; color:var(--brass-hi); margin-bottom:.5rem; }
 .nc-officers{ margin-bottom:.6rem; }
 .nc-officer-group{ margin-bottom:.45rem; }
@@ -1042,12 +1061,15 @@ input[type="range"]{
   image-rendering: pixelated;
   image-rendering: crisp-edges; /* older Firefox */
 }
-/* Terrain tiles are canvases, so Leaflet's own seam fix (written for <img>
-   tiles) misses them. Same fix: during a zoom the tiles land on fractional
-   pixels, their soft edges overlap, and "plus-lighter" adds the two halves
-   back to solid instead of letting the background show through as a line.
-   Each zoom level is its own stacking context, so levels never add up. */
-.terrain-layer .leaflet-tile{ mix-blend-mode: plus-lighter; }
+/* Terrain seams. These tiles used "plus-lighter" blending, the trick Leaflet
+   uses for <img> tiles, but it only works when two tiles share a half-covered
+   edge pixel. When the browser rounds two tiles onto the SAME pixel row it
+   adds them, and a full-width bright line appears; when it rounds them apart,
+   a dark one. Both showed up as long straight lines across the world.
+   Now each terrain tile is drawn one pixel wider and taller than its slot
+   (see TerrainLayer._initTile), so neighbours overlap instead of touching,
+   and ordinary blending makes the overlap invisible. */
+.terrain-layer .leaflet-tile{ mix-blend-mode: normal; }
 
 /* Deliberately NOT applying a drop-shadow filter to the vector canvases:
    with preferCanvas the whole layer shares one canvas, so the filter would
@@ -1834,6 +1856,7 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
         <div class="nation-summary" id="nationSummary">
           <p class="empty-hint">Sync to load tracked nations.</p>
         </div>
+        <div class="nation-card" id="nationCard" hidden></div>
         <div class="town-table-controls">
           <input type="text" id="townFilterInput" placeholder="Filter towns by name…" autocomplete="off">
           <select id="townSortSelect" aria-label="Sort towns by">
@@ -2649,32 +2672,36 @@ function rangeCovers(xz, anchors){
   return null;
 }
 
-/* Which towns the nation could actually absorb.
-   Iterated, not one pass: a town that joins extends the frontier by its own
-   1,500, which can bring a further town into range that was not before. One
-   pass would understate the reach of any nation that sprawls, which is most. */
+/* Which towns the nation could take in today: inside the frontier as it
+   stands, one pass.
+   This used to repeat, treating every town in range as if it had already
+   joined and growing the frontier from it. With every town on the server
+   loaded, towns sit within 1,500 blocks of each other across whole
+   continents, so the chain ran from Ethiopia to Europe and marked nearly
+   every town in the world. What can join NOW is the useful answer. */
 function rangeReachableTowns(nation){
-  const anchors = rangeAnchors(nation).slice();
+  const anchors = rangeAnchors(nation);
   if (!anchors.length) return [];
   const wanted = String(nation || '').toLowerCase();
-  const candidates = ncAllTowns().filter(t =>
-    !t.isMoon && typeof t.homeX === 'number' &&
-    (t.nationName || '').toLowerCase() !== wanted);
-  const taken = new Set(), order = [];
-  let grew = true, guard = 0;
-  while (grew && guard++ < 60){
-    grew = false;
-    for (const t of candidates){
-      if (taken.has(t.name)) continue;
-      const via = rangeCovers([t.homeX, t.homeZ], anchors);
-      if (!via) continue;
-      taken.add(t.name);
-      order.push({ town: t, via: via.name });
-      anchors.push({ name: t.name, xz: [t.homeX, t.homeZ], isCapital: false });
-      grew = true;
-    }
-  }
-  return order;
+  const out = [];
+  ncAllTowns().forEach(t => {
+    if (t.isMoon || typeof t.homeX !== 'number') return;
+    if ((t.nationName || '').toLowerCase() === wanted) return;
+    const via = rangeCovers([t.homeX, t.homeZ], anchors);
+    if (via) out.push({ town: t, via: via.name });
+  });
+  return out;
+}
+
+/* The nation a range is drawn for: the one picked in the Global list, then
+   the one picked among nation claims, then Ethiopia for a citizen, or a
+   visitor's own nation. */
+function rangeNation(){
+  const picked = nationView.activeNation;
+  if (picked && picked !== 'Unaffiliated') return picked;
+  if (nationClaimState.activeNation) return nationClaimState.activeNation;
+  if (viewerIsPerk()) return perkInfo.nation || null;
+  return HOME_NATION;
 }
 
 /* =========================================================================
@@ -3736,6 +3763,19 @@ const TerrainLayer = L.GridLayer.extend({
   setNativeZoom(folder){ this._finest = folder; if (this._map) this.redraw(); return this; },
   nativeFolder(){ return this._finest; },
   setKeepBuffer(n){ this.options.keepBuffer = n; return this; },
+
+  /* Each tile reaches a pixel (two, on a zoomed-out browser) into its right
+     and lower neighbours. A 513px box showing a 512px canvas is a 0.2%
+     stretch nobody can see; a gap or a doubled row between tiles is a line
+     across the whole map that everybody can. */
+  _initTile(tile){
+    const base = L.GridLayer.prototype._initTile;
+    if (base) base.call(this, tile);
+    const s = this.getTileSize();
+    const extra = Math.max(1, Math.ceil(1 / (window.devicePixelRatio || 1)));
+    tile.style.width = (s.x + extra) + 'px';
+    tile.style.height = (s.y + extra) + 'px';
+  },
 
   createTile(coords, done){
     const size = this.getTileSize().x;
@@ -5000,15 +5040,17 @@ class MapController{
       { label: 'Terra Luna (moon)', get: () => mapWorld === 'moon',
         set: (v) => setMapWorld(v ? 'moon' : 'earth') },
       { label: 'Nation range', get: () => showNationRange,
-        set: (v) => { showNationRange = v; renderNationRange(); },
+        set: (v) => { showNationRange = v; renderNationRange(); renderNationCard(); },
         when: () => mapWorld !== 'moon' },
       // This one traces each TOWN's claimed chunks — it is the town layer, and
       // calling it "Nation claims" was wrong. Nation claims are the separate,
       // admin-drawn borders below.
       { label: 'Towns', get: () => showClaims, set: (v) => { showClaims = v; refreshMapLayers(); } },
+      // Ethiopia's own drawn borders: the Worker never sends them to a visa
+      // holder, so the row would switch nothing on.
       { label: 'Nation claims', get: () => showNationClaims, set: (v) => {
           showNationClaims = v; renderNationClaimAreas();
-        } },
+        }, when: () => !viewerIsPerk() },
       // Ethiopia's own political regions. Hidden from this box in the Global
       // view, where regions aren't drawn at all — `when` controls that.
       { label: 'Regions', get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
@@ -5872,9 +5914,13 @@ function renderNationRange(){
   group.clearLayers();
   if (!showNationRange || mapWorld === 'moon') return;
 
-  const nation = nationClaimState.activeNation || HOME_NATION;
+  const nation = rangeNation();
+  if (!nation) return;
   const anchors = rangeAnchors(nation);
-  if (!anchors.length) return;
+  if (!anchors.length){
+    auditLog.log('Range for ' + nation + ': none of its towns are loaded yet. Track it in the Global tab.', 'info');
+    return;
+  }
 
   /* The UNION of every disc, as one boundary — not sixty overlapping rings.
    *
@@ -5918,6 +5964,17 @@ function renderNationRange(){
           fillOpacity: 0.05,
           interactive: false, pmIgnore: true,
         }).addTo(group);
+        /* The frontier line itself opens the nation's details, the way a
+           nation claim does. Only the line, never the fill: a filled
+           shape this size would swallow clicks on every town inside it. */
+        if (i === 0){
+          L.polyline(latlngs.concat([latlngs[0]]), {
+            color: '#000', opacity: 0, weight: 14, interactive: true, pmIgnore: true,
+            bubblingMouseEvents: false,
+          }).bindTooltip(escapeHtml(nation + ' · reach'), { sticky: true, className: 'claim-tooltip' })
+            .bindPopup(() => ncPopupHtml(nation) + rangePopupHtml(nation), { maxWidth: 340 })
+            .addTo(group);
+        }
       });
     });
   } else {
@@ -5947,9 +6004,9 @@ function renderNationRange(){
       { direction: 'top', className: 'claim-tooltip' }).addTo(group);
   });
 
-  /* The payoff: towns inside the frontier that are not yours yet, each
-     labelled with which of your towns puts them in range. */
-  rangeReachableTowns(nation).forEach(({ town, via }) => {
+  /* The payoff: towns inside the frontier that are not this nation's yet,
+     each labelled with which of its towns puts them in range. */
+  rangeReachableTowns(nation).slice(0, 400).forEach(({ town, via }) => {
     L.circleMarker(CoordUtils.mcToLatLng(town.homeX, town.homeZ), {
       radius: 5, color: COLORS.sageHi, weight: 2,
       fillColor: COLORS.ink, fillOpacity: .9,
@@ -7247,6 +7304,7 @@ function renderNationSummary(towns){
   host.appendChild(makeRow('All', towns.length, null, nationView.activeNation === null, () => {
     nationView.activeNation = null;
     renderNationPanel(state.towns);
+    if (showNationRange) renderNationRange();
   }));
 
   groups.forEach(([name, list]) => {
@@ -7254,6 +7312,7 @@ function renderNationSummary(towns){
     const row = makeRow(name, list.length, color, nationView.activeNation === name, () => {
       nationView.activeNation = nationView.activeNation === name ? null : name;
       renderNationPanel(state.towns);
+      if (showNationRange) renderNationRange();
     });
     // Untrack button. The home nation and the catch-all group can't be
     // removed — Ethiopia is always tracked, and "Unaffiliated" isn't a
@@ -9113,7 +9172,84 @@ function renderNationPanel(towns){
   // Scope to the view so Ethiopia only appears once it's tracked here.
   const list = townsForActiveView(towns || []);
   renderNationSummary(list);
+  renderNationCard();
   renderTownTable(list);
+}
+
+/* A picked nation's details, above the town table: the same facts a nation
+   claim's popup gives (leader, officers, towns, people, land, money), and
+   its reach when Nation range is on. All of it public EarthMC data, so the
+   visa view gets it too. */
+function rangePopupHtml(nation){
+  const anchors = rangeAnchors(nation);
+  const reach = rangeReachableTowns(nation);
+  const free = reach.filter(r => !r.town.nationName).length;
+  return `<div class="mc-popup" style="padding-top:0"><table>
+    <tr><td>Reach</td><td>${CoordUtils.fmt(anchors.length)} towns · capital 5,000 blocks, the rest 1,500</td></tr>
+    <tr><td>Could join now</td><td>${CoordUtils.fmt(reach.length)} town${reach.length === 1 ? '' : 's'} (${CoordUtils.fmt(free)} nationless)</td></tr>
+  </table></div>`;
+}
+
+function renderNationCard(){
+  const host = document.getElementById('nationCard');
+  if (!host) return;
+  const nation = nationView.activeNation;
+  if (!nation || nation === 'Unaffiliated'){ host.hidden = true; host.replaceChildren(); return; }
+
+  const s = ncNationSummary(nation);
+  const king = s.stats && s.stats.king ? s.stats.king : null;
+  const capital = (s.towns.find(t => t.isCapital) || {}).name || null;
+  const officers = ncOfficerGroups(s.stats);
+  const fmt = CoordUtils.fmt;
+  const fig = (n, k) => `<div><b>${n}</b><span>${k}</span></div>`;
+
+  let reachHtml = '';
+  if (showNationRange){
+    const anchors = rangeAnchors(nation);
+    const reach = rangeReachableTowns(nation);
+    const free = reach.filter(r => !r.town.nationName).length;
+    reachHtml = anchors.length
+      ? `<p class="ncard-reach">Range drawn: <b>${fmt(reach.length)}</b> town${reach.length === 1 ? '' : 's'} could join now, ${fmt(free)} of them nationless.</p>`
+      : `<p class="ncard-reach">None of its towns are loaded, so its range can't be drawn.</p>`;
+  }
+
+  host.innerHTML = `
+    <div class="ncard-head">
+      <span class="ncard-sw" style="background:${escapeHtml(nationColors(nation).fill)}"></span>
+      <h3>${escapeHtml(nation)}</h3>
+      <button type="button" class="btn btn-ghost btn-small" data-act="zoom">Zoom to</button>
+    </div>
+    <p class="ncard-lead">${king ? `${playerHead(king, 18)}<span>Led by <b>${escapeHtml(king)}</b>${capital ? ` from ${escapeHtml(capital)}` : ''}</span>`
+      : (s.stats ? 'No leader reported' : `<span>Leader and nation bank load once it's tracked.</span> <button type="button" class="btn btn-ghost btn-small" data-act="track">Track it</button>`)}</p>
+    <div class="ncard-figs">
+      ${fig(fmt(s.townCount), 'towns')}
+      ${fig(fmt(s.residents), 'residents')}
+      ${fig(fmt(s.chunks), 'chunks')}
+      ${fig(s.treasury === null ? '—' : fmt(s.treasury) + 'g', 'nation bank')}
+      ${fig(fmt(s.gdp) + 'g', 'total GDP')}
+    </div>
+    ${officers.length ? `<p class="ncard-off">${officers.map(([rank, names]) =>
+        `<span><i>${escapeHtml(rank)}</i> ${names.map(n => escapeHtml(ncDisplayName(n))).join(', ')}</span>`).join('')}</p>` : ''}
+    ${reachHtml}
+    <button type="button" class="btn btn-ghost btn-small ncard-range${showNationRange ? ' on' : ''}" data-act="range">
+      ${showNationRange ? 'Hide its range' : 'Show its range'}</button>`;
+  host.hidden = false;
+
+  host.querySelector('[data-act="zoom"]').addEventListener('click', () => focusNationTowns(nation));
+  const tr = host.querySelector('[data-act="track"]');
+  if (tr) tr.addEventListener('click', () => {
+    state.targetNations.add(nation);
+    globalTrackedNations.add(nation);
+    auditLog.log(`Tracking nation "${nation}" — syncing`, 'info');
+    renderSyncPanel();
+    syncLiveData();
+  });
+  host.querySelector('[data-act="range"]').addEventListener('click', () => {
+    showNationRange = !showNationRange;
+    renderNationRange();
+    if (mapController && mapController.syncLayerToggles) mapController.syncLayerToggles();
+    renderNationCard();
+  });
 }
 
 /* =========================================================================
@@ -10961,11 +11097,11 @@ function irlControl(c){
 const IRL_TINY = 25;     // chunks: below this a share means little
 
 /* Whose share a country popup calls out: the nation picked in the list if
-   there is one; otherwise Ethiopia for a citizen, and for a visa holder their
-   own nation, or nobody. */
+   there is one. Otherwise Ethiopia for a citizen, and for a visa holder
+   nobody: the public view names a nation only once they have chosen one. */
 function irlFocusNation(){
   if (nationView.activeNation) return nationView.activeNation;
-  if (viewerIsPerk()) return perkInfo.nation || null;
+  if (viewerIsPerk()) return null;
   return HOME_NATION;
 }
 
@@ -13490,10 +13626,11 @@ function viewerIsPerk(){ return viewerTier === 'perk'; }
    citizen or holding a live visa. The map stops syncing and shows the door. */
 let viewerLocked = false;
 
-/* The Perk view is the world first. Ethiopia's towns, regions and counties
-   appear only once the visitor asks for Ethiopia: tracks it by name or loads
-   every town. Even then regions and counties start switched off. */
-function perkSeesEthiopia(){ return viewerIsPerk() && homeShownInGlobal(); }
+/* The Perk view is the public view. Ethiopia's regions and counties are how
+   the Republic organises itself, so they are not offered here at all, even
+   with every town loaded; Ethiopia's towns appear like anyone else's, only
+   when the visitor asks for them. */
+function perkSeesEthiopia(){ return false; }
 
 /* Whether a Perk visitor may see this town's fall and over-claim state. */
 function perkSees(t){
@@ -13594,7 +13731,10 @@ async function loadViewer(){
         perkInfo.expiresAt = me.passExpiresAt || null;
         try {
           const r3 = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/perk/standing', { credentials: 'include' });
-          if (r3.ok){ const st = await r3.json(); perkInfo.nation = st.nation || null; }
+          /* Their own nation unlocks its fall and over-claim watch. Not for
+             Ethiopia: someone in Ethiopia on a visa still gets the public
+             view, the same one every other visitor sees. */
+          if (r3.ok){ const st = await r3.json(); perkInfo.nation = st.nation && st.nation !== HOME_NATION ? st.nation : null; }
         } catch(_e){ /* no nation: they simply see no fall warnings */ }
       }
     }

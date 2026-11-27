@@ -952,7 +952,46 @@ body.gui-hidden .gui-restore{ display: block; }
 .nc-own-fill{ height:100%; border-radius:999px; transition:width .25s ease; }
 
 /* ---- Nation Tracker ---- */
-.nation-summary{ display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.7rem; }
+/* A ranked ledger rather than a wall of pills: the biggest few first, a bar
+   in each nation's own colour to show the scale between them, and the rest
+   one click (or a search) away. */
+.nlist{ margin:.3rem 0 .8rem; }
+.nlist-tools{ display:flex; gap:.4rem; align-items:center; margin-bottom:.45rem; }
+.nlist-tools input{ flex:1; min-width:0; }
+.nlist-sort{ flex:none; display:flex; gap:1px; padding:2px; border-radius:8px; background:var(--panel-2); border:1px solid var(--line); }
+.nlist-sort button{ border:0; background:none; color:var(--muted); font:600 .64rem var(--font-mono); letter-spacing:.03em;
+  padding:.32rem .5rem; border-radius:6px; cursor:pointer; }
+.nlist-sort button:hover{ color:var(--parchment); }
+.nlist-sort button[aria-pressed="true"]{ background:var(--brass); color:#141006; }
+.nation-summary{ display:block; }
+.nl-all{ display:flex; align-items:baseline; gap:.5rem; width:100%; padding:.5rem .6rem; margin-bottom:.3rem; cursor:pointer;
+  border:1px solid var(--line); border-radius:8px; background:var(--panel-2); color:var(--muted); font:.7rem var(--font-mono); text-align:left; }
+.nl-all b{ font:600 1rem var(--font-mono); color:var(--parchment); font-variant-numeric:tabular-nums; }
+.nl-all .nl-all-k{ margin-left:auto; color:var(--muted-dim); }
+.nl-all:hover{ border-color:var(--brass-dim); }
+.nl-all.is-active{ border-color:var(--brass); box-shadow:inset 2px 0 0 var(--brass); }
+.nl-rows.scroll{ max-height:22rem; overflow:auto; overscroll-behavior:contain; padding-right:.2rem; }
+.nl-row{ position:relative; display:grid; grid-template-columns:1.5rem minmax(0,1fr) auto 1.1rem; column-gap:.45rem; align-items:center;
+  padding:.36rem .3rem .4rem 0; border-radius:7px; cursor:pointer; }
+.nl-row:hover{ background:rgba(255,255,255,.035); }
+.nl-row:focus-visible{ outline:1px solid var(--brass-hi); outline-offset:-1px; }
+.nl-row.is-active{ background:rgba(252,209,22,.07); box-shadow:inset 2px 0 0 var(--brass); }
+.nl-rank{ font:.62rem var(--font-mono); color:var(--muted-dim); text-align:right; font-variant-numeric:tabular-nums; }
+.nl-name{ display:flex; align-items:center; gap:.42rem; min-width:0; font-size:.8rem; color:var(--parchment); }
+.nl-name span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nl-name em{ flex:none; font:normal .56rem var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--brass-hi); opacity:.8; }
+.nl-sw{ flex:none; width:8px; height:8px; border-radius:2px; box-shadow:0 0 0 1px rgba(255,255,255,.18); }
+.nl-bar{ height:3px; margin-top:.3rem; border-radius:2px; background:rgba(255,255,255,.05); overflow:hidden; }
+.nl-bar i{ display:block; height:100%; border-radius:2px; opacity:.9; }
+.nl-num{ text-align:right; font:600 .74rem var(--font-mono); color:var(--parchment); font-variant-numeric:tabular-nums; line-height:1.15; }
+.nl-num span{ display:block; font:400 .6rem var(--font-mono); color:var(--muted); }
+.nl-row .n-remove{ justify-self:center; opacity:0; transition:opacity .12s; }
+.nl-row:hover .n-remove, .nl-row:focus-within .n-remove{ opacity:1; }
+@media (hover: none){ .nl-row .n-remove{ opacity:.7; } }
+.nl-none{ margin:.3rem 0; color:var(--muted); font-size:.76rem; }
+.nlist-more{ width:100%; margin-top:.35rem; border:1px dashed var(--line); background:none; color:var(--muted); border-radius:8px;
+  padding:.42rem; font:600 .72rem var(--font-body); cursor:pointer; }
+.nlist-more:hover{ color:var(--brass-hi); border-color:var(--brass-dim); }
 .nation-row{
   display:flex; align-items:center; gap:.45rem;
   background:var(--panel-2); border:1px solid var(--line);
@@ -1635,6 +1674,11 @@ button.irl-rr:hover{ background:rgba(255,255,255,.03); }
 .gc-figs b{ display:block; font:600 .86rem var(--font-mono); }
 .gc-figs span{ font-size:.64rem; color:var(--muted); }
 .gc-line{ margin:.35rem 0 0; font-size:.74rem; color:var(--muted); }
+.gc-sw{ flex:none; width:.9rem; height:.9rem; border-radius:4px; box-shadow:0 0 0 1px rgba(255,255,255,.2); }
+.gc-pop{ max-height:min(60vh, 26rem); overflow:auto; margin-right:-.3rem; padding-right:.3rem; }
+.gc-pop .mc-popup{ padding:0; }
+.gc-pop h4{ margin:0 1.2rem .35rem 0; font-size:.98rem; }
+.globe-card:has(.gc-pop){ width:18rem; }
 .gc-go{ margin-top:.7rem; width:100%; border:1px solid rgba(252,209,22,.45); background:rgba(252,209,22,.08); color:var(--brass-hi);
   border-radius:8px; padding:.45rem; font:600 .76rem var(--font-body); cursor:pointer; }
 .gc-go:hover{ background:rgba(252,209,22,.16); }
@@ -1973,9 +2017,20 @@ body.globe-on .map-close{ z-index:1300; }
           <button type="button" class="btn btn-ghost btn-small" id="btnLoadAll">Load every town</button>
           <button type="button" class="btn btn-ghost btn-small" id="btnLoadNationless">Nationless only</button>
         </div>
-        <p class="hint" id="bulkLoadHint">Scans all ~5,700 towns on the server. Takes about a minute and isn't part of the auto-sync.</p>
-        <div class="nation-summary" id="nationSummary">
-          <p class="empty-hint">Sync to load tracked nations.</p>
+        <p class="hint" id="bulkLoadHint">Every town on the server, read from EarthMC’s own map in a few seconds.</p>
+        <div class="nlist" id="nationList">
+          <div class="nlist-tools">
+            <input type="text" id="nationFind" placeholder="Find a nation…" autocomplete="off" spellcheck="false" aria-label="Find a nation in the list">
+            <div class="nlist-sort" role="group" aria-label="Order nations by">
+              <button type="button" data-sort="towns" aria-pressed="true">Towns</button>
+              <button type="button" data-sort="people" aria-pressed="false">People</button>
+              <button type="button" data-sort="name" aria-pressed="false">A–Z</button>
+            </div>
+          </div>
+          <div class="nation-summary" id="nationSummary">
+            <p class="empty-hint">Sync to load tracked nations.</p>
+          </div>
+          <button type="button" class="nlist-more" id="nationMore" hidden></button>
         </div>
         <div class="nation-card" id="nationCard" hidden></div>
         <div class="town-table-controls">
@@ -4125,22 +4180,35 @@ class EarthMCClient{
     return Array.isArray(res) ? res.filter(Boolean) : [];
   }
 
-  async getTownDetailsBatched(namesOrUuids){
+  async getTownDetailsBatched(namesOrUuids, opts = {}){
     // residents + ranks come from the same /towns POST — no extra request,
     // just more fields. ranks.Councillor is who inherits a fallen town.
     const template = { name:true, uuid:true, nation:true, mayor:true, status:true, stats:true, coordinates:true, residents:true, ranks:true };
     const out = [];
     const total = namesOrUuids.length;
-    const batches = Math.ceil(total / CONFIG.TOWN_BATCH_SIZE);
-    for (let i = 0; i < total; i += CONFIG.TOWN_BATCH_SIZE){
-      const batch = namesOrUuids.slice(i, i + CONFIG.TOWN_BATCH_SIZE);
-      const body = { query: batch, template };
-      const res = await this._request('/towns', { method:'POST', body: JSON.stringify(body) });
-      if (Array.isArray(res)) out.push(...res.filter(Boolean));
-      if (batches > 1){
-        this.auditLog.log(`Fetched town batch ${Math.floor(i / CONFIG.TOWN_BATCH_SIZE) + 1}/${batches}`, 'info');
+    const batches = [];
+    for (let i = 0; i < total; i += CONFIG.TOWN_BATCH_SIZE) batches.push(namesOrUuids.slice(i, i + CONFIG.TOWN_BATCH_SIZE));
+    /* A few at once when asked (the world scan), one at a time otherwise.
+       A batch that fails is skipped rather than sinking the rest. */
+    const parallel = Math.max(1, Math.min(4, opts.parallel || 1));
+    let next = 0, done = 0, failed = 0;
+    const run = async () => {
+      while (next < batches.length){
+        const batch = batches[next++];
+        try {
+          const res = await this._request('/towns', { method:'POST', body: JSON.stringify({ query: batch, template }) });
+          if (Array.isArray(res)) out.push(...res.filter(Boolean));
+        } catch (err){
+          failed++;
+          if (batches.length === 1) throw err;
+        }
+        done++;
+        if (opts.onBatch) opts.onBatch(done, batches.length);
+        else if (batches.length > 1) this.auditLog.log(`Fetched town batch ${done}/${batches.length}`, 'info');
       }
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(parallel, batches.length) }, run));
+    if (failed) this.auditLog.log(`${failed} of ${batches.length} town batch(es) failed and were skipped`, 'warn');
     return out.map(t => this.processTown(t)).filter(Boolean);
   }
 
@@ -4272,14 +4340,28 @@ function expPlannedChunksFor(name){
   return { added, removed };
 }
 
+const chunkKeyMemo = new WeakMap();
+function chunkSetKey(chunks){
+  let k = chunkKeyMemo.get(chunks);
+  if (k) return k;
+  let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity, h = 0;
+  for (let i = 0; i < chunks.length; i++){
+    const x = chunks[i][0], z = chunks[i][1];
+    if (x < a) a = x; if (x > c) c = x; if (z < b) b = z; if (z > d) d = z;
+    h = (h + Math.imul((x * 73856093) ^ (z * 19349663), 2654435761)) | 0;   // order-free
+  }
+  k = chunks.length + ':' + a + ',' + b + ':' + c + ',' + d + ':' + h;
+  chunkKeyMemo.set(chunks, k);
+  return k;
+}
+
 function tracedOutlinesFor(town){
   const chunks = town.claimChunks || [];
   if (!chunks.length) return null;
-  // Cheap signature: chunk count plus first/last coordinates. A town would
-  // have to swap claims while keeping all three identical to collide, which
-  // self-corrects on the next real change.
-  const first = chunks[0], last = chunks[chunks.length - 1];
-  let key = `${chunks.length}:${first[0]},${first[1]}:${last[0]},${last[1]}`;
+  /* The chunk SET's signature, not the list's: EarthMC's map and its API
+     list the same claims in different orders, and the outline must be
+     recognised as unchanged when one replaces the other. */
+  let key = chunkSetKey(chunks);
 
   /* A finished plan is traced INTO the town rather than drawn over it. That
      is what makes the new land flush: one outline around the whole thing, no
@@ -5028,7 +5110,16 @@ const GLOBE_BLOCKS_PER_TILE = 16384;          // squaremap folder 0
 const GLOBE_TILES_X = [-4, 3];                // ±64,512 blocks east to west
 const GLOBE_TILES_Z = [-3, 2];
 const GLOBE_FOV = 30 * Math.PI / 180;
-const GLOBE_MIN_DIST = 1.3, GLOBE_MAX_DIST = 6.5;
+/* As close as the globe goes: about a block and a half to a screen pixel in
+   the middle of the window. One more step in and the flat map takes over,
+   where the detail carries on down to a block per 64 pixels. */
+const GLOBE_FLAT_BPP = 1.4, GLOBE_MAX_DIST = 6.5;
+/* Sharper pictures as you come closer. The ball's own skin is squaremap's
+   coarsest folder; nearer in, the folders above it are fetched for just the
+   part on screen and laid over it, the way a flat map swaps tiles. */
+const GLOBE_TILE_MAX_FOLDER = 4;
+const GLOBE_TILE_CACHE = IS_SMALL_SCREEN ? 32 : 72;
+const GLOBE_TILE_PARALLEL = 6;
 const GLOBE_D2R = Math.PI / 180;
 
 const globe = {
@@ -5066,14 +5157,12 @@ function globeVec(lon, lat){
   return [Math.cos(b) * Math.sin(a), Math.sin(b), Math.cos(b) * Math.cos(a)];
 }
 function globeVecOfBlock(x, z){
-  const ck = JSON.stringify(irlState.calib);
-  if (ck !== globe.calibKey){ globe.calibKey = ck; globe.vecCache.clear(); }
   const key = Math.round(x) + '|' + Math.round(z);
   let v = globe.vecCache.get(key);
   if (!v){
     const [lon, lat] = globeLonLat(x, z);
     v = globeVec(lon, lat);
-    if (globe.vecCache.size > 20000) globe.vecCache.clear();
+    if (globe.vecCache.size > 60000) globe.vecCache.clear();
     globe.vecCache.set(key, v);
   }
   return v;
@@ -5151,26 +5240,27 @@ function globeEnsureBuilt(){
   const prog = gl.createProgram();
   gl.attachShader(prog, sh(gl.VERTEX_SHADER, `
     attribute vec3 aPos; attribute vec2 aUv;
-    uniform mat4 uProj; uniform mat3 uRot; uniform float uDist;
+    uniform mat4 uProj; uniform mat3 uRot; uniform float uDist; uniform float uScale;
     varying vec2 vUv; varying vec3 vN; varying vec3 vView;
     void main(){
-      vec3 p = uRot * aPos;
+      vec3 p = uRot * (aPos * uScale);
       vN = p; vUv = aUv;
       vView = normalize(vec3(0.0, 0.0, uDist) - p);
       gl_Position = uProj * vec4(p.x, p.y, p.z - uDist, 1.0);
     }`));
   gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
-    precision mediump float;
-    uniform sampler2D uTex; uniform float uHasTex; uniform float uBright;
+    precision highp float;
+    uniform sampler2D uTex; uniform float uHasTex; uniform float uBright; uniform float uTile;
     varying vec2 vUv; varying vec3 vN; varying vec3 vView;
     void main(){
       vec3 n = normalize(vN);
-      vec3 base = uHasTex > 0.5 ? texture2D(uTex, vUv).rgb : vec3(0.09, 0.15, 0.30);
+      vec4 t = texture2D(uTex, vUv);
+      vec3 base = uHasTex > 0.5 ? t.rgb : vec3(0.09, 0.15, 0.30);
       float diff = max(dot(n, normalize(vec3(-0.42, 0.5, 0.76))), 0.0);
       vec3 col = base * (0.66 + 0.44 * diff) * uBright;
       float rim = pow(1.0 - max(dot(n, normalize(vView)), 0.0), 2.6);
       col = mix(col, vec3(0.42, 0.62, 1.0), rim * 0.6);
-      gl_FragColor = vec4(col, 1.0);
+      gl_FragColor = vec4(col, uTile > 0.5 ? t.a : 1.0);
     }`));
   gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
@@ -5180,6 +5270,7 @@ function globeEnsureBuilt(){
     uProj: gl.getUniformLocation(prog, 'uProj'), uRot: gl.getUniformLocation(prog, 'uRot'),
     uDist: gl.getUniformLocation(prog, 'uDist'), uTex: gl.getUniformLocation(prog, 'uTex'),
     uHasTex: gl.getUniformLocation(prog, 'uHasTex'), uBright: gl.getUniformLocation(prog, 'uBright'),
+    uScale: gl.getUniformLocation(prog, 'uScale'), uTile: gl.getUniformLocation(prog, 'uTile'),
   };
 
   // A latitude/longitude mesh. The seam column is doubled (u = 0 and u = 1)
@@ -5367,14 +5458,19 @@ function globeFrame(){
   } else { globe.vLat = globe.vLon = 0; }
 
   const gl = globe.gl;
+  globeCheckCalib();
   const M = globeMatrix();
+  const V = globeView(M);
+  globe.view = V;
   gl.viewport(0, 0, globe.glCanvas.width, globe.glCanvas.height);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);
   gl.useProgram(globe.prog);
 
-  const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf(), n = 0.01, fa = 50;
+  /* Near and far hug the ball, so depth stays precise even ~250 blocks up. */
+  const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf();
+  const n = Math.max(0.0004, (globe.dist - 1) * 0.3), fa = globe.dist + 1.2;
   const fx = f * s / (globe.w / 2), fy = f * s / (globe.h / 2);
   gl.uniformMatrix4fv(globe.loc.uProj, false, new Float32Array([
     fx, 0, 0, 0,  0, fy, 0, 0,  0, 0, (fa + n) / (n - fa), -1,  0, 0, 2 * fa * n / (n - fa), 0]));
@@ -5383,6 +5479,13 @@ function globeFrame(){
   gl.uniform1f(globe.loc.uDist, globe.dist);
   gl.uniform1f(globe.loc.uHasTex, globe.hasTex && globe.terrain ? 1 : 0);
   gl.uniform1f(globe.loc.uBright, showDim ? 0.62 : 1.0);
+  /* The coarse ball sits ten blocks under the surface, so the sharper
+     pictures laid over it always win the depth test and never flicker. */
+  gl.uniform1f(globe.loc.uScale, 0.9995);
+  gl.uniform1f(globe.loc.uTile, 0);
+  gl.disable(gl.BLEND);
+  gl.depthMask(true);
+  gl.depthFunc(gl.LESS);
   if (globe.tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, globe.tex); gl.uniform1i(globe.loc.uTex, 0); }
 
   gl.bindBuffer(gl.ARRAY_BUFFER, globe.buf.pos);
@@ -5394,6 +5497,8 @@ function globeFrame(){
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, globe.buf.idx);
   gl.drawElements(gl.TRIANGLES, globe.count, gl.UNSIGNED_SHORT, 0);
 
+  if (globe.terrain) globeDrawTiles(gl, V);
+
   // The atmosphere: a soft halo sized to the ball, behind it.
   const r = globeRadiusPx();
   if (globe.glow){
@@ -5402,7 +5507,7 @@ function globeFrame(){
     globe.glow.style.top = (globe.h / 2 - r * 1.25) + 'px';
   }
 
-  globeDrawOverlay(M, r);
+  globeDrawOverlay(M, r, V);
   globeUpdateReadout();
 }
 
@@ -5427,93 +5532,530 @@ function globeStar(ctx, x, y, r){
   ctx.closePath();
 }
 
-function globeDrawOverlay(M, rPx){
+/* --- shapes on the ball ----------------------------------------------------
+   Everything the flat map draws as a polygon or a line is drawn here too,
+   from the same data. Each outline is turned into points on the ball once
+   and kept (until the calibration moves), so a frame only rotates and
+   projects; nothing is re-read or re-traced while you turn the globe. */
+let globeCalibVer = 0;
+function globeCheckCalib(){
+  const ck = JSON.stringify(irlState.calib);
+  if (ck !== globe.calibKey){ globe.calibKey = ck; globe.vecCache.clear(); globeCalibVer++; }
+}
+function globeBlocksPerRad(){ const c = irlState.calib; return (c.xE - c.xW) / (2 * Math.PI); }
+
+/* Per frame: what the projection needs, worked out once. */
+function globeView(M){
+  const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf();
+  const F = f * s, d = globe.dist;
+  return { M, F, d, cx: globe.w / 2, cy: globe.h / 2, w: globe.w, h: globe.h,
+    zl: 1 / d, lim: Math.sqrt(Math.max(0, 1 - 1 / (d * d))),
+    horizon: Math.acos(1 / d), halfDiag: Math.hypot(globe.w, globe.h) / 2,
+    bpp: globeBlocksPerRad() * (d - 1) / F,        // blocks per screen pixel in the middle
+    sx: new Float32Array(4096), vis: new Uint8Array(2048) };
+}
+
+/* A ring as unit vectors. `conv` turns one stored point into [x, z] blocks;
+   `step` cuts long edges so they bend with the ball instead of tunnelling
+   through it. Kept against the ring object itself. */
+const globeShapeMemo = new WeakMap();
+function globeRing(ring, step, conv, closed){
+  let e = globeShapeMemo.get(ring);
+  if (e && e.ver === globeCalibVer) return e;
+  const xz = [];
+  for (let i = 0; i < ring.length; i++){
+    const p = conv ? conv(ring[i]) : ring[i];
+    if (p && Number.isFinite(p[0]) && Number.isFinite(p[1])) xz.push(p);
+  }
+  if (closed && xz.length > 2){
+    const a = xz[0], b = xz[xz.length - 1];
+    if (a[0] === b[0] && a[1] === b[1]) xz.pop();
+  }
+  const pts = [];
+  const n0 = xz.length;
+  for (let i = 0; i < n0; i++){
+    const a = xz[i];
+    pts.push(a[0], a[1]);
+    const b = i < n0 - 1 ? xz[i + 1] : (closed ? xz[0] : null);
+    if (step && b){
+      const k = Math.min(48, Math.floor(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+      for (let j = 1; j <= k; j++){ const t = j / (k + 1); pts.push(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t); }
+    }
+  }
+  const n = pts.length / 2, v = new Float32Array(n * 3);
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < n; i++){
+    const [lon, lat] = globeLonLat(pts[i * 2], pts[i * 2 + 1]);
+    const q = globeVec(lon, lat);
+    v[i * 3] = q[0]; v[i * 3 + 1] = q[1]; v[i * 3 + 2] = q[2];
+    cx += q[0]; cy += q[1]; cz += q[2];
+  }
+  const cl = Math.hypot(cx, cy, cz) || 1;
+  const c = [cx / cl, cy / cl, cz / cl];
+  let minDot = 1;
+  for (let i = 0; i < n; i++) minDot = Math.min(minDot, c[0] * v[i * 3] + c[1] * v[i * 3 + 1] + c[2] * v[i * 3 + 2]);
+  e = { ver: globeCalibVer, v, n, c, rad: Math.acos(Math.max(-1, Math.min(1, minDot))), xz };
+  globeShapeMemo.set(ring, e);
+  return e;
+}
+/* The same for a ring already in longitude and latitude. */
+function globeRingLL(ring){
+  let e = globeShapeMemo.get(ring);
+  if (e && e.ver === -1) return e;
+  const n = ring.length, v = new Float32Array(n * 3);
+  let cx = 0, cy = 0, cz = 0;
+  for (let i = 0; i < n; i++){
+    const q = globeVec(ring[i][0], ring[i][1]);
+    v[i * 3] = q[0]; v[i * 3 + 1] = q[1]; v[i * 3 + 2] = q[2];
+    cx += q[0]; cy += q[1]; cz += q[2];
+  }
+  const cl = Math.hypot(cx, cy, cz) || 1;
+  const c = [cx / cl, cy / cl, cz / cl];
+  let minDot = 1;
+  for (let i = 0; i < n; i++) minDot = Math.min(minDot, c[0] * v[i * 3] + c[1] * v[i * 3 + 1] + c[2] * v[i * 3 + 2]);
+  e = { ver: -1, v, n, c, rad: Math.acos(Math.max(-1, Math.min(1, minDot))), ll: ring };
+  globeShapeMemo.set(ring, e);
+  return e;
+}
+
+/* Is any of a shape on screen? Its nearest point to the middle is checked
+   against the horizon and against the corners of the window. */
+function globeSeen(V, c, rad){
+  const M = V.M;
+  const z = M[6] * c[0] + M[7] * c[1] + M[8] * c[2];
+  const ang = Math.acos(Math.max(-1, Math.min(1, z)));
+  const near = Math.max(0, ang - rad);
+  if (near > V.horizon) return false;
+  const px = V.F * Math.sin(near) / (V.d - Math.cos(near));
+  return px <= V.halfDiag + 2;
+}
+
+/* Projects a ring into V.sx. Points over the horizon are pulled onto it, so
+   a fill still closes neatly at the edge of the ball. Returns how many were
+   hidden. */
+function globeProjectRing(V, e){
+  const M = V.M, v = e.v, n = e.n;
+  if (V.sx.length < n * 2){ V.sx = new Float32Array(n * 2 + 1024); V.vis = new Uint8Array(n + 512); }
+  const sx = V.sx, vis = V.vis;
+  let hidden = 0;
+  for (let i = 0; i < n; i++){
+    const k = i * 3;
+    let x = M[0] * v[k] + M[1] * v[k + 1] + M[2] * v[k + 2];
+    let y = M[3] * v[k] + M[4] * v[k + 1] + M[5] * v[k + 2];
+    let z = M[6] * v[k] + M[7] * v[k + 1] + M[8] * v[k + 2];
+    if (z < V.zl){
+      hidden++; vis[i] = 0;
+      const r = Math.hypot(x, y) || 1e-9, s = V.lim / r;
+      x *= s; y *= s; z = V.zl;
+    } else vis[i] = 1;
+    const dd = V.d - z;
+    sx[i * 2] = V.cx + V.F * x / dd;
+    sx[i * 2 + 1] = V.cy - V.F * y / dd;
+  }
+  return hidden;
+}
+function globePathFill(ctx, V, n){
+  const sx = V.sx;
+  ctx.moveTo(sx[0], sx[1]);
+  for (let i = 1; i < n; i++) ctx.lineTo(sx[i * 2], sx[i * 2 + 1]);
+  ctx.closePath();
+}
+/* A line, lifted off the paper wherever it goes over the horizon. */
+function globePathLine(ctx, V, n, closed){
+  const sx = V.sx, vis = V.vis;
+  let pen = false;
+  const last = closed ? n : n - 1;
+  for (let j = 0; j <= last; j++){
+    const i = j % n;
+    if (!vis[i]){ pen = false; continue; }
+    if (pen) ctx.lineTo(sx[i * 2], sx[i * 2 + 1]); else { ctx.moveTo(sx[i * 2], sx[i * 2 + 1]); pen = true; }
+  }
+}
+/* Screen box of the last projected ring. */
+function globeBox(V, n){
+  const sx = V.sx;
+  let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+  for (let i = 0; i < n; i++){
+    const x = sx[i * 2], y = sx[i * 2 + 1];
+    if (x < a) a = x; if (x > c) c = x; if (y < b) b = y; if (y > d) d = y;
+  }
+  return [a, b, c, d];
+}
+function globeInRing(xz, x, z){
+  let inside = false;
+  for (let i = 0, j = xz.length - 1; i < xz.length; j = i++){
+    const xi = xz[i][0], zi = xz[i][1], xj = xz[j][0], zj = xz[j][1];
+    if (((zi > z) !== (zj > z)) && (x < (xj - xi) * (z - zi) / (zj - zi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+/* Draws a set of polygons (each a list of rings, holes after the outer one)
+   in one style. Returns the areas drawn, for hovering and clicking. */
+function globeDrawPolys(ctx, V, polys, style, label){
+  const drawn = [];
+  ctx.save();
+  if (style.dash) ctx.setLineDash(style.dash);
+  polys.forEach(rings => {
+    const es = rings.map(r => r.e).filter(e => e && e.n > 2);
+    if (!es.length || !globeSeen(V, es[0].c, es[0].rad)) return;
+    let box = null;
+    ctx.beginPath();
+    let anyFront = false;
+    es.forEach(e => {
+      const hid = globeProjectRing(V, e);
+      if (hid < e.n) anyFront = true;
+      globePathFill(ctx, V, e.n);
+      const b = globeBox(V, e.n);
+      box = box ? [Math.min(box[0], b[0]), Math.min(box[1], b[1]), Math.max(box[2], b[2]), Math.max(box[3], b[3])] : b;
+    });
+    if (!anyFront) return;
+    if (style.fill){ ctx.globalAlpha = style.fillAlpha; ctx.fillStyle = style.fill; ctx.fill('evenodd'); }
+    if (style.stroke){
+      ctx.globalAlpha = style.strokeAlpha == null ? 1 : style.strokeAlpha;
+      ctx.strokeStyle = style.stroke; ctx.lineWidth = style.width || 1.4;
+      ctx.beginPath();
+      es.forEach(e => { globeProjectRing(V, e); globePathLine(ctx, V, e.n, true); });
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (label) drawn.push(Object.assign({ box, rings: es }, label));
+  });
+  ctx.restore();
+  return drawn;
+}
+
+/* Polygons in Leaflet's lat/lng (regions): rings of [x, z] blocks. */
+function globeLatLngRings(latlngs){
+  const out = [];
+  const walk = (a) => {
+    if (!Array.isArray(a) || !a.length) return;
+    if (a[0] && typeof a[0].lat === 'number'){ out.push(a); return; }
+    a.forEach(walk);
+  };
+  walk(latlngs);
+  return out;
+}
+const globeFromLL = (ll) => [ll.lng, -ll.lat];
+const globeFromPlane = (p) => [p[0], -p[1]];
+
+/* --- the layers ----------------------------------------------------------- */
+function globeDrawIrl(ctx, V, areas){
+  if (globe.irlFor !== irlState.raw){
+    globe.irlFor = irlState.raw;
+    globe.irlShapes = irlState.raw.map(c => c.polys.map(poly => poly.map(ring => ({ e: globeRingLL(ring) }))));
+  }
+  const ranking = Array.isArray(irlState.ranking) ? irlState.ranking : null;
+  const byIdx = ranking ? new Map(ranking.map(r => [r.i, r])) : null;
+  globe.irlShapes.forEach((polys, ci) => {
+    const r = byIdx && byIdx.get(ci);
+    const shade = irlState.fillMode && r && r.claimed ? nationColors(r.top).fill : null;
+    const c = irlState.countries[ci];
+    const got = globeDrawPolys(ctx, V, polys, {
+      fill: shade, fillAlpha: shade ? .1 + .5 * Math.min(1, r.pct / 100) : 0,
+      stroke: 'rgba(255,255,255,.4)', width: 0.75,
+    }, c ? { kind: 'country', label: c.name, country: c, ll: true } : null);
+    got.forEach(a => areas.push(a));
+  });
+}
+
+function globeDrawRegions(ctx, V, areas, zoomK){
+  const labels = [];
+  regionManager.regions.forEach((region, id) => {
+    if (!region.layer) return;
+    const st = regionManager._styleFor(id);
+    const rings = globeLatLngRings(region.layer.getLatLngs()).map(r => ({ e: globeRing(r, 256, globeFromLL, true) }));
+    const got = globeDrawPolys(ctx, V, [rings], {
+      fill: st.fillColor, fillAlpha: st.fillOpacity, stroke: st.color, width: Math.max(1.2, st.weight * 0.8),
+      dash: st.dashArray ? st.dashArray.split(/\s+/).map(Number) : null,
+    }, { kind: 'region', label: region.name || 'Region', region });
+    got.forEach(a => { areas.push(a); labels.push(a); });
+  });
+  // Region names, once they are big enough on screen to carry one.
+  if (V.bpp < 60){
+    ctx.save();
+    ctx.font = `700 ${Math.round(10 + zoomK)}px ${globe.font || 'sans-serif'}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    labels.forEach(a => {
+      const w = a.box[2] - a.box[0], h = a.box[3] - a.box[1];
+      if (w < 70 || h < 26) return;
+      const x = (a.box[0] + a.box[2]) / 2, y = (a.box[1] + a.box[3]) / 2;
+      const text = String(a.label).toUpperCase();
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,8,10,.7)'; ctx.strokeText(text, x, y);
+      ctx.fillStyle = 'rgba(245,241,232,.92)'; ctx.fillText(text, x, y);
+    });
+    ctx.restore();
+  }
+}
+
+function globeDrawCounties(ctx, V, areas){
+  countyState.counties.forEach(c => {
+    const g = c.geometry;
+    if (!g) return;
+    const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+    const col = countyColour(c);
+    const shaped = polys.map(poly => poly.map(r => ({ e: globeRing(r, 256, globeFromPlane, true) })));
+    globeDrawPolys(ctx, V, shaped, { fill: col, fillAlpha: .1, stroke: col, width: 1.3, dash: [5, 4] },
+      { kind: 'county', label: c.name + ' — ' + (c.region || 'no region'), county: c }).forEach(a => areas.push(a));
+  });
+}
+
+function globeDrawNationClaims(ctx, V, areas){
+  nationClaimState.claims.forEach(claim => {
+    if (!claim.ring || claim.ring.length < 3) return;
+    const { fill, stroke } = ncColors(claim);
+    const active = claim.nation === nationClaimState.activeNation;
+    globeDrawPolys(ctx, V, [[{ e: globeRing(claim.ring, 256, null, true) }]], {
+      fill, fillAlpha: active ? .32 : .2, stroke, width: active ? 2.6 : 1.6, dash: active ? null : [7, 5],
+    }, { kind: 'nation', label: claim.nation + (claim.name ? ' — ' + claim.name : ''), nation: claim.nation }).forEach(a => areas.push(a));
+  });
+}
+
+/* Town claims: the real outline once a town is a couple of pixels across,
+   a dot of its colour before that. Drawn a colour at a time, so thousands
+   of towns are a few dozen fills rather than thousands. */
+function globeDrawTownClaims(ctx, V, towns, areas, hits, zoomK){
+  const R = globeBlocksPerRad();
+  const groups = new Map(), dots = new Map();
+  const M = V.M;
+  for (const t of towns){
+    if (t.isMoon) continue;
+    const ax = typeof t.homeX === 'number' ? t.homeX : t.mcX, az = typeof t.homeX === 'number' ? t.homeZ : t.mcZ;
+    if (typeof ax !== 'number') continue;
+    const chunks = t.townBlocks || (t.claimChunks ? t.claimChunks.length : 0) || 1;
+    const radB = Math.sqrt(chunks) * 24 + 96;               // generous: towns sprawl
+    const c = globeVecOfBlock(ax, az);
+    if (!globeSeen(V, c, radB / R)) continue;
+    const z = M[6] * c[0] + M[7] * c[1] + M[8] * c[2];
+    const px = (Math.sqrt(chunks) * 16 / R) * V.F / Math.max(1e-6, V.d - z);   // its width on screen
+    const tc = townColors(t);
+    if (px < 2.2){
+      if (showTowns) continue;                               // the marker stands in for it
+      let d = dots.get(tc.fill); if (!d) dots.set(tc.fill, d = []);
+      d.push(c, t);
+      continue;
+    }
+    const rings = tracedOutlinesFor(t);
+    if (!rings || !rings.length) continue;
+    const key = tc.fill + '|' + tc.outline;
+    let g = groups.get(key); if (!g) groups.set(key, g = { fill: tc.fill, outline: tc.outline, list: [] });
+    g.list.push({ t, es: rings.map(r => globeRing(r, 512, null, true)) });
+  }
+  const lw = Math.max(0.8, Math.min(2.2, zoomK * 0.8));
+  groups.forEach(g => {
+    ctx.beginPath();
+    g.list.forEach(item => {
+      let box = null, front = false;
+      item.es.forEach(e => {
+        if (globeProjectRing(V, e) < e.n) front = true;
+        globePathFill(ctx, V, e.n);
+        const b = globeBox(V, e.n);
+        box = box ? [Math.min(box[0], b[0]), Math.min(box[1], b[1]), Math.max(box[2], b[2]), Math.max(box[3], b[3])] : b;
+      });
+      if (front) areas.push({ kind: 'town', box, rings: item.es, t: item.t, label: item.t.name + (item.t.nationName ? ' · ' + item.t.nationName : '') });
+    });
+    ctx.globalAlpha = .32; ctx.fillStyle = g.fill; ctx.fill('evenodd');
+    ctx.globalAlpha = 1; ctx.lineWidth = lw; ctx.strokeStyle = g.outline; ctx.stroke();
+  });
+  dots.forEach((list, fill) => {
+    ctx.beginPath();
+    for (let i = 0; i < list.length; i += 2){
+      const p = globeProject(M, list[i]);
+      if (!p) continue;
+      ctx.moveTo(p[0] + 1.6, p[1]); ctx.arc(p[0], p[1], 1.6, 0, Math.PI * 2);
+      hits.push({ x: p[0], y: p[1], r: 3, kind: 'town', t: list[i + 1] });
+    }
+    ctx.fillStyle = fill; ctx.fill();
+  });
+}
+
+/* Chunk borders, once a chunk is a few pixels wide: lines every 16 blocks
+   across what is on screen. */
+function globeDrawChunkGrid(ctx, V){
+  let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity, misses = 0;
+  for (let gy = 0; gy <= 4; gy++) for (let gx = 0; gx <= 4; gx++){
+    const g = globePick(gx / 4 * V.w, gy / 4 * V.h);
+    if (!g){ misses++; continue; }
+    minX = Math.min(minX, g.x); maxX = Math.max(maxX, g.x); minZ = Math.min(minZ, g.z); maxZ = Math.max(maxZ, g.z);
+  }
+  if (misses || !Number.isFinite(minX)) return;
+  const pad = 64;
+  minX = Math.floor((minX - pad) / 16) * 16; maxX = Math.ceil((maxX + pad) / 16) * 16;
+  minZ = Math.floor((minZ - pad) / 16) * 16; maxZ = Math.ceil((maxZ + pad) / 16) * 16;
+  if ((maxX - minX) / 16 > 700 || (maxZ - minZ) / 16 > 700) return;
+  const M = V.M, steps = 6;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  const line = (x0, z0, x1, z1) => {
+    let pen = false;
+    for (let i = 0; i <= steps; i++){
+      const t = i / steps;
+      const [lon, lat] = globeLonLat(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t);
+      const p = globeProject(M, globeVec(lon, lat));
+      if (!p){ pen = false; continue; }
+      if (pen) ctx.lineTo(p[0], p[1]); else { ctx.moveTo(p[0], p[1]); pen = true; }
+    }
+  };
+  for (let x = minX; x <= maxX; x += 16) line(x, minZ, x, maxZ);
+  for (let z = minZ; z <= maxZ; z += 16) line(minX, z, maxX, z);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function globeDrawHighways(ctx, V, hits, zoomK){
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  highwayState.lines.forEach(line => {
+    if (!line.path || line.path.length < 2) return;
+    const e = globeRing(line.path, 256, null, false);
+    if (!globeSeen(V, e.c, e.rad)) return;
+    globeProjectRing(V, e);
+    const active = line.id === highwayState.activeLineId;
+    ctx.beginPath(); globePathLine(ctx, V, e.n, false);
+    ctx.strokeStyle = 'rgba(8,8,10,.65)'; ctx.lineWidth = (active ? 5 : 3.6) * Math.min(1.6, zoomK); ctx.stroke();
+    ctx.strokeStyle = line.color || '#9fd8ff'; ctx.lineWidth = (active ? 3.2 : 2.2) * Math.min(1.6, zoomK); ctx.stroke();
+  });
+  if (V.bpp < 120){
+    highwayState.stations.forEach(st => {
+      if (typeof st.x !== 'number') return;
+      const p = globeProject(V.M, globeVecOfBlock(st.x, st.z));
+      if (!p) return;
+      const r = 2.6 * Math.min(1.8, zoomK);
+      ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2);
+      ctx.fillStyle = '#f5f1e8'; ctx.fill();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(8,8,10,.8)'; ctx.stroke();
+      hits.push({ x: p[0], y: p[1], r: r + 3, kind: 'label', label: (st.name || 'Station') + ' · ice highway station' });
+    });
+  }
+  ctx.restore();
+}
+
+function globeDrawRange(ctx, V, hits, areas, zoomK){
+  if (mapWorld === 'moon') return;
+  const nation = rangeNation();
+  if (!nation) return;
+  const shape = rangeShape(nation);
+  if (!shape.anchors.length) return;
+  const polys = shape.rings.map(poly => poly.map(r => ({ e: globeRing(r, 256, null, true) })));
+  globeDrawPolys(ctx, V, polys, {
+    fill: COLORS.brass, fillAlpha: .06, stroke: COLORS.brassHi, width: 2.2,
+  }, { kind: 'nation', label: nation + ' · reach', nation, range: true }).forEach(a => areas.push(a));
+  const M = V.M;
+  shape.anchors.forEach(a => {
+    const p = globeProject(M, globeVecOfBlock(a.xz[0], a.xz[1]));
+    if (!p) return;
+    const r = (a.isCapital ? 4.2 : 2.2) * Math.min(1.6, zoomK);
+    ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS.ink; ctx.fill();
+    ctx.lineWidth = a.isCapital ? 2 : 1; ctx.strokeStyle = a.isCapital ? COLORS.brassHi : COLORS.brass; ctx.stroke();
+    hits.push({ x: p[0], y: p[1], r: r + 3, kind: 'label', label: a.name + ' — ' + (a.isCapital ? 'capital, 5,000' : '1,500') + ' block reach' });
+  });
+  if (V.bpp < 200){
+    rangeReachableTowns(nation).slice(0, 400).forEach(({ town, via }) => {
+      const p = globeProject(M, globeVecOfBlock(town.homeX, town.homeZ));
+      if (!p) return;
+      const r = 3.6 * Math.min(1.5, zoomK);
+      ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(8,8,10,.85)'; ctx.fill();
+      ctx.lineWidth = 1.8; ctx.strokeStyle = COLORS.sageHi; ctx.stroke();
+      hits.push({ x: p[0], y: p[1], r: r + 3, kind: 'label',
+        label: town.name + ' — in range via ' + via + (town.nationName ? ' · currently ' + town.nationName : ' · nationless') });
+    });
+  }
+}
+
+/* Nations by size, worked out once per change of the town list rather than
+   every frame. */
+function globeNationGroups(towns){
+  const sig = towns.length + ':' + (state.lastSync || 0) + ':' + worldCache.fetchedAt + ':' + activeView;
+  if (globe.groupSig === sig && globe.groups) return globe.groups;
+  const byNation = new Map();
+  towns.forEach(t => {
+    if (!t.nationName || typeof t.homeX !== 'number' || t.isMoon) return;
+    const e = byNation.get(t.nationName) || { n: 0, cap: null, any: t };
+    e.n++; if (t.isCapital) e.cap = t;
+    byNation.set(t.nationName, e);
+  });
+  globe.groups = [...byNation.entries()].sort((a, b) => b[1].n - a[1].n);
+  globe.groupSig = sig;
+  return globe.groups;
+}
+
+function globeDrawOverlay(M, rPx, V){
   const ctx = globe.ctx, dpr = globe.dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, globe.w, globe.h);
-  const hits = [];
+  if (!globe.font) globe.font = (getComputedStyle(document.body).getPropertyValue('--font-body') || '').trim() || 'sans-serif';
+  const hits = [], areas = [];
   // How big things are drawn grows as you come closer: 1 far out, ~2.5 close in.
   const zoomK = Math.max(1, Math.min(2.6, rPx / 320));
+  const scope = currentScope();
+  const ethiopiaShown = (viewerIsCitizen() && scope !== 'global') || perkSeesEthiopia();
 
-  /* Today's countries, if that layer is on. The data is already latitude
-     and longitude, so on a globe it needs no projection at all. */
-  if (irlState.on && irlState.raw){
-    // Turned into points on the ball once per dataset, not every frame.
-    if (globe.irlFor !== irlState.raw){
-      globe.irlFor = irlState.raw;
-      globe.irlRings = [];
-      irlState.raw.forEach(c => c.polys.forEach(poly => poly.forEach(ring => {
-        globe.irlRings.push(ring.map(([lon, lat]) => globeVec(lon, lat)));
-      })));
-    }
-    ctx.lineWidth = 0.7;
-    ctx.strokeStyle = 'rgba(255,255,255,.38)';
-    ctx.beginPath();
-    globe.irlRings.forEach(ring => {
-      let pen = false;
-      for (let i = 0; i < ring.length; i++){
-        const p = globeProject(M, ring[i]);
-        if (!p){ pen = false; continue; }
-        if (pen) ctx.lineTo(p[0], p[1]); else { ctx.moveTo(p[0], p[1]); pen = true; }
-      }
-    });
-    ctx.stroke();
-  }
+  // Bottom to top, the same order as the flat map.
+  if (irlState.on && irlState.raw) globeDrawIrl(ctx, V, areas);
+  if (showRegions && ethiopiaShown) globeDrawRegions(ctx, V, areas, zoomK);
+  if (showCounties && ethiopiaShown) globeDrawCounties(ctx, V, areas);
+  if (showNationClaims && viewerIsCitizen()) globeDrawNationClaims(ctx, V, areas);
 
-  /* Towns: a dot each in its nation's colour, sized by population; capitals
-     as stars when town markers are on. */
-  if (showClaims || showTowns){
-    const towns = townsForActiveView(state.towns || []);
+  const towns = (showClaims || showTowns) ? townsForActiveView(state.towns || []) : [];
+  if (showClaims) globeDrawTownClaims(ctx, V, towns, areas, hits, zoomK);
+  if (showChunkGrid && V.bpp <= 16 / CHUNK_MIN_PX) globeDrawChunkGrid(ctx, V);
+  if (showHighways && scope !== 'global' && viewerIsCitizen()) globeDrawHighways(ctx, V, hits, zoomK);
+  if (showNationRange) globeDrawRange(ctx, V, hits, areas, zoomK);
+
+  /* Town markers: a dot each in its nation's colour, sized by population;
+     capitals as stars. */
+  if (showTowns){
     const capitals = [];
+    const byFill = new Map();
     towns.forEach(t => {
-      if (typeof t.homeX !== 'number') return;
+      if (typeof t.homeX !== 'number' || t.isMoon) return;
       const p = globeProject(M, globeVecOfBlock(t.homeX, t.homeZ));
-      if (!p) return;
+      if (!p || p[0] < -10 || p[1] < -10 || p[0] > V.w + 10 || p[1] > V.h + 10) return;
       const tc = townColors(t);
+      if (t.isCapital){ capitals.push([p, t]); return; }
       const rad = Math.max(1.4, Math.min(4.5, Math.sqrt(Math.max(1, t.population || 1)) * 0.55)) * zoomK * 0.8;
-      if (t.isCapital && showTowns){ capitals.push([p, t, tc]); return; }
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], rad, 0, Math.PI * 2);
-      ctx.fillStyle = t.isRuined ? COLORS.danger : tc.fill;
-      ctx.fill();
-      if (rad > 2.2){ ctx.lineWidth = 0.8; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.stroke(); }
+      const fill = t.isRuined ? COLORS.danger : tc.fill;
+      let l = byFill.get(fill); if (!l) byFill.set(fill, l = []);
+      l.push(p[0], p[1], rad);
       hits.push({ x: p[0], y: p[1], r: Math.max(rad, 4), kind: 'town', t });
     });
-    capitals.forEach(([p, t, tc]) => {
+    byFill.forEach((l, fill) => {
+      ctx.beginPath();
+      for (let i = 0; i < l.length; i += 3){ ctx.moveTo(l[i] + l[i + 2], l[i + 1]); ctx.arc(l[i], l[i + 1], l[i + 2], 0, Math.PI * 2); }
+      ctx.fillStyle = fill; ctx.fill();
+      if (zoomK > 1.6){ ctx.lineWidth = 0.8; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.stroke(); }
+    });
+    capitals.forEach(([p, t]) => {
       const rad = 4.2 * zoomK;
       globeStar(ctx, p[0], p[1], rad);
       ctx.fillStyle = COLORS.brassHi; ctx.fill();
       ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.stroke();
       hits.push({ x: p[0], y: p[1], r: rad + 2, kind: 'town', t });
     });
+  }
 
-    /* Nation names, once close enough to read them: the biggest nations
-       first, and a name that would sit on top of one already drawn is
-       skipped rather than stacked. */
-    if (rPx > 520){
-      const byNation = new Map();
-      towns.forEach(t => {
-        if (!t.nationName || typeof t.homeX !== 'number') return;
-        const e = byNation.get(t.nationName) || { n: 0, cap: null, any: t };
-        e.n++; if (t.isCapital) e.cap = t;
-        byNation.set(t.nationName, e);
-      });
-      const boxes = [];
-      if (!globe.font) globe.font = (getComputedStyle(document.body).getPropertyValue('--font-body') || '').trim() || 'sans-serif';
-      ctx.font = `600 ${Math.round(11 + zoomK * 1.5)}px ${globe.font}`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      [...byNation.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 80).forEach(([name, e]) => {
-        if (e.n < 3) return;
-        const t = e.cap || e.any;
-        const p = globeProject(M, globeVecOfBlock(t.homeX, t.homeZ));
-        if (!p) return;
-        const w = ctx.measureText(name).width, h = 16, x = p[0], y = p[1] - 8 * zoomK;
-        const box = [x - w / 2 - 4, y - h, x + w / 2 + 4, y + 2];
-        if (boxes.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) return;
-        boxes.push(box);
-        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,8,10,.75)'; ctx.strokeText(name, x, y);
-        ctx.fillStyle = '#f5f1e8'; ctx.fillText(name, x, y);
-      });
+  /* Nation names, once close enough to read them: the biggest nations
+     first, and a name that would sit on top of one already drawn is
+     skipped rather than stacked. */
+  if ((showClaims || showTowns) && rPx > 520){
+    const boxes = [];
+    ctx.font = `600 ${Math.round(11 + zoomK * 1.5)}px ${globe.font}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineJoin = 'round';
+    let drawnN = 0;
+    for (const [name, e] of globeNationGroups(towns)){
+      if (drawnN >= 80 || e.n < 3) break;
+      const t = e.cap || e.any;
+      const p = globeProject(M, globeVecOfBlock(t.homeX, t.homeZ));
+      if (!p || p[0] < 0 || p[0] > V.w || p[1] < 0 || p[1] > V.h) continue;
+      const w = ctx.measureText(name).width, h = 16, x = p[0], y = p[1] - 8 * zoomK;
+      const box = [x - w / 2 - 4, y - h, x + w / 2 + 4, y + 2];
+      if (boxes.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
+      boxes.push(box); drawnN++;
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,8,10,.75)'; ctx.strokeText(name, x, y);
+      ctx.fillStyle = '#f5f1e8'; ctx.fillText(name, x, y);
     }
   }
 
@@ -5538,6 +6080,258 @@ function globeDrawOverlay(M, rPx){
   }
 
   globe.hits = hits;
+  globe.areas = areas;
+}
+
+/* What shape is under a screen point: the topmost drawn area containing the
+   ground there. */
+/* The most specific shape wins: a town over the county, region or nation
+   it sits in, and a nation's reach or a country only when nothing else is
+   there (on the flat map, too, the reach answers only along its edge). */
+const GLOBE_AREA_RANK = { town: 0, county: 1, region: 2, nation: 3, country: 5 };
+function globeAreaAt(x, y){
+  const areas = globe.areas || [];
+  let g = null, best = null, bestRank = Infinity;
+  for (let i = areas.length - 1; i >= 0; i--){
+    const a = areas[i];
+    const rank = a.range ? 4 : (GLOBE_AREA_RANK[a.kind] ?? 6);
+    if (rank >= bestRank) continue;
+    if (!a.box || x < a.box[0] - 1 || x > a.box[2] + 1 || y < a.box[1] - 1 || y > a.box[3] + 1) continue;
+    if (!g){ g = globePick(x, y); if (!g) return null; }
+    let inside = false;
+    if (a.ll){
+      const lons = [g.lon, g.lon + 360];
+      for (const e of a.rings){ for (const lon of lons) if (globeInRing(e.ll, lon, g.lat)) inside = !inside; }
+    } else {
+      for (const e of a.rings) if (globeInRing(e.xz, g.x, g.z)) inside = !inside;
+    }
+    if (inside){ best = a; bestRank = rank; if (rank === 0) break; }
+  }
+  return best ? Object.assign({ ground: g }, best) : null;
+}
+
+/* --- sharper pictures as you come closer ----------------------------------
+   The ball's own skin is squaremap's coarsest folder. Nearer in, the folders
+   above it are fetched for just the part of the world on screen and laid on
+   top, coarse to fine, each a small curved patch. A picture that has not
+   arrived yet shows its parent (or the skin) until it does. */
+const globeTiles = { cache: new Map(), inFlight: 0, frame: 0, idx: new Map() };
+const GLOBE_TILE_BUDGET = IS_SMALL_SCREEN ? 18 : 36;
+function globeTileSpan(f){ return 512 * Math.pow(2, 5 - f); }
+function globeTileSrc(f, tx, tz){
+  return globe.viaWorker
+    ? `${CONFIG.CORS_PROXY.replace(/\/+$/, '')}/tiles/minecraft_overworld/${f}/${tx}_${tz}.png`
+    : `${TERRAIN_BASE_URL}/${f}/${tx}_${tz}.png`;
+}
+
+/* Which pictures this view wants: a tile is split into its four children
+   while one of its pixels would cover more than about a screen pixel, nearest
+   the middle first, within a budget. */
+function globeSelectTiles(V){
+  const R = globeBlocksPerRad();
+  if (V.bpp > 40) return [];
+  const M = V.M;
+  const picks = [];
+  for (let gy = 0; gy <= 4; gy++) for (let gx = 0; gx <= 6; gx++){
+    const g = globePick(gx / 6 * V.w, gy / 4 * V.h);
+    if (g) picks.push(g);
+  }
+  const worldX = irlState.calib.xE, worldZ = GLOBE_TILES_Z[1] * GLOBE_BLOCKS_PER_TILE + GLOBE_BLOCKS_PER_TILE;
+  const worldZ0 = GLOBE_TILES_Z[0] * GLOBE_BLOCKS_PER_TILE;
+  const node = (f, tx, tz) => {
+    const S = globeTileSpan(f), x0 = tx * S, z0 = tz * S;
+    if (x0 >= worldX || x0 + S <= -worldX || z0 >= worldZ || z0 + S <= worldZ0) return null;
+    let best = null, bestD = Infinity, seen = false;
+    for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++){
+      const x = x0 + S * i / 2, z = z0 + S * j / 2;
+      const p = globeProject(M, globeVecOfBlock(x, z));
+      if (!p) continue;
+      if (p[0] >= -40 && p[1] >= -40 && p[0] <= V.w + 40 && p[1] <= V.h + 40) seen = true;
+      const d = Math.hypot(p[0] - V.cx, p[1] - V.cy);
+      if (d < bestD){ bestD = d; best = [x, z]; }
+    }
+    for (const g of picks){
+      if (g.x >= x0 && g.x < x0 + S && g.z >= z0 && g.z < z0 + S){
+        seen = true;
+        const p = globeProject(M, globeVecOfBlock(g.x, g.z));
+        const d = p ? Math.hypot(p[0] - V.cx, p[1] - V.cy) : Infinity;
+        if (d < bestD){ bestD = d; best = [g.x, g.z]; }
+      }
+    }
+    if (!seen || !best) return null;
+    // Screen pixels per block where the tile is nearest the middle.
+    const step = Math.max(2, S / 64);
+    const p0 = globeProject(M, globeVecOfBlock(best[0], best[1]));
+    const p1 = globeProject(M, globeVecOfBlock(best[0] + step, best[1]));
+    const p2 = globeProject(M, globeVecOfBlock(best[0], best[1] + step));
+    let pxPerBlock = 0;
+    if (p0 && p1) pxPerBlock = Math.max(pxPerBlock, Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / step);
+    if (p0 && p2) pxPerBlock = Math.max(pxPerBlock, Math.hypot(p2[0] - p0[0], p2[1] - p0[1]) / step);
+    const texelPx = Math.pow(2, 5 - f) * pxPerBlock;
+    return { f, tx, tz, d: bestD, texelPx, pxPerBlock };
+  };
+
+  // Folder 1 across the world, kept only where the skin is too coarse.
+  const roots = [];
+  const S1 = globeTileSpan(1);
+  for (let tz = Math.floor(worldZ0 / S1); tz * S1 < worldZ; tz++){
+    for (let tx = Math.floor(-worldX / S1); tx * S1 < worldX; tx++){
+      const nd = node(1, tx, tz);
+      if (nd && nd.pxPerBlock * 32 > 1.4) roots.push(nd);
+    }
+  }
+  roots.sort((a, b) => a.d - b.d);
+  const queue = roots.slice(0, GLOBE_TILE_BUDGET);
+  const leaves = [];
+  while (queue.length){
+    const nd = queue.shift();
+    if (nd.f < 5 && nd.texelPx > 1.25 && leaves.length + queue.length + 4 <= GLOBE_TILE_BUDGET){
+      const kids = [];
+      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++){
+        const k = node(nd.f + 1, nd.tx * 2 + a, nd.tz * 2 + b);
+        if (k) kids.push(k);
+      }
+      if (kids.length){
+        kids.forEach(k => queue.push(k));
+        queue.sort((a, b) => a.d - b.d);
+        continue;
+      }
+    }
+    leaves.push(nd);
+  }
+  return leaves;
+}
+
+/* One picture's patch of ball: a small grid lifted a few blocks per folder,
+   so finer pictures always sit on top of coarser ones. */
+function globeTileMesh(gl, e){
+  const S = globeTileSpan(e.f), x0 = e.tx * S, z0 = e.tz * S;
+  const G = e.f <= 2 ? 16 : 8;
+  const lift = 1 + 0.00012 * e.f;
+  const pos = new Float32Array((G + 1) * (G + 1) * 3), uv = new Float32Array((G + 1) * (G + 1) * 2);
+  let k = 0, u = 0;
+  for (let j = 0; j <= G; j++){
+    for (let i = 0; i <= G; i++){
+      const [lon, lat] = globeLonLat(x0 + S * i / G, z0 + S * j / G);
+      const q = globeVec(lon, lat);
+      pos[k++] = q[0] * lift; pos[k++] = q[1] * lift; pos[k++] = q[2] * lift;
+      uv[u++] = i / G; uv[u++] = j / G;
+    }
+  }
+  if (!e.pos) e.pos = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, e.pos); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+  if (!e.uv) e.uv = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, e.uv); gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
+  let idx = globeTiles.idx.get(G);
+  if (!idx){
+    const a = [];
+    for (let j = 0; j < G; j++) for (let i = 0; i < G; i++){
+      const p = j * (G + 1) + i, q = p + G + 1;
+      a.push(p, q, p + 1, q, q + 1, p + 1);
+    }
+    idx = { buf: gl.createBuffer(), count: a.length };
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idx.buf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(a), gl.STATIC_DRAW);
+    globeTiles.idx.set(G, idx);
+  }
+  e.idx = idx;
+  e.ver = globeCalibVer;
+}
+
+function globeTileLoad(nd){
+  const key = nd.f + '/' + nd.tx + '_' + nd.tz;
+  const e = { f: nd.f, tx: nd.tx, tz: nd.tz, ready: false, failed: false, used: globeTiles.frame };
+  globeTiles.cache.set(key, e);
+  globeTiles.inFlight++;
+  globeLoadImage(globeTileSrc(nd.f, nd.tx, nd.tz)).then(img => {
+    globeTiles.inFlight--;
+    const gl = globe.gl;
+    if (!img || !gl || globeTiles.cache.get(key) !== e){ e.failed = true; globeRequestDraw(); return; }
+    try {
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, e.f >= 5 ? gl.NEAREST : gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
+      if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT,
+        Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+      e.tex = tex;
+      globeTileMesh(gl, e);
+      e.ready = true;
+    } catch (_err){ e.failed = true; }
+    globeRequestDraw();
+  });
+}
+
+function globeTileFree(e){
+  const gl = globe.gl;
+  if (!gl) return;
+  if (e.tex) gl.deleteTexture(e.tex);
+  if (e.pos) gl.deleteBuffer(e.pos);
+  if (e.uv) gl.deleteBuffer(e.uv);
+  e.tex = e.pos = e.uv = null; e.ready = false;
+}
+
+function globeDrawTiles(gl, V){
+  if (globe.texState !== 'ready') return;
+  const frame = ++globeTiles.frame;
+  const leaves = globeSelectTiles(V);
+  const cache = globeTiles.cache;
+
+  // Ask for what is missing, nearest the middle first.
+  for (const nd of leaves){
+    if (globeTiles.inFlight >= GLOBE_TILE_PARALLEL) break;
+    if (!cache.has(nd.f + '/' + nd.tx + '_' + nd.tz)) globeTileLoad(nd);
+  }
+
+  // Each wanted picture, or the nearest coarser one already here.
+  const draw = new Map();
+  leaves.forEach(nd => {
+    let f = nd.f, tx = nd.tx, tz = nd.tz;
+    while (f >= 1){
+      const key = f + '/' + tx + '_' + tz;
+      const e = cache.get(key);
+      if (e){ e.used = frame; if (e.ready){ draw.set(key, e); break; } }
+      f--; tx = Math.floor(tx / 2); tz = Math.floor(tz / 2);
+    }
+  });
+
+  if (draw.size){
+    const list = [...draw.values()].sort((a, b) => a.f - b.f);
+    gl.uniform1f(globe.loc.uScale, 1);
+    gl.uniform1f(globe.loc.uTile, 1);
+    gl.uniform1f(globe.loc.uHasTex, 1);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthFunc(gl.LEQUAL);
+    gl.activeTexture(gl.TEXTURE0);
+    list.forEach(e => {
+      if (e.ver !== globeCalibVer) globeTileMesh(gl, e);
+      gl.bindTexture(gl.TEXTURE_2D, e.tex);
+      gl.bindBuffer(gl.ARRAY_BUFFER, e.pos);
+      gl.vertexAttribPointer(globe.loc.aPos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, e.uv);
+      gl.vertexAttribPointer(globe.loc.aUv, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, e.idx.buf);
+      gl.drawElements(gl.TRIANGLES, e.idx.count, gl.UNSIGNED_SHORT, 0);
+    });
+    gl.disable(gl.BLEND);
+    gl.depthFunc(gl.LESS);
+  }
+
+  // Least recently used pictures go once there are too many.
+  if (cache.size > GLOBE_TILE_CACHE){
+    const old = [...cache.entries()].filter(([, e]) => e.used < frame && (e.ready || e.failed))
+      .sort((a, b) => a[1].used - b[1].used);
+    for (let i = 0; i < old.length && cache.size > GLOBE_TILE_CACHE; i++){
+      globeTileFree(old[i][1]);
+      cache.delete(old[i][0]);
+    }
+  }
 }
 
 function globeUpdateReadout(){
@@ -5564,6 +6358,7 @@ function globeShowTip(hit, x, y){
   if (!tip) return;
   if (!hit){ tip.hidden = true; return; }
   tip.textContent = hit.kind === 'player' ? hit.name
+    : hit.label ? hit.label
     : hit.t.name + (hit.t.nationName ? ' · ' + hit.t.nationName : '');
   tip.hidden = false;
   tip.style.left = Math.min(globe.w - 10, x + 12) + 'px';
@@ -5576,15 +6371,29 @@ function globeShowCard(hit){
   if (!hit){ card.hidden = true; globe.card = null; return; }
   globe.card = hit;
   let body;
+  const g = hit.ground;
   if (hit.kind === 'player'){
     body = `<div class="gc-head">${playerHead(hit.name, 28)}<div><b>${escapeHtml(hit.name)}</b><span>online now</span></div></div>`;
+  } else if (hit.kind === 'nation'){
+    body = `<div class="gc-pop">${ncPopupHtml(hit.nation)}${hit.range ? rangePopupHtml(hit.nation) : ''}</div>`;
+  } else if (hit.kind === 'county'){
+    body = `<div class="gc-pop">${countyPopupHtml(hit.county)}</div>`;
+  } else if (hit.kind === 'country'){
+    body = `<div class="gc-pop">${irlPopupHtml(hit.country)}</div>`;
+  } else if (hit.kind === 'region'){
+    const r = hit.region;
+    const towns = (r.containedTowns || []).length;
+    body = `<div class="gc-head"><span class="gc-sw" style="background:${escapeHtml(r.fillColor || regionManager._colorFor(r.id))}"></span>
+      <div><b>${escapeHtml(r.name || 'Region')}</b><span>Region of ${escapeHtml(HOME_NATION)}${towns ? ' · ' + towns + ' towns' : ''}</span></div></div>`;
+  } else if (hit.kind === 'label'){
+    body = `<div class="gc-head"><div><b>${escapeHtml(hit.label)}</b></div></div>`;
   } else {
     const t = hit.t;
     body = `<div class="gc-head">${t.mayor ? playerHead(t.mayor, 28) : ''}<div><b>${escapeHtml(t.name)}</b>
         <span>${escapeHtml(t.nationName || 'No nation')}${t.isCapital ? ' · capital' : ''}</span></div></div>
       <div class="gc-figs"><div><b>${CoordUtils.fmt(t.population)}</b><span>residents</span></div>
         <div><b>${CoordUtils.fmt(t.townBlocks)}</b><span>chunks</span></div>
-        <div><b>${CoordUtils.fmt(t.balance)}g</b><span>bank</span></div></div>
+        <div><b>${t.balance == null ? '—' : CoordUtils.fmt(t.balance) + 'g'}</b><span>bank</span></div></div>
       ${t.mayor ? `<p class="gc-line">Mayor ${escapeHtml(t.mayor)}</p>` : ''}`;
   }
   card.innerHTML = `<button type="button" class="gc-x" aria-label="Close">×</button>${body}
@@ -5592,9 +6401,10 @@ function globeShowCard(hit){
   card.hidden = false;
   card.querySelector('.gc-x').onclick = () => globeShowCard(null);
   card.querySelector('.gc-go').onclick = () => {
-    const x = hit.kind === 'player' ? hit.pl.x : hit.t.homeX;
-    const z = hit.kind === 'player' ? hit.pl.z : hit.t.homeZ;
-    setMapProjection('flat', { x, z, zoom: 1 });
+    if (hit.kind === 'player') return setMapProjection('flat', { x: hit.pl.x, z: hit.pl.z, zoom: 1 });
+    if (hit.t && typeof hit.t.homeX === 'number') return setMapProjection('flat', { x: hit.t.homeX, z: hit.t.homeZ, zoom: 1 });
+    const at = g || (typeof hit.x === 'number' ? globePick(hit.x, hit.y) : null) || globePick(globe.w / 2, globe.h / 2);
+    if (at) setMapProjection('flat', { x: at.x, z: at.z, zoom: hit.kind === 'country' || hit.kind === 'nation' ? -4 : -2 });
   };
 }
 
@@ -5627,7 +6437,8 @@ function globeWire(){
     if (globe.drag){
       const dx = p[0] - globe.drag.p[0], dy = p[1] - globe.drag.p[1];
       globe.moved += Math.abs(dx) + Math.abs(dy);
-      const k = 1 / globeRadiusPx() / GLOBE_D2R;     // degrees per pixel at the centre
+      // Degrees per pixel at the middle, so the ground keeps up with the finger.
+      const k = (globe.dist - 1) / (globeHalf() / Math.tan(GLOBE_FOV / 2)) / GLOBE_D2R;
       const dLon = -dx * k, dLat = dy * k;
       globe.lon = ((globe.lon + dLon + 540) % 360) - 180;
       globe.lat = Math.max(-80, Math.min(80, globe.lat + dLat));
@@ -5638,7 +6449,7 @@ function globeWire(){
       globeRequestDraw();
       return;
     }
-    const hit = globeHitAt(p[0], p[1]);
+    const hit = globeHitAt(p[0], p[1]) || globeAreaAt(p[0], p[1]);
     globe.hover = { hit, ground: globePick(p[0], p[1]) };
     ov.style.cursor = hit ? 'pointer' : 'grab';
     globeShowTip(hit, p[0], p[1]);
@@ -5651,7 +6462,7 @@ function globeWire(){
       if (performance.now() - globe.drag.t > 80){ globe.vLat = globe.vLon = 0; }
       if (globe.moved < 5){
         const p = local(e);
-        globeShowCard(globeHitAt(p[0], p[1]));
+        globeShowCard(globeHitAt(p[0], p[1]) || globeAreaAt(p[0], p[1]));
         globe.vLat = globe.vLon = 0;
       }
       globe.drag = null;
@@ -5696,17 +6507,21 @@ function globeWire(){
 
 /* Zooming past the closest the globe allows lands in the flat map, at the
    point under the cursor (or the middle), which is where the detail is. */
+function globeMinDist(){
+  return 1 + GLOBE_FLAT_BPP * globeHalf() / Math.tan(GLOBE_FOV / 2) / globeBlocksPerRad();
+}
 function globeZoomTo(next, at){
-  if (next < GLOBE_MIN_DIST - 0.02){
+  const min = globeMinDist();
+  if (next - 1 < (min - 1) * 0.82){
     const g = at ? globePick(at[0], at[1]) : globePick(globe.w / 2, globe.h / 2);
     const [x, z] = g ? [g.x, g.z] : irlToMc(globe.lon, globe.lat);
-    setMapProjection('flat', { x, z, zoom: -3 });
+    setMapProjection('flat', { x, z, zoom: globeZoomForDist(Math.max(1.0001, next)) });
     return;
   }
   /* Toward the cursor: the ground under it before the zoom is turned back
      under it afterwards, so you zoom into what you are pointing at. */
   const before = at ? globePick(at[0], at[1]) : null;
-  globe.dist = Math.max(GLOBE_MIN_DIST, Math.min(GLOBE_MAX_DIST, next));
+  globe.dist = Math.max(min, Math.min(GLOBE_MAX_DIST, next));
   if (before){
     // A few small corrections converge on it; one is only roughly right.
     for (let i = 0; i < 4; i++){
@@ -5722,21 +6537,16 @@ function globeZoomTo(next, at){
 }
 
 /* --- switching ------------------------------------------------------------- */
-/* Flat-map zoom to globe distance, chosen by how big the ball looks: at the
-   flat map's widest the whole globe sits in the window with room around it;
-   at -3 it is close enough that the next step in is the flat map again. */
-const GLOBE_ZOOM_DIST = [[-7, 4.8], [-6, 3.3], [-5, 2.2], [-4, 1.65], [-3, 1.4], [-2, 1.3]];
+/* Flat-map zoom and globe distance, matched by scale: flat zoom z shows
+   2^z screen pixels per block, and the globe's middle shows the same. */
 function globeDistForZoom(zm){
-  if (zm <= GLOBE_ZOOM_DIST[0][0]) return GLOBE_ZOOM_DIST[0][1];
-  for (let i = 1; i < GLOBE_ZOOM_DIST.length; i++){
-    const [z1, d1] = GLOBE_ZOOM_DIST[i];
-    if (zm <= z1){ const [z0, d0] = GLOBE_ZOOM_DIST[i - 1]; return d0 + (d1 - d0) * (zm - z0) / (z1 - z0); }
-  }
-  return GLOBE_MIN_DIST;
+  const F = globeHalf() / Math.tan(GLOBE_FOV / 2);
+  return Math.max(globeMinDist(), Math.min(GLOBE_MAX_DIST, 1 + Math.pow(2, -zm) * F / globeBlocksPerRad()));
 }
 function globeZoomForDist(d){
-  for (let i = 0; i < GLOBE_ZOOM_DIST.length; i++) if (d >= GLOBE_ZOOM_DIST[i][1]) return GLOBE_ZOOM_DIST[i][0];
-  return -2;
+  const F = globeHalf() / Math.tan(GLOBE_FOV / 2);
+  const bpp = globeBlocksPerRad() * (d - 1) / F;
+  return Math.max(-7, Math.min(1, Math.round(-Math.log2(Math.max(1e-3, bpp)))));
 }
 
 let mapProjection = 'flat';
@@ -5952,27 +6762,29 @@ class MapController{
       { group: 'server', label: 'Players', globe: true,
         get: () => showPlayers, set: (v) => setShowPlayers(v),
         meta: () => (showPlayers && onlinePlayers.length ? fmt(onlinePlayers.length) : '') },
-      { group: 'server', label: 'Nation range', globe: false,
+      { group: 'server', label: 'Nation range', globe: true,
         get: () => showNationRange,
-        set: (v) => { showNationRange = v; renderNationRange(); renderNationCard(); },
+        set: (v) => { showNationRange = v; renderNationRange(); renderNationCard(); globeRequestDraw(); },
         when: () => mapWorld !== 'moon' },
-      { group: 'server', label: 'Chunk borders', globe: false,
-        get: () => showChunkGrid, set: (v) => setChunkGrid(v),
-        meta: () => (showChunkGrid && self.map.getZoom() < -1 ? 'zoom in' : '') },
+      { group: 'server', label: 'Chunk borders', globe: true,
+        get: () => showChunkGrid, set: (v) => { setChunkGrid(v); globeRequestDraw(); },
+        meta: () => (!showChunkGrid ? '' : mapProjection === 'globe'
+          ? (globe.view && globe.view.bpp > 16 / CHUNK_MIN_PX ? 'zoom in' : '')
+          : (self.map.getZoom() < -1 ? 'zoom in' : '')) },
       // ETHIOPIA
-      { group: 'ethiopia', label: 'Regions', globe: false,
-        get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); },
+      { group: 'ethiopia', label: 'Regions', globe: true,
+        get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); globeRequestDraw(); },
         when: () => currentScope() !== 'global' || perkSeesEthiopia() },
-      { group: 'ethiopia', label: 'Counties', globe: false,
-        get: () => showCounties, set: (v) => setShowCounties(v),
+      { group: 'ethiopia', label: 'Counties', globe: true,
+        get: () => showCounties, set: (v) => { setShowCounties(v); globeRequestDraw(); },
         when: () => currentScope() !== 'global' || perkSeesEthiopia() },
       // Ethiopia's own drawn borders: the Worker never sends them to a visa
       // holder, so the row would switch nothing on.
-      { group: 'ethiopia', label: 'Nation claims', globe: false,
-        get: () => showNationClaims, set: (v) => { showNationClaims = v; renderNationClaimAreas(); },
+      { group: 'ethiopia', label: 'Nation claims', globe: true,
+        get: () => showNationClaims, set: (v) => { showNationClaims = v; renderNationClaimAreas(); globeRequestDraw(); },
         when: () => !viewerIsPerk() },
-      { group: 'ethiopia', label: 'Ice highways', globe: false,
-        get: () => showHighways, set: (v) => { showHighways = v; renderHighways(); renderHighwayRoute(); },
+      { group: 'ethiopia', label: 'Ice highways', globe: true,
+        get: () => showHighways, set: (v) => { showHighways = v; renderHighways(); renderHighwayRoute(); globeRequestDraw(); },
         when: () => currentScope() !== 'global' },
       // EARTH
       { group: 'earth', label: 'Real-world borders', globe: true,
@@ -6406,6 +7218,7 @@ function refreshMapLayers(){
     renderHighways();
     renderNationRange();
     globeRequestDraw();
+    irlRankSoon();
     if (mapController.updateLayerMeta) mapController.updateLayerMeta();
     if (viewerIsPerk()){
       // Tracking or untracking Ethiopia shows or hides its regions' switches.
@@ -6470,7 +7283,7 @@ function buildTownPopupHtml(t){
       <tr><td>Mayor</td><td>${mayor}</td></tr>
       <tr><td>Population</td><td>${CoordUtils.fmt(t.population)}</td></tr>
       <tr><td>Claimed chunks</td><td>${CoordUtils.fmt(t.townBlocks)}</td></tr>
-      <tr><td>Bank</td><td>${CoordUtils.fmt(t.balance)}g</td></tr>
+      <tr><td>Bank</td><td>${t.balance == null ? 'loading…' : CoordUtils.fmt(t.balance) + 'g'}</td></tr>
       <tr><td>Coordinates</td><td>X ${Math.round(t.mcX).toLocaleString()}, Z ${Math.round(t.mcZ).toLocaleString()}</td></tr>
     </table>
     ${residentHtml}
@@ -6561,6 +7374,7 @@ function nationColors(nationName){
   // hash fallback. Only those are pinned.
   const stats = nationStatsFor(nationName);
   if (stats && cleanHex(stats.fill)) nationColorIsReal.add(cacheKey);
+  else if (MAP_NATION_COLORS.has(cacheKey)) nationColorIsReal.add(cacheKey);
 
   return resolved;
 }
@@ -6574,6 +7388,9 @@ function nationColorsUncached(nationName){
   if (fill){
     return { fill, outline: cleanHex(stats.outline) || fill };
   }
+  // The colours EarthMC's own map draws it in, before the API has said.
+  const fromMap = MAP_NATION_COLORS.get(String(nationName).trim().toLowerCase());
+  if (fromMap && fromMap.fill) return { fill: fromMap.fill, outline: fromMap.outline || fromMap.fill };
   const gen = stableColorFor(nationName, CONFIG.NATION_PALETTE);
   return { fill: gen, outline: gen };
 }
@@ -6686,6 +7503,9 @@ const worldCache = {
   towns: [],
   fetchedAt: 0,
   inFlight: false,
+  mapTowns: null,      // from EarthMC's map file: every town, instantly
+  details: null,       // name -> the API's fuller record, filled in behind it
+  detailing: false, detailDone: 0, detailTotal: 0,
   enabled: false,      // set once the user asks for it; drives the auto-refresh
   nationlessOnly: false,
 };
@@ -6901,17 +7721,55 @@ function setMapWorld(world){
 /* A circle as a polygon, in the plane space turf works in. 48 points is
    smooth enough that the union below has no visible flat spots at the zooms
    this is read at, and few enough that sixty of them merge quickly. */
-function rangeDisc(xz, radius){
-  const pts = [];
-  for (let i = 0; i < 48; i++){
-    const a = (i / 48) * Math.PI * 2;
+function rangeDisc(xz, radius, seg){
+  const pts = [], N = seg || 48;
+  for (let i = 0; i < N; i++){
+    const a = (i / N) * Math.PI * 2;
     pts.push(CoordUtils.mcToPlane(xz[0] + Math.cos(a) * radius, xz[1] + Math.sin(a) * radius));
   }
   pts.push(pts[0]);
   return turf.polygon([pts]);
 }
 
+/* A nation's reach as one shape, kept until its towns move. Merged in pairs
+   (a tournament, not a queue): one at a time, every new circle was cut into
+   an ever more complicated outline, which is what made a big nation's range
+   take seconds. Pairs keep both sides of each cut small. The flat map and
+   the globe both draw from this. */
+const rangeMemo = new Map();
+function rangeShape(nation){
+  const anchors = rangeAnchors(nation);
+  if (!anchors.length) return { anchors, merged: null, rings: [] };
+  let sig = anchors.length + ':';
+  anchors.forEach(a => { sig += a.xz[0] + ',' + a.xz[1] + (a.isCapital ? 'c' : '') + ';'; });
+  const hit = rangeMemo.get(nation);
+  if (hit && hit.sig === sig) return hit;
+  let merged = null;
+  try {
+    // A big nation's circles overlap so much that 32 points each look the same.
+    const seg = anchors.length > 120 ? 32 : 48;
+    let parts = anchors.map(a => rangeDisc(a.xz, a.isCapital ? RANGE_FROM_CAPITAL : RANGE_FROM_TOWN, a.isCapital ? 64 : seg));
+    while (parts.length > 1){
+      const next = [];
+      for (let i = 0; i < parts.length; i += 2){
+        if (i + 1 >= parts.length){ next.push(parts[i]); continue; }
+        const u = turf.union(parts[i], parts[i + 1]);
+        next.push(u || parts[i]);
+      }
+      parts = next;
+    }
+    merged = parts[0] || null;
+  } catch (_err){ merged = null; }
+  const polys = merged ? (merged.geometry.type === 'MultiPolygon' ? merged.geometry.coordinates : [merged.geometry.coordinates]) : [];
+  const out = { sig, anchors, merged,
+    rings: polys.map(poly => poly.map(ring => ring.map(([px, py]) => [px, -py]))) };
+  rangeMemo.set(nation, out);
+  if (rangeMemo.size > 16) rangeMemo.delete(rangeMemo.keys().next().value);
+  return out;
+}
+
 function renderNationRange(){
+  globeRequestDraw();
   const group = mapController.rangeLayerGroup;
   if (!group) return;
   group.clearLayers();
@@ -6937,14 +7795,7 @@ function renderNationRange(){
    * What the question actually wants is the EDGE: the line past which a town
    * cannot join. That is one shape, so it is drawn as one.
    */
-  let merged = null;
-  try {
-    anchors.forEach(a => {
-      const disc = rangeDisc(a.xz, a.isCapital ? RANGE_FROM_CAPITAL : RANGE_FROM_TOWN);
-      merged = merged ? turf.union(merged, disc) : disc;
-    });
-  } catch (_err) { merged = null; }
-
+  const merged = rangeShape(nation).merged;
   if (merged){
     const polys = merged.geometry.type === 'MultiPolygon'
       ? merged.geometry.coordinates : [merged.geometry.coordinates];
@@ -8247,6 +9098,9 @@ function renderOpsHint(){
    ========================================================================= */
 const nationView = {
   activeNation: null,  // null = all tracked nations
+  listSort: 'towns',   // the nation ledger's order: towns | people | name
+  listQuery: '',
+  listOpen: false,
   sortKey: 'population',
   filterText: '',
   openOnly: false,
@@ -8264,95 +9118,178 @@ function groupTownsByNation(towns){
   return [...byNation.entries()].sort((a,b) => b[1].length - a[1].length);
 }
 
+const NATION_LIST_TOP = 10;
+
+function untrackNation(name){
+  // `name` comes from the API; the tracked set may still hold an older
+  // casing typed by hand. Match case-insensitively so the delete lands.
+  const stored = [...state.targetNations].find(v => v.toLowerCase() === name.toLowerCase());
+  globalTrackedNations.delete(name);
+  if (stored) globalTrackedNations.delete(stored);
+  // Ethiopia is never unsynced — the Ethiopia view needs it. Other nations
+  // are dropped entirely to stop the API calls.
+  if (name !== HOME_NATION){
+    if (stored) state.targetNations.delete(stored);
+    state.targetNations.delete(name);
+    state.towns = state.towns.filter(t => (t.nationName || '') !== name);
+  }
+  if (nationView.activeNation === name) nationView.activeNation = null;
+  auditLog.log(`Stopped showing "${name}" in the Global view`, 'info');
+  refreshMapLayers();
+  renderSyncPanel();
+  renderNationPanel(state.towns);
+}
+
+function pickNation(name){
+  nationView.activeNation = nationView.activeNation === name ? null : name;
+  renderNationPanel(state.towns);
+  if (showNationRange) renderNationRange();
+  globeRequestDraw();
+  if (nationView.activeNation && nationView.activeNation !== 'Unaffiliated') focusNationTowns(nationView.activeNation);
+}
+
+/* The nations in view as a ranked ledger. Only the rows are rebuilt on each
+   sync; the search box and the order buttons are fixed markup, so typing is
+   never interrupted by a refresh. */
 function renderNationSummary(towns){
   const host = dom.nationSummary;
   if (!host) return;
   host.replaceChildren();
+  const more = document.getElementById('nationMore');
+  const tools = document.querySelector('#nationList .nlist-tools');
 
   if (!towns.length){
+    if (more) more.hidden = true;
+    if (tools) tools.hidden = true;
     const p = document.createElement('p');
     p.className = 'empty-hint';
     // Distinguish "nothing synced yet" from "nothing tracked in this view" —
     // the second is the normal starting state for Global, since Ethiopia is
     // deliberately excluded here until someone tracks it.
     p.textContent = (state.towns && state.towns.length)
-      ? 'No nations tracked here yet. Add one above to show its towns on the map.'
+      ? 'No nations here yet. Track one above, or load every town.'
       : 'Sync to load tracked nations.';
     host.appendChild(p);
     return;
   }
 
-  const groups = groupTownsByNation(towns);
+  // Per nation: towns and people.
+  const by = new Map();
+  let nationless = 0;
+  towns.forEach(t => {
+    if (!t.nationName){ nationless++; return; }
+    let e = by.get(t.nationName);
+    if (!e) by.set(t.nationName, e = { name: t.nationName, towns: 0, people: 0 });
+    e.towns++; e.people += t.population || 0;
+  });
+  const all = [...by.values()];
+  // Rank is always by size, whatever the order shown.
+  all.sort((a, b) => b.towns - a.towns || b.people - a.people || a.name.localeCompare(b.name));
+  all.forEach((e, i) => { e.rank = i + 1; });
+  const sort = nationView.listSort || 'towns';
+  const list = all.slice();
+  if (sort === 'people') list.sort((a, b) => b.people - a.people || b.towns - a.towns);
+  else if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+  const q = (nationView.listQuery || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const matched = q ? list.filter(e => e.name.toLowerCase().includes(q)) : list;
 
-  // "All" pill first, then one per nation.
-  const makeRow = (label, count, color, isActive, onClick) => {
-    const row = document.createElement('div');
-    row.className = 'nation-row' + (isActive ? ' is-active' : '');
-    if (color){
-      const sw = document.createElement('span');
-      sw.className = 'swatch';
-      sw.style.background = color;
-      row.appendChild(sw);
-    }
-    const n = document.createElement('span');
-    n.className = 'n-name';
-    n.textContent = label;
-    row.appendChild(n);
-    const c = document.createElement('span');
-    c.className = 'n-count';
-    c.textContent = count;
-    row.appendChild(c);
-    row.addEventListener('click', onClick);
-    return row;
-  };
+  if (tools) tools.hidden = all.length < 6;
+  const tracked = new Set([...globalTrackedNations].map(n => n.toLowerCase()));
+  const maxV = Math.max(1, ...all.map(e => sort === 'people' ? e.people : e.towns));
+  const fmt = CoordUtils.fmt;
 
-  host.appendChild(makeRow('All', towns.length, null, nationView.activeNation === null, () => {
+  // The summary line doubles as "show everything".
+  const head = document.createElement('button');
+  head.type = 'button';
+  head.className = 'nl-all' + (nationView.activeNation === null ? ' is-active' : '');
+  head.innerHTML = `<b>${fmt(towns.length)}</b> towns in ${fmt(all.length)} nation${all.length === 1 ? '' : 's'}` +
+    (nationless ? `<span class="nl-all-k">${fmt(nationless)} nationless</span>` : '');
+  head.addEventListener('click', () => {
     nationView.activeNation = null;
     renderNationPanel(state.towns);
     if (showNationRange) renderNationRange();
-  }));
+    globeRequestDraw();
+  });
+  host.appendChild(head);
 
-  groups.forEach(([name, list]) => {
-    const color = nationColors(name).fill;
-    const row = makeRow(name, list.length, color, nationView.activeNation === name, () => {
-      nationView.activeNation = nationView.activeNation === name ? null : name;
-      renderNationPanel(state.towns);
-      if (showNationRange) renderNationRange();
-    });
-    // Untrack button. The home nation and the catch-all group can't be
-    // removed — Ethiopia is always tracked, and "Unaffiliated" isn't a
-    // tracked nation, just towns with no nation of their own.
-    if (name !== HOME_NATION && name !== 'Unaffiliated'){
+  const open = !!q || nationView.listOpen;
+  let shown = open ? matched : matched.slice(0, NATION_LIST_TOP);
+  // The picked nation always stays visible, even when it is ranked 200th.
+  const act = nationView.activeNation;
+  if (!open && act && act !== 'Unaffiliated' && !shown.some(e => e.name === act)){
+    const e = all.find(x => x.name === act);
+    if (e) shown = shown.concat([e]);
+  }
+  if (!open && nationless){
+    shown = shown.concat([{ name: 'Unaffiliated', towns: nationless, people: 0, rank: null, none: true }]);
+  }
+
+  const rows = document.createElement('div');
+  rows.className = 'nl-rows' + (open && matched.length > 14 ? ' scroll' : '');
+  if (!shown.length){
+    const p = document.createElement('p');
+    p.className = 'nl-none';
+    p.textContent = `No nation here matches “${nationView.listQuery}”.`;
+    rows.appendChild(p);
+  }
+  shown.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'nl-row' + (act === e.name ? ' is-active' : '');
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    const color = e.none ? COLORS.muted : nationColors(e.name).fill;
+    const v = sort === 'people' ? e.people : e.towns;
+    const isTracked = tracked.has(e.name.toLowerCase());
+    row.innerHTML = `<span class="nl-rank">${e.rank || ''}</span>
+      <div><div class="nl-name"><i class="nl-sw" style="background:${escapeHtml(color)}"></i><span>${escapeHtml(e.none ? 'No nation' : e.name)}</span>${isTracked ? '<em>tracked</em>' : ''}</div>
+        <div class="nl-bar"><i style="width:${Math.max(1.5, Math.min(100, (e.none ? e.towns / maxV : v / maxV) * 100)).toFixed(1)}%;background:${escapeHtml(color)}"></i></div></div>
+      <div class="nl-num">${sort === 'people' && !e.none ? fmt(e.people) : fmt(e.towns)}<span>${sort === 'people' && !e.none ? fmt(e.towns) + ' towns' : (e.none ? 'towns' : fmt(e.people) + ' people')}</span></div>`;
+    const go = () => pickNation(e.name);
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go(); } });
+    // Untrack: only for nations that are tracked by name. Ethiopia is always
+    // synced, and "No nation" isn't a nation at all.
+    if (isTracked && e.name !== HOME_NATION && !e.none){
       const x = document.createElement('button');
       x.type = 'button';
       x.className = 'n-remove';
-      x.textContent = '\u00d7';
-      x.title = `Stop tracking ${name}`;
-      x.addEventListener('click', (e) => {
-        e.stopPropagation(); // don't also toggle the filter
-        // `name` comes from the API; the tracked set may still hold an older
-        // casing typed by hand. Match case-insensitively so the delete lands.
-        const stored = [...state.targetNations].find(v => v.toLowerCase() === name.toLowerCase());
-        globalTrackedNations.delete(name);
-        if (stored) globalTrackedNations.delete(stored);
-        // Ethiopia is never unsynced — the Ethiopia view needs it. Other
-        // nations are dropped entirely to stop the API calls.
-        if (name !== HOME_NATION){
-          if (stored) state.targetNations.delete(stored);
-          state.targetNations.delete(name);
-          state.towns = state.towns.filter(t => (t.nationName || '') !== name);
-        }
-        if (nationView.activeNation === name) nationView.activeNation = null;
-        auditLog.log(`Stopped showing "${name}" in the Global view`, 'info');
-        refreshMapLayers();
-        renderSyncPanel();
-        renderNationPanel(state.towns);
-      });
+      x.textContent = '×';
+      x.title = `Stop tracking ${e.name}`;
+      x.setAttribute('aria-label', `Stop tracking ${e.name}`);
+      x.addEventListener('click', (ev) => { ev.stopPropagation(); untrackNation(e.name); });
       row.appendChild(x);
+    } else {
+      row.appendChild(document.createElement('span'));
     }
-    host.appendChild(row);
+    rows.appendChild(row);
   });
+  host.appendChild(rows);
+
+  if (more){
+    const hiddenN = matched.length - NATION_LIST_TOP;
+    more.hidden = !!q || hiddenN <= 0;
+    more.textContent = nationView.listOpen ? 'Show the top ten only' : `Show all ${fmt(all.length)} nations`;
+  }
 }
+
+/* The list's own controls, wired once. */
+(function wireNationList(){
+  const find = document.getElementById('nationFind');
+  if (find) find.addEventListener('input', () => {
+    nationView.listQuery = find.value;
+    renderNationSummary(townsForActiveView(state.towns || []));
+  });
+  document.querySelectorAll('#nationList .nlist-sort button').forEach(b => b.addEventListener('click', () => {
+    nationView.listSort = b.dataset.sort;
+    document.querySelectorAll('#nationList .nlist-sort button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    renderNationSummary(townsForActiveView(state.towns || []));
+  }));
+  const more = document.getElementById('nationMore');
+  if (more) more.addEventListener('click', () => {
+    nationView.listOpen = !nationView.listOpen;
+    renderNationSummary(townsForActiveView(state.towns || []));
+  });
+})();
 
 // Applies the active nation, text filter and flag filters, then sorts.
 function selectTownsForTable(towns){
@@ -8462,72 +9399,333 @@ function makeFlag(cls, text, title){
    ========================================================================= */
 const WORLD_TTL_MS = 15 * 60 * 1000;
 
+/* =========================================================================
+   THE QUICK PICTURE: EarthMC's own map file
+   EarthMC's map shows every town the moment it opens because it reads ONE
+   file — squaremap's markers.json, every town's claim outline with its name,
+   nation, mayor and residents, served from their CDN. Reading the same file
+   puts every town on this map in a second or two instead of after ~60
+   batched API calls, and costs the shared API key nothing.
+
+   Turned into exactly the town shape processTown gives, so nothing else on
+   the page knows the difference: the outline is filled back into chunks
+   (squaremap's outlines run along chunk edges), and the outline itself is
+   handed to the trace cache so it is never traced twice. What the map file
+   lacks — bank, claim limit, open or ruined, the exact home plot — arrives
+   from the API in the background and is merged in quietly.
+   ========================================================================= */
+const MAP_NATION_COLORS = new Map();   // nation (lower case) -> { fill, outline }, from the map file
+
+function smDecode(s){
+  return String(s || '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&nbsp;/g, ' ');
+}
+function smLines(html){
+  return smDecode(String(html || '')
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(div|p|li|details|summary|span|h\d)>/gi, '\n')
+    .replace(/<[^>]*>/g, ' '))
+    .split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+function smText(html){ return smDecode(String(html || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim(); }
+
+/* Rings of {x, z} however deeply squaremap nests them. */
+function smRings(points){
+  const out = [];
+  const walk = (a) => {
+    if (!Array.isArray(a) || !a.length) return;
+    const p = a[0];
+    if (p && typeof p === 'object' && !Array.isArray(p) && typeof p.x === 'number'){
+      const ring = a.filter(q => q && Number.isFinite(q.x) && Number.isFinite(q.z)).map(q => [Math.round(q.x), Math.round(q.z)]);
+      if (ring.length >= 3) out.push(ring);
+      return;
+    }
+    a.forEach(walk);
+  };
+  walk(points);
+  return out;
+}
+
+/* The chunks inside an outline, row by row (even-odd, so holes stay holes). */
+function smChunksOf(rings){
+  let minZ = Infinity, maxZ = -Infinity;
+  rings.forEach(r => r.forEach(p => { if (p[1] < minZ) minZ = p[1]; if (p[1] > maxZ) maxZ = p[1]; }));
+  if (!Number.isFinite(minZ) || (maxZ - minZ) > 16 * 4000) return [];
+  const out = [];
+  for (let cz = Math.floor(minZ / 16); cz * 16 < maxZ; cz++){
+    const zc = cz * 16 + 8, xs = [];
+    rings.forEach(r => {
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++){
+        const zi = r[i][1], zj = r[j][1];
+        if ((zi > zc) !== (zj > zc)) xs.push(r[i][0] + (zc - zi) * (r[j][0] - r[i][0]) / (zj - zi));
+      }
+    });
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2){
+      const a = Math.round(xs[k] / 16), b = Math.round(xs[k + 1] / 16);
+      for (let cx = a; cx < b; cx++) out.push([cx, cz]);
+      if (out.length > 60000) return out;
+    }
+  }
+  return out;
+}
+
+/* One town marker into a town. Written against the popup EarthMC's map has
+   shipped since moving to squaremap ("Town (Nation)" in the heading, then
+   "Mayor:", "Councillors:", "Residents:" lines), and tolerant of it moving
+   things around: anything not found is simply left empty. */
+function smTown(m, world){
+  const popup = m.popup || '', tooltip = m.tooltip || '';
+  let head = (popup.match(/<span[^>]*>([\s\S]*?)<\/span>/i) || [])[1];
+  if (!head || !smText(head)) head = (popup.match(/<b[^>]*>([\s\S]*?)<\/b>/i) || [])[1] || tooltip;
+  const headText = smText(head);
+  const bm = headText.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  const name = (bm ? bm[1] : headText).trim().split(/\s+/).join('_');
+  if (!name || name.length > 60) return null;
+  let nation = bm ? bm[2].trim() : null;
+  let isCapital = false;
+  const tipText = smText(tooltip);
+  if (nation && /^capital of\s+/i.test(nation)){ isCapital = true; nation = nation.replace(/^capital of\s+/i, ''); }
+  if (nation && /^member of\s+/i.test(nation)) nation = nation.replace(/^member of\s+/i, '');
+  if (/\(\s*capital of\b/i.test(tipText)) isCapital = true;
+  if (nation) nation = nation.split(/\s+/).join('_');
+  if (nation && /^(no nation|none|-)$/i.test(nation)) nation = null;
+
+  const lines = smLines(popup);
+  const field = (label) => {
+    const i = lines.findIndex(l => l.toLowerCase().startsWith(label.toLowerCase() + ':'));
+    return i < 0 ? null : { i, v: lines[i].slice(label.length + 1).trim() };
+  };
+  const mayorF = field('Mayor');
+  const counF = field('Councillors');
+  const resF = field('Residents');
+  const pubF = field('Public');
+  let residents = [], population = 0;
+  if (resF){
+    /* "Residents: 12" with the names on a following line (sometimes behind a
+       "show" toggle), or "Residents: a, b, c" inline. Of the candidates, the
+       list whose length best matches the number is the names; a later line
+       wins a tie, since the toggle's label comes first. */
+    const m2 = resF.v.match(/^(\d+)\b\s*[-–:]?\s*(.*)$/);
+    const count = m2 ? parseInt(m2[1], 10) : null;
+    const cands = [];
+    const inline = (m2 ? m2[2] : resF.v).trim();
+    if (inline) cands.push(inline.split(/,\s*/).filter(Boolean));
+    for (let k = resF.i + 1; k < lines.length && !/^[A-Za-z ]{2,24}:/.test(lines[k]); k++){
+      cands.push(lines[k].split(/,\s*/).filter(Boolean));
+    }
+    if (count === null) residents = cands[0] || [];
+    else {
+      let bestD = Infinity;
+      cands.forEach(c => { const d = Math.abs(c.length - count); if (d <= bestD){ bestD = d; residents = c; } });
+      if (bestD > Math.max(2, count * 0.2)) residents = [];
+    }
+    population = count === null ? residents.length : count;
+  }
+  const rings = smRings(m.points);
+  if (!rings.length) return null;
+  const chunks = smChunksOf(rings);
+  let sx = 0, sz = 0, n = 0;
+  rings[0].forEach(p => { sx += p[0]; sz += p[1]; n++; });
+  const mcX = n ? sx / n : 0, mcZ = n ? sz / n : 0;
+  // The claimed chunk nearest the middle stands in for the home plot until
+  // the API says where it really is.
+  let home = null, best = Infinity;
+  chunks.forEach(([cx, cz]) => {
+    const d = (cx * 16 + 8 - mcX) ** 2 + (cz * 16 + 8 - mcZ) ** 2;
+    if (d < best){ best = d; home = [cx * 16 + 8, cz * 16 + 8]; }
+  });
+  const isMoon = /moon/.test(world);
+  return {
+    name, uuid: name, world: isMoon ? 'earthmc_moon' : 'earth', isMoon,
+    homeX: home ? home[0] : Math.round(mcX), homeZ: home ? home[1] : Math.round(mcZ), homeGuessed: true,
+    nationName: nation || null,
+    mayor: mayorF && mayorF.v && !/^none$/i.test(mayorF.v) ? mayorF.v.split(/\s+/)[0] : null,
+    population, townBlocks: chunks.length, maxTownBlocks: null,
+    claimChunks: chunks, balance: null,
+    isCapital, isRuined: false, isOverClaimed: false, hasOverclaimShield: false,
+    isOpen: false, isPublic: pubF ? /true|yes/i.test(pubF.v) : false, isNeutral: false,
+    residents, councillors: counF && counF.v && !/^none$/i.test(counF.v) ? counF.v.split(/,\s*/) : [],
+    mcX: Math.round(mcX), mcZ: Math.round(mcZ),
+    fromMap: true, _outline: rings,
+    _colors: { fill: cleanHex(m.fillColor || m.color), outline: cleanHex(m.color || m.fillColor) },
+  };
+}
+
+async function smFetchMarkers(world){
+  const direct = `https://map.earthmc.net/tiles/${world}/markers.json`;
+  let data = null;
+  try {
+    const r = await fetch(direct, { cache: 'no-cache' });
+    if (r.ok) data = await r.json();
+  } catch (_e){ data = null; }
+  if (!data){
+    const r = await fetch(`${CONFIG.CORS_PROXY.replace(/\/+$/, '')}/markers/${world}.json`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    data = await r.json();
+  }
+  const layers = Array.isArray(data) ? data : (data && Array.isArray(data.layers) ? data.layers : []);
+  const towny = layers.find(l => l && /towny/i.test(String(l.id || l.name || ''))) ||
+    layers.find(l => l && Array.isArray(l.markers) && l.markers.some(mk => mk && /polygon/i.test(mk.type || '')));
+  if (!towny) return [];
+  const byName = new Map();
+  let logged = false;
+  (towny.markers || []).forEach(mk => {
+    if (!mk || !/polygon|rectangle/i.test(mk.type || '')) return;
+    const t = smTown(mk, world);
+    if (!logged && mk.popup){ logged = true; worldCache.sample = String(mk.popup).slice(0, 400); }
+    if (!t) return;
+    // A town in several pieces can come as several markers: one town, all its land.
+    const had = byName.get(t.name);
+    if (had){
+      had._outline = had._outline.concat(t._outline);
+      had.claimChunks = had.claimChunks.concat(t.claimChunks);
+      had.townBlocks = had.claimChunks.length;
+      had.isCapital = had.isCapital || t.isCapital;
+      return;
+    }
+    byName.set(t.name, t);
+  });
+  return [...byName.values()];
+}
+
+/* Hands each map town's outline to the trace cache and its colours to the
+   nation colour fallback. */
+function smAdopt(towns){
+  let fresh = 0;
+  towns.forEach(t => {
+    if (t._outline && t.claimChunks.length){
+      outlineCache.set(t.name, { key: chunkSetKey(t.claimChunks), rings: t._outline });
+    }
+    if (t.nationName && t._colors && t._colors.fill){
+      const k = t.nationName.toLowerCase();
+      if (!MAP_NATION_COLORS.has(k)){ MAP_NATION_COLORS.set(k, t._colors); fresh++; }
+    }
+    delete t._colors;
+  });
+  if (fresh) clearNationColorCache();
+}
+
+/* Map towns, with the API's fuller record wherever there is one. */
+function worldMerge(mapTowns, details){
+  if (!details || !details.size) return mapTowns.slice();
+  const out = [], seen = new Set();
+  mapTowns.forEach(t => {
+    const d = details.get(t.name);
+    out.push(d || t); seen.add(t.name);
+  });
+  details.forEach((d, name) => { if (!seen.has(name)) out.push(d); });
+  return out;
+}
+
+/* Everything that redraws once the world list changes. */
+function worldApplied(){
+  refreshMapLayers();
+  renderNationPanel(state.towns);
+  if (typeof renderExpansionPanel === 'function'){
+    renderExpansionOverlay();
+    renderExpansionPanel();
+  }
+  renderNationClaimAreas();
+  irlRankSoon();
+}
+
 async function refreshWorldSnapshot(force){
   if (worldCache.inFlight) return;
   if (!force && Date.now() - worldCache.fetchedAt < WORLD_TTL_MS) return;
 
   worldCache.inFlight = true;
-  renderNationPanel(state.towns); // reflect the loading state immediately
-  try{
-    const refs = await client.getAllTownRefs();
-    if (!refs.length){
-      auditLog.log('World scan returned no towns', 'warn');
-      return;
+  renderNationPanel(state.towns);
+  const t0 = performance.now();
+  let quick = false;
+  try {
+    const [earth, moon] = await Promise.all([
+      smFetchMarkers('minecraft_overworld'),
+      smFetchMarkers('earthmc_moon').catch(() => []),
+    ]);
+    const mapTowns = earth.concat(moon);
+    // Fewer than a few hundred towns means the file has changed shape under
+    // us: fall back to the API rather than show a half-empty world.
+    if (mapTowns.length > 300){
+      smAdopt(mapTowns);
+      worldCache.mapTowns = mapTowns;
+      worldCache.towns = worldMerge(mapTowns, worldCache.details);
+      worldCache.fetchedAt = Date.now();
+      worldCache.source = 'map';
+      quick = true;
+      auditLog.log(`Every town from EarthMC's map — ${CoordUtils.fmt(mapTowns.length)} towns in ${((performance.now() - t0) / 1000).toFixed(1)}s`, 'success');
+    } else {
+      auditLog.log(`EarthMC's map file had only ${mapTowns.length} towns — using the API instead` +
+        (worldCache.sample ? ` (first popup: ${worldCache.sample.replace(/\s+/g, ' ').slice(0, 160)})` : ''), 'warn');
     }
-    auditLog.log(`World scan — fetching details for ${CoordUtils.fmt(refs.length)} town(s)`, 'info');
-    const names = refs.map(t => t.uuid || t.name).filter(Boolean);
-    worldCache.towns = await client.getTownDetailsBatched(names);
-    worldCache.fetchedAt = Date.now();
+  } catch (err){
+    auditLog.log(`EarthMC's map file could not be read (${err.message}) — using the API instead`, 'warn');
+  }
 
-    // Real nation colours come from state.nationStats, which only the
-    // tracked-nation sync fills. A world scan pulls towns from hundreds of
-    // untracked nations, so without this they all fell back to the generated
-    // palette — the "random colours" you saw. One extra request per 100
-    // nations, and only when a scan actually runs.
-    const scanned = [...new Set(worldCache.towns.map(t => t.nationName).filter(Boolean))]
-      .filter(n => !state.nationStats.has(n));
-    if (scanned.length){
-      auditLog.log(`Fetching colours for ${scanned.length} nation(s)…`, 'info');
-      for (let i = 0; i < scanned.length; i += 100){
-        const nations = await client.getNationDetails(scanned.slice(i, i + 100));
-        nations.forEach(n => {
-          clearNationColorCache();
-        state.nationStats.set(n.name, {
-            name: n.name,
-            king: n.king && n.king.name ? n.king.name : null,
-            balance: n.stats && typeof n.stats.balance === 'number' ? n.stats.balance : 0,
-            numResidents: n.stats && typeof n.stats.numResidents === 'number' ? n.stats.numResidents : 0,
-            numTownBlocks: n.stats && typeof n.stats.numTownBlocks === 'number' ? n.stats.numTownBlocks : 0,
-            numTowns: Array.isArray(n.towns) ? n.towns.length : null,
-            ranks: (n.ranks && typeof n.ranks === 'object') ? n.ranks : null,
-          fill: cleanHex(n.dynmapColour),
-            outline: cleanHex(n.dynmapOutline),
-          });
-        });
-      }
-    }
-    auditLog.log(`World scan complete — ${CoordUtils.fmt(worldCache.towns.length)} town(s) cached`, 'success');
-  } catch(err){
-    auditLog.log(`World scan failed — ${err.message}`, 'error');
+  if (quick){
+    worldCache.inFlight = false;
+    worldApplied();
+    // The details follow on their own, without holding anything up.
+    worldFetchDetails();
+    return;
+  }
+  try {
+    await worldFetchDetails(true);
   } finally {
     worldCache.inFlight = false;
-    refreshMapLayers();
-    renderNationPanel(state.towns);
-    /* The expansion panel reads worldCache directly, so it has to be told the
-       scan finished — otherwise it sits on "loading every town" forever and
-       the towns that just arrived are unclickable in nation mode. */
-    if (typeof renderExpansionPanel === 'function'){
-      renderExpansionOverlay();
-      renderExpansionPanel();
+    worldApplied();
+  }
+}
+
+/* The API's full record for every town: bank, claim limit, flags, exact home
+   plot. Two requests at a time (the key's 180 a minute is shared with every
+   visitor and the bot), and the map is only redrawn once, at the end. */
+async function worldFetchDetails(blocking){
+  if (worldCache.detailing) return;
+  worldCache.detailing = true;
+  worldCache.detailDone = 0; worldCache.detailTotal = 0;
+  renderWorldControls();
+  try {
+    const refs = await client.getAllTownRefs();
+    if (!refs.length){ auditLog.log('World scan returned no towns', 'warn'); return; }
+    const names = refs.map(t => t.uuid || t.name).filter(Boolean);
+    worldCache.detailTotal = Math.ceil(names.length / CONFIG.TOWN_BATCH_SIZE);
+    const got = await client.getTownDetailsBatched(names, {
+      parallel: 2,
+      onBatch: () => { worldCache.detailDone++; renderWorldControls(); },
+    });
+    const details = new Map(got.map(t => [t.name, t]));
+    worldCache.details = details;
+    worldCache.towns = worldMerge(worldCache.mapTowns || [], details);
+    worldCache.fetchedAt = Date.now();
+    worldCache.detailsAt = Date.now();
+
+    const scanned = [...new Set(worldCache.towns.map(t => t.nationName).filter(Boolean))]
+      .filter(n => !state.nationStats.has(n));
+    for (let i = 0; i < scanned.length; i += 100){
+      const nations = await client.getNationDetails(scanned.slice(i, i + 100));
+      nations.forEach(n => {
+        state.nationStats.set(n.name, {
+          name: n.name,
+          king: n.king && n.king.name ? n.king.name : null,
+          balance: n.stats && typeof n.stats.balance === 'number' ? n.stats.balance : 0,
+          numResidents: n.stats && typeof n.stats.numResidents === 'number' ? n.stats.numResidents : 0,
+          numTownBlocks: n.stats && typeof n.stats.numTownBlocks === 'number' ? n.stats.numTownBlocks : 0,
+          numTowns: Array.isArray(n.towns) ? n.towns.length : null,
+          ranks: (n.ranks && typeof n.ranks === 'object') ? n.ranks : null,
+          fill: cleanHex(n.dynmapColour),
+          outline: cleanHex(n.dynmapOutline),
+        });
+      });
+      clearNationColorCache();
     }
-    // The missing piece: clearNationColorCache() above purges any generated
-    // fallback colour once a nation's real dynmapColour has loaded, but a
-    // polygon already drawn keeps whatever fillColor it was given at creation
-    // — clearing the cache doesn't reach back and repaint it. Any claim whose
-    // colour resolved through THIS path (an untracked nation, discovered by a
-    // world scan) stayed wrong until something unrelated — clicking the claim,
-    // switching views — happened to trigger a redraw. This is that redraw.
-    renderNationClaimAreas();
+    auditLog.log(`Town details complete — ${CoordUtils.fmt(details.size)} town(s)`, 'success');
+  } catch (err){
+    auditLog.log(`Town details failed — ${err.message}`, 'error');
+  } finally {
+    worldCache.detailing = false;
+    if (!blocking) worldApplied();
+    else renderWorldControls();
   }
 }
 
@@ -9063,6 +10261,7 @@ function hwStationPopupHtml(st){
 
 /* ---- map rendering ---- */
 function renderHighways(){
+  globeRequestDraw();
   const mc = mapController;
   if (!mc || !mc.highwayLayerGroup) return;
   mc.highwayLayerGroup.clearLayers();
@@ -9580,6 +10779,7 @@ function currentScope(){
 // Regions are Ethiopia's own political data — hidden in Global, and now also
 // toggleable from the map layers box within the views that do show them.
 function applyRegionVisibility(){
+  globeRequestDraw();
   if (!mapController || !mapController.regionsLayerGroup) return;
   const on = showRegions && ((viewerIsCitizen() && currentScope() !== 'global') || perkSeesEthiopia());
   if (on) mapController.regionsLayerGroup.addTo(mapController.map);
@@ -10159,16 +11359,20 @@ function renderWorldControls(){
   }
   if (!dom.bulkLoadHint) return;
 
+  const detailNote = worldCache.detailing && worldCache.detailTotal
+    ? ` · bank and flags loading ${Math.round(worldCache.detailDone / worldCache.detailTotal * 100)}%` : '';
   if (worldCache.inFlight){
-    dom.bulkLoadHint.textContent = 'Scanning every town on the server… this takes about a minute.';
+    dom.bulkLoadHint.textContent = worldCache.detailing
+      ? `Reading every town from the API${detailNote.replace(' · bank and flags loading', ' —')}…`
+      : 'Reading every town from EarthMC’s map…';
   } else if (worldCache.fetchedAt){
     const mins = Math.floor((Date.now() - worldCache.fetchedAt) / 60000);
     const shown = worldTownsForView().length;
     dom.bulkLoadHint.textContent = worldCache.enabled
-      ? `${CoordUtils.fmt(shown)} town(s) from the world scan · refreshed ${mins < 1 ? 'just now' : mins + 'm ago'}`
-      : `World snapshot cached (${CoordUtils.fmt(worldCache.towns.length)} towns) · click to show`;
+      ? `${CoordUtils.fmt(shown)} towns · refreshed ${mins < 1 ? 'just now' : mins + 'm ago'}${detailNote}`
+      : `Every town is cached (${CoordUtils.fmt(worldCache.towns.length)}) · click to show`;
   } else {
-    dom.bulkLoadHint.textContent = "Scans every town on the server. Takes about a minute, then refreshes every 15 minutes — it's not part of the 90-second sync.";
+    dom.bulkLoadHint.textContent = 'Every town on the server, read from EarthMC’s own map in a few seconds. Refreshes every 15 minutes.';
   }
 }
 
@@ -10589,6 +11793,7 @@ function ncPopupHtml(nation){
 }
 
 function renderNationClaimAreas(){
+  globeRequestDraw();
   const mc = mapController;
   if (!mc || !mc.nationClaimsLayerGroup) return;
   mc.nationClaimsLayerGroup.clearLayers();
@@ -11997,6 +13202,8 @@ function irlProject(){
     return { name: c.name, rings, shape, chunks: Math.max(0, Math.round(area / 256)), continent: irlContinent(c) };
   });
   irlState.ranking = null;
+  irlRankSig = '';
+  irlRankSoon();
 }
 
 function irlLoadScript(src){
@@ -12046,6 +13253,7 @@ function irlSetCountries(list){
 }
 
 function renderIrl(){
+  globeRequestDraw();
   const g = mapController && mapController.irlLayerGroup;
   if (!g) return;
   g.clearLayers();
@@ -12078,6 +13286,43 @@ function renderIrl(){
    centre lies inside the country's shape, against the country's area in
    chunks. Only the towns loaded are counted — the whole server once the
    world scan has run. */
+/* A town's claimed box in blocks (chunk centres), kept with its chunk list. */
+const irlBoxMemo = new WeakMap();
+function irlTownBox(t){
+  const ch = t.claimChunks;
+  let b = irlBoxMemo.get(ch);
+  if (b) return b;
+  let a = Infinity, z0 = Infinity, c = -Infinity, z1 = -Infinity;
+  for (const [cx, cz] of ch){ if (cx < a) a = cx; if (cx > c) c = cx; if (cz < z0) z0 = cz; if (cz > z1) z1 = cz; }
+  b = [a * 16 + 8, z0 * 16 + 8, c * 16 + 8, z1 * 16 + 8];
+  irlBoxMemo.set(ch, b);
+  return b;
+}
+
+/* The shading needs every country's figures, and they go stale the moment
+   more towns load. They used to be counted once, the first time shading was
+   switched on, and kept: switch it on before every town had loaded and it
+   stayed counted against almost nothing, so no country ever shaded. Now
+   they are counted again (once things settle) whenever the towns change,
+   and as soon as the borders themselves arrive. */
+let irlRankTimer = null, irlRankSig = '';
+function irlTownsSig(){
+  let n = 0, c = 0;
+  ncAllTowns().forEach(t => { if (!t.isMoon){ n++; c += (t.claimChunks || []).length; } });
+  return n + ':' + c + ':' + irlState.countries.length + ':' + JSON.stringify(irlState.calib);
+}
+function irlRankSoon(){
+  if (!irlState.on || !(irlState.fillMode || irlState.labels) || !irlState.countries.length) return;
+  clearTimeout(irlRankTimer);
+  irlRankTimer = setTimeout(() => {
+    if (irlState.ranking === 'working'){ irlRankSoon(); return; }
+    const sig = irlTownsSig();
+    if (Array.isArray(irlState.ranking) && sig === irlRankSig) return;
+    irlRankSig = sig;
+    irlRank();
+  }, 700);
+}
+
 function irlControl(c){
   const by = new Map();
   let claimed = 0;
@@ -12087,8 +13332,21 @@ function irlControl(c){
   ncAllTowns().forEach(t => {
     if (t.isMoon || typeof t.mcX !== 'number') return;
     if (t.mcX < s0.minX - pad || t.mcX > s0.maxX + pad || -t.mcZ < s0.minY - pad || -t.mcZ > s0.maxY + pad) return;
+    const ch = t.claimChunks || [];
+    if (!ch.length) return;
+    /* A town whose whole box sits inside the country counts in full without
+       testing chunk by chunk; that is most towns, and it is what makes
+       counting the whole server take a moment rather than many seconds.
+       Towns on a border or a coast still go chunk by chunk. */
+    const b = irlTownBox(t);
     let n = 0;
-    (t.claimChunks || []).forEach(([cx, cz]) => { if (shapeContains(s0, cx * 16 + 8, -(cz * 16 + 8))) n++; });
+    if (shapeContains(s0, b[0], -b[1]) && shapeContains(s0, b[2], -b[1]) &&
+        shapeContains(s0, b[0], -b[3]) && shapeContains(s0, b[2], -b[3])){
+      n = ch.length;
+    } else {
+      if (b[2] < s0.minX || b[0] > s0.maxX || -b[1] < s0.minY || -b[3] > s0.maxY) return;
+      ch.forEach(([cx, cz]) => { if (shapeContains(s0, cx * 16 + 8, -(cz * 16 + 8))) n++; });
+    }
     if (!n) return;
     claimed += n;
     const k = t.nationName || '(no nation)';
@@ -12266,14 +13524,11 @@ function renderIrlPanel(){
   on('irlDetail', 'change', (e) => { irlState.detail = e.target.value; irlState.raw = null; if (irlState.on) irlLoad(); });
   on('irlLabels', 'change', (e) => {
     irlState.labels = e.target.checked;
-    if (irlState.labels && !Array.isArray(irlState.ranking) && irlState.countries.length) irlRank().then(renderIrl);
-    else renderIrl();
+    renderIrl(); irlRankSoon();
   });
   on('irlFill', 'change', (e) => {
     irlState.fillMode = e.target.checked;
-    /* The shading needs every country's figures; they are counted once, then kept. */
-    if (irlState.fillMode && !Array.isArray(irlState.ranking) && irlState.countries.length) irlRank().then(renderIrl);
-    else renderIrl();
+    renderIrl(); irlRankSoon();
   });
   on('irlPin', 'click', () => {
     if (irlState.pinning){ irlState.pinning = false; renderIrlPanel(); return; }
@@ -12332,7 +13587,7 @@ function renderIrlRankList(){
 
 function setShowIrl(v){
   irlState.on = v;
-  if (v && !irlState.raw) irlLoad(); else renderIrl();
+  if (v && !irlState.raw) irlLoad(); else { renderIrl(); irlRankSoon(); }
   renderIrlPanel();
   if (mapController && typeof mapController.syncLayerToggles === 'function') mapController.syncLayerToggles();
 }
@@ -12390,6 +13645,7 @@ function countyPopupHtml(c){
 }
 
 function renderCounties(){
+  globeRequestDraw();
   const mc = mapController;
   if (!mc || !mc.countiesLayerGroup) return;
   mc.countiesLayerGroup.clearLayers();
@@ -14519,6 +15775,8 @@ async function syncLiveData(){
     }
     state.lastSync = Date.now();
     setSyncStatus('online', towns.length);
+    globeRequestDraw();
+    irlRankSoon();
     // Split timing so a slow sync can be attributed to the network or to
     // rendering, rather than guessed at.
     const renderMs = Math.round(performance.now() - tRender);
@@ -14715,9 +15973,29 @@ function startPerkClock(){
 /* Fit the map to a nation's towns. Used for the hub's "your nation" link. */
 function focusNationTowns(name){
   const want = String(name || '').toLowerCase();
-  const towns = (state.towns || []).filter(t => (t.nationName || '').toLowerCase() === want &&
+  /* Every loaded town, not just tracked ones: a nation picked from the
+     world list lives in the world snapshot, and "Zoom to" did nothing. */
+  const towns = ncAllTowns().filter(t => (t.nationName || '').toLowerCase() === want &&
     !t.isMoon && Number.isFinite(t.mcX) && Number.isFinite(t.mcZ));
   if (!towns.length || !mapController) return;
+  if (mapProjection === 'globe' && globe.on){
+    let sx = 0, sy = 0, sz = 0;
+    towns.forEach(t => { const v = globeVecOfBlock(t.mcX, t.mcZ); sx += v[0]; sy += v[1]; sz += v[2]; });
+    const l = Math.hypot(sx, sy, sz) || 1;
+    globe.lat = Math.max(-80, Math.min(80, Math.asin(sy / l) / GLOBE_D2R));
+    globe.lon = Math.atan2(sx / l, sz / l) / GLOBE_D2R;
+    let spread = 0;
+    towns.forEach(t => { const v = globeVecOfBlock(t.mcX, t.mcZ); spread = Math.max(spread, Math.acos(Math.min(1, (v[0] * sx + v[1] * sy + v[2] * sz) / l))); });
+    /* Far enough out that its farthest town sits within 80% of the way to
+       the window's edge: a point θ from the middle lands f·sinθ/(d − cosθ)
+       half-windows out. */
+    const th = Math.min(1.2, Math.max(0.004, spread * 1.15));
+    const f = 1 / Math.tan(GLOBE_FOV / 2);
+    globe.dist = Math.max(globeMinDist(), Math.min(GLOBE_MAX_DIST, Math.cos(th) + f * Math.sin(th) / 0.8));
+    globe.vLat = globe.vLon = 0;
+    globeRequestDraw();
+    return;
+  }
   const bounds = L.latLngBounds(towns.map(t => CoordUtils.mcToLatLng(t.mcX, t.mcZ)));
   mapController.map.fitBounds(bounds.pad(0.35), { maxZoom: -1 });
 }

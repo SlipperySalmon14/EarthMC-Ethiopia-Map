@@ -39,8 +39,11 @@
     var(--surface);
   box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 24px 60px -30px rgba(0,0,0,.8);
 }
-.visa .tibeb{ height:7px; background:var(--tibeb) repeat-x; background-size:28px 7px; opacity:.95; }
-.visa .tibeb.low{ position:absolute; left:0; right:0; bottom:0; }
+/* One gold hairline across the top of the page, like the foil edge on a
+   passport. The flag pattern used to run along both edges as well; with the
+   flag already on the page edge and in the header, it was too much. */
+.visa::before{ content:''; position:absolute; left:0; right:0; top:0; height:2px;
+  background:linear-gradient(90deg, transparent, rgba(252,209,22,.55) 18%, rgba(252,209,22,.55) 82%, transparent); }
 .visa-body{
   position:relative; display:grid; gap:1.6rem 2.2rem;
   grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);
@@ -92,10 +95,12 @@
 .clock .t.low{ color:var(--red); }
 .clock .until{ font-size:.82rem; color:var(--text-low); margin-top:.25rem; }
 .drain{ height:6px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; margin-top:.8rem; }
-.drain span{ display:block; height:100%; background:var(--tri); transform-origin:left center; transition:transform 1s linear; }
+.drain span{ display:block; height:100%; background:var(--gold); opacity:.85; transform-origin:left center;
+  transition:transform 1s linear, background-color .4s ease; }
+.drain.low span{ background:var(--red); }
 
 .stamp{ width:min(15rem, 70%); align-self:flex-end; transform:rotate(-9deg); margin:-.4rem -.4rem 0 0;
-  color:var(--green); opacity:.92; }
+  color:var(--green); opacity:.78; }
 .stamp.void{ color:var(--red); transform:rotate(7deg); }
 .stamp.blank{ color:var(--text-low); opacity:.35; }
 @media (max-width:820px){
@@ -184,7 +189,6 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--line); dis
   <!-- The visa. One element, four states: checking, entry (no pass),
        admitted, expired. renderVisa() fills it. -->
   <section class="visa" id="visa" aria-live="polite">
-    <div class="tibeb" aria-hidden="true"></div>
     <div class="visa-title">
       <h2 id="visaHeading">Entry visa</h2>
       <span class="no" id="visaNo">&nbsp;</span>
@@ -194,14 +198,13 @@ footer{ margin-top:3rem; padding-top:1rem; border-top:1px solid var(--line); dis
       <circle cx="50" cy="50" r="46" fill="none" stroke="#f5f1e8" stroke-width="1.2"/>
       <polygon fill="#f5f1e8" points="50.00,20.00 56.74,40.73 78.53,40.73 60.90,53.54 67.63,74.27 50.00,61.46 32.37,74.27 39.10,53.54 21.47,40.73 43.26,40.73"/>
     </svg>
-    <div class="tibeb low" aria-hidden="true"></div>
   </section>
 
   <div id="admitted" hidden>
     <nav class="go" aria-label="Where to go">
       <a class="dest atlas" href="map.html" id="goAtlas">
         <h3>The World Atlas</h3>
-        <p>Every nation on the server, the real-world borders they hold and their share of each country, and Ethiopia&rsquo;s regions and counties.</p>
+        <p>Every nation on the server, the real-world borders they hold, and their share of each country.</p>
         <span class="arrow">OPEN THE MAP &rarr;</span>
         <svg class="art" viewBox="0 0 100 100" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4">
           <circle cx="50" cy="50" r="44"/><ellipse cx="50" cy="50" rx="18" ry="44"/><ellipse cx="50" cy="50" rx="34" ry="44"/>
@@ -384,7 +387,8 @@ function renderNation() {
   if (n.colour) box.style.setProperty('--nc', n.colour);
   box.innerHTML =
     '<div class="nation-head"><h3>' + esc(n.name) + '</h3>' +
-      '<a href="map.html?nation=' + encodeURIComponent(n.name) + '">See ' + esc(n.name) + ' on the atlas, with its towns at risk &rarr;</a></div>' +
+      '<a href="map.html?nation=' + encodeURIComponent(n.name) + '">See ' + esc(n.name) + ' on the atlas' +
+        (n.name === 'Ethiopia' ? '' : ', with its towns at risk') + ' &rarr;</a></div>' +
     '<p class="note">' + (n.leader ? 'Led by ' + esc(n.leader) : '') + (n.capital ? (n.leader ? ' from ' : 'Capital ') + esc(n.capital) : '') + '</p>' +
     '<div class="nums">' +
       '<div><span class="n">' + num(n.towns) + '</span><span class="k">towns</span></div>' +
@@ -392,7 +396,6 @@ function renderNation() {
       '<div><span class="n">' + num(n.chunks) + '</span><span class="k">chunks claimed</span></div>' +
       '<div><span class="n">' + num(n.balance) + 'g</span><span class="k">in the nation bank</span></div>' +
     '</div>';
-  $('goAtlas').href = 'map.html?nation=' + encodeURIComponent(n.name);
 }
 
 function startClock() {
@@ -406,6 +409,7 @@ function startClock() {
     t.textContent = m + ':' + String(sec).padStart(2, '0');
     t.classList.toggle('low', left < 5 * 60000);
     $('drain').style.transform = 'scaleX(' + Math.max(0, Math.min(1, left / PASS_MS)).toFixed(4) + ')';
+    $('drain').parentNode.classList.toggle('low', left < 5 * 60000);
     $('stamp').textContent = m + ' min left on this visa';
   };
   step();

@@ -5110,10 +5110,11 @@ const GLOBE_BLOCKS_PER_TILE = 16384;          // squaremap folder 0
 const GLOBE_TILES_X = [-4, 3];                // ±64,512 blocks east to west
 const GLOBE_TILES_Z = [-3, 2];
 const GLOBE_FOV = 30 * Math.PI / 180;
-/* As close as the globe goes: about a block and a half to a screen pixel in
-   the middle of the window. One more step in and the flat map takes over,
-   where the detail carries on down to a block per 64 pixels. */
-const GLOBE_FLAT_BPP = 1.4, GLOBE_MAX_DIST = 6.5;
+/* As close as the globe goes: the same as the flat map's closest, a block to
+   64 screen pixels, a couple of dozen blocks up. It used to hand over to the
+   flat map at a block and a half per pixel; there is no need, the globe now
+   carries the same pictures all the way down. Flat is one click away. */
+const GLOBE_DEEPEST_BPP = Math.pow(2, -MAP_MAX_ZOOM), GLOBE_MAX_DIST = 6.5;
 /* Sharper pictures as you come closer. The ball's own skin is squaremap's
    coarsest folder; nearer in, the folders above it are fetched for just the
    part on screen and laid over it, the way a flat map swaps tiles. */
@@ -5186,7 +5187,9 @@ function globeApply(M, v){
 function globeHalf(){ return Math.min(globe.w, globe.h) / 2; }
 function globeProject(M, v){
   const q = globeApply(M, v);
-  if (q[2] < 1 / globe.dist + 0.004) return null;
+  // Over the horizon, with a margin that shrinks as you come down to the ground.
+  const zl = 1 / globe.dist;
+  if (q[2] < zl + (1 - zl) * 0.02) return null;
   const f = 1 / Math.tan(GLOBE_FOV / 2), d = globe.dist - q[2], s = globeHalf();
   return [globe.w / 2 + f * q[0] / d * s, globe.h / 2 - f * q[1] / d * s, q[2]];
 }
@@ -5452,7 +5455,7 @@ function globeFrame(){
   // Inertia after a fling.
   if (Math.abs(globe.vLat) > 0.002 || Math.abs(globe.vLon) > 0.002){
     globe.lon = ((globe.lon + globe.vLon + 540) % 360) - 180;
-    globe.lat = Math.max(-80, Math.min(80, globe.lat + globe.vLat));
+    globe.lat = Math.max(-84, Math.min(84, globe.lat + globe.vLat));
     globe.vLat *= 0.92; globe.vLon *= 0.92;
     globeRequestDraw();
   } else { globe.vLat = globe.vLon = 0; }
@@ -5470,7 +5473,7 @@ function globeFrame(){
 
   /* Near and far hug the ball, so depth stays precise even ~250 blocks up. */
   const f = 1 / Math.tan(GLOBE_FOV / 2), s = globeHalf();
-  const n = Math.max(0.0004, (globe.dist - 1) * 0.3), fa = globe.dist + 1.2;
+  const n = Math.max(1e-6, (globe.dist - 1) * 0.3), fa = globe.dist + 1.2;
   const fx = f * s / (globe.w / 2), fy = f * s / (globe.h / 2);
   gl.uniformMatrix4fv(globe.loc.uProj, false, new Float32Array([
     fx, 0, 0, 0,  0, fy, 0, 0,  0, 0, (fa + n) / (n - fa), -1,  0, 0, 2 * fa * n / (n - fa), 0]));
@@ -5479,9 +5482,11 @@ function globeFrame(){
   gl.uniform1f(globe.loc.uDist, globe.dist);
   gl.uniform1f(globe.loc.uHasTex, globe.hasTex && globe.terrain ? 1 : 0);
   gl.uniform1f(globe.loc.uBright, showDim ? 0.62 : 1.0);
-  /* The coarse ball sits ten blocks under the surface, so the sharper
-     pictures laid over it always win the depth test and never flicker. */
-  gl.uniform1f(globe.loc.uScale, 0.9995);
+  /* The coarse ball sits a little under the surface (ten blocks far out, a
+     couple close in), so the sharper pictures laid over it always win the
+     depth test. Close in it has to hug the ground, or what shows of it while
+     a picture loads would sit visibly off from the borders drawn on top. */
+  gl.uniform1f(globe.loc.uScale, 1 - Math.max(0.00012, Math.min(0.0005, (globe.dist - 1) * 0.08)));
   gl.uniform1f(globe.loc.uTile, 0);
   gl.disable(gl.BLEND);
   gl.depthMask(true);
@@ -5502,6 +5507,10 @@ function globeFrame(){
   // The atmosphere: a soft halo sized to the ball, behind it.
   const r = globeRadiusPx();
   if (globe.glow){
+    // Only while the edge of the ball is in the window; close in it would be
+    // a layer tens of thousands of pixels across for nothing.
+    const edgeShown = r < Math.hypot(globe.w, globe.h) / 2 * 1.05;
+    globe.glow.style.display = edgeShown ? '' : 'none';
     globe.glow.style.width = globe.glow.style.height = (r * 2.5) + 'px';
     globe.glow.style.left = (globe.w / 2 - r * 1.25) + 'px';
     globe.glow.style.top = (globe.h / 2 - r * 1.25) + 'px';
@@ -6207,7 +6216,11 @@ function globeSelectTiles(V){
 function globeTileMesh(gl, e){
   const S = globeTileSpan(e.f), x0 = e.tx * S, z0 = e.tz * S;
   const G = e.f <= 2 ? 16 : 8;
-  const lift = 1 + 0.00012 * e.f;
+  /* On the true surface, exactly where the borders on top are drawn. They
+     used to be lifted a few blocks per folder to stack in the depth buffer,
+     which is invisible from orbit but a visible offset from 30 blocks up.
+     Now they stack by drawing order instead (see globeDrawTiles). */
+  const lift = 1;
   const pos = new Float32Array((G + 1) * (G + 1) * 3), uv = new Float32Array((G + 1) * (G + 1) * 2);
   let k = 0, u = 0;
   for (let j = 0; j <= G; j++){
@@ -6307,7 +6320,10 @@ function globeDrawTiles(gl, V){
     gl.uniform1f(globe.loc.uHasTex, 1);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    // Tested against the ball only (so nothing round the back shows), never
+    // against each other: coarse first, fine last, fine wins.
     gl.depthFunc(gl.LEQUAL);
+    gl.depthMask(false);
     gl.activeTexture(gl.TEXTURE0);
     list.forEach(e => {
       if (e.ver !== globeCalibVer) globeTileMesh(gl, e);
@@ -6320,6 +6336,7 @@ function globeDrawTiles(gl, V){
       gl.drawElements(gl.TRIANGLES, e.idx.count, gl.UNSIGNED_SHORT, 0);
     });
     gl.disable(gl.BLEND);
+    gl.depthMask(true);
     gl.depthFunc(gl.LESS);
   }
 
@@ -6441,7 +6458,7 @@ function globeWire(){
       const k = (globe.dist - 1) / (globeHalf() / Math.tan(GLOBE_FOV / 2)) / GLOBE_D2R;
       const dLon = -dx * k, dLat = dy * k;
       globe.lon = ((globe.lon + dLon + 540) % 360) - 180;
-      globe.lat = Math.max(-80, Math.min(80, globe.lat + dLat));
+      globe.lat = Math.max(-84, Math.min(84, globe.lat + dLat));
       const now = performance.now(), dt = Math.max(8, now - globe.drag.t);
       globe.vLon = dLon / dt * 16; globe.vLat = dLat / dt * 16;
       globe.drag = { p, t: now };
@@ -6476,7 +6493,7 @@ function globeWire(){
   ov.addEventListener('wheel', (e) => {
     e.preventDefault();
     const p = local(e);
-    const next = 1 + (globe.dist - 1) * Math.exp(e.deltaY * 0.0016);
+    const next = 1 + (globe.dist - 1) * Math.exp(Math.max(-240, Math.min(240, e.deltaY)) * 0.0026);
     globeZoomTo(next, p);
   }, { passive: false });
 
@@ -6484,8 +6501,8 @@ function globeWire(){
     const step = 6 * (globe.dist - 1) / 3;
     if (e.key === 'ArrowLeft') globe.lon -= step;
     else if (e.key === 'ArrowRight') globe.lon += step;
-    else if (e.key === 'ArrowUp') globe.lat = Math.min(80, globe.lat + step);
-    else if (e.key === 'ArrowDown') globe.lat = Math.max(-80, globe.lat - step);
+    else if (e.key === 'ArrowUp') globe.lat = Math.min(84, globe.lat + step);
+    else if (e.key === 'ArrowDown') globe.lat = Math.max(-84, globe.lat - step);
     else if (e.key === '+' || e.key === '=') return globeZoomTo(1 + (globe.dist - 1) * 0.7, null);
     else if (e.key === '-') return globeZoomTo(1 + (globe.dist - 1) / 0.7, null);
     else return;
@@ -6497,7 +6514,7 @@ function globeWire(){
   ov.addEventListener('dblclick', (e) => {
     const p = local(e);
     const g = globePick(p[0], p[1]);
-    if (g){ globe.lat = Math.max(-80, Math.min(80, g.lat)); globe.lon = g.lon; }
+    if (g){ globe.lat = Math.max(-84, Math.min(84, g.lat)); globe.lon = g.lon; }
     globeZoomTo(1 + (globe.dist - 1) * 0.55, null);
   });
 
@@ -6508,16 +6525,10 @@ function globeWire(){
 /* Zooming past the closest the globe allows lands in the flat map, at the
    point under the cursor (or the middle), which is where the detail is. */
 function globeMinDist(){
-  return 1 + GLOBE_FLAT_BPP * globeHalf() / Math.tan(GLOBE_FOV / 2) / globeBlocksPerRad();
+  return 1 + GLOBE_DEEPEST_BPP * globeHalf() / Math.tan(GLOBE_FOV / 2) / globeBlocksPerRad();
 }
 function globeZoomTo(next, at){
   const min = globeMinDist();
-  if (next - 1 < (min - 1) * 0.82){
-    const g = at ? globePick(at[0], at[1]) : globePick(globe.w / 2, globe.h / 2);
-    const [x, z] = g ? [g.x, g.z] : irlToMc(globe.lon, globe.lat);
-    setMapProjection('flat', { x, z, zoom: globeZoomForDist(Math.max(1.0001, next)) });
-    return;
-  }
   /* Toward the cursor: the ground under it before the zoom is turned back
      under it afterwards, so you zoom into what you are pointing at. */
   const before = at ? globePick(at[0], at[1]) : null;
@@ -6530,7 +6541,7 @@ function globeZoomTo(next, at){
       let dl = before.lon - after.lon;
       if (dl > 180) dl -= 360; else if (dl < -180) dl += 360;
       globe.lon = ((globe.lon + dl + 540) % 360) - 180;
-      globe.lat = Math.max(-80, Math.min(80, globe.lat + (before.lat - after.lat)));
+      globe.lat = Math.max(-84, Math.min(84, globe.lat + (before.lat - after.lat)));
     }
   }
   globeRequestDraw();
@@ -6546,7 +6557,7 @@ function globeDistForZoom(zm){
 function globeZoomForDist(d){
   const F = globeHalf() / Math.tan(GLOBE_FOV / 2);
   const bpp = globeBlocksPerRad() * (d - 1) / F;
-  return Math.max(-7, Math.min(1, Math.round(-Math.log2(Math.max(1e-3, bpp)))));
+  return Math.max(-7, Math.min(MAP_MAX_ZOOM, Math.round(-Math.log2(Math.max(1e-4, bpp)))));
 }
 
 let mapProjection = 'flat';
@@ -15982,7 +15993,7 @@ function focusNationTowns(name){
     let sx = 0, sy = 0, sz = 0;
     towns.forEach(t => { const v = globeVecOfBlock(t.mcX, t.mcZ); sx += v[0]; sy += v[1]; sz += v[2]; });
     const l = Math.hypot(sx, sy, sz) || 1;
-    globe.lat = Math.max(-80, Math.min(80, Math.asin(sy / l) / GLOBE_D2R));
+    globe.lat = Math.max(-84, Math.min(84, Math.asin(sy / l) / GLOBE_D2R));
     globe.lon = Math.atan2(sx / l, sz / l) / GLOBE_D2R;
     let spread = 0;
     towns.forEach(t => { const v = globeVecOfBlock(t.mcX, t.mcZ); spread = Math.max(spread, Math.acos(Math.min(1, (v[0] * sx + v[1] * sy + v[2] * sz) / l))); });

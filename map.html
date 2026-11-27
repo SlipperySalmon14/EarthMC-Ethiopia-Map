@@ -2704,6 +2704,7 @@ const MOON_TILE_BASE = 'https://map.earthmc.net/tiles/earthmc_moon';
    404; too low and they merely upscale, which is only blurry. Erring low. */
 const MOON_MAX_NATIVE_ZOOM = 3;
 let showNationRange = false;
+let showNationNames = true;  // nation names on the globe and in the timelapse
 
 let showChunkGrid = false;   // 16x16 chunk boundaries, aligned to the real grid
 let showPlayers = false;     // live player positions from squaremap
@@ -4233,8 +4234,14 @@ const TerrainLayer = L.GridLayer.extend({
   initialize(url, options){
     this._url = url;
     this._finest = TERRAIN_MAX_NATIVE_ZOOM;   // a squaremap FOLDER
+    this._top = TERRAIN_ZOOM_OFFSET;          // the world's one-block-a-pixel folder
     L.Util.setOptions(this, options);
   },
+  /* Squaremap numbers each world's folders from its own closest one: on
+     earth folder 5 is a block a pixel, on the moon it is the moon's top
+     folder (3, or whatever its map says). Reading the moon's pictures as
+     if they were earth's stretched them four times over, hence the blur. */
+  setTop(top){ this._top = top; if (this._map) this.redraw(); return this; },
   setUrl(url){ this._url = url; if (this._map) this.redraw(); return this; },
   /* The finest folder to read from. Low quality and the moon pass a coarser
      one; closer zooms then enlarge that instead. */
@@ -4266,14 +4273,16 @@ const TerrainLayer = L.GridLayer.extend({
     const span = size / Math.pow(2, coords.z);
     const x0 = coords.x * span, z0 = coords.y * span;
     // The folder that matches this zoom, held to what squaremap has.
+    const top = this._top;
+    const blocksAt = (f) => 512 * Math.pow(2, top - f);
     const folder = Math.max(TERRAIN_MIN_NATIVE_ZOOM,
-                   Math.min(this._finest, coords.z + TERRAIN_ZOOM_OFFSET));
-    const fspan = terrainFolderBlocks(folder);
+                   Math.min(this._finest, coords.z + top));
+    const fspan = blocksAt(folder);
     const urlFor = (f, x, z) => this._url.replace('{z}', f).replace('{x}', x).replace('{y}', z);
 
     // Paint the part of one squaremap image that falls inside this tile.
     const paint = (img, f, sx, sz) => {
-      const fs = terrainFolderBlocks(f);
+      const fs = blocksAt(f);
       const ax = Math.max(x0, sx * fs), bx = Math.min(x0 + span, (sx + 1) * fs);
       const az = Math.max(z0, sz * fs), bz = Math.min(z0 + span, (sz + 1) * fs);
       if (bx <= ax || bz <= az) return;
@@ -4313,7 +4322,7 @@ const TerrainLayer = L.GridLayer.extend({
        or zooming into new ground then never shows an empty hole while
        EarthMC's server answers. */
     for (let pf = folder - 1; pf >= TERRAIN_MIN_NATIVE_ZOOM && pf >= folder - 4; pf--){
-      const ps = terrainFolderBlocks(pf);
+      const ps = blocksAt(pf);
       const px = Math.floor(x0 / ps), pz = Math.floor(z0 / ps);
       const img = terrainLoaded.get(urlFor(pf, px, pz));
       if (img){ ctx.imageSmoothingEnabled = true; paint(img, pf, px, pz); report(); break; }
@@ -6462,7 +6471,7 @@ function globeDrawOverlay(M, rPx, V){
   /* Nation names, once close enough to read them: the biggest nations
      first, and a name that would sit on top of one already drawn is
      skipped rather than stacked. */
-  if (live && (showClaims || showTowns) && rPx > 520){
+  if (live && showNationNames && (showClaims || showTowns) && rPx > 520){
     const boxes = [];
     ctx.font = `600 ${Math.round(11 + zoomK * 1.5)}px ${globe.font}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineJoin = 'round';
@@ -7869,7 +7878,7 @@ function histLabels2D(ctx, f, at, ppb, kc, w, h, scale){
   const spaced = 'letterSpacing' in ctx;
   // Names first, so the biggest nations always get theirs.
   ctx.textAlign = 'center';
-  for (const n of f.order.slice(0, 200)){
+  for (const n of (showNationNames ? f.order.slice(0, 200) : [])){
     const [x, y] = at(n.label.x, n.label.z);
     if (x < -160 || y < -60 || x > w + 160 || y > h + 60) continue;
     const k = ppb(n.label.x, n.label.z);
@@ -9074,6 +9083,8 @@ class MapController{
         meta: () => { if (hist.on) return hist.frame ? fmt(hist.frame.stats.towns) : ''; const n = townsForActiveView(state.towns || []).length; return n ? fmt(n) : ''; } },
       { group: 'server', label: 'Town markers', globe: true,
         get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); if (hist.on) histPaint(); } },
+      { group: 'server', label: 'Nation names', globe: true,
+        get: () => showNationNames, set: (v) => { showNationNames = v; globeRequestDraw(); if (hist.on) histPaint(); } },
       { group: 'server', label: 'Players', globe: true,
         get: () => showPlayers, set: (v) => setShowPlayers(v),
         meta: () => (showPlayers && onlinePlayers.length ? fmt(onlinePlayers.length) : '') },
@@ -9696,16 +9707,6 @@ function nationColors(nationName){
   return resolved;
 }
 
-function liftDark(hex){
-  const h = cleanHex(hex);
-  if (!h) return hex;
-  const n = parseInt(h.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-  if (lum >= 80) return h;
-  const t = Math.min(0.55, (80 - lum) / 80 * 0.55 + 0.15);
-  const m = (v) => Math.round(v + (255 - v) * t).toString(16).padStart(2, '0');
-  return '#' + m(r) + m(g) + m(b);
-}
 function nationColorsUncached(nationName){
   if (!nationName || nationName === 'Unaffiliated'){
     return { fill: COLORS.muted, outline: COLORS.muted };
@@ -9713,11 +9714,11 @@ function nationColorsUncached(nationName){
   // What EarthMC's own map paints the nation in, when its map file is loaded:
   // the swatch then matches the towns drawn on screen.
   const fromMap = MAP_NATION_COLORS.get(String(nationName).trim().toLowerCase());
-  if (fromMap && fromMap.fill) return { fill: fromMap.fill, outline: liftDark(fromMap.fill) };
+  if (fromMap && fromMap.fill) return { fill: fromMap.fill, outline: fromMap.outline || fromMap.fill };
   const stats = nationStatsFor(nationName);
   const fill = stats && cleanHex(stats.fill);
   if (fill){
-    return { fill, outline: liftDark(fill) };
+    return { fill, outline: cleanHex(stats.outline) || fill };
   }
   const gen = stableColorFor(nationName, CONFIG.NATION_PALETTE);
   return { fill: gen, outline: gen };
@@ -9760,14 +9761,10 @@ function townColors(town){
     }
   }
   if (colorByActivity) return activityColors(town);
-  /* A nation's towns all in the nation's one colour (the one most of them
-     carry on EarthMC's map), inside and out, so a nation reads as one.
-     EarthMC paints some towns with their own colours or a grey fill under
-     the nation's outline; those are evened out here. A town with no nation
-     keeps exactly what EarthMC's map paints it. */
-  if (town.nationName) return nationColors(town.nationName);
+  /* Exactly what EarthMC's map paints this town, when its map file is loaded
+     and the town is still in the nation the map knew it in. */
   const own = MAP_TOWN_COLORS.get(town.name);
-  if (own && !own.nation) return own;
+  if (own && own.nation === (town.nationName || null)) return own;
   return nationColors(town.nationName);
 }
 
@@ -10046,11 +10043,19 @@ function setMapWorld(world){
   mapWorld = world;
   const layer = mapController.terrainLayer;
   if (layer){
-    const finest = world === 'moon' ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM;
-    layer.setNativeZoom(lowQuality ? Math.min(finest, TERRAIN_MAX_NATIVE_ZOOM - 1) : finest);
+    const finest = world === 'moon' ? moonTopFolder() : TERRAIN_MAX_NATIVE_ZOOM;
+    layer.setTop(finest);
+    layer.setNativeZoom(lowQuality ? finest - 1 : finest);
     layer.setUrl(world === 'moon'
       ? `${MOON_TILE_BASE}/{z}/{x}_{y}.png` : TERRAIN_URL_TEMPLATE);
     applyZoomCap();
+    if (world === 'moon' && !moonGeo.max){
+      moonBox().catch(() => null).then(() => {
+        if (mapWorld !== 'moon') return;
+        layer.setTop(moonTopFolder());
+        layer.setNativeZoom(lowQuality ? moonTopFolder() - 1 : moonTopFolder());
+      });
+    }
   }
   auditLog.log(world === 'moon'
     ? 'Showing Terra Luna — earth towns are hidden'
@@ -11921,11 +11926,19 @@ function moonBox(){
       const c = JSON.parse(localStorage.getItem('moon-box-v1') || 'null');
       if (c && c.box && Date.now() - c.at < 7 * 864e5){ moonGeo.max = c.max || MOON_MAX_NATIVE_ZOOM; return (moonGeo.box = c.box); }
     } catch (_e) { /* look again */ }
-    let max = MOON_MAX_NATIVE_ZOOM;
+    let max = null;
     try {
       const r = await fetch(MOON_TILE_BASE + '/settings.json');
       if (r.ok){ const j = await r.json(); const m = j && j.zoom && j.zoom.max; if (Number.isInteger(m) && m >= 0 && m < 10) max = m; }
-    } catch (_e) { /* the default will do */ }
+    } catch (_e) { /* found from the pictures instead */ }
+    if (max === null){
+      // The highest folder with a picture near the middle is the closest one.
+      for (let f = 7; f >= 1 && max === null; f--){
+        const hits = await Promise.all([[0, 0], [-1, -1], [0, -1], [-1, 0]].map(([x, z]) => globeLoadImage(`${MOON_TILE_BASE}/${f}/${x}_${z}.png`)));
+        if (hits.some(Boolean)) max = f;
+      }
+      if (max === null) max = MOON_MAX_NATIVE_ZOOM;
+    }
     moonGeo.max = max;
     const S = 512 * Math.pow(2, max);              // blocks across one of its coarsest pictures
     const got = new Map();
@@ -11984,6 +11997,7 @@ function moonBox(){
   return moonGeo.p;
 }
 moonBox().then((b) => { if (b) try { outlineCache.clear(); refreshMapLayers(); } catch (_e) { /* not built yet */ } }).catch(() => {});
+function moonTopFolder(){ return moonGeo.max || MOON_MAX_NATIVE_ZOOM; }
 function inMoonBox(x, z){
   const b = moonGeo.box;
   return !!b && x >= b.x0 && x < b.x1 && z >= b.z0 && z < b.z1;
@@ -12108,7 +12122,8 @@ function smAdopt(towns){
       if (t.nationName){
         const k = t.nationName.toLowerCase();
         let v = votes.get(k); if (!v) votes.set(k, v = new Map());
-        v.set(c.fill, (v.get(c.fill) || 0) + 1);
+        const key = c.fill + '|' + (c.outline || c.fill);
+        v.set(key, (v.get(key) || 0) + 1);
       }
     }
     delete t._colors;
@@ -12116,7 +12131,8 @@ function smAdopt(towns){
   MAP_NATION_COLORS.clear();
   votes.forEach((v, k) => {
     const [best] = [...v.entries()].sort((a, b) => b[1] - a[1]);
-    MAP_NATION_COLORS.set(k, { fill: best[0], outline: best[0] });
+    const [fill, outline] = best[0].split('|');
+    MAP_NATION_COLORS.set(k, { fill, outline });
   });
   // Every nation's colour is worked out again from the new table.
   nationColorCache.clear();
@@ -16434,8 +16450,8 @@ function setLowQuality(on){
     /* One folder coarser, not two: with the tile layer fixed, a close view
        is only a few tiles anyway, and two folders halved how far in you
        could zoom with terrain on. The moon is already capped coarser. */
-    const finest = mapWorld === 'moon' ? MOON_MAX_NATIVE_ZOOM : TERRAIN_MAX_NATIVE_ZOOM;
-    layer.setNativeZoom(on ? Math.min(finest, TERRAIN_MAX_NATIVE_ZOOM - 1) : finest);
+    const finest = mapWorld === 'moon' ? moonTopFolder() : TERRAIN_MAX_NATIVE_ZOOM;
+    layer.setNativeZoom(on ? finest - 1 : finest);
     layer.setKeepBuffer(on ? 0 : (IS_SMALL_SCREEN ? 0 : 2));
     layer.options.updateWhenIdle = on || IS_SMALL_SCREEN;
     applyZoomCap();

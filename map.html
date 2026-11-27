@@ -7346,6 +7346,8 @@ function nationStatsFor(name){
 // nationStats gained an entry — which is hundreds of times during a scan.
 // Pinning is what actually stops it: a generated colour may be replaced by the
 // real one, but a real one is never recomputed or downgraded.
+const MAP_NATION_COLORS = new Map();   // nation (lower case) -> { fill, outline }, from EarthMC's map file (see smAdopt)
+const MAP_TOWN_COLORS = new Map();     // town name -> { fill, outline }: exactly what EarthMC's map paints it
 const nationColorCache = new Map();
 const nationColorIsReal = new Set();
 
@@ -7385,7 +7387,7 @@ function nationColors(nationName){
   // hash fallback. Only those are pinned.
   const stats = nationStatsFor(nationName);
   if (stats && cleanHex(stats.fill)) nationColorIsReal.add(cacheKey);
-  else if (MAP_NATION_COLORS.has(cacheKey)) nationColorIsReal.add(cacheKey);
+  else if (MAP_NATION_COLORS.has(cacheKey)) nationColorIsReal.add(cacheKey);   // cleared whenever the map file reloads
 
   return resolved;
 }
@@ -7394,14 +7396,15 @@ function nationColorsUncached(nationName){
   if (!nationName || nationName === 'Unaffiliated'){
     return { fill: COLORS.muted, outline: COLORS.muted };
   }
+  // What EarthMC's own map paints the nation in, when its map file is loaded:
+  // the swatch then matches the towns drawn on screen.
+  const fromMap = MAP_NATION_COLORS.get(String(nationName).trim().toLowerCase());
+  if (fromMap && fromMap.fill) return { fill: fromMap.fill, outline: fromMap.outline || fromMap.fill };
   const stats = nationStatsFor(nationName);
   const fill = stats && cleanHex(stats.fill);
   if (fill){
     return { fill, outline: cleanHex(stats.outline) || fill };
   }
-  // The colours EarthMC's own map draws it in, before the API has said.
-  const fromMap = MAP_NATION_COLORS.get(String(nationName).trim().toLowerCase());
-  if (fromMap && fromMap.fill) return { fill: fromMap.fill, outline: fromMap.outline || fromMap.fill };
   const gen = stableColorFor(nationName, CONFIG.NATION_PALETTE);
   return { fill: gen, outline: gen };
 }
@@ -7442,7 +7445,12 @@ function townColors(town){
       return { fill: COLORS.muted, outline: COLORS.danger };
     }
   }
-  return colorByActivity ? activityColors(town) : nationColors(town.nationName);
+  if (colorByActivity) return activityColors(town);
+  /* Exactly what EarthMC's map paints this town, when its map file is loaded
+     and the town is still in the nation the map knew it in. */
+  const own = MAP_TOWN_COLORS.get(town.name);
+  if (own && own.nation === (town.nationName || null)) return own;
+  return nationColors(town.nationName);
 }
 
 /* ---- colour diagnostic ----
@@ -9425,7 +9433,6 @@ const WORLD_TTL_MS = 15 * 60 * 1000;
    lacks — bank, claim limit, open or ruined, the exact home plot — arrives
    from the API in the background and is merged in quietly.
    ========================================================================= */
-const MAP_NATION_COLORS = new Map();   // nation (lower case) -> { fill, outline }, from the map file
 
 function smDecode(s){
   return String(s || '')
@@ -9600,21 +9607,41 @@ async function smFetchMarkers(world){
   return [...byName.values()];
 }
 
-/* Hands each map town's outline to the trace cache and its colours to the
-   nation colour fallback. */
+/* Hands each map town's outline to the trace cache, and its colours to the
+   town and nation colour tables.
+
+   Every town keeps the exact colours EarthMC's map paints it in, so this map
+   matches theirs town for town. A nation's own swatch (the list, labels,
+   cards) is the colour most of its towns carry. It used to be whichever of
+   its towns came first in the file, pinned for good, so one odd town could
+   recolour a whole nation and the API's colour could never correct it. */
 function smAdopt(towns){
-  let fresh = 0;
+  const votes = new Map();       // nation -> Map("fill|outline" -> count)
   towns.forEach(t => {
     if (t._outline && t.claimChunks.length){
       outlineCache.set(t.name, { key: chunkSetKey(t.claimChunks), rings: t._outline });
     }
-    if (t.nationName && t._colors && t._colors.fill){
-      const k = t.nationName.toLowerCase();
-      if (!MAP_NATION_COLORS.has(k)){ MAP_NATION_COLORS.set(k, t._colors); fresh++; }
+    const c = t._colors;
+    if (c && c.fill){
+      MAP_TOWN_COLORS.set(t.name, { fill: c.fill, outline: c.outline || c.fill, nation: t.nationName || null });
+      if (t.nationName){
+        const k = t.nationName.toLowerCase();
+        let v = votes.get(k); if (!v) votes.set(k, v = new Map());
+        const key = c.fill + '|' + (c.outline || c.fill);
+        v.set(key, (v.get(key) || 0) + 1);
+      }
     }
     delete t._colors;
   });
-  if (fresh) clearNationColorCache();
+  MAP_NATION_COLORS.clear();
+  votes.forEach((v, k) => {
+    const [best] = [...v.entries()].sort((a, b) => b[1] - a[1]);
+    const [fill, outline] = best[0].split('|');
+    MAP_NATION_COLORS.set(k, { fill, outline });
+  });
+  // Every nation's colour is worked out again from the new table.
+  nationColorCache.clear();
+  nationColorIsReal.clear();
 }
 
 /* Map towns, with the API's fuller record wherever there is one. */

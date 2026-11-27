@@ -2220,7 +2220,7 @@ body.globe-on .map-close{ z-index:1300; }
           <span class="eyebrow">Planning</span>
           <h2>Expansion and overclaims</h2>
         </div>
-        <p class="hint" style="margin-top:0">
+        <p class="hint" style="margin-top:0" id="planIntro">
           Plan new land for our towns, including land taken from towns over
           their limit and the day it becomes possible; model towns joining or
           leaving a nation; and forecast which towns are going over their limit.
@@ -5599,21 +5599,23 @@ function globeEnsureBuilt(){
   gl.attachShader(prog, sh(gl.VERTEX_SHADER, `
     attribute vec3 aPos; attribute vec2 aUv;
     uniform mat4 uProj; uniform mat3 uRot; uniform float uDist; uniform float uScale;
-    varying vec2 vUv; varying vec3 vN; varying vec3 vView;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vView; varying float vLat;
     void main(){
       vec3 p = uRot * (aPos * uScale);
-      vN = p; vUv = aUv;
+      vN = p; vUv = aUv; vLat = aPos.y;
       vView = normalize(vec3(0.0, 0.0, uDist) - p);
       gl_Position = uProj * vec4(p.x, p.y, p.z - uDist, 1.0);
     }`));
   gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
     precision highp float;
-    uniform sampler2D uTex; uniform float uHasTex; uniform float uBright; uniform float uTile; uniform float uMoon;
-    varying vec2 vUv; varying vec3 vN; varying vec3 vView;
+    uniform sampler2D uTex; uniform float uHasTex; uniform float uBright; uniform float uTile; uniform float uMoon; uniform vec3 uCap;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vView; varying float vLat;
     void main(){
       vec3 n = normalize(vN);
       vec4 t = texture2D(uTex, vUv);
       vec3 base = uHasTex > 0.5 ? t.rgb : vec3(0.09, 0.15, 0.30);
+      // The moon's poles: its map eases into a plain cap from 66 to 80 degrees.
+      if (uMoon > 0.5) base = mix(base, uCap, smoothstep(0.9135, 0.9848, abs(vLat)));
       float diff = max(dot(n, normalize(vec3(-0.42, 0.5, 0.76))), 0.0);
       vec3 col = base * (0.66 + 0.44 * diff) * uBright;
       float rim = pow(1.0 - max(dot(n, normalize(vView)), 0.0), 2.6);
@@ -5629,7 +5631,7 @@ function globeEnsureBuilt(){
     uDist: gl.getUniformLocation(prog, 'uDist'), uTex: gl.getUniformLocation(prog, 'uTex'),
     uHasTex: gl.getUniformLocation(prog, 'uHasTex'), uBright: gl.getUniformLocation(prog, 'uBright'),
     uScale: gl.getUniformLocation(prog, 'uScale'), uTile: gl.getUniformLocation(prog, 'uTile'),
-    uMoon: gl.getUniformLocation(prog, 'uMoon'),
+    uMoon: gl.getUniformLocation(prog, 'uMoon'), uCap: gl.getUniformLocation(prog, 'uCap'),
   };
 
   // A latitude/longitude mesh. The seam column is doubled (u = 0 and u = 1)
@@ -5702,6 +5704,28 @@ function globeLoadImage(url){
   });
 }
 
+/* The map's open-sea colour: the average of its deep blue pixels. */
+function globeSeaColor(mos){
+  try {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 192;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(mos, 0, 0, 256, 192);
+    const d = x.getImageData(0, 0, 256, 192).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4){
+      if (d[i + 3] < 200) continue;
+      if (d[i + 2] > d[i] + 40 && d[i + 2] > d[i + 1] + 10 && d[i + 2] < 200){ r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+    }
+    return n > 50 ? [Math.round(r / n), Math.round(g / n), Math.round(b / n)] : null;
+  } catch (_e){ return null; }
+}
+/* Which texture row (of H, pole to pole) a mosaic row lies on. */
+function globeRowOfZ(row, z0, bpp, H){
+  const z = z0 + row * bpp;
+  const lat = globeLonLat(0, z)[1];
+  return (90 - lat) / 180 * H;
+}
+
 async function globeBuildTexture(){
   if (globe.texState === 'loading' || globe.texState === 'ready') return;
   if (mapWorld === 'moon') return globeBuildMoonTexture();
@@ -5766,11 +5790,24 @@ async function globeBuildTexture(){
   const x0 = GLOBE_TILES_X[0] * GLOBE_BLOCKS_PER_TILE, z0 = GLOBE_TILES_Z[0] * GLOBE_BLOCKS_PER_TILE;
   const c = irlState.calib;
   const sx = (c.xW - x0) / bpp, sw = (c.xE - c.xW) / bpp;
+  /* The map stops short of the poles. Above and below it the edge row used
+     to be stretched round the cap, which drew a starburst at each pole;
+     those caps are now the map's own open-sea colour, eased in over a
+     couple of degrees so the edge does not show as a line. */
+  const sea = globeSeaColor(mos) || [28, 44, 92];
+  ectx.fillStyle = `rgb(${sea.join(',')})`;
+  ectx.fillRect(0, 0, W, H);
+  const fadeRows = Math.max(2, Math.round(H / 180 * 0.8));
   for (let j = 0; j < H; j++){
     const lat = 90 - (j + 0.5) / H * 180;
-    let sy = (irlToMc(0, lat)[1] - z0) / bpp;
-    sy = Math.min(Math.max(sy, top + 0.5), bottom - 0.5);
-    ectx.drawImage(mos, sx, sy, sw, 1, 0, j, W, 1);
+    const sy = (irlToMc(0, lat)[1] - z0) / bpp;
+    if (sy >= top + 0.5 && sy <= bottom - 0.5){ ectx.drawImage(mos, sx, sy, sw, 1, 0, j, W, 1); continue; }
+    // Just past the edge: the edge row, fading into the sea.
+    const rows = Math.abs(j - globeRowOfZ(sy < top + 0.5 ? top : bottom, z0, bpp, H));
+    if (rows > fadeRows) continue;
+    ectx.globalAlpha = 1 - rows / fadeRows;
+    ectx.drawImage(mos, sx, sy < top + 0.5 ? top + 0.5 : bottom - 0.5, sw, 1, 0, j, W, 1);
+    ectx.globalAlpha = 1;
   }
   mos.width = mos.height = 0;            // free the mosaic
 
@@ -5816,22 +5853,52 @@ async function globeBuildMoonTexture(){
   eq.width = W; eq.height = H;
   const ectx = eq.getContext('2d');
   ectx.fillStyle = '#2a2a2e'; ectx.fillRect(0, 0, W, H);
-  const S = 512 * Math.pow(2, moonGeo.max || MOON_MAX_NATIVE_ZOOM);
+  /* Built from the folder whose detail matches the skin's own (about one
+     picture pixel to one skin pixel), not the coarsest: the moon is small,
+     and its coarsest pictures spread over a whole skin came out blurred. */
+  const top = moonGeo.max || MOON_MAX_NATIVE_ZOOM;
+  const want = (b.x1 - b.x0) / W;                          // blocks per skin pixel
+  const folder = Math.max(0, Math.min(top, top - Math.round(Math.log2(Math.max(1, want)))));
+  const S = 512 * Math.pow(2, top - folder);
   const sx = W / (b.x1 - b.x0), sy = H / (b.z1 - b.z0);
   const jobs = [];
   for (let tz = Math.floor(b.z0 / S); tz * S < b.z1; tz++) for (let tx = Math.floor(b.x0 / S); tx * S < b.x1; tx++) jobs.push([tx, tz]);
+  if (jobs.length > 400) jobs.length = 0;
   let done = 0, got = 0;
   const total = jobs.length;
   const work = async () => {
     while (jobs.length){
       const [tx, tz] = jobs.shift();
-      const img = await globeLoadImage(`${MOON_TILE_BASE}/0/${tx}_${tz}.png`);
+      const img = await globeLoadImage(`${MOON_TILE_BASE}/${folder}/${tx}_${tz}.png`);
       if (img){ ectx.drawImage(img, (tx * S - b.x0) * sx, (tz * S - b.z0) * sy, S * sx + 0.5, S * sy + 0.5); got++; }
       globeStatus(`Wrapping the moon… ${Math.round(++done / total * 100)}%`);
     }
   };
-  await Promise.all([work(), work(), work(), work()]);
+  await Promise.all([work(), work(), work(), work(), work(), work()]);
   if (!got){ globe.texState = 'failed'; globeStatus('The moon’s images did not load.'); return; }
+  /* Toward each pole the map's top and bottom rows are squeezed to a point,
+     which reads as streaks. Past 66° the ground eases into the moon's own
+     average grey, all of it by 80°: a quiet cap at each pole (the sharper
+     pictures stop there too). */
+  try {
+    const c2 = document.createElement('canvas'); c2.width = 64; c2.height = 32;
+    const x2 = c2.getContext('2d', { willReadFrequently: true });
+    x2.drawImage(eq, 0, 0, 64, 32);
+    const d = x2.getImageData(0, 0, 64, 32).data;
+    let r = 0, g = 0, bl = 0;
+    for (let i = 0; i < d.length; i += 4){ r += d[i]; g += d[i + 1]; bl += d[i + 2]; }
+    const n = d.length / 4;
+    ectx.fillStyle = `rgb(${Math.round(r / n)},${Math.round(g / n)},${Math.round(bl / n)})`;
+    globe.moonCap = [r / n / 255, g / n / 255, bl / n / 255];
+    for (let j = 0; j < H; j++){
+      const lat = Math.abs(90 - (j + 0.5) / H * 180);
+      if (lat < 66) continue;
+      const t = Math.min(1, (lat - 66) / 14);
+      ectx.globalAlpha = t * t * (3 - 2 * t);
+      ectx.fillRect(0, j, W, 1);
+    }
+    ectx.globalAlpha = 1;
+  } catch (_e) { /* left as it is */ }
   try {
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -5921,6 +5988,8 @@ function globeFrame(){
   gl.uniform1f(globe.loc.uHasTex, globe.hasTex && globe.terrain ? 1 : 0);
   gl.uniform1f(globe.loc.uBright, showDim ? 0.62 : 1.0);
   gl.uniform1f(globe.loc.uMoon, globeOnMoon() ? 1 : 0);
+  const cap = globe.moonCap || [0.45, 0.45, 0.44];
+  gl.uniform3f(globe.loc.uCap, cap[0], cap[1], cap[2]);
   /* The coarse ball sits a little under the surface (ten blocks far out, a
      couple close in), so the sharper pictures laid over it always win the
      depth test. Close in it has to hug the ground, or what shows of it while
@@ -6605,6 +6674,10 @@ function globeSelectTiles(V){
   const node = (f, tx, tz) => {
     const S = globeTileSpan(f), x0 = tx * S, z0 = tz * S;
     if (x0 >= worldX || x0 + S <= worldX0 || z0 >= worldZ || z0 + S <= worldZ0) return null;
+    if (mb){
+      const latA = Math.abs(globeLonLat(x0, z0)[1]), latB = Math.abs(globeLonLat(x0, z0 + S)[1]);
+      if (Math.min(latA, latB) > 80 && (z0 + S <= (mb.z0 + mb.z1) / 2 || z0 >= (mb.z0 + mb.z1) / 2)) return null;
+    }
     let best = null, bestD = Infinity, seen = false;
     for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++){
       const x = x0 + S * i / 2, z = z0 + S * j / 2;
@@ -10334,6 +10407,7 @@ function setMapWorld(world){
   refreshMapLayers();
   renderNationClaimAreas();
   liveBordersUpdate();
+  renderNationPanel(state.towns);      // its list is the world on screen; it used to keep the other world's
   if (mapController.syncLayerToggles) mapController.syncLayerToggles();
 }
 
@@ -10895,8 +10969,9 @@ function renderExpansionPanel(){
     if (expansionState.saved.length){
       out += '<div style="margin-top:1rem;padding-top:.7rem;border-top:1px solid var(--line)">' +
         '<div class="nc-officer-label">Saved plans' +
-          (state.adminMode ? ' · shared' : ' · this session only') + '</div>' +
-        (state.adminMode ? '' :
+          (planningAccess.personal && !state.adminMode ? ' · saved to your account'
+            : state.adminMode || planningAccess.planner ? ' · shared' : ' · this session only') + '</div>' +
+        (state.adminMode || planningAccess.planner ? '' :
           '<p class="hint" style="margin:0 0 .4rem">Unlock the admin console to keep ' +
           'these &mdash; only a Manager can write to the shared store, so without it ' +
           'they are gone on refresh.</p>') +
@@ -17621,7 +17696,8 @@ async function loadRegionsFromBackend(){
     }
   };
 
-  load('plans', () => expLoadFromFeatures(persistRaw.plans));
+  // A visa holder's plans are their own (personalPlansLoad), not the shared map's.
+  load('plans', () => { if (!planningAccess.personal) expLoadFromFeatures(persistRaw.plans); });
   draw('plans', () => {
     if (persistRaw.plans.length){
       auditLog.log(`Loaded ${expansionState.saved.length} expansion plan(s)`, 'success');
@@ -17701,7 +17777,51 @@ async function loadRegionsFromBackend(){
 // before the second edit) can finish after the newer one.
 let saveQueuedWhileInFlight = false;
 
+/* ---- a visa holder's own plans ----
+   Kept against their account by the Worker (/api/planning/mine), never in
+   the shared map: loaded when they sign in, saved a moment after each
+   change. Nobody else sees them, and they never see the government's. */
+let personalPlansTimer = 0, personalPlansBusy = false, personalPlansAgain = false;
+async function personalPlansLoad(){
+  try {
+    const r = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/planning/mine', { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    expLoadFromFeatures(Array.isArray(d.features) ? d.features : []);
+    if (expansionState.saved.length) auditLog.log(`Loaded ${expansionState.saved.length} of your saved plan(s)`, 'success');
+    if (typeof renderExpansionPanel === 'function') renderExpansionPanel();
+  } catch (err){
+    auditLog.log('Your saved plans could not be loaded: ' + err.message, 'warn');
+  }
+}
+function personalPlansSave(){
+  clearTimeout(personalPlansTimer);
+  setSavePill('saving', 'Saving…');
+  personalPlansTimer = setTimeout(async () => {
+    if (personalPlansBusy){ personalPlansAgain = true; return; }
+    personalPlansBusy = true;
+    try {
+      const body = JSON.stringify({ features: expToFeatures() });
+      if (body.length > 512 * 1024) throw new Error('your plans are over 512 KB; delete the largest');
+      const r = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/planning/mine', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body,
+      });
+      if (!r.ok){ let why = ''; try { const d = await r.json(); why = d.detail || d.error || ''; } catch (_e) {} throw new Error('HTTP ' + r.status + (why ? ' — ' + why : '')); }
+      const t = new Date();
+      setSavePill('saved', 'Saved ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'), 'Your plans are saved to your account');
+    } catch (err){
+      setSavePill('error', 'Save failed — retry', 'Your plans were not saved: ' + err.message);
+      auditLog.log('Your plans were not saved: ' + err.message, 'error');
+    } finally {
+      personalPlansBusy = false;
+      if (personalPlansAgain){ personalPlansAgain = false; personalPlansSave(); }
+    }
+  }, 1200);
+}
+
 async function saveRegionsToBackend(){
+  // A visa holder's plans go to their own account, never the shared map.
+  if (planningAccess.personal && !state.adminMode) return personalPlansSave();
   /* Only while editing — or a planner saving plans, which the Worker accepts
      from a non-manager as plans alone, keeping the rest of the map as stored. */
   if (!state.adminMode && !planningAccess.planner) return;
@@ -18681,7 +18801,7 @@ let viewerTier = 'unverified';
 /* Planning is for the President, Vice President, Treasurer, the Secretaries
    and Managers. The Worker decides, live against Discord; this only mirrors
    its answer so the tab and the popup buttons appear for the right people. */
-let planningAccess = { planner: false, as: null };
+let planningAccess = { planner: false, as: null, personal: false };
 
 function viewerIsCitizen(){
   return ['citizen', 'treasurer', 'manager'].includes(viewerTier);
@@ -18830,11 +18950,12 @@ async function loadViewer(){
         } catch(_e){ /* no nation: they simply see no fall warnings */ }
       }
     }
-    if (viewerIsCitizen()){
+    if (viewerIsCitizen() || viewerIsPerk()){
       const r2 = await fetch(CONFIG.CORS_PROXY.replace(/\/+$/, '') + '/api/planning/access', { credentials: 'include' });
       if (r2.ok){
         const a = await r2.json();
-        planningAccess = { planner: !!a.planner, as: a.as || null };
+        planningAccess = { planner: !!a.planner, as: a.as || null, personal: !!a.personal };
+        if (planningAccess.personal) personalPlansLoad();
       }
     }
   } catch(_err){ /* treated as a stranger, which is the safe default */ }
@@ -18891,12 +19012,17 @@ function applyViewerGate(){
   if (dom.btnAdminToggle) dom.btnAdminToggle.hidden = !viewerIsManager();
   if (dom.viewTabPlanning){
     dom.viewTabPlanning.hidden = !planningAccess.planner;
-    dom.viewTabPlanning.title = planningAccess.as ? `Planning — open to you as ${planningAccess.as}` : '';
+    const intro = document.getElementById('planIntro');
+    if (intro && planningAccess.personal) intro.textContent = 'Plan new land for any town, including land taken from towns over ' +
+      'their limit and the day it becomes possible; model towns joining or leaving a nation; and forecast which towns are going ' +
+      'over their limit. Your plans are saved to your account, and only you can see them.';
+    dom.viewTabPlanning.title = planningAccess.personal ? 'Planning — your own plans, saved to your account'
+      : planningAccess.as ? `Planning — open to you as ${planningAccess.as}` : '';
   }
   document.body.classList.toggle('planner', planningAccess.planner);
   if (!planningAccess.planner && activeView === 'planning') setSidebarView(member ? 'ethiopia' : 'global');
 
-  if (!member && activeView !== 'global' && !(perk && activeView === 'settings')) setSidebarView('global');
+  if (!member && activeView !== 'global' && !(perk && (activeView === 'settings' || (activeView === 'planning' && planningAccess.planner)))) setSidebarView('global');
   // setSidebarView('ethiopia') runs at boot before loadViewer()'s fetch has
   // resolved, so applyRegionVisibility() and renderNationClaimAreas() both
   // first evaluate with viewerTier still at its 'unverified' default —

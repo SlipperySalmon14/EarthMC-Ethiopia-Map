@@ -7490,6 +7490,9 @@ function histCompute(snap, land, reach, moon){
   // 1. Claims. A town living on earth leaves out its moon outposts (the map
   //    file has them on the same plane; see moonBox).
   const inMoon = (cz, ca, len) => { const x = (ca + len / 2) * 16, z = cz * 16 + 8; return x >= moon.x0 && x < moon.x1 && z >= moon.z0 && z < moon.z1; };
+  /* A cell (4 by 4 chunks) that towns of different nations share goes to
+     whichever has more of its chunks, not to whichever came first. */
+  const cnt = new Uint8Array(N), contest = new Map();
   for (const t of (snap.towns || [])){
     const [name, ni, cap, res] = t;
     let runs = t[5];
@@ -7517,8 +7520,13 @@ function histCompute(snap, land, reach, moon){
         const c1 = Math.min(W - 1, Math.floor((ca + len - 1 - cx0) / step));
         for (let c = c0; c <= c1; c++){
           const i = row * W + c;
-          if (!claimed[i] || owner[i] === HIST_NATIONLESS) owner[i] = id;
-          claimed[i] = 1;
+          const a = Math.max(ca, cx0 + c * step), b = Math.min(ca + len, cx0 + (c + 1) * step), here = b - a;
+          if (here <= 0) continue;
+          if (!claimed[i]){ owner[i] = id; cnt[i] = here; claimed[i] = 1; continue; }
+          if (owner[i] === id && !contest.has(i)){ cnt[i] += here; continue; }
+          let m = contest.get(i);
+          if (!m){ m = new Map([[owner[i], cnt[i]]]); contest.set(i, m); }
+          m.set(id, (m.get(id) || 0) + here);
         }
       }
     }
@@ -7529,57 +7537,86 @@ function histCompute(snap, land, reach, moon){
       if (cap && n){ nat.capital = { name, x: sx / n * 16, z: sz / n * 16 }; capitals.push(nat); }
     } else nationless++;
   }
+  contest.forEach((m, i) => {
+    let best = 0, top = -1;
+    // A nation beats no nation on a tie; otherwise the larger share wins.
+    m.forEach((c, o) => { const s = c * 2 + (o !== HIST_NATIONLESS ? 1 : 0); if (s > top){ top = s; best = o; } });
+    owner[i] = best;
+  });
 
   // 2. Every land cell to its nearest claim in a straight line, if that is
-  //    within the reach: an exact Euclidean distance transform (Felzenszwalb
-  //    and Huttenlocher), carrying the nearest claim along with the distance.
+  //    within the nation's reach: an exact Euclidean distance transform
+  //    (Felzenszwalb and Huttenlocher), carrying the nearest claim along.
+  //    A nation's reach grows with it: one town holds a little ring of land
+  //    round itself (a quarter of the reach), sixteen towns or more the full
+  //    reach. What a small nation is nearest to but does not reach goes, in
+  //    a second pass, to the nearest full-sized nation that does reach it,
+  //    so a one-town enclave sits inside its big neighbour as a small patch
+  //    round its town instead of a bubble hanging off one side of it.
   const R = reach / HIST_CELL, R2 = R * R, INF = 1e12;
   const g = S.g, sy = S.sy, v = S.v, z = S.z;
   for (let i = 0; i < N; i++) if (owner[i] === HIST_NATIONLESS) free[i] = 1;
   const site = (i) => claimed[i] && !free[i];
-  // Down each column to the nearest claim above and below, swept a row at a
-  // time (all columns together) so memory is read in order.
+  const reachOf = new Float64Array(nations.length + 2), full = new Uint8Array(nations.length + 2);
+  nations.forEach(n => {
+    const s = Math.max(0.25, Math.min(1, Math.sqrt(n.towns / 16)));
+    reachOf[n.id] = (R * s) * (R * s);
+    full[n.id] = s >= 1 ? 1 : 0;
+  });
   const near = S.v;
-  near.fill(-1);
-  for (let y = 0, i = 0; y < H; y++){
-    for (let x = 0; x < W; x++, i++){
-      if (claimed[i] && !free[i]) near[x] = y;
-      const l = near[x];
-      if (l >= 0){ g[i] = (y - l) * (y - l); sy[i] = l; } else { g[i] = INF; sy[i] = -1; }
-    }
-  }
-  near.fill(-1);
-  for (let y = H - 1; y >= 0; y--){
-    for (let x = 0, i = y * W; x < W; x++, i++){
-      if (claimed[i] && !free[i]) near[x] = y;
-      const l = near[x];
-      if (l >= 0){ const d = (l - y) * (l - y); if (d < g[i]){ g[i] = d; sy[i] = l; } }
-    }
-  }
-  for (let y = 0; y < H; y++){
-    const row = y * W;
-    let k = -1;
-    for (let q = 0; q < W; q++){
-      const fq = g[row + q];
-      if (fq >= INF || fq > R2 + 1) continue;            // too far from anything to matter
-      if (k < 0){ k = 0; v[0] = q; z[0] = -Infinity; z[1] = Infinity; continue; }
-      let s;
-      for (;;){
-        const p = v[k];
-        s = ((fq + q * q) - (g[row + p] + p * p)) / (2 * q - 2 * p);
-        if (s <= z[k] && k > 0) k--; else break;
+  const edt = (isSite, take) => {
+    // Down each column to the nearest claim above and below, swept a row at
+    // a time (all columns together) so memory is read in order.
+    near.fill(-1);
+    for (let y = 0, i = 0; y < H; y++){
+      for (let x = 0; x < W; x++, i++){
+        if (isSite[i]) near[x] = y;
+        const l = near[x];
+        if (l >= 0){ g[i] = (y - l) * (y - l); sy[i] = l; } else { g[i] = INF; sy[i] = -1; }
       }
-      k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
     }
-    if (k < 0) continue;
-    let j = 0;
-    for (let q = 0; q < W; q++){
-      while (z[j + 1] < q) j++;
-      const i = row + q;
-      if (free[i] ? false : (owner[i] || !land[i])) continue;
-      const p = v[j], d = (q - p) * (q - p) + g[row + p];
-      if (d <= R2) owner[i] = owner[sy[row + p] * W + p];
+    near.fill(-1);
+    for (let y = H - 1; y >= 0; y--){
+      for (let x = 0, i = y * W; x < W; x++, i++){
+        if (isSite[i]) near[x] = y;
+        const l = near[x];
+        if (l >= 0){ const d = (l - y) * (l - y); if (d < g[i]){ g[i] = d; sy[i] = l; } }
+      }
     }
+    // Then along each row.
+    for (let y = 0; y < H; y++){
+      const row = y * W;
+      let k = -1;
+      for (let q = 0; q < W; q++){
+        const fq = g[row + q];
+        if (fq >= INF || fq > R2 + 1) continue;          // too far from anything to matter
+        if (k < 0){ k = 0; v[0] = q; z[0] = -Infinity; z[1] = Infinity; continue; }
+        let s;
+        for (;;){
+          const p = v[k];
+          s = ((fq + q * q) - (g[row + p] + p * p)) / (2 * q - 2 * p);
+          if (s <= z[k] && k > 0) k--; else break;
+        }
+        k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
+      }
+      if (k < 0) continue;
+      let j = 0;
+      for (let q = 0; q < W; q++){
+        while (z[j + 1] < q) j++;
+        const i = row + q;
+        if (free[i] ? owner[i] !== HIST_NATIONLESS : (owner[i] || !land[i])) continue;   // taken, or sea
+        const p = v[j];
+        take(i, (q - p) * (q - p) + g[row + p], owner[sy[row + p] * W + p]);
+      }
+    }
+  };
+  const sites = new Uint8Array(N);
+  let anyFull = false, anySmall = false;
+  for (let i = 0; i < N; i++) if (claimed[i] && !free[i]){ sites[i] = 1; if (full[owner[i]]) anyFull = true; else anySmall = true; }
+  edt(sites, (i, d, o) => { if (d <= reachOf[o]) owner[i] = o; });
+  if (anyFull && anySmall){
+    for (let i = 0; i < N; i++) if (sites[i] && !full[owner[i]]) sites[i] = 0;
+    edt(sites, (i, d, o) => { if (d <= R2) owner[i] = o; });
   }
 
   // 3. Only what joins up with the nation's own towns over its own land.
@@ -9659,6 +9696,16 @@ function nationColors(nationName){
   return resolved;
 }
 
+function liftDark(hex){
+  const h = cleanHex(hex);
+  if (!h) return hex;
+  const n = parseInt(h.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  if (lum >= 80) return h;
+  const t = Math.min(0.55, (80 - lum) / 80 * 0.55 + 0.15);
+  const m = (v) => Math.round(v + (255 - v) * t).toString(16).padStart(2, '0');
+  return '#' + m(r) + m(g) + m(b);
+}
 function nationColorsUncached(nationName){
   if (!nationName || nationName === 'Unaffiliated'){
     return { fill: COLORS.muted, outline: COLORS.muted };
@@ -9666,11 +9713,11 @@ function nationColorsUncached(nationName){
   // What EarthMC's own map paints the nation in, when its map file is loaded:
   // the swatch then matches the towns drawn on screen.
   const fromMap = MAP_NATION_COLORS.get(String(nationName).trim().toLowerCase());
-  if (fromMap && fromMap.fill) return { fill: fromMap.fill, outline: fromMap.outline || fromMap.fill };
+  if (fromMap && fromMap.fill) return { fill: fromMap.fill, outline: liftDark(fromMap.fill) };
   const stats = nationStatsFor(nationName);
   const fill = stats && cleanHex(stats.fill);
   if (fill){
-    return { fill, outline: fill };
+    return { fill, outline: liftDark(fill) };
   }
   const gen = stableColorFor(nationName, CONFIG.NATION_PALETTE);
   return { fill: gen, outline: gen };
@@ -9953,8 +10000,12 @@ function renderNationClaims(allTowns){
     if (had) had.layers.forEach(l => group.removeLayer(l));
     const layers = [];
     claimIndex.set(t.name, { rings, sig, layers });
-    rings.forEach(ring => {
-      const latlngs = ring.map(([x,z]) => CoordUtils.mcToLatLng(x,z));
+    /* One shape per town, every ring in it, filled even-odd: a ring inside
+       another is a hole (or land inside a hole) and is cut out, not painted
+       a second time on top. Drawn ring by ring, a town's holes came out as
+       darker patches with outlines of their own. */
+    [rings].forEach(all => {
+      const latlngs = all.map(ring => ring.map(([x,z]) => CoordUtils.mcToLatLng(x,z)));
       const polygon = L.polygon(latlngs, {
         // Border uses the nation's dynmap outline colour, fill uses its
         // dynmap colour — matching how EarthMC's own map renders claims.
@@ -9963,7 +10014,7 @@ function renderNationClaims(allTowns){
            simply lost to it — the colours were technically correct and
            practically unreadable. */
         color: outline, weight: 2.4, opacity: 1,
-        fillColor: color, fillOpacity: 0.30,
+        fillColor: color, fillOpacity: 0.30, fillRule: 'evenodd',
         interactive,
         // Same reasoning as town markers above — this is live derived data,
         // never an admin-editable "region", and must stay inert to Geoman's

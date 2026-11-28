@@ -956,6 +956,34 @@ body.gui-hidden .gui-restore{ display: block; }
    in each nation's own colour to show the scale between them, and the rest
    one click (or a search) away. */
 .nlist{ margin:.3rem 0 .8rem; }
+/* The timelapse's own Global panel: shown in place of the live one while a
+   day from the past is on the map. */
+#panel-history{ display:none; }
+body.hist-on #panel-history:not([hidden]){ display:block; }
+body.hist-on #panel-nations{ display:none; }
+.hl-figs{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:.4rem; margin:.2rem 0 .7rem; }
+.hl-figs div{ padding:.45rem .5rem; border-radius:9px; background:var(--panel-2); border:1px solid var(--line); min-width:0; }
+.hl-figs b{ display:block; font-family:var(--font-display); font-size:1.05rem; color:var(--parchment); line-height:1.1; font-variant-numeric:tabular-nums; }
+.hl-figs span{ font-family:var(--font-mono); font-size:.6rem; color:var(--muted); }
+.hl-figs em{ font-style:normal; color:var(--sage-hi); }
+.hl-figs em.down{ color:var(--danger-hi); }
+.hl-delta{ font-style:normal; font-family:var(--font-mono); font-size:.6rem; margin-left:.35rem; color:var(--sage-hi); }
+.hl-delta.down{ color:var(--danger-hi); }
+.hl-scan{ margin-top:.6rem; font-size:.74rem; color:var(--muted); }
+.hl-scan .bar{ height:4px; border-radius:99px; background:rgba(255,255,255,.08); margin-top:.35rem; overflow:hidden; }
+.hl-scan .bar i{ display:block; height:100%; background:var(--brass-hi); transition:width .2s; }
+.hl-chart{ margin-top:.6rem; }
+.hl-chart svg{ display:block; width:100%; height:64px; }
+.hl-chart .hc-area{ fill:currentColor; opacity:.16; }
+.hl-chart .hc-line{ fill:none; stroke:currentColor; stroke-width:1.6; vector-effect:non-scaling-stroke; }
+.hl-chart .hc-now{ stroke:var(--parchment); stroke-width:1; vector-effect:non-scaling-stroke; opacity:.7; }
+.hl-chart .hc-peak{ fill:var(--parchment); }
+.hl-chart-k{ display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; font-family:var(--font-mono); font-size:.62rem; color:var(--muted); margin-top:.25rem; }
+.hl-chart-k b{ color:var(--parchment); font-weight:600; }
+.hl-seg{ display:flex; gap:1px; padding:2px; border-radius:8px; background:var(--panel-2); border:1px solid var(--line); width:max-content; margin-top:.55rem; }
+.hl-seg button{ border:0; background:none; color:var(--muted); font:600 .62rem var(--font-mono); padding:.25rem .5rem; border-radius:6px; cursor:pointer; }
+.hl-seg button[aria-pressed="true"]{ background:var(--brass); color:#141006; }
+.hl-go{ border:0; background:none; padding:0; color:var(--brass-hi); font:inherit; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
 .nlist-tools{ display:flex; gap:.4rem; align-items:center; margin-bottom:.45rem; }
 .nlist-tools input{ flex:1; min-width:0; }
 .nlist-sort{ flex:none; display:flex; gap:1px; padding:2px; border-radius:8px; background:var(--panel-2); border:1px solid var(--line); }
@@ -1497,7 +1525,73 @@ body:not(.planner) .planner-only{ display:none !important; }
 
 /* --- the planner's three modes, the forecast, the watch list ---------------- */
 .exp-modes{ display:flex; gap:.3rem; margin-bottom:.8rem; flex-wrap:wrap; }
-.exp-modes .btn{ flex:1 1 auto; white-space:nowrap; }
+.exp-modes .btn{ flex:1 1 auto; white-space:nowrap; min-width:0; }
+/* The planner never grows wider than its column: long names wrap, numbers
+   stay on the right. */
+#planPanel{ min-width:0; overflow-wrap:anywhere; }
+#planPanel .econ-row > span:first-child{ min-width:0; }
+.pl-pick{ display:flex; gap:.4rem; margin-bottom:.7rem; }
+.pl-pick input{ flex:1 1 auto; min-width:0; }
+.pl-card{ display:flex; flex-direction:column; gap:.6rem; }
+.pl-card .econ-breakdown{ margin-bottom:0; }
+.pl-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
+.pl-name{ min-width:0; }
+.pl-name b{ display:block; font-family:var(--font-display); font-size:1.05rem; color:var(--brass-hi); line-height:1.15; }
+.pl-name span{ font-family:var(--font-mono); font-size:.66rem; color:var(--muted); }
+.pl-meter{ padding:.55rem .65rem .5rem; border-radius:10px; background:rgba(24,157,77,.08); border:1px solid rgba(24,157,77,.35); }
+.pl-meter.over{ background:rgba(207,32,41,.09); border-color:rgba(207,32,41,.45); }
+.pl-bar{ position:relative; height:7px; border-radius:99px; background:rgba(255,255,255,.08); }
+.pl-bar i{ position:absolute; left:0; top:0; bottom:0; border-radius:99px; background:var(--sage-hi); transition:width .18s ease; }
+.pl-meter.over .pl-bar i{ background:var(--danger-hi); }
+.pl-bar em{ position:absolute; top:-3px; bottom:-3px; width:2px; margin-left:-1px; background:var(--parchment); opacity:.7; border-radius:1px; }
+.pl-meter-t{ display:flex; justify-content:space-between; gap:.25rem .6rem; flex-wrap:wrap; margin-top:.42rem; font-family:var(--font-mono); font-size:.68rem; color:var(--muted); }
+.pl-meter-t b{ color:var(--parchment); font-weight:600; }
+.pl-meter-t span:last-child{ color:var(--sage-hi); }
+.pl-meter.over .pl-meter-t span:last-child{ color:var(--danger-hi); }
+.pl-warn{ margin:.35rem 0 0; font-size:.7rem; line-height:1.35; color:var(--danger-hi); }
+.pl-tools{ display:flex; flex-wrap:wrap; gap:.35rem; }
+.pl-seg{ display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:rgba(0,0,0,.2); }
+.pl-b{ appearance:none; border:0; background:transparent; color:var(--muted); font:600 .72rem/1 var(--font-body); padding:.46rem .62rem;
+  cursor:pointer; display:inline-flex; align-items:center; gap:.32rem; transition:background .12s, color .12s; }
+.pl-b + .pl-b{ border-left:1px solid var(--line); }
+.pl-b:hover:not(:disabled):not(.on){ color:var(--parchment); background:rgba(255,255,255,.05); }
+.pl-b.on{ background:var(--brass-hi); color:#1a1408; }
+.pl-b:disabled{ opacity:.32; cursor:default; }
+.pl-b:focus-visible{ outline:2px solid var(--brass-hi); outline-offset:-2px; }
+.pl-b kbd{ font:500 .56rem/1 var(--font-mono); opacity:.6; border:1px solid currentColor; border-radius:3px; padding:.1rem .2rem; }
+.pl-size .pl-b{ font-family:var(--font-mono); font-weight:500; padding:.46rem .42rem; }
+.pl-hint{ margin:-.15rem 0 0; font-size:.72rem; color:var(--muted); line-height:1.4; }
+.pl-res{ display:inline-flex; align-items:center; gap:.4rem; }
+.pl-step{ appearance:none; width:1.35rem; height:1.35rem; border-radius:6px; border:1px solid var(--line); background:rgba(255,255,255,.04);
+  color:var(--parchment); font:600 .8rem/1 var(--font-mono); cursor:pointer; display:inline-grid; place-items:center; padding:0; }
+.pl-step:hover{ border-color:var(--brass-hi); color:var(--brass-hi); }
+.pl-foot{ display:flex; gap:.4rem; }
+.pl-foot #expLock{ flex:1 1 auto; }
+.pl-help{ font-size:.72rem; color:var(--muted); border-top:1px solid var(--line-soft); padding-top:.45rem; }
+.pl-help summary{ cursor:pointer; color:var(--parchment); }
+.pl-help p{ margin:.4rem 0 0; line-height:1.45; }
+.leaflet-container.plan-painting, .leaflet-container.plan-painting .leaflet-interactive{ cursor:crosshair; }
+
+/* One nation picked out: the chip over the map. */
+.focus-chip{ position:absolute; top:.75rem; left:50%; transform:translateX(-50%); z-index:1150; display:flex; align-items:center; gap:.45rem;
+  padding:.3rem .32rem .3rem .7rem; border-radius:999px; background:rgba(16,14,11,.92); border:1px solid var(--line);
+  box-shadow:var(--shadow-panel); font-size:.8rem; color:var(--parchment); max-width:calc(100% - 8rem); backdrop-filter:blur(6px); }
+.focus-chip[hidden]{ display:none; }
+.focus-chip b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; min-width:0; }
+.fc-sw{ width:.72rem; height:.72rem; border-radius:3px; flex:none; box-shadow:0 0 0 1px rgba(255,255,255,.3); }
+.fc-btn{ appearance:none; flex:none; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:999px; padding:.3rem .62rem;
+  font:600 .7rem/1 var(--font-body); cursor:pointer; white-space:nowrap; }
+.fc-btn:hover{ color:var(--parchment); border-color:rgba(252,209,22,.5); }
+.fc-btn.on{ background:var(--brass-hi); border-color:var(--brass-hi); color:#1a1408; }
+.fc-x{ appearance:none; flex:none; border:0; background:rgba(255,255,255,.07); color:var(--parchment); width:1.65rem; height:1.65rem; border-radius:50%;
+  cursor:pointer; font-size:1rem; line-height:1; }
+.fc-x:hover{ background:rgba(255,255,255,.15); }
+.gc-acts{ display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.6rem; }
+.gc-act{ flex:1 1 auto; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--parchment); border-radius:8px; padding:.4rem .5rem;
+  font:600 .72rem var(--font-body); cursor:pointer; }
+.gc-act:hover{ border-color:rgba(252,209,22,.5); color:var(--brass-hi); }
+.gc-acts + .gc-go{ margin-top:.4rem; }
+.ncard-head .btn.on{ background:var(--brass-hi); color:#1a1408; border-color:var(--brass-hi); }
 .fc-chart{ width:100%; height:auto; display:block; margin-top:.5rem; border-radius:10px;
   background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.06); }
 .fc-chart text{ font-family:var(--font-mono); font-size:8.5px; fill:var(--muted); letter-spacing:-.02em; }
@@ -1923,6 +2017,7 @@ body.globe-on .map-close{ z-index:1300; }
     <main class="map-pane">
       <button type="button" id="mapCloseBtn" class="map-close" title="Back to panels" aria-label="Close map">✕</button>
       <div id="map"></div>
+      <div class="focus-chip" id="focusChip" hidden role="status"></div>
       <!-- The globe: drawn over the flat map, which keeps its place underneath. -->
       <div class="hist-tip" id="histTip" hidden></div>
       <div class="hist-bar" id="histBar" hidden>
@@ -1944,6 +2039,7 @@ body.globe-on .map-close{ z-index:1300; }
         </div>
         <div class="hist-figs" id="histFigs"></div>
         <div class="hist-opts">
+          <button type="button" id="histNations" title="That day's nations, ranked, in the Global tab">Nations</button>
           <button type="button" id="histSpeed" title="Playback speed">1×</button>
           <button type="button" id="histReach" title="How far a nation's land reaches from its towns: close (640 blocks), normal (1,280) or wide (2,560)">Normal</button>
           <button type="button" class="hist-video" id="histVideo" title="Save the timelapse as a video" aria-label="Save as video"><i aria-hidden="true"></i>Video</button>
@@ -2226,6 +2322,29 @@ body.globe-on .map-close{ z-index:1300; }
           leaving a nation; and forecast which towns are going over their limit.
         </p>
         <div id="planPanel"></div>
+      </section>
+
+      <section class="panel view-global" id="panel-history">
+        <div class="panel-head">
+          <span class="eyebrow" id="hlEyebrow">The past</span>
+          <h2 id="hlTitle">Nations on that day</h2>
+        </div>
+        <div class="hl-figs" id="hlFigs"></div>
+        <div class="nlist">
+          <div class="nlist-tools">
+            <input type="text" id="hlFind" placeholder="Find a nation…" autocomplete="off" spellcheck="false" aria-label="Find a nation on this day">
+            <div class="nlist-sort" role="group" aria-label="Order nations by">
+              <button type="button" data-hsort="towns" aria-pressed="true">Towns</button>
+              <button type="button" data-hsort="people" aria-pressed="false">People</button>
+              <button type="button" data-hsort="land" aria-pressed="false">Land</button>
+              <button type="button" data-hsort="peak" aria-pressed="false" title="Ranked by their biggest day">Peak</button>
+            </div>
+          </div>
+          <div class="nation-summary" id="hlList"></div>
+          <button type="button" class="nlist-more" id="hlMore" hidden></button>
+        </div>
+        <div class="nation-card" id="hlCard" hidden></div>
+        <div class="hl-scan" id="hlScan"></div>
       </section>
 
       <section class="panel view-anydata" id="panel-nation-claims">
@@ -3221,6 +3340,9 @@ function rangeNation(){
    your land, and the sole defence is a shield at 1g per 4 chunks over, daily.
    That is what this reports, and it is the better question anyway.
    ========================================================================= */
+/* One nation picked out on the map; see ONE NATION, PICKED OUT. */
+const nationFocus = { name: null, alone: false, t0: 0, raf: 0, layer: null, scratch: null };
+
 const expansionState = {
   mode: 'town',          // 'town' | 'nation'
 
@@ -3258,8 +3380,19 @@ const expansionState = {
 
   painting: false,       // a drag is in progress
   paintMode: 'add',      // what the drag is doing, fixed at pointerdown
-  panMode: false,        // dragging pans instead of painting
+
+  /* The tools. Brush paints a square of chunks along the drag; Box drags out
+     a rectangle; Pan gives dragging back to the map (a click still toggles
+     one chunk). Shift-drag is a box whatever the tool. */
+  tool: 'brush',         // 'brush' | 'box' | 'pan'
+  brush: 1,              // brush width in chunks: 1, 3 or 5
+  box: null,             // a rectangle being dragged: { from, to, mode }
+  last: null,            // where the brush last was, so a quick stroke leaves no gaps
+  hover: null,           // the chunk under the pointer, for the brush outline
+  undo: [], redo: [],    // the plan as it was before each stroke
+  items: [],             // what the planner draws, shared by the flat map and the globe
 };
+function expPanning(){ return expansionState.tool === 'pan'; }
 
 function expKey(cx, cz){ return cx + ',' + cz; }
 
@@ -3468,11 +3601,13 @@ function expOpenTown(town){
   plan.town = town;            // refreshed: the sync loop replaces town objects
   plan.locked = false;
   expansionState.mode = 'town';
+  if (expansionState.editing !== town.name){ expansionState.undo = []; expansionState.redo = []; }
   expansionState.editing = town.name;
   expansionState.dragFrom = null;
+  expansionState.box = null;
+  if (expansionState.tool === 'pan') expansionState.tool = 'brush';
   if (!showChunkGrid) setChunkGrid(true);   // nothing to aim at otherwise
-  auditLog.log(`Planning ${town.name} — click a chunk to toggle, shift-click two ` +
-    `corners for an area, then lock it in`, 'info');
+  auditLog.log(`Planning ${town.name} — drag to paint, then Finish`, 'info');
   /* The claim layer holds the fused shape now, so a plan change has to
      repaint it. Debounced to end-of-tick inside refreshMapLayers, so calling
      it from every one of these costs a single repaint. */
@@ -3555,6 +3690,36 @@ function expPlaceNewTown(latlng){
   renderExpansionOverlay(); renderExpansionPanel();
 }
 
+/* Every loaded town's name, for the planner's picker. Rebuilt only when the
+   towns change. */
+function expEnsureTownList(){
+  let dl = document.getElementById('expPickList');
+  if (!dl){ dl = document.createElement('datalist'); dl.id = 'expPickList'; document.body.appendChild(dl); }
+  const towns = ncAllTowns().filter(t => !t.isMoon);
+  const sig = towns.length + ':' + (state.lastSync || 0) + ':' + (worldCache.fetchedAt || 0);
+  if (dl.dataset.sig === sig) return;
+  dl.dataset.sig = sig;
+  const frag = document.createDocumentFragment();
+  towns.map(t => t.name).sort((a, b) => a.localeCompare(b)).forEach(nm => {
+    const o = document.createElement('option'); o.value = nm; frag.appendChild(o);
+  });
+  dl.replaceChildren(frag);
+}
+/* Brings one town into view, close enough to paint, on either map. */
+function focusNationTownsOne(t){
+  if (!t || typeof t.mcX !== 'number') return;
+  if (mapProjection === 'globe' && globe.on){
+    const v = globeVecOfBlock(t.homeX ?? t.mcX, t.homeZ ?? t.mcZ);
+    globe.lat = Math.max(-84, Math.min(84, Math.asin(v[1]) / GLOBE_D2R));
+    globe.lon = Math.atan2(v[0], v[2]) / GLOBE_D2R;
+    globe.dist = Math.max(globeMinDist(), globeDistForZoom(1));
+    globe.vLat = globe.vLon = 0;
+    globeRequestDraw();
+    return;
+  }
+  if (mapController && mapController.map) mapController.map.setView(CoordUtils.mcToLatLng(t.homeX ?? t.mcX, t.homeZ ?? t.mcZ), 1);
+}
+
 function newTownFormHtml(){
   if (expansionState.placingNew){
     const d = expansionState.placingNew;
@@ -3609,6 +3774,7 @@ function expDropPlan(name){
 function expToggleChunk(cx, cz){
   const plan = expPlanFor(expansionState.editing);
   if (!plan) return;
+  expSnapshot(plan);
   const k = expKey(cx, cz);
   const owned = (plan.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
   const set = owned ? plan.removed : plan.added;
@@ -3617,21 +3783,36 @@ function expToggleChunk(cx, cz){
 }
 
 const EXP_RECT_CAP = 2000;
-function expFillRect(a, b){
+/* A rectangle of chunks under one mode: add claims new ground (other towns'
+   land skipped unless overclaiming), remove marks the town's own land to
+   drop, unadd and unremove take back what is already marked. */
+function expFillRect(a, b, mode){
   const plan = expPlanFor(expansionState.editing);
-  if (!plan) return;
+  if (!plan) return false;
+  mode = mode || 'add';
   const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]);
   const z0 = Math.min(a[1], b[1]), z1 = Math.max(a[1], b[1]);
+  const inside = (k) => { const [x, z] = k.split(',').map(Number); return x >= x0 && x <= x1 && z >= z0 && z <= z1; };
   const count = (x1 - x0 + 1) * (z1 - z0 + 1);
+  if (mode !== 'add'){
+    expSnapshot(plan);
+    let n = 0;
+    if (mode === 'unadd') [...plan.added].forEach(k => { if (inside(k)){ plan.added.delete(k); n++; } });
+    else if (mode === 'unremove') [...plan.removed].forEach(k => { if (inside(k)){ plan.removed.delete(k); n++; } });
+    else expOwnSet(plan).forEach(k => { if (inside(k) && !plan.removed.has(k)){ plan.removed.add(k); n++; } });
+    if (!n) expansionState.undo.pop();
+    renderExpansionOverlay(); renderExpansionPanel();
+    return true;
+  }
   if (count > EXP_RECT_CAP){
     auditLog.log(`That area is ${CoordUtils.fmt(count)} chunks — too many at once ` +
       `(cap ${CoordUtils.fmt(EXP_RECT_CAP)}). Zoom in and take it in pieces.`, 'warn');
-    return;
+    return false;
   }
-  /* Other towns' land is skipped unless overclaiming is on; home blocks are
-     skipped always. */
-  const own = new Set((plan.town.claimChunks || []).map(([x, z]) => expKey(x, z)));
-  let skipped = 0, taken = 0;
+  expSnapshot(plan);
+  /* Home blocks are skipped always. */
+  const own = expOwnSet(plan);
+  let skipped = 0, taken = 0, added = 0;
   for (let cx = x0; cx <= x1; cx++){
     for (let cz = z0; cz <= z1; cz++){
       const k = expKey(cx, cz);
@@ -3641,13 +3822,15 @@ function expFillRect(a, b){
         if (!expansionState.overclaim || isHomeChunk(other, cx, cz)){ skipped++; continue; }
         taken++;
       }
-      plan.added.add(k);
+      if (!plan.added.has(k)){ plan.added.add(k); added++; }
     }
   }
-  auditLog.log(`Added ${CoordUtils.fmt(count - skipped)} chunk(s)` +
+  if (!added) expansionState.undo.pop();
+  if (count > 1) auditLog.log(`Added ${CoordUtils.fmt(added)} chunk(s)` +
     (taken ? `, ${CoordUtils.fmt(taken)} of them overclaimed from other towns` : '') +
     (skipped ? `, skipped ${CoordUtils.fmt(skipped)} held by other towns` : ''), 'info');
   renderExpansionOverlay(); renderExpansionPanel();
+  return true;
 }
 
 /* Click-and-drag painting.
@@ -3671,58 +3854,205 @@ function expFillRect(a, b){
  * Fixed per STROKE rather than per chunk on purpose. Deciding per chunk makes
  * one drag across a boundary both add and erase, which is unusable — you
  * cannot predict what a stroke will do before you make it. */
+/* The chunks a town holds today, as a set, rebuilt only when its record is
+   replaced. The brush asks this for every chunk it touches. */
+function expOwnSet(plan){
+  if (plan._ownOf !== plan.town){
+    plan._own = new Set((plan.town.claimChunks || []).map(([x, z]) => expKey(x, z)));
+    plan._ownOf = plan.town;
+  }
+  return plan._own;
+}
+function expFirstMode(plan, cx, cz){
+  const k = expKey(cx, cz);
+  return plan.added.has(k) ? 'unadd'          // take back an addition
+    : plan.removed.has(k) ? 'unremove'        // take back a removal
+    : expOwnSet(plan).has(k) ? 'remove'       // mark the town's own land to drop
+    : 'add';                                  // claim new ground
+}
+/* One chunk, under one stroke's mode. Another town's land is off limits
+   unless overclaiming is on, and its home block always; skipped silently,
+   because a warning per chunk is noise. */
+function expApply(plan, cx, cz, mode){
+  const k = expKey(cx, cz);
+  const owned = expOwnSet(plan).has(k);
+  if (mode === 'unadd'){ plan.added.delete(k); return; }
+  if (mode === 'unremove'){ plan.removed.delete(k); return; }
+  if (mode === 'remove'){ if (owned) plan.removed.add(k); return; }
+  if (owned) return;
+  const other = chunkOwnerAt(cx, cz);
+  if (other && other.name !== plan.town.name){
+    if (!expansionState.overclaim || isHomeChunk(other, cx, cz)) return;
+  }
+  plan.added.add(k);
+}
+
+/* Undo and redo, a stroke at a time. Kept for the town being painted only:
+   opening another town starts a fresh history. */
+function expSnapshot(plan){
+  const u = expansionState.undo;
+  u.push({ name: plan.town.name, added: [...plan.added], removed: [...plan.removed], extra: plan.extra });
+  if (u.length > 80) u.shift();
+  expansionState.redo = [];
+}
+function expRestore(from, to){
+  const snap = from[from.length - 1];
+  const plan = snap ? expPlanFor(snap.name) : null;
+  if (!plan || snap.name !== expansionState.editing) return false;
+  from.pop();
+  to.push({ name: snap.name, added: [...plan.added], removed: [...plan.removed], extra: plan.extra });
+  plan.added = new Set(snap.added); plan.removed = new Set(snap.removed); plan.extra = snap.extra;
+  renderExpansionOverlay(); renderExpansionPanel();
+  return true;
+}
+function expUndo(){ if (!expRestore(expansionState.undo, expansionState.redo)) auditLog.log('Nothing to undo', 'info'); }
+function expRedo(){ if (!expRestore(expansionState.redo, expansionState.undo)) auditLog.log('Nothing to redo', 'info'); }
+
+/* The brush. The mode is fixed at the first chunk of the stroke, so one drag
+   across a boundary never both adds and erases. */
 function expBeginPaint(cx, cz){
   const plan = expPlanFor(expansionState.editing);
   if (!plan) return;
-  const k = expKey(cx, cz);
-  const owned = (plan.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
-
-  expansionState.paintMode =
-      plan.added.has(k)   ? 'unadd'       // take back an addition
-    : plan.removed.has(k) ? 'unremove'    // take back a removal
-    : owned               ? 'remove'      // mark the town's own land to drop
-    :                       'add';        // claim new ground
-
+  expSnapshot(plan);
+  expansionState.paintMode = expFirstMode(plan, cx, cz);
   expansionState.painting = true;
-  expPaintAt(cx, cz);
+  expansionState.last = [cx, cz];
+  expBrushAt(plan, cx, cz);
+  renderExpansionOverlay();
 }
-
+function expBrushAt(plan, cx, cz){
+  const r = (expansionState.brush - 1) >> 1;
+  for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) expApply(plan, cx + dx, cz + dz, expansionState.paintMode);
+}
 function expPaintAt(cx, cz){
   const plan = expPlanFor(expansionState.editing);
-  if (!plan) return;
-  const k = expKey(cx, cz);
-  const mode = expansionState.paintMode;
-  const owned = (plan.town.claimChunks || []).some(([x, z]) => x === cx && z === cz);
+  if (!plan || !expansionState.painting) return;
+  const a = expansionState.last;
+  if (a && a[0] === cx && a[1] === cz) return;
+  /* Every chunk on the line from the last one, so a fast drag (or the globe,
+     where a pixel can be several chunks) paints a line rather than dots. */
+  const n = a ? Math.max(Math.abs(cx - a[0]), Math.abs(cz - a[1])) : 0;
+  if (a && n <= 600){
+    for (let i = 1; i <= n; i++) expBrushAt(plan, Math.round(a[0] + (cx - a[0]) * i / n), Math.round(a[1] + (cz - a[1]) * i / n));
+  } else expBrushAt(plan, cx, cz);
+  expansionState.last = [cx, cz];
+  renderExpansionOverlay();
+}
 
-  if (mode === 'unadd'){ plan.added.delete(k); }
-  else if (mode === 'unremove'){ plan.removed.delete(k); }
-  else if (mode === 'remove'){ if (owned) plan.removed.add(k); }
-  else {
-    if (owned) return;                       // cannot add what is already held
-    /* Another town's land is off limits unless overclaiming is switched on,
-       and its home block is off limits always. One index lookup rather than a
-       scan of every town — this runs per chunk during a drag. Silently skipped
-       rather than refused, because a warning per chunk is noise. */
-    const other = chunkOwnerAt(cx, cz);
-    if (other && other.name !== plan.town.name){
-      if (!expansionState.overclaim || isHomeChunk(other, cx, cz)) return;
-    }
-    plan.added.add(k);
-  }
+/* The box: dragged out, previewed, applied on release. */
+function expBeginBox(cx, cz){
+  const plan = expPlanFor(expansionState.editing);
+  if (!plan) return;
+  expansionState.box = { from: [cx, cz], to: [cx, cz], mode: expFirstMode(plan, cx, cz) };
+  renderExpansionOverlay();
+}
+function expMoveBox(cx, cz){
+  const b = expansionState.box;
+  if (!b || (b.to[0] === cx && b.to[1] === cz)) return;
+  b.to = [cx, cz];
   renderExpansionOverlay();
 }
 
 function expEndPaint(){
+  if (expansionState.box){
+    const b = expansionState.box;
+    expansionState.box = null;
+    expFillRect(b.from, b.to, b.mode);
+    renderExpansionOverlay(); renderExpansionPanel();
+    return;
+  }
   if (!expansionState.painting) return;
   expansionState.painting = false;
+  expansionState.last = null;
   renderExpansionPanel();
 }
+
+/* What the flat map and the globe both call, in chunks. Returns whether the
+   planner took the press (so the caller does not pan as well). */
+function expPointerDown(cx, cz, shift){
+  if (!expansionState.editing || expPanning()) return false;
+  if (shift || expansionState.tool === 'box') expBeginBox(cx, cz); else expBeginPaint(cx, cz);
+  return true;
+}
+function expPointerMove(cx, cz){
+  if (expansionState.box) expMoveBox(cx, cz);
+  else if (expansionState.painting) expPaintAt(cx, cz);
+}
+/* The outline of the brush under the pointer. */
+function expHoverAt(cx, cz){
+  const h = expansionState.hover;
+  const on = !!expansionState.editing && !expPanning();
+  if (!on){ if (h){ expansionState.hover = null; expHoverDraw(); } return; }
+  if (h && h[0] === cx && h[1] === cz) return;
+  expansionState.hover = [cx, cz];
+  expHoverDraw();
+}
+function expHoverRing(){
+  const h = expansionState.hover;
+  if (!h || !expansionState.editing || expPanning()) return null;
+  const r = expansionState.tool === 'box' ? 0 : (expansionState.brush - 1) >> 1;
+  const x0 = (h[0] - r) * 16, z0 = (h[1] - r) * 16, x1 = (h[0] + r + 1) * 16, z1 = (h[1] + r + 1) * 16;
+  return [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+}
+let expHoverRect = null;
+function expHoverDraw(){
+  globeRequestDraw();
+  const map = mapController && mapController.map;
+  if (!map) return;
+  const ring = expHoverRing();
+  if (!ring){ if (expHoverRect){ expHoverRect.remove(); expHoverRect = null; } return; }
+  const b = L.latLngBounds(CoordUtils.mcToLatLng(ring[0][0], ring[0][1]), CoordUtils.mcToLatLng(ring[2][0], ring[2][1]));
+  if (!expHoverRect){
+    expHoverRect = L.rectangle(b, { color: COLORS.brassHi, weight: 1.5, opacity: .9, dashArray: '3 3',
+      fill: false, interactive: false, pmIgnore: true }).addTo(map);
+  } else expHoverRect.setBounds(b);
+}
+
+function expSetTool(tool){
+  if (!['brush', 'box', 'pan'].includes(tool)) return;
+  expansionState.tool = tool;
+  expansionState.box = null;
+  expSetDragging();
+  expHoverDraw();
+  renderExpansionPanel();
+}
+function expSetBrush(n){
+  expansionState.brush = [1, 3, 5].includes(n) ? n : 1;
+  expHoverDraw();
+  renderExpansionPanel();
+}
+
+/* Keys, while a town is open and nothing is being typed: B brush, R box,
+   H pan, [ and ] brush size, Ctrl+Z / Ctrl+Shift+Z undo and redo, Enter
+   finishes, Esc drops a box half-dragged. */
+document.addEventListener('keydown', (e) => {
+  if (!expansionState.editing || activeView !== 'planning') return;
+  const tag = (e.target && e.target.tagName) || '';
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.target && e.target.isContentEditable)) return;
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod && k === 'z'){ e.preventDefault(); if (e.shiftKey) expRedo(); else expUndo(); return; }
+  if (mod && k === 'y'){ e.preventDefault(); expRedo(); return; }
+  if (mod || e.altKey) return;
+  if (k === 'b') expSetTool('brush');
+  else if (k === 'r') expSetTool('box');
+  else if (k === 'h') expSetTool('pan');
+  else if (k === '[') expSetBrush(expansionState.brush === 5 ? 3 : 1);
+  else if (k === ']') expSetBrush(expansionState.brush === 1 ? 3 : 5);
+  else if (k === 'enter'){ e.preventDefault(); expLockIn(); }
+  else if (k === 'escape' && expansionState.box){ expansionState.box = null; renderExpansionOverlay(); }
+  else return;
+});
 
 function expSetDragging(){
   const map = mapController && mapController.map;
   if (!map || !map.dragging) return;
-  const paint = !!expansionState.editing && !expansionState.panMode;
+  const paint = !!expansionState.editing && !expPanning();
   if (paint) map.dragging.disable(); else map.dragging.enable();
+  // Shift-drag is the box here, not Leaflet's zoom-to-box.
+  if (map.boxZoom){ if (paint) map.boxZoom.disable(); else map.boxZoom.enable(); }
+  const el = map.getContainer && map.getContainer();
+  if (el) el.classList.toggle('plan-painting', paint);
+  if (!paint) expHoverAt(0, 0);
 }
 
 function expTownFigures(plan){
@@ -5824,7 +6154,7 @@ async function globeBuildTexture(){
     if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT,
       Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
     globe.tex = tex; globe.hasTex = true; globe.skinBpp = (c.xE - c.xW) / W;
-    if (mapWorld !== 'earth'){ globeStashSkin('earth'); return; }   // the moon was picked meanwhile
+    if (mapWorld !== 'earth'){ globeStashSkin('earth'); globeStatus(''); return; }   // the moon was picked meanwhile
   } catch (_e){
     if (!globe.viaWorker){ globe.viaWorker = true; globe.texState = 'none'; return globeBuildTexture(); }
     globe.texState = 'failed';
@@ -5914,7 +6244,9 @@ async function globeBuildMoonTexture(){
   }
   eq.width = eq.height = 0;
   globe.texState = 'ready';
-  if (mapWorld !== 'moon'){ globeStashSkin('moon'); return; }
+  /* Switched back to Earth while this was loading: keep the skin for later,
+     and clear the progress line, which would otherwise sit at 100%. */
+  if (mapWorld !== 'moon'){ globeStashSkin('moon'); globeStatus(''); return; }
   globeStatus('');
   globeRequestDraw();
 }
@@ -6521,9 +6853,10 @@ function globeDrawOverlay(M, rPx, V){
 
   // History replaces the live towns while it is open.
   const live = !hist.on;
-  const towns = live && (showClaims || showTowns) ? townsForActiveView(state.towns || []) : [];
+  const towns = live && (showClaims || showTowns) ? focusFilter(townsForActiveView(state.towns || [])) : [];
   if (live && showClaims) globeDrawTownClaims(ctx, V, towns, areas, hits, zoomK);
   if (showChunkGrid && V.bpp <= 16 / CHUNK_MIN_PX) globeDrawChunkGrid(ctx, V);
+  globeDrawPlanning(ctx, V, zoomK);
   if (showHighways && scope !== 'global' && viewerIsCitizen() && mapWorld !== 'moon') globeDrawHighways(ctx, V, hits, zoomK);
   if (live && showNationRange) globeDrawRange(ctx, V, hits, areas, zoomK);
   if (hist.on) globeDrawHistory(ctx, V, 'labels');
@@ -6582,6 +6915,8 @@ function globeDrawOverlay(M, rPx, V){
       ctx.fillStyle = '#f5f1e8'; ctx.fillText(name, x, y);
     }
   }
+
+  if (nationFocus.name && mapWorld !== 'moon') globeDrawFocus(ctx, V, rPx);
 
   /* Players, as their heads, like EarthMC's own globe. */
   if (live && showPlayers && mapWorld !== 'moon'){
@@ -6943,10 +7278,21 @@ function globeShowCard(hit){
         <div><b>${t.balance == null ? '—' : CoordUtils.fmt(t.balance) + 'g'}</b><span>bank</span></div></div>
       ${t.mayor ? `<p class="gc-line">Mayor ${escapeHtml(t.mayor)}</p>` : ''}`;
   }
+  const town = hit.kind === 'town' && hit.t ? hit.t : null;
+  const nationOf = town ? town.nationName : hit.kind === 'nation' ? hit.nation
+    : hit.kind === 'histNation' && hit.n && hit.n.name ? hit.n.name : null;
+  const canPlan = town && !town.isMoon && planningAccess.planner;
+  const acts = (nationOf ? `<button type="button" class="gc-act" data-gc="focus">${nationFocus.name === nationOf ? 'Highlighted' : 'Highlight ' + escapeHtml(nationOf)}</button>` : '') +
+    (canPlan ? '<button type="button" class="gc-act" data-gc="plan">Plan expansion</button>' : '');
   card.innerHTML = `<button type="button" class="gc-x" aria-label="Close">×</button>${body}
+    ${acts ? `<div class="gc-acts">${acts}</div>` : ''}
     <button type="button" class="gc-go">Show on the flat map</button>`;
   card.hidden = false;
   card.querySelector('.gc-x').onclick = () => globeShowCard(null);
+  const fb = card.querySelector('[data-gc="focus"]');
+  if (fb) fb.onclick = () => { setNationFocus(nationOf); globeShowCard(hit); };
+  const pb = card.querySelector('[data-gc="plan"]');
+  if (pb) pb.onclick = () => { globeShowCard(null); window.planFromPopup(town.name); };
   card.querySelector('.gc-go').onclick = () => {
     if (hit.kind === 'player') return setMapProjection('flat', { x: hit.pl.x, z: hit.pl.z, zoom: 1 });
     if (hit.t && typeof hit.t.homeX === 'number') return setMapProjection('flat', { x: hit.t.homeX, z: hit.t.homeZ, zoom: 1 });
@@ -6955,15 +7301,47 @@ function globeShowCard(hit){
   };
 }
 
+/* A click on the ball while planning does what it does on the flat map:
+   places a new town, moves a town between nations, or toggles a chunk with
+   the Pan tool. Returns whether the planner used it. */
+function globePlanClick(c){
+  if (!c || mapWorld === 'moon') return false;
+  const [cx, cz, g] = c;
+  if (expansionState.placingNew){ expPlaceNewTown(CoordUtils.mcToLatLng(g.x, g.z)); return true; }
+  if (activeView === 'planning' && expansionState.mode === 'nation' && expansionState.nation){
+    const t = expTownAtChunk(cx, cz);
+    if (t) expToggleTownInNation(t); else auditLog.log('No town claims that chunk', 'info');
+    return true;
+  }
+  if (expansionState.editing){
+    if (expPanning()) expToggleChunk(cx, cz);
+    return true;
+  }
+  return false;
+}
+function globePlanCursor(){
+  if (expansionState.placingNew) return 'crosshair';
+  if (expansionState.editing) return expPanning() ? 'grab' : 'crosshair';
+  if (activeView === 'planning' && expansionState.mode === 'nation' && expansionState.nation) return 'pointer';
+  return '';
+}
+
 function globeWire(){
   const el = globe.el, ov = globe.ovCanvas;
   const local = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 
+  /* The planner on the ball: a chunk under a screen point. */
+  const chunkAt = (p) => { const g = globePick(p[0], p[1]); return g ? [Math.floor(g.x / 16), Math.floor(g.z / 16), g] : null; };
   ov.addEventListener('pointerdown', (e) => {
     ov.setPointerCapture(e.pointerId);
     globe.pointers.set(e.pointerId, local(e));
     globe.vLat = globe.vLon = 0;
     globe.moved = 0;
+    if (globe.pointers.size === 1 && e.button === 0 && expansionState.editing && !expPanning()){
+      const c = chunkAt(local(e));
+      if (c && expPointerDown(c[0], c[1], e.shiftKey)){ globe.painting = true; globe.drag = null; globeShowCard(null); return; }
+    }
+    if (globe.painting && globe.pointers.size === 2){ globe.painting = false; expEndPaint(); }   // a second finger: pinch instead
     if (globe.pointers.size === 2){
       const [a, b] = [...globe.pointers.values()];
       globe.pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), dist: globe.dist };
@@ -6975,6 +7353,11 @@ function globeWire(){
   ov.addEventListener('pointermove', (e) => {
     const p = local(e);
     if (globe.pointers.has(e.pointerId)) globe.pointers.set(e.pointerId, p);
+    if (expansionState.editing){
+      const c = chunkAt(p);
+      if (c) expHoverAt(c[0], c[1]);
+      if (globe.painting){ if (c) expPointerMove(c[0], c[1]); return; }
+    }
     if (globe.pinch && globe.pointers.size === 2){
       const [a, b] = [...globe.pointers.values()];
       const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -6998,18 +7381,22 @@ function globeWire(){
     }
     const hit = globeHitAt(p[0], p[1]) || globeAreaAt(p[0], p[1]);
     globe.hover = { hit, ground: globePick(p[0], p[1]) };
-    ov.style.cursor = hit ? 'pointer' : 'grab';
+    ov.style.cursor = globePlanCursor() || (hit ? 'pointer' : 'grab');
     globeShowTip(hit, p[0], p[1]);
     globeUpdateReadout();
   });
   const end = (e) => {
     globe.pointers.delete(e.pointerId);
     if (globe.pointers.size < 2) globe.pinch = null;
+    if (globe.painting){
+      if (globe.pointers.size === 0){ globe.painting = false; expEndPaint(); }
+      return;
+    }
     if (globe.drag && globe.pointers.size === 0){
       if (performance.now() - globe.drag.t > 80){ globe.vLat = globe.vLon = 0; }
       if (globe.moved < 5){
         const p = local(e);
-        globeShowCard(globeHitAt(p[0], p[1]) || globeAreaAt(p[0], p[1]));
+        if (!globePlanClick(chunkAt(p))) globeShowCard(globeHitAt(p[0], p[1]) || globeAreaAt(p[0], p[1]));
         globe.vLat = globe.vLon = 0;
       }
       globe.drag = null;
@@ -7882,7 +8269,48 @@ function histPaintLand(ctx, list, k, towns){
       c.globalCompositeOperation = 'destination-out';
       towns.forEach((p) => c.fill(p, 'evenodd'));
       c.globalCompositeOperation = 'source-over';
+      histTownEdges(c, list, towns, edge);
     }
+  });
+}
+/* Where a town reaches past its own nation's land (into a neighbour, or
+   unclaimed ground), its own chunk edge is the border there: each nation's
+   town outlines are stroked on a spare canvas, then everything inside its
+   towns and its land is wiped, leaving only the outside of the edges that
+   face somebody else. Worked a nation at a time within its towns' box. */
+function histTownEdges(c, list, towns, edge){
+  const boxes = towns.boxes;
+  if (!boxes) return;
+  const land = new Map(list.map(([st, fp]) => [st, fp]));
+  const T = c.getTransform();
+  let L2 = hist.edgeCanvas;
+  if (!L2) L2 = hist.edgeCanvas = document.createElement('canvas');
+  if (L2.width !== c.canvas.width || L2.height !== c.canvas.height){ L2.width = c.canvas.width; L2.height = c.canvas.height; }
+  const s2 = L2.getContext('2d');
+  const m = edge * 2 + 2;
+  towns.forEach((p, st) => {
+    if (st === HIST_GREY_STYLE) return;               // towns with no nation are not anyone's land
+    const b = boxes.get(st);
+    if (!b) return;
+    const x0 = Math.max(0, Math.floor((b[0] - m) * T.a + T.e)), y0 = Math.max(0, Math.floor((b[1] - m) * T.d + T.f));
+    const x1 = Math.min(L2.width, Math.ceil((b[2] + m) * T.a + T.e)), y1 = Math.min(L2.height, Math.ceil((b[3] + m) * T.d + T.f));
+    if (x1 <= x0 || y1 <= y0) return;
+    s2.setTransform(1, 0, 0, 1, 0, 0);
+    s2.globalCompositeOperation = 'source-over';
+    s2.clearRect(x0, y0, x1 - x0, y1 - y0);
+    s2.setTransform(T);
+    s2.lineJoin = 'round'; s2.lineCap = 'round';
+    s2.strokeStyle = 'rgb(26,21,15)'; s2.lineWidth = edge * 2;
+    s2.stroke(p);
+    s2.globalCompositeOperation = 'destination-out';
+    s2.fill(p, 'evenodd');
+    const fp = land.get(st);
+    if (fp) s2.fill(fp, 'evenodd');
+    s2.globalCompositeOperation = 'source-over';
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(L2, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    c.restore();
   });
 }
 /* Town borders (the layer switch), in the nation's colour inside and out. */
@@ -7921,10 +8349,16 @@ function histPaintTowns(ctx, looks, k){
   });
 }
 /* A town's path into its nation's land group and its own look group. */
-function histAddTown(groups, looks, f, s, p){
+function histAddTown(groups, looks, f, s, p, box){
   const st = histStyleOf(f, s.id);
   let g = groups.get(st); if (!g) groups.set(st, g = new Path2D());
   g.addPath(p);
+  if (box){
+    if (!groups.boxes) groups.boxes = new Map();
+    const b = groups.boxes.get(st);
+    if (!b) groups.boxes.set(st, box.slice());
+    else { b[0] = Math.min(b[0], box[0]); b[1] = Math.min(b[1], box[1]); b[2] = Math.max(b[2], box[2]); b[3] = Math.max(b[3], box[3]); }
+  }
   if (!looks) return;
   const l = histTownLook(f, s);
   let e = looks.get(l.key); if (!e) looks.set(l.key, e = { fill: l.fill, edge: l.edge, path: new Path2D() });
@@ -7935,7 +8369,9 @@ function histPaintDots(ctx, f, at, k){
   if (!showTowns || k < HIST_DOTS_FROM_K) return;
   const byStyle = new Map();
   const grow = Math.max(1, Math.min(2.2, k * 24));
+  const only = focusOnlyId(f);
   for (const s of f.shapes){
+    if (only !== null && s.id !== only) continue;
     if (s.cap && s.id !== HIST_NATIONLESS) continue;                 // capitals have their stars
     const p = at(s.cx, s.cz);
     if (!p || p[0] < -8 || p[1] < -8 || p[0] > ctx.canvas.width + 8 || p[1] > ctx.canvas.height + 8) continue;
@@ -7955,9 +8391,13 @@ function histPaintDots(ctx, f, at, k){
 function histStyleOf(f, id){ return id === HIST_NATIONLESS ? HIST_GREY_STYLE : (f.nations[id - 1] || {}).style || HIST_GREY_STYLE; }
 
 /* view: k (screen px per block), ox/oz (the block at the top-left), w/h in px. */
+/* Whether a day's territory is drawn: always for the live borders, and in the
+   timelapse unless its Nation borders switch is off. */
+function histShowsTerritory(f){ return f === liveBorders.frame || hist.territory !== false; }
 function histRender2D(ctx, f, view, opts){
   const o = opts || {};
   const { k, ox, oz, w, h } = view;
+  const terr = histShowsTerritory(f);
   const m = 6 / k, vx0 = ox - m, vz0 = oz - m, vx1 = ox + w / k + m, vz1 = oz + h / k + m;
   const trace = (path, p, closed) => {
     path.moveTo((p[0] - ox) * k, (p[1] - oz) * k);
@@ -7965,7 +8405,9 @@ function histRender2D(ctx, f, view, opts){
     if (closed) path.closePath();
   };
   const list = [];
-  f.rings[k >= HIST_FINE_FROM_K ? 'fine' : 'coarse'].forEach((rings, id) => {
+  const only = focusOnlyId(f);
+  if (terr) f.rings[k >= HIST_FINE_FROM_K ? 'fine' : 'coarse'].forEach((rings, id) => {
+    if (only !== null && id !== only) return;
     let fp = null, lp = null, size = 0;
     for (const r of rings){
       if (r.x1 < vx0 || r.x0 > vx1 || r.z1 < vz0 || r.z0 > vz1) continue;
@@ -7980,23 +8422,24 @@ function histRender2D(ctx, f, view, opts){
     if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
   });
   let groups = null, looks = null;
-  if (k >= HIST_TOWNS_FROM_K){
+  if (k >= HIST_TOWNS_FROM_K || (!terr && showClaims)){
     groups = new Map();
     looks = o.towns !== false && showClaims ? new Map() : null;
     for (const s of f.shapes){
+      if (only !== null && s.id !== only) continue;
       if (s.x1 < vx0 || s.x0 > vx1 || s.z1 < vz0 || s.z0 > vz1) continue;
       const p = new Path2D();
       for (const r of histTownRings(s)) trace(p, r.p, true);
-      histAddTown(groups, looks, f, s, p);
+      histAddTown(groups, looks, f, s, p, [(s.x0 - ox) * k, (s.z0 - oz) * k, (s.x1 - ox) * k, (s.z1 - oz) * k]);
     }
   }
   ctx.save();
-  histPaintLand(ctx, list, k, groups);
+  if (terr) histPaintLand(ctx, list, k, groups);
   histPaintTowns(ctx, looks, k);
   ctx.restore();
   if (o.towns !== false) histPaintDots(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], k);
   if (o.labels !== false){
-    histLabels2D(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], () => k, k, w, h, o.scale || 1, o.capitals !== false);
+    histLabels2D(ctx, f, (x, z) => [(x - ox) * k, (z - oz) * k], () => k, k, w, h, o.scale || 1, o.capitals !== false && showTowns);
   }
 }
 
@@ -8011,7 +8454,10 @@ function histLabels2D(ctx, f, at, ppb, kc, w, h, scale, capitals){
   const spaced = 'letterSpacing' in ctx;
   // Names first, so the biggest nations always get theirs.
   ctx.textAlign = 'center';
+  const onlyName = nationFocus.alone && nationFocus.name ? nationFocus.name.toLowerCase() : null;
+  const keep = (n) => !onlyName || String(n.name || '').toLowerCase() === onlyName;
   for (const n of (showNationNames ? f.order.slice(0, 200) : [])){
+    if (!keep(n)) continue;
     const [x, y] = at(n.label.x, n.label.z);
     if (x < -160 || y < -60 || x > w + 160 || y > h + 60) continue;
     const k = ppb(n.label.x, n.label.z);
@@ -8040,6 +8486,7 @@ function histLabels2D(ctx, f, at, ppb, kc, w, h, scale, capitals){
     const fs = 11.5 * scale;
     ctx.font = `600 ${fs}px ${F.body}`;
     for (const n of f.capitals){
+      if (!keep(n)) continue;
       const [x, y] = at(n.capital.x, n.capital.z);
       if (x < -20 || y < -20 || x > w + 20 || y > h + 20) continue;
       const r = (named ? 5 : 3.6) * scale;
@@ -8244,6 +8691,7 @@ function liveBordersPlace(){
     if (!mc.map.hasLayer(liveBorders.layer)) liveBorders.layer.addTo(mc.map);
     else liveBorders.layer.redraw();
   } else if (liveBorders.layer && mc.map.hasLayer(liveBorders.layer)) mc.map.removeLayer(liveBorders.layer);
+  if (nationFocus.name) focusRedraw();
 }
 
 function histFlatShow(fade){
@@ -8254,6 +8702,7 @@ function histFlatShow(fade){
   if (!hist.layer) hist.layer = new HistLayer();
   if (!map.hasLayer(hist.layer)) hist.layer.addTo(map);
   else hist.layer.redraw(fade === true);
+  if (nationFocus.name) focusRedraw();
   if (!hist.hooked){
     hist.hooked = true;
     map.on('mousemove', histFlatHover);
@@ -8308,11 +8757,14 @@ function globeDrawHistory(ctx, V, part, frame, opts){
     histLabels2D(ctx, f,
       (x, z) => { const p = where(x, z); return p ? [p[0], p[1]] : [-9999, -9999]; },
       (x, z) => { const p = where(x, z); return p ? V.F / Math.max(1e-6, V.d - p[2]) / R : k; },
-      k, V.w, V.h, 1, o.capitals !== false);
+      k, V.w, V.h, 1, o.capitals !== false && showTowns);
     return;
   }
   const list = [];
-  f.rings[k >= HIST_FINE_FROM_K ? 'fine' : 'coarse'].forEach((rings, id) => {
+  const only = focusOnlyId(f);
+  const terr = histShowsTerritory(f);
+  if (terr) f.rings[k >= HIST_FINE_FROM_K ? 'fine' : 'coarse'].forEach((rings, id) => {
+    if (only !== null && id !== only) return;
     let fp = null, lp = null, size = 0;
     for (const r of rings){
       const e = histGlobeRing(r);
@@ -8329,19 +8781,27 @@ function globeDrawHistory(ctx, V, part, frame, opts){
     if (fp) list.push([histStyleOf(f, id), fp, lp, size]);
   });
   let groups = null, looks = null;
-  if (k >= HIST_TOWNS_FROM_K){
+  if (k >= HIST_TOWNS_FROM_K || (!terr && showClaims)){
     groups = new Map();
     looks = o.towns !== false && showClaims ? new Map() : null;
     for (const s of f.shapes){
+      if (only !== null && s.id !== only) continue;
       const c = globeVecOfBlock((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2);
       if (!globeSeen(V, c, Math.hypot(s.x1 - s.x0, s.z1 - s.z0) / 2 / R)) continue;
       const p = new Path2D();
-      for (const r of histTownRings(s)){ const e = histGlobeRing(r); globeProjectRing(V, e); globePathFill(p, V, e.n); }
-      histAddTown(groups, looks, f, s, p);
+      const box = [Infinity, Infinity, -Infinity, -Infinity];
+      for (const r of histTownRings(s)){
+        const e = histGlobeRing(r); globeProjectRing(V, e); globePathFill(p, V, e.n);
+        for (let i = 0; i < e.n; i++){
+          const x = V.sx[i * 2], y = V.sx[i * 2 + 1];
+          if (x < box[0]) box[0] = x; if (y < box[1]) box[1] = y; if (x > box[2]) box[2] = x; if (y > box[3]) box[3] = y;
+        }
+      }
+      histAddTown(groups, looks, f, s, p, box[2] >= box[0] ? box : null);
     }
   }
   ctx.save();
-  histPaintLand(ctx, list, k, groups);
+  if (terr) histPaintLand(ctx, list, k, groups);
   histPaintTowns(ctx, looks, k);
   ctx.restore();
   if (o.towns !== false) histPaintDots(ctx, f, (x, z) => { const p = globeProject(V.M, globeVecOfBlock(x, z)); return p ? [p[0], p[1]] : null; }, k);
@@ -8401,7 +8861,280 @@ function histPaint(fade){
   histFlatShow(fade);
   globeRequestDraw();
   histBarUpdate();
+  histLedgerSoon();
 }
+
+/* ---- the day in numbers ----------------------------------------------------
+   While the timelapse is open the Global tab is about that day: its nations
+   ranked by towns, people or land, the picked one's figures for the day, and
+   — once every day has been read — its whole history and its peak. Picking a
+   nation lights it on the map, the same as in the live list. */
+const histLedger = { sort: 'towns', query: '', open: false, timer: 0, series: null, scan: null, metric: 'towns' };
+
+function histLedgerSoon(){
+  if (histLedger.timer) return;
+  histLedger.timer = setTimeout(() => { histLedger.timer = 0; histLedgerRender(); }, hist.playing ? 260 : 20);
+}
+const histRgb = (n) => n && n.rgb ? `rgb(${n.rgb[0]},${n.rgb[1]},${n.rgb[2]})` : COLORS.muted;
+
+/* Every nation's towns, people and claimed chunks on every day, read once
+   from the days themselves. Light: no territory is worked out, only counts. */
+async function histScanAll(){
+  if (histLedger.scan || !hist.index || !hist.index.length) return;
+  const days = hist.index.slice();
+  const D = days.length;
+  const scan = histLedger.scan = { done: 0, total: D, error: '' };
+  const by = new Map();          // name -> { towns, people, chunks: Int32Array(D) }
+  const totals = { towns: new Int32Array(D), people: new Int32Array(D), nations: new Int32Array(D) };
+  const moon = await moonBox().catch(() => null);
+  const inMoon = (cz, ca, len) => { const x = (ca + len / 2) * 16, z = cz * 16 + 8; return x >= moon.x0 && x < moon.x1 && z >= moon.z0 && z < moon.z1; };
+  const read = async (i) => {
+    const r = await fetch(`${histBase()}/history/${days[i].date}.json.gz`);
+    if (!r.ok) throw new Error(`${histDateText(days[i].date)} did not load (HTTP ${r.status})`);
+    const snap = await histUnpack(await r.arrayBuffer());
+    const names = (snap.nations || []).map(x => x[0]);
+    const seen = new Set();
+    for (const t of (snap.towns || [])){
+      const ni = t[1], runs = t[5];
+      let all = 0, up = 0;
+      if (Array.isArray(runs)) for (let k = 0; k + 2 < runs.length; k += 3){ all += runs[k + 2]; if (moon && inMoon(runs[k], runs[k + 1], runs[k + 2])) up += runs[k + 2]; }
+      if (moon && all && up * 2 >= all) continue;             // a moon town
+      totals.towns[i]++; totals.people[i] += t[3] || 0;
+      const name = ni >= 0 && ni < names.length ? names[ni] : null;
+      if (!name) continue;
+      let e = by.get(name);
+      if (!e) by.set(name, e = { towns: new Int32Array(D), people: new Int32Array(D), chunks: new Int32Array(D) });
+      e.towns[i]++; e.people[i] += t[3] || 0; e.chunks[i] += all - up;
+      seen.add(name);
+    }
+    totals.nations[i] = seen.size;
+  };
+  let next = 0;
+  const worker = async () => {
+    while (next < D && histLedger.scan === scan){
+      const i = next++;
+      try { await read(i); } catch (err){ scan.error = String(err && err.message || err); }
+      scan.done++;
+      if (scan.done % 4 === 0 || scan.done === D) histLedgerSoon();
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  if (histLedger.scan !== scan) return;
+  /* Each nation's best day, by towns and by people. */
+  by.forEach(e => {
+    let bt = 0, bp = 0;
+    for (let i = 1; i < D; i++){ if (e.towns[i] > e.towns[bt]) bt = i; if (e.people[i] > e.people[bp]) bp = i; }
+    e.peakTowns = bt; e.peakPeople = bp;
+  });
+  histLedger.series = { dates: days.map(d => d.date), by, totals };
+  histLedgerSoon();
+}
+
+/* A small chart of one series, with the day on the map marked. */
+function histChartSvg(vals, at, colour){
+  const D = vals.length;
+  let max = 1; for (let i = 0; i < D; i++) if (vals[i] > max) max = vals[i];
+  const X = (i) => (D > 1 ? i / (D - 1) * 100 : 50).toFixed(2), Y = (v) => (96 - v / max * 88).toFixed(2);
+  let peak = 0; for (let i = 1; i < D; i++) if (vals[i] > vals[peak]) peak = i;
+  let line = '';
+  for (let i = 0; i < D; i++) line += (i ? 'L' : 'M') + X(i) + ',' + Y(vals[i]);
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="color:${escapeHtml(colour)}" aria-hidden="true">
+    <path class="hc-area" d="${line} L100,100 L0,100 Z"/><path class="hc-line" d="${line}"/>
+    ${at >= 0 ? `<line class="hc-now" x1="${X(at)}" x2="${X(at)}" y1="0" y2="100"/>` : ''}
+    <circle class="hc-peak" cx="${X(peak)}" cy="${Y(vals[peak])}" r="1.6"/></svg>`;
+}
+
+function histLedgerRender(){
+  const host = document.getElementById('hlList');
+  if (!host || !hist.on) return;
+  const f = hist.frame;
+  const fmt = CoordUtils.fmt;
+  const S = histLedger.series;
+  const day = hist.index && hist.index[hist.pos];
+  const title = document.getElementById('hlTitle'), eyebrow = document.getElementById('hlEyebrow');
+  if (eyebrow) eyebrow.textContent = day ? 'The past · ' + histDateText(day.date) : 'The past';
+  if (title) title.textContent = 'Nations on that day';
+  if (!f){ host.innerHTML = '<p class="empty-hint">Loading the day…</p>'; return; }
+  const di = S ? S.dates.indexOf(f.date) : -1;
+  const wk = di >= 7 ? di - 7 : -1;
+
+  // The day in four figures, with the week's change once the days are read.
+  const figs = document.getElementById('hlFigs');
+  if (figs){
+    const delta = (arr) => { if (!S || di < 0 || wk < 0) return ''; const d = arr[di] - arr[wk]; return d ? ` <em class="${d < 0 ? 'down' : ''}">${d > 0 ? '+' : ''}${fmt(d)}</em>` : ''; };
+    const land = f.nations.reduce((a, n) => a + n.cells, 0) * 16;
+    figs.innerHTML = `<div><b>${fmt(f.stats.towns)}</b><span>towns${delta(S ? S.totals.towns : null)}</span></div>
+      <div><b>${fmt(f.stats.nations)}</b><span>nations${delta(S ? S.totals.nations : null)}</span></div>
+      <div><b>${fmt(f.stats.residents)}</b><span>people${delta(S ? S.totals.people : null)}</span></div>
+      <div title="Chunks inside nations' borders that day"><b>${fmt(land)}</b><span>land, chunks</span></div>`;
+  }
+
+  // The ranking.
+  const sort = histLedger.sort;
+  let all = f.nations.filter(n => n.towns > 0).map(n => {
+    const e = S ? S.by.get(n.name) : null;
+    return { n, name: n.name, towns: n.towns, people: n.residents, land: n.cells * 16, chunks: n.chunks,
+      peak: e ? e.towns[e.peakTowns] : n.towns, peakAt: e ? e.peakTowns : -1,
+      dw: e && di >= 0 && wk >= 0 ? e.towns[di] - e.towns[wk] : null };
+  });
+  /* Ranked by peak, the list also holds nations gone by this day: their best
+     day is still part of the story. */
+  if (sort === 'peak' && S){
+    const here = new Set(all.map(e => e.name));
+    S.by.forEach((e, name) => {
+      if (here.has(name)) return;
+      all.push({ n: null, name, towns: 0, people: 0, land: 0, chunks: 0, peak: e.towns[e.peakTowns], peakAt: e.peakTowns, gone: true, dw: null });
+    });
+  }
+  const key = { towns: 'towns', people: 'people', land: 'land', peak: 'peak' }[sort] || 'towns';
+  all.sort((a, b) => b[key] - a[key] || a.name.localeCompare(b.name));
+  all.forEach((e, i) => { e.rank = i + 1; });
+  const q = histLedger.query.trim().toLowerCase().replace(/\s+/g, '_');
+  const matched = q ? all.filter(e => e.name.toLowerCase().replace(/\s+/g, '_').includes(q)) : all;
+  const open = !!q || histLedger.open;
+  let shown = open ? matched : matched.slice(0, NATION_LIST_TOP);
+  const act = nationFocus.name;
+  if (!open && act && !shown.some(e => e.name === act)){ const e = all.find(x => x.name === act); if (e) shown = shown.concat([e]); }
+  const maxV = Math.max(1, ...all.map(e => e[key]));
+  host.replaceChildren();
+  const rows = document.createElement('div');
+  rows.className = 'nl-rows' + (open && matched.length > 14 ? ' scroll' : '');
+  if (!shown.length) rows.innerHTML = `<p class="nl-none">No nation that day matches “${escapeHtml(histLedger.query)}”.</p>`;
+  shown.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'nl-row' + (act === e.name ? ' is-active' : '');
+    row.tabIndex = 0; row.setAttribute('role', 'button');
+    const colour = e.n ? histRgb(e.n) : nationColors(e.name).fill;
+    const big = sort === 'people' ? e.people : sort === 'land' ? e.land : sort === 'peak' ? e.peak : e.towns;
+    const small = sort === 'people' ? fmt(e.towns) + ' towns'
+      : sort === 'land' ? fmt(e.towns) + ' towns'
+      : sort === 'peak' ? (e.peakAt >= 0 ? histDateText(S.dates[e.peakAt]) : '') + (e.gone ? ' · gone' : '')
+      : fmt(e.people) + ' people';
+    const dw = sort === 'towns' && e.dw ? `<em class="hl-delta${e.dw < 0 ? ' down' : ''}">${e.dw > 0 ? '+' : ''}${fmt(e.dw)}</em>` : '';
+    row.innerHTML = `<span class="nl-rank">${e.rank}</span>
+      <div><div class="nl-name"><i class="nl-sw" style="background:${escapeHtml(colour)}"></i><span>${escapeHtml(histNice(e.name))}</span>${dw}</div>
+        <div class="nl-bar"><i style="width:${Math.max(1.5, Math.min(100, big / maxV * 100)).toFixed(1)}%;background:${escapeHtml(colour)}"></i></div></div>
+      <div class="nl-num">${fmt(big)}<span>${escapeHtml(small)}</span></div><span></span>`;
+    const go = () => {
+      if (e.gone && e.peakAt >= 0){ histGo(e.peakAt); setNationFocus(e.name, { keepAlone: true }); return; }
+      setNationFocus(nationFocus.name === e.name ? null : e.name, { keepAlone: true });
+    };
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go(); } });
+    rows.appendChild(row);
+  });
+  host.appendChild(rows);
+  const more = document.getElementById('hlMore');
+  if (more){
+    more.hidden = !!q || matched.length <= NATION_LIST_TOP;
+    more.textContent = histLedger.open ? 'Show the top ten only' : `Show all ${fmt(all.length)} nations`;
+  }
+  document.querySelectorAll('[data-hsort]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.hsort === sort)));
+
+  // The picked nation on this day.
+  const card = document.getElementById('hlCard');
+  if (card){
+    const name = nationFocus.name;
+    const e = name ? all.find(x => x.name === name) : null;
+    if (!name){ card.hidden = true; card.replaceChildren(); }
+    else {
+      const n = e && e.n;
+      const ser = S ? S.by.get(name) : null;
+      const metric = histLedger.metric;
+      const vals = ser ? ser[metric] : null;
+      const peakI = vals ? (metric === 'towns' ? ser.peakTowns : metric === 'people' ? ser.peakPeople : (() => { let b = 0; for (let i = 1; i < vals.length; i++) if (vals[i] > vals[b]) b = i; return b; })()) : -1;
+      const first = vals ? vals.findIndex(v => v > 0) : -1;
+      const colour = n ? histRgb(n) : nationColors(name).fill;
+      card.innerHTML = `<div class="ncard-head">
+          <span class="ncard-sw" style="background:${escapeHtml(colour)}"></span>
+          <h3>${escapeHtml(histNice(name))}</h3>
+          <button type="button" class="btn btn-ghost btn-small${nationFocus.alone ? ' on' : ''}" data-hl="alone" aria-pressed="${nationFocus.alone}">Show alone</button>
+          <button type="button" class="btn btn-ghost btn-small" data-hl="zoom">Zoom to</button>
+        </div>
+        <p class="ncard-lead"><span>${n ? `#${all.filter(x => !x.gone).sort((a, b) => b.towns - a.towns).findIndex(x => x.name === name) + 1} by towns on ${escapeHtml(histDateText(f.date))}` +
+          (n.capital ? ` · capital ${escapeHtml(histNice(n.capital.name))}` : '') : `Not on the map on ${escapeHtml(histDateText(f.date))}`}</span></p>
+        <div class="ncard-figs">
+          <div><b>${fmt(n ? n.towns : 0)}</b><span>towns</span></div>
+          <div><b>${fmt(n ? n.residents : 0)}</b><span>residents</span></div>
+          <div><b>${fmt(n ? n.chunks : 0)}</b><span>claimed chunks</span></div>
+          <div><b>${fmt(n ? n.cells * 16 : 0)}</b><span>land, chunks</span></div>
+        </div>
+        ${vals ? `<div class="hl-seg" role="group" aria-label="Chart">
+            ${['towns', 'people', 'chunks'].map(m => `<button type="button" data-hlm="${m}" aria-pressed="${m === metric}">${m === 'people' ? 'People' : m === 'chunks' ? 'Chunks' : 'Towns'}</button>`).join('')}</div>
+          <div class="hl-chart">${histChartSvg(vals, di, colour)}
+          <div class="hl-chart-k"><span>Peak <b>${fmt(vals[peakI])}</b> on <button type="button" class="hl-go" data-hlday="${peakI}">${escapeHtml(histDateText(S.dates[peakI]))}</button></span>
+            ${first > 0 ? `<span>first seen ${escapeHtml(histDateText(S.dates[first]))}</span>` : ''}</div></div>`
+          : `<p class="hint" style="margin-top:.5rem">Its whole history and its biggest day show once every day has been read.</p>`}`;
+      card.hidden = false;
+      card.querySelector('[data-hl="alone"]').onclick = () => setNationFocus(name, { alone: !nationFocus.alone });
+      card.querySelector('[data-hl="zoom"]').onclick = () => histZoomTo(name);
+      card.querySelectorAll('[data-hlm]').forEach(b => b.onclick = () => { histLedger.metric = b.dataset.hlm; histLedgerRender(); });
+      const g = card.querySelector('[data-hlday]');
+      if (g) g.onclick = () => histGo(Number(g.dataset.hlday));
+    }
+  }
+
+  // Reading every day.
+  const sc = document.getElementById('hlScan');
+  if (sc){
+    const st = histLedger.scan;
+    if (S) sc.innerHTML = `Every day read: ${fmt(S.dates.length)} days, ${fmt(S.by.size)} nations. Rank by <b>Peak</b> for the biggest ever.` +
+      (st && st.error ? ` <span style="color:var(--danger-hi)">Some days did not load.</span>` : '');
+    else if (st) sc.innerHTML = `Reading day ${fmt(st.done)} of ${fmt(st.total)}…<div class="bar"><i style="width:${(st.done / Math.max(1, st.total) * 100).toFixed(1)}%"></i></div>`;
+    else sc.innerHTML = `<button type="button" class="btn btn-ghost btn-small" id="hlScanGo">Read every day</button>
+      <span style="margin-left:.4rem">for each nation's history, its peak and the week's changes (${fmt(hist.index.length)} days, once).</span>`;
+    const go = document.getElementById('hlScanGo');
+    if (go) go.onclick = () => { histScanAll(); histLedgerRender(); };
+  }
+}
+
+/* Fit the view to a nation's land on the day shown. */
+function histZoomTo(name){
+  const f = hist.frame;
+  if (!f) return;
+  const want = String(name).toLowerCase();
+  const n = f.nations.find(x => String(x.name).toLowerCase() === want);
+  if (!n) return;
+  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+  for (const s of f.shapes) if (s.id === n.id){ x0 = Math.min(x0, s.x0); z0 = Math.min(z0, s.z0); x1 = Math.max(x1, s.x1); z1 = Math.max(z1, s.z1); }
+  if (!(x1 > x0)) return;
+  if (mapProjection === 'globe' && globe.on){
+    const v = globeVecOfBlock((x0 + x1) / 2, (z0 + z1) / 2);
+    globe.lat = Math.max(-84, Math.min(84, Math.asin(v[1]) / GLOBE_D2R));
+    globe.lon = Math.atan2(v[0], v[2]) / GLOBE_D2R;
+    const span = Math.max(x1 - x0, z1 - z0) / globeBlocksPerRad();
+    const fz = 1 / Math.tan(GLOBE_FOV / 2), th = Math.min(1.2, Math.max(0.004, span * 0.6));
+    globe.dist = Math.max(globeMinDist(), Math.min(GLOBE_MAX_DIST, Math.cos(th) + fz * Math.sin(th) / 0.8));
+    globe.vLat = globe.vLon = 0;
+    globeRequestDraw();
+    return;
+  }
+  if (mapController && mapController.map){
+    mapController.map.fitBounds(L.latLngBounds(CoordUtils.mcToLatLng(x0, z0), CoordUtils.mcToLatLng(x1, z1)).pad(0.25), { maxZoom: -1 });
+  }
+}
+
+/* The panel's own controls, wired once. */
+(function wireHistLedger(){
+  const btn = document.getElementById('histNations');
+  if (btn) btn.addEventListener('click', () => {
+    if (activeView !== 'global') setSidebarView('global');
+    histLedgerRender();
+    const pan = document.getElementById('panel-history');
+    if (pan) pan.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // On a phone the map covers the panels: step back to them.
+    if (document.body.classList.contains('map-open-mode') && typeof setMapOverlay === 'function') setMapOverlay(false);
+  });
+  const find = document.getElementById('hlFind');
+  if (find) find.addEventListener('input', () => { histLedger.query = find.value; histLedgerRender(); });
+  document.querySelectorAll('[data-hsort]').forEach(b => b.addEventListener('click', () => {
+    histLedger.sort = b.dataset.hsort;
+    if (histLedger.sort === 'peak' && !histLedger.series) histScanAll();
+    histLedgerRender();
+  }));
+  const more = document.getElementById('hlMore');
+  if (more) more.addEventListener('click', () => { histLedger.open = !histLedger.open; histLedgerRender(); });
+})();
 
 /* ---- the timeline -------------------------------------------------------- */
 async function histOpen(){
@@ -8431,6 +9164,7 @@ async function histOpen(){
   histStatus('');
   histGo(hist.pos >= 0 ? hist.pos : hist.index.length - 1);
   if (mapController && mapController.syncLayerToggles) mapController.syncLayerToggles();
+  histLedgerSoon();
 }
 
 function histClose(){
@@ -8453,6 +9187,7 @@ function histClose(){
   globeRequestDraw();
   liveBordersPlace();
   if (mc && mc.syncLayerToggles) mc.syncLayerToggles();
+  if (nationFocus.name) focusRedraw();
 }
 
 function histGo(i){
@@ -9412,16 +10147,23 @@ class MapController{
       { group: 'server', label: 'Town markers', globe: true,
         get: () => showTowns, set: (v) => { showTowns = v; refreshMapLayers(); if (hist.on) histPaint(); } },
       { group: 'server', label: 'Nation borders', globe: true,
-        get: () => showLiveBorders, set: (v) => { showLiveBorders = v; liveBordersUpdate(); },
-        meta: () => (!showLiveBorders || hist.on ? '' : liveBorders.busy && !liveBorders.frame ? 'working…'
+        /* In the timelapse this switches the past territory; off, the towns
+           are drawn alone in their own colours, the way the live map is. */
+        get: () => hist.on ? hist.territory !== false : showLiveBorders,
+        set: (v) => {
+          if (hist.on){ hist.territory = !!v; histPaint(); if (nationFocus.name) focusRedraw(); return; }
+          showLiveBorders = v; liveBordersUpdate();
+        },
+        meta: () => (hist.on ? (hist.territory !== false ? 'that day' : '') : !showLiveBorders ? '' : liveBorders.busy && !liveBorders.frame ? 'working…'
           : liveBorders.source === 'live' ? 'live' : liveBorders.source ? histDateText(liveBorders.source, true) : ''),
         when: () => mapWorld !== 'moon' },
       { group: 'server', label: 'Nation names', globe: true,
         get: () => showNationNames, set: (v) => { showNationNames = v; globeRequestDraw(); if (hist.on) histPaint(); } },
-      { group: 'server', label: 'Players', globe: true,
+      { group: 'server', label: 'Players', globe: true, needs: () => !hist.on,
         get: () => showPlayers, set: (v) => setShowPlayers(v),
-        meta: () => (showPlayers && onlinePlayers.length ? fmt(onlinePlayers.length) : '') },
-      { group: 'server', label: 'Nation range', globe: true,
+        meta: () => (hist.on ? 'live only' : showPlayers && onlinePlayers.length ? fmt(onlinePlayers.length) : '') },
+      { group: 'server', label: 'Nation range', globe: true, needs: () => !hist.on,
+        meta: () => (hist.on ? 'live only' : ''),
         get: () => showNationRange,
         set: (v) => { showNationRange = v; renderNationRange(); renderNationCard(); globeRequestDraw(); },
         when: () => mapWorld !== 'moon' },
@@ -9431,12 +10173,15 @@ class MapController{
           ? (globe.view && globe.view.bpp > 16 / CHUNK_MIN_PX ? 'zoom in' : '')
           : (self.map.getZoom() < -1 ? 'zoom in' : '')) },
       // ETHIOPIA
+      // Ethiopia's own layers: for citizens away from the Global view, and
+      // for visa holders who are let see them. A visa holder's Planning tab is
+      // not Ethiopia's, so it does not bring them up.
       { group: 'ethiopia', label: 'Regions', globe: true,
         get: () => showRegions, set: (v) => { showRegions = v; applyRegionVisibility(); globeRequestDraw(); },
-        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
+        when: () => (!viewerIsPerk() && currentScope() !== 'global') || perkSeesEthiopia() },
       { group: 'ethiopia', label: 'Counties', globe: true,
         get: () => showCounties, set: (v) => { setShowCounties(v); globeRequestDraw(); },
-        when: () => currentScope() !== 'global' || perkSeesEthiopia() },
+        when: () => (!viewerIsPerk() && currentScope() !== 'global') || perkSeesEthiopia() },
       // Ethiopia's own drawn borders: the Worker never sends them to a visa
       // holder, so the row would switch nothing on.
       { group: 'ethiopia', label: 'Drawn claims', globe: true,
@@ -9444,7 +10189,7 @@ class MapController{
         when: () => !viewerIsPerk() },
       { group: 'ethiopia', label: 'Ice highways', globe: true,
         get: () => showHighways, set: (v) => { showHighways = v; renderHighways(); renderHighwayRoute(); globeRequestDraw(); },
-        when: () => currentScope() !== 'global' },
+        when: () => !viewerIsPerk() && currentScope() !== 'global' },
       // EARTH
       { group: 'earth', label: 'Real-world borders', globe: true,
         get: () => irlState.on, set: (v) => { setShowIrl(v); globeRequestDraw(); },
@@ -9877,6 +10622,7 @@ function refreshMapLayers(){
     renderHighways();
     renderNationRange();
     globeRequestDraw();
+    focusRedraw();
     irlRankSoon();
     if (mapController.updateLayerMeta) mapController.updateLayerMeta();
     if (viewerIsPerk()){
@@ -9946,6 +10692,9 @@ function buildTownPopupHtml(t){
       <tr><td>Coordinates</td><td>X ${Math.round(t.mcX).toLocaleString()}, Z ${Math.round(t.mcZ).toLocaleString()}</td></tr>
     </table>
     ${residentHtml}
+    ${t.nationName ? `<div style="margin-top:.45rem"><button type="button" class="btn btn-ghost btn-small"
+        onclick="window.focusNationFromPopup('${escapeHtml(t.nationName).replace(/'/g, "\\'")}')">
+        Highlight ${escapeHtml(t.nationName)}</button></div>` : ''}
     <div class="planner-only" style="margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--line)">
       <button type="button" class="btn btn-ghost btn-small"
         onclick="window.planFromPopup('${escapeHtml(t.name).replace(/'/g, "\\'")}')">
@@ -10264,7 +11013,7 @@ function clearClaimIndex(){
 }
 
 function renderNationClaims(allTowns){
-  let towns = townsForActiveView(allTowns);
+  let towns = focusFilter(townsForActiveView(allTowns));
   if (!showClaims || hist.on){ clearClaimIndex(); placeAllMarkers(); return; }
 
   /* Low quality drops claim outlines entirely — they are the most expensive
@@ -10569,61 +11318,37 @@ function renderNationRange(){
     (anchors.some(a => a.isCapital) ? '' : ' — no capital found, so no 5,000 circle'), 'info');
 }
 
-function renderExpansionOverlay(){
-  const group = mapController.planLayerGroup;
-  if (!group) return;
-  group.clearLayers();
-
+/* What the planner draws, as plain shapes in blocks, so the flat map and the
+   globe draw exactly the same thing. Each item is a shape (rings of [x, z]
+   with a Leaflet-style look, and an optional label on its first ring) or a
+   label at a point. */
+function expShapeRings(keys){
+  if (!keys || !keys.size) return null;
+  const list = [...keys].map(k => k.split(',').map(Number));
   /* Traced as ONE outline around the whole set, using the same edge-walk the
-     real town claims use — not a box per chunk. A 300-chunk selection drawn
-     as 300 squares is a grid of borders where the shape should be, and the
-     interior lines are exactly the thing that stops it reading as territory.
-     traceChunkOutlines handles holes and diagonal touches already. */
-  const shape = (keys, style) => {
-    if (!keys || !keys.size) return;
-    const list = [...keys].map(k => k.split(',').map(Number));
-    let rings = null;
-    try { rings = traceChunkOutlines(list); } catch (_e) { rings = null; }
-    if (!rings || !rings.length){
-      /* Falls back to squares only if the trace cannot close the loops —
-         better a grid than nothing at all. */
-      list.forEach(([cx, cz]) => {
-        L.polygon([
-          CoordUtils.mcToLatLng(cx * 16,      cz * 16),
-          CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16),
-          CoordUtils.mcToLatLng(cx * 16 + 16, cz * 16 + 16),
-          CoordUtils.mcToLatLng(cx * 16,      cz * 16 + 16),
-        ], Object.assign({ interactive: false, pmIgnore: true }, style)).addTo(group);
-      });
-      return;
-    }
-    rings.forEach(ring => {
-      L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)),
-        Object.assign({ interactive: false, pmIgnore: true }, style)).addTo(group);
-    });
-  };
+     real town claims use — not a box per chunk, whose interior lines stop a
+     selection reading as territory. Squares only if the trace fails. */
+  let rings = null;
+  try { rings = traceChunkOutlines(list); } catch (_e) { rings = null; }
+  if (rings && rings.length) return rings;
+  return list.map(([cx, cz]) => [[cx * 16, cz * 16], [cx * 16 + 16, cz * 16], [cx * 16 + 16, cz * 16 + 16], [cx * 16, cz * 16 + 16]]);
+}
 
-  /* A finished plan is the town's real chunks PLUS the additions, traced as
-     one shape — which is what makes the new land indistinguishable from the
-     old rather than a patch sitting beside it. */
-  const finishedShape = (plan, style) => {
-    const keys = new Set((plan.town.claimChunks || []).map(([x, z]) => expKey(x, z)));
-    plan.removed.forEach(k => keys.delete(k));
-    plan.added.forEach(k => keys.add(k));
-    shape(keys, style);
-  };
+function expOverlayItems(){
+  const items = [];
+  const shape = (keys, st) => { const rings = expShapeRings(keys); if (rings) items.push({ t: 'shape', rings, st }); };
+  const outline = (rings, st, label) => { if (rings && rings.length) items.push({ t: 'shape', rings, st, label }); };
 
   /* ---- planned towns ----
      A town that does not exist has no claims to draw, so its planned land is
      drawn here: dashed, in its nation's colour, labelled with its name and
-     mayor. Finished plans and shown saved plans alike. */
+     mayor. */
   const drawPlanned = (town, keys) => {
     if (!keys || !keys.size) return;
     const col = nationColors(town.nationName || HOME_NATION);
     shape(keys, { color: col.outline, weight: 2.5, opacity: 1, dashArray: '7 4', fillColor: col.fill, fillOpacity: .28 });
-    L.marker(CoordUtils.mcToLatLng(town.mcX, town.mcZ), { interactive: false, pmIgnore: true,
-      icon: L.divIcon({ className: '', html: '<div class="nt-label">' + escapeHtml(town.name) +
-        '<span>planned' + (town.planned && town.planned.mayor ? ' · ' + escapeHtml(town.planned.mayor) : '') + '</span></div>' }) }).addTo(group);
+    items.push({ t: 'label', x: town.mcX, z: town.mcZ, name: town.name,
+      sub: 'planned' + (town.planned && town.planned.mayor ? ' · ' + town.planned.mayor : '') });
   };
   expansionState.plans.forEach((plan, name) => {
     if (plan.town.planned && expansionState.editing !== name) drawPlanned(plan.town, plan.added);
@@ -10644,160 +11369,188 @@ function renderExpansionOverlay(){
       const sel = watchState.selected === fc.town.name;
       const colour = fc.overNow > 0 ? '#ef4444' : fc.firstOverDay !== null ? '#f59e0b' : null;
       if (!colour && !sel) return;
-      const rings = tracedOutlinesFor(fc.town);
-      if (!rings) return;
-      rings.forEach(ring => L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
+      outline(tracedOutlinesFor(fc.town), {
         color: sel ? '#ffffff' : colour, weight: sel ? 5 : 3, opacity: .9,
-        dashArray: fc.overNow > 0 || sel ? null : '6 4',
-        fill: false, interactive: false, pmIgnore: true,
-      }).addTo(group));
+        dashArray: fc.overNow > 0 || sel ? null : '6 4', fill: false });
     });
-    return;
+    return items;
   }
 
   /* ---- town mode ---- */
   if (expansionState.mode === 'town'){
     expansionState.plans.forEach((plan, name) => {
-      const editing = expansionState.editing === name;
+      if (expansionState.editing !== name) return;
+      /* Being painted: added and removed in two colours, never two opacities
+         of one, since they are opposite decisions. */
+      const fresh = new Set(), over = new Set();
+      plan.added.forEach(k => {
+        const [x, z] = k.split(',').map(Number);
+        const o = chunkOwnerAt(x, z);
+        (o && o.name !== plan.town.name ? over : fresh).add(k);
+      });
+      shape(fresh, { color: COLORS.sage, weight: 2, opacity: 1, fillColor: COLORS.sage, fillOpacity: .30 });
+      /* Taken from another town, split by whether each victim is far enough
+         over its limit on the planned day: orange can be taken by then, red
+         cannot yet. */
+      const okSet = new Set(), noSet = new Set();
+      const byVictim = new Map();
+      over.forEach(k => {
+        const [x, z] = k.split(',').map(Number);
+        const o = chunkOwnerAt(x, z);
+        if (!byVictim.has(o.name)) byVictim.set(o.name, { town: o, keys: [] });
+        byVictim.get(o.name).keys.push(k);
+      });
+      byVictim.forEach(v => {
+        const at = overAt(v.town, expansionState.asOf || 0);
+        const allowed = Math.max(0, at === null ? 0 : at);
+        v.keys.forEach((k, i) => (i < allowed ? okSet : noSet).add(k));
+      });
+      shape(okSet, { color: '#f97316', weight: 2.5, opacity: 1, fillColor: '#f97316', fillOpacity: .42 });
+      shape(noSet, { color: '#ef4444', weight: 2.5, opacity: 1, dashArray: '5 3', fillColor: '#ef4444', fillOpacity: .30 });
 
-      if (editing){
-        /* Being painted: two colours, not two opacities of one. Added and
-           removed are opposite decisions and must never be mistaken for each
-           other at a glance. Each traced as one shape so the selection reads
-           as an area rather than a grid. */
-        const fresh = new Set(), over = new Set();
-        plan.added.forEach(k => {
-          const [x, z] = k.split(',').map(Number);
-          const o = chunkOwnerAt(x, z);
-          (o && o.name !== plan.town.name ? over : fresh).add(k);
+      /* While overclaiming, every town near the plan that is over its limit
+         — today, or by the planned day — is outlined and labelled. */
+      if (expansionState.overclaim){
+        const asOf = expansionState.asOf || 0;
+        expNearbyTowns(plan, EXP_NEARBY_RADIUS).slice(0, 60).forEach(t => {
+          const nowOver = townOverNow(t);
+          const then = overAt(t, asOf);
+          const fc = forecastFor(t.name);
+          const firstDay = fc ? fc.firstOverDay : null;
+          if (!nowOver && !(then > 0) && firstDay === null) return;
+          const col = nowOver ? '#ef4444' : (then > 0 ? '#f59e0b' : '#a8a29e');
+          const label = nowOver
+            ? `${t.name} · ${CoordUtils.fmt(nowOver)} over now` + (then > nowOver ? ` · ${CoordUtils.fmt(then)} by ${dayDate(asOf)}` : '')
+            : then > 0 ? `${t.name} · ${CoordUtils.fmt(then)} over by ${dayDate(asOf)}`
+            : `${t.name} · over from ${dayDate(firstDay)}`;
+          outline(tracedOutlinesFor(t), { color: col, weight: 2.5, opacity: .95, dashArray: nowOver ? null : '6 4', fill: false }, label);
         });
-        shape(fresh, {
-          color: COLORS.sage, weight: 2, opacity: 1,
-          fillColor: COLORS.sage, fillOpacity: .30 });
-        /* Taken from another town: its own colour, so an overclaim is never
-           mistaken for empty ground. */
-        /* Split by whether each victim is far enough over its limit on the
-           planned day: orange can be taken by then, red cannot yet. */
-        const okSet = new Set(), noSet = new Set();
-        const byVictim = new Map();
-        over.forEach(k => {
-          const [x, z] = k.split(',').map(Number);
-          const o = chunkOwnerAt(x, z);
-          if (!byVictim.has(o.name)) byVictim.set(o.name, { town: o, keys: [] });
-          byVictim.get(o.name).keys.push(k);
-        });
-        byVictim.forEach(v => {
-          const at = overAt(v.town, expansionState.asOf || 0);
-          const allowed = Math.max(0, at === null ? 0 : at);
-          v.keys.forEach((k, i) => (i < allowed ? okSet : noSet).add(k));
-        });
-        shape(okSet, {
-          color: '#f97316', weight: 2.5, opacity: 1,
-          fillColor: '#f97316', fillOpacity: .42 });
-        shape(noSet, {
-          color: '#ef4444', weight: 2.5, opacity: 1, dashArray: '5 3',
-          fillColor: '#ef4444', fillOpacity: .30 });
-
-        /* While overclaiming, every town near the plan that is over its limit
-           — today, or by the planned day — is outlined and labelled, so what
-           can be taken is visible before painting. */
-        if (expansionState.overclaim){
-          const asOf = expansionState.asOf || 0;
-          expNearbyTowns(plan, EXP_NEARBY_RADIUS).slice(0, 60).forEach(t => {
-            const nowOver = townOverNow(t);
-            const then = overAt(t, asOf);
-            const fc = forecastFor(t.name);
-            const firstDay = fc ? fc.firstOverDay : null;
-            if (!nowOver && !(then > 0) && firstDay === null) return;
-            const rings = tracedOutlinesFor(t);
-            if (!rings) return;
-            const col = nowOver ? '#ef4444' : (then > 0 ? '#f59e0b' : '#a8a29e');
-            const label = nowOver
-              ? `${t.name} · ${CoordUtils.fmt(nowOver)} over now` + (then > nowOver ? ` · ${CoordUtils.fmt(then)} by ${dayDate(asOf)}` : '')
-              : then > 0 ? `${t.name} · ${CoordUtils.fmt(then)} over by ${dayDate(asOf)}`
-              : `${t.name} · over from ${dayDate(firstDay)}`;
-            rings.forEach((ring, i) => {
-              const poly = L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
-                color: col, weight: 2.5, opacity: .95, dashArray: nowOver ? null : '6 4',
-                fill: false, interactive: false, pmIgnore: true,
-              }).addTo(group);
-              if (i === 0) poly.bindTooltip(escapeHtml(label), { permanent: true, direction: 'center', className: 'oc-label' });
-            });
-          });
-        }
-        shape(plan.removed, {
-          color: COLORS.danger, weight: 2, opacity: 1,
-          fillColor: COLORS.danger, fillOpacity: .22, dashArray: '4 3' });
-        return;
       }
-
-      /* Locked in: drawn EXACTLY as the town's real claim is drawn — same
-         colour, same weight, same fill, no dash. That is the point of locking
-         in: the new land should be indistinguishable from the old so you can
-         judge the resulting shape, not admire a selection sitting on top of
-         it. Which chunks are planned is answered by the panel, not by making
-         the map worse at its job. */
-      /* Nothing drawn here. A locked plan is traced into the town's own claim
-         by tracedOutlinesFor, so the claim layer draws it — one shape, flush
-         borders, and the town's popup on every chunk of it. Drawing anything
-         here would put a second outline over the first, which is exactly the
-         seam that made a finished plan look like a separate town. */
+      shape(plan.removed, { color: COLORS.danger, weight: 2, opacity: 1, fillColor: COLORS.danger, fillOpacity: .22, dashArray: '4 3' });
+      /* Locked plans draw nothing here: they are traced into the town's own
+         claim by tracedOutlinesFor, so the claim layer draws them as one
+         shape with flush borders. */
     });
 
-    /* Saved groups that are switched on, drawn the same finished way. */
+    /* A shown saved group is fused into each town's own claim too. Only a
+       town that has since left the map needs drawing here. */
     expansionState.saved.forEach(g => {
       if (!expansionState.showing.has(g.id)) return;
-      /* Same reasoning: a shown group is fused into each town's own claim.
-         Only a town that has since left the map needs drawing here, since
-         there is no claim left to fuse it into. */
       g.towns.forEach(entry => {
-        if (ncAllTowns().some(x => x.name === entry.name)) return;
-        shape(new Set(entry.added), {
-          color: COLORS.muted, weight: 2, opacity: .8, dashArray: '4 3',
-          fillColor: COLORS.muted, fillOpacity: .18 });
+        if (entry.planned || ncAllTowns().some(x => x.name === entry.name)) return;
+        shape(new Set(entry.added), { color: COLORS.muted, weight: 2, opacity: .8, dashArray: '4 3', fillColor: COLORS.muted, fillOpacity: .18 });
       });
     });
 
-    if (expansionState.dragFrom){
-      const [cx, cz] = expansionState.dragFrom;
-      L.circleMarker(CoordUtils.mcToLatLng(cx * 16 + 8, cz * 16 + 8), {
-        radius: 5, color: COLORS.brassHi, weight: 2,
-        fillColor: COLORS.ink, fillOpacity: 1,
-        interactive: false, pmIgnore: true,
-      }).addTo(group);
+    /* A box being dragged: what it will do, before it does it. */
+    const b = expansionState.box;
+    if (b){
+      const x0 = Math.min(b.from[0], b.to[0]) * 16, x1 = (Math.max(b.from[0], b.to[0]) + 1) * 16;
+      const z0 = Math.min(b.from[1], b.to[1]) * 16, z1 = (Math.max(b.from[1], b.to[1]) + 1) * 16;
+      const adds = b.mode === 'add';
+      const col = adds ? COLORS.sageHi : b.mode === 'remove' ? COLORS.danger : COLORS.brassHi;
+      const bw = (x1 - x0) / 16, bh = (z1 - z0) / 16;
+      items.push({ t: 'shape', rings: [[[x0, z0], [x1, z0], [x1, z1], [x0, z1]]],
+        st: { color: col, weight: 2, opacity: 1, dashArray: '6 4', fillColor: col, fillOpacity: .12 },
+        label: bw + ' × ' + bh + ' · ' + (adds ? 'add' : b.mode === 'remove' ? 'drop' : 'erase') });
     }
-    return;
+    return items;
   }
 
   /* ---- nation mode ----
-     Towns moving IN are repainted in the target nation's real colour, which
-     is the whole point: the map shows what the nation would look like, not a
-     list of names. Towns moving OUT are hollowed rather than hidden, because
-     losing them is also a result worth seeing. */
+     Towns moving IN are repainted in the target nation's real colour by
+     townColors, so the claim layer itself draws the change. All this adds is
+     a white halo saying "this one is the change", dropped when Finished. */
   const target = expansionState.nation;
-  if (!target) return;
-  const tint = nationColors(target).fill;
-
+  if (!target || expansionState.finished) return items;
   ncAllTowns().forEach(t => {
     if (t.isMoon) return;
     const joining = expansionState.joining.has(t.name);
     const leaving = expansionState.leaving.has(t.name);
     if (!joining && !leaving) return;
-    const rings = tracedOutlinesFor(t);
-    if (!rings) return;
-    /* ONLY the halo. The town's colour is handled by townColors above, which
-       means the claim layer itself now draws it in the target nation's colour
-       — a real recolour, not a translucent wash letting the old one through.
-       All this adds is a white glow saying "this one is the change". */
-    if (expansionState.finished) return;   // the result, with nothing marking it
-    rings.forEach(ring => {
-      L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)), {
-        color: '#ffffff', weight: 5, opacity: joining ? .6 : .4,
-        dashArray: joining ? null : '5 4',
-        fill: false, interactive: false, pmIgnore: true,
-      }).addTo(group);
+    outline(tracedOutlinesFor(t), { color: '#ffffff', weight: 5, opacity: joining ? .6 : .4, dashArray: joining ? null : '5 4', fill: false });
+  });
+  return items;
+}
+
+function renderExpansionOverlay(){
+  const items = expansionState.items = expOverlayItems();
+  globeRequestDraw();
+  const group = mapController && mapController.planLayerGroup;
+  if (!group) return;
+  group.clearLayers();
+  items.forEach(it => {
+    if (it.t === 'label'){
+      L.marker(CoordUtils.mcToLatLng(it.x, it.z), { interactive: false, pmIgnore: true,
+        icon: L.divIcon({ className: '', html: '<div class="nt-label">' + escapeHtml(it.name) +
+          '<span>' + escapeHtml(it.sub || '') + '</span></div>' }) }).addTo(group);
+      return;
+    }
+    it.rings.forEach((ring, i) => {
+      const poly = L.polygon(ring.map(([x, z]) => CoordUtils.mcToLatLng(x, z)),
+        Object.assign({ interactive: false, pmIgnore: true }, it.st)).addTo(group);
+      if (i === 0 && it.label) poly.bindTooltip(escapeHtml(it.label), { permanent: true, direction: 'center', className: 'oc-label' });
     });
   });
+}
+
+/* The same shapes on the globe. Rings are turned into globe vectors once per
+   rebuild of the items and kept on them. */
+function globeDrawPlanning(ctx, V, zoomK){
+  const items = expansionState.items || [];
+  const hover = expHoverRing();
+  if ((!items.length && !hover) || mapWorld === 'moon') return;
+  const labels = [];
+  ctx.save();
+  ctx.lineJoin = 'round';
+  items.forEach(it => {
+    if (it.t === 'label'){ labels.push([it.x, it.z, it.name, it.sub]); return; }
+    if (!it.es) it.es = it.rings.map(r => globeRing(r, 256, null, true));
+    const es = it.es.filter(e => e.n > 2 && globeSeen(V, e.c, e.rad));
+    if (!es.length) return;
+    const st = it.st;
+    ctx.beginPath();
+    let front = false;
+    es.forEach(e => { if (globeProjectRing(V, e) < e.n) front = true; globePathFill(ctx, V, e.n); });
+    if (!front) return;
+    if (st.fill !== false && st.fillColor){
+      ctx.globalAlpha = st.fillOpacity == null ? .2 : st.fillOpacity;
+      ctx.fillStyle = st.fillColor; ctx.fill('evenodd');
+    }
+    ctx.globalAlpha = st.opacity == null ? 1 : st.opacity;
+    ctx.strokeStyle = st.color || '#fff';
+    ctx.lineWidth = st.weight || 2;
+    ctx.setLineDash(st.dashArray ? String(st.dashArray).split(/[ ,]+/).map(Number) : []);
+    ctx.beginPath();
+    es.forEach(e => { globeProjectRing(V, e); globePathLine(ctx, V, e.n, true); });
+    ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    if (it.label){
+      const xz = it.rings[0], n = xz.length;
+      let sx = 0, sz = 0; xz.forEach(p => { sx += p[0]; sz += p[1]; });
+      labels.push([sx / n, sz / n, it.label, null]);
+    }
+  });
+  if (hover){
+    const e = globeRing(hover, 8, null, true);
+    globeProjectRing(V, e);
+    ctx.beginPath(); globePathLine(ctx, V, e.n, true);
+    ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = COLORS.brassHi; ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  labels.forEach(([x, z, name, sub]) => {
+    const p = globeProject(V.M, globeVecOfBlock(x, z));
+    if (!p || p[2] < V.zl) return;
+    ctx.font = `600 ${Math.round(10 + zoomK)}px ${globe.font}`;
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,8,10,.8)'; ctx.fillStyle = '#f5f1e8';
+    ctx.strokeText(name, p[0], p[1]); ctx.fillText(name, p[0], p[1]);
+    if (sub){
+      ctx.font = `500 ${Math.round(9 + zoomK * .5)}px ${globe.font}`;
+      ctx.fillStyle = COLORS.brassHi;
+      ctx.strokeText(sub, p[0], p[1] + 12); ctx.fillText(sub, p[0], p[1] + 12);
+    }
+  });
+  ctx.restore();
 }
 
 function renderExpansionPanel(){
@@ -10816,9 +11569,15 @@ function renderExpansionPanel(){
     const plans = [...expansionState.plans.values()];
     const editing = expansionState.editing;
 
+    if (!editing){
+      out += '<div class="pl-pick"><input type="text" id="expPick" list="expPickList" autocomplete="off" ' +
+        'placeholder="Town to plan" aria-label="Town to plan">' +
+        '<button type="button" class="btn btn-accent btn-small" id="expPickGo">Plan</button></div>';
+      expEnsureTownList();
+    }
     if (!plans.length && !editing){
-      out += '<p class="empty-hint">Open a town on the map and choose ' +
-        '&ldquo;Plan expansion&rdquo;, or plan a new town below. Several towns can be planned at once.</p>';
+      out += '<p class="empty-hint">Type a town above, or open one on the map or globe and choose ' +
+        '&ldquo;Plan expansion&rdquo;. A new town can be planned below. Several towns can be planned at once.</p>';
     }
     if (!editing) out += newTownFormHtml();
 
@@ -10828,15 +11587,7 @@ function renderExpansionPanel(){
     if (editing){
       const plan = expPlanFor(editing);
       const f = expTownFigures(plan);
-      const verdict = f.overNext > 0
-        ? `<div class="eth-alert" style="margin-bottom:.6rem">${n(f.overNext)} chunks over ` +
-          `the limit — overclaimable. Needs ${n(f.residentsNeeded)} more ` +
-          `resident${f.residentsNeeded === 1 ? '' : 's'}, or a shield at ${n(f.shieldNext)}g a day.</div>`
-        : `<div style="padding:.35rem .55rem;border-radius:var(--radius-sm);margin-bottom:.6rem;` +
-          `background:rgba(24,157,77,.14);border:1px solid var(--sage);color:var(--sage-hi);` +
-          `font-family:var(--font-mono);font-size:.7rem">Within the limit — ` +
-          `${n(f.limitNext - f.next)} chunks of headroom.</div>`;
-
+      const tool = expansionState.tool;
       const row = (label, a, b) => {
         const changed = String(a) !== String(b);
         return `<div class="econ-row"><span>${escapeHtml(label)}</span>` +
@@ -10844,19 +11595,49 @@ function renderExpansionPanel(){
           (changed ? ` <span style="color:var(--brass-hi)">&#8594; ${escapeHtml(String(b))}</span>` : '') +
           `</span></div>`;
       };
-
-      out += `<div style="font-family:var(--font-display);font-size:1rem;color:var(--brass-hi);` +
-        `margin-bottom:.4rem">${escapeHtml(editing)}</div>` + verdict +
+      /* How full the town's allowance is, as a bar: what it would hold
+         against what it may hold, with a tick where it stands today. */
+      const pct = (v) => Math.max(0, Math.min(100, f.limitNext ? v / f.limitNext * 100 : 0));
+      const over = f.overNext > 0;
+      const tb = (id, label, key, title) => `<button type="button" class="pl-b${tool === id ? ' on' : ''}" ` +
+        `data-exptool="${id}" aria-pressed="${tool === id}" title="${title}">${label}<kbd>${key}</kbd></button>`;
+      out += '<div class="pl-card">' +
+        `<div class="pl-head"><div class="pl-name"><b>${escapeHtml(editing)}</b>` +
+          `<span>${escapeHtml(plan.town.nationName || 'No nation')}${plan.town.planned ? ' · planned town' : ''}</span></div>` +
+          `<button type="button" class="hw-mini" data-expfind="${escapeHtml(editing)}">find</button></div>` +
+        `<div class="pl-meter${over ? ' over' : ''}">` +
+          `<div class="pl-bar"><i style="width:${pct(f.next).toFixed(1)}%"></i>` +
+            (f.now !== f.next ? `<em style="left:${pct(f.now).toFixed(1)}%" title="Today: ${n(f.now)}"></em>` : '') + '</div>' +
+          `<div class="pl-meter-t"><span><b>${n(f.next)}</b> of ${n(f.limitNext)} chunks</span>` +
+            `<span>${over ? n(f.overNext) + ' over the limit' : n(f.limitNext - f.next) + ' to spare'}</span></div>` +
+          (over ? `<p class="pl-warn">Overclaimable. Needs ${n(f.residentsNeeded)} more resident` +
+            `${f.residentsNeeded === 1 ? '' : 's'}, or a shield at ${n(f.shieldNext)}g a day.</p>` : '') +
+        '</div>' +
+        '<div class="pl-tools" role="toolbar" aria-label="Painting tools">' +
+          '<div class="pl-seg">' + tb('brush', 'Brush', 'B', 'Drag to paint (B)') + tb('box', 'Box', 'R', 'Drag a rectangle (R)') +
+            tb('pan', 'Pan', 'H', 'Dragging moves the map; a click toggles one chunk (H)') + '</div>' +
+          (tool === 'brush' ? '<div class="pl-seg pl-size" title="Brush width in chunks — [ and ]">' + [1, 3, 5].map(b =>
+            `<button type="button" class="pl-b${expansionState.brush === b ? ' on' : ''}" data-expbrush="${b}" ` +
+            `aria-pressed="${expansionState.brush === b}" aria-label="Brush ${b} by ${b} chunks">${b}×${b}</button>`).join('') + '</div>' : '') +
+          '<div class="pl-seg">' +
+            `<button type="button" class="pl-b" id="expUndo" title="Undo (Ctrl+Z)" aria-label="Undo"${expansionState.undo.length ? '' : ' disabled'}>&#8630;</button>` +
+            `<button type="button" class="pl-b" id="expRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"${expansionState.redo.length ? '' : ' disabled'}>&#8631;</button>` +
+          '</div></div>' +
+        `<p class="pl-hint">${tool === 'brush' ? 'Drag to paint. Start on something you drew to erase it, or on the town’s own land to mark it for dropping.'
+          : tool === 'box' ? 'Drag a rectangle. Where it starts decides what it does, the same as the brush.'
+          : 'Dragging moves the map. Click a chunk to add or drop it.'}${tool !== 'box' ? ' Shift-drag for a box.' : ''}</p>` +
         '<div class="econ-breakdown">' +
           row('Chunks', n(f.now), n(f.next)) +
           row('Claim limit', n(f.limitNow), n(f.limitNext)) +
-          row('Residents', n(f.residentsNow), n(f.residentsNext)) +
+          '<div class="econ-row"><span>Residents</span><span class="econ-num pl-res">' +
+            '<button type="button" class="pl-step" id="expMinus" aria-label="One fewer resident">&minus;</button>' +
+            `<span>${n(f.residentsNow)}${f.residentsNow !== f.residentsNext ? ` <span style="color:var(--brass-hi)">&#8594; ${n(f.residentsNext)}</span>` : ''}</span>` +
+            '<button type="button" class="pl-step" id="expPlus" aria-label="One more resident">+</button></span></div>' +
           row('Over the limit', n(f.overNow), n(f.overNext)) +
           row('Shield, per day', f.shieldNow + 'g', f.shieldNext + 'g') +
+          `<div class="econ-row"><span>Cost to claim</span><span class="econ-num" style="color:var(--brass-hi)">${n(f.goldCost)}g</span></div>` +
         '</div>' +
-        `<div class="econ-row" style="border:none;margin-top:.4rem"><span>Cost to claim</span>` +
-          `<span class="econ-num" style="color:var(--brass-hi)">${n(f.goldCost)}g</span></div>` +
-        `<p class="hint" style="margin-top:.3rem">${n(plan.added.size)} added, ` +
+        `<p class="hint" style="margin:.1rem 0 0">${n(plan.added.size)} added, ` +
           `${n(plan.removed.size)} removed · limit is ${PLAN_BASE_CLAIMS} + ` +
           `${PLAN_PER_RESIDENT}/resident + ${n(f.bonus)} nation bonus` +
           `${f.bonusEstimated ? ' (estimated)' : ''}</p>` +
@@ -10912,23 +11693,19 @@ function renderExpansionPanel(){
           }
           return h + '</div>';
         })() +
-        '<div class="hw-route-controls" style="margin-top:.4rem">' +
-          '<button type="button" class="btn btn-primary btn-small" id="expMinus">&minus; res</button>' +
-          '<button type="button" class="btn btn-primary btn-small" id="expPlus">+ res</button>' +
-          '<button type="button" class="btn btn-primary btn-small" id="expClearOne">Clear</button>' +
-          `<button type="button" class="btn ${expansionState.panMode ? 'btn-accent' : 'btn-primary'} ` +
-            'btn-small" id="expPan">' + (expansionState.panMode ? 'Panning' : 'Pan') + '</button>' +
-          '<button type="button" class="btn btn-accent btn-small" id="expLock">Finish</button>' +
+        '<div class="pl-foot">' +
+          '<button type="button" class="btn btn-ghost btn-small" id="expClearOne">Clear</button>' +
+          '<button type="button" class="btn btn-accent btn-small" id="expLock" title="Finish (Enter)">Finish</button>' +
         '</div>' +
-        '<p class="hint" style="margin-top:.4rem">Drag to paint, drag again over what ' +
-          'you drew to erase it. The first chunk of a stroke decides what the whole ' +
-          'stroke does &mdash; empty ground adds, your own land marks it to drop, ' +
-          'anything already marked takes it back. ' +
-          'Shift-click two corners still fills a rectangle. Finishing draws it as part ' +
-          'of the town, colours and all, so you can judge the shape.<br>' +
-          'Dragging paints rather than pans while a town is open &mdash; scroll still ' +
-          'zooms, and <b>Pan</b> hands dragging back.<br>' +
-          'With <b>overclaiming</b> on, painting over another town takes its land.</p>';
+        '<details class="pl-help"><summary>How painting works</summary><p>' +
+          'The first chunk of a stroke decides what the whole stroke does: empty ground adds, the town’s own ' +
+          'land marks it to drop, and anything already marked takes it back. Box works the same way over a rectangle. ' +
+          'Finishing draws the plan as part of the town, colours and all, so you can judge the shape.</p><p>' +
+          'While painting, dragging paints rather than moves the map. Scroll still zooms; Pan hands dragging back. ' +
+          'On the globe, two fingers still turn and pinch.</p><p>' +
+          'With <b>overclaiming</b> on, painting over another town takes its land. Keys: B brush, R box, H pan, ' +
+          '[ and ] brush size, Ctrl+Z undo, Ctrl+Shift+Z redo, Enter finish.</p></details>' +
+      '</div>';
     }
 
     const locked = plans.filter(p => p.locked);
@@ -11178,11 +11955,23 @@ function renderExpansionPanel(){
   bind('expMinus', () => { if (plan){ plan.extra = Math.max(0, plan.extra - 1); renderExpansionPanel(); } });
   bind('expClearOne', () => {
     if (!plan) return;
+    if (plan.added.size || plan.removed.size || plan.extra) expSnapshot(plan);
     plan.added.clear(); plan.removed.clear(); plan.extra = 0;
     expansionState.dragFrom = null;
     renderExpansionOverlay(); renderExpansionPanel();
   });
   bind('expLock', expLockIn);
+  const pick = document.getElementById('expPick');
+  const pickGo = () => {
+    const want = (pick && pick.value || '').trim().toLowerCase();
+    if (!want) return;
+    const t = ncAllTowns().find(x => !x.isMoon && x.name.toLowerCase() === want);
+    if (!t){ auditLog.log(`No loaded town is called "${pick.value.trim()}"`, 'warn'); return; }
+    window.planFromPopup(t.name);
+    focusNationTownsOne(t);
+  };
+  bind('expPickGo', pickGo);
+  if (pick) pick.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); pickGo(); } });
   bind('ntGo', expArmNewTown);
   bind('ntCancel', () => { expansionState.placingNew = null; renderExpansionPanel(); refreshInteractivity(); });
   const asOfEl = document.getElementById('expAsOf');
@@ -11277,11 +12066,10 @@ function renderExpansionPanel(){
   renderExpansionOverlay(); renderExpansionPanel(); refreshInteractivity(); expSetDragging();
   });
 
-  bind('expPan', () => {
-    expansionState.panMode = !expansionState.panMode;
-    expSetDragging();
-    renderExpansionPanel();
-  });
+  host.querySelectorAll('[data-exptool]').forEach(b => b.addEventListener('click', () => expSetTool(b.dataset.exptool)));
+  host.querySelectorAll('[data-expbrush]').forEach(b => b.addEventListener('click', () => expSetBrush(Number(b.dataset.expbrush))));
+  bind('expUndo', expUndo);
+  bind('expRedo', expRedo);
   bind('expSave', () => {
     const name = (window.prompt('Name this expansion plan',
       'Expansion ' + (expansionState.saved.length + 1)) || '').trim();
@@ -11377,7 +12165,7 @@ function renderTownMarkers(allTowns){
   const group = mapController.townsLayerGroup;
   if (!markerZoomHooked){ markerZoomHooked = true; mapController.map.on('zoomend', placeAllMarkers); }
   if (!showTowns || hist.on){ group.clearLayers(); markerIndex.clear(); return; }
-  const towns = townsForActiveView(allTowns);
+  const towns = focusFilter(townsForActiveView(allTowns));
   const interactive = !drawModeArmed();
   const keep = new Set();
   towns.forEach(t => {
@@ -11828,6 +12616,7 @@ function untrackNation(name){
     state.towns = state.towns.filter(t => (t.nationName || '') !== name);
   }
   if (nationView.activeNation === name) nationView.activeNation = null;
+  if (nationFocus.name === name) setNationFocus(null);
   auditLog.log(`Stopped showing "${name}" in the Global view`, 'info');
   refreshMapLayers();
   renderSyncPanel();
@@ -11836,6 +12625,7 @@ function untrackNation(name){
 
 function pickNation(name){
   nationView.activeNation = nationView.activeNation === name ? null : name;
+  setNationFocus(nationView.activeNation, { keepAlone: true });
   renderNationPanel(state.towns);
   if (showNationRange) renderNationRange();
   globeRequestDraw();
@@ -11900,6 +12690,7 @@ function renderNationSummary(towns){
     (nationless ? `<span class="nl-all-k">${fmt(nationless)} nationless</span>` : '');
   head.addEventListener('click', () => {
     nationView.activeNation = null;
+    if (nationFocus.name) setNationFocus(null);
     renderNationPanel(state.towns);
     if (showNationRange) renderNationRange();
     globeRequestDraw();
@@ -14309,6 +15100,8 @@ function renderNationCard(){
     <div class="ncard-head">
       <span class="ncard-sw" style="background:${escapeHtml(nationColors(nation).fill)}"></span>
       <h3>${escapeHtml(nation)}</h3>
+      <button type="button" class="btn btn-ghost btn-small${nationFocus.alone && nationFocus.name === nation ? ' on' : ''}" data-act="alone"
+        aria-pressed="${nationFocus.alone && nationFocus.name === nation}" title="Hide every other nation">Show alone</button>
       <button type="button" class="btn btn-ghost btn-small" data-act="zoom">Zoom to</button>
     </div>
     <p class="ncard-lead">${king ? `${playerHead(king, 18)}<span>Led by <b>${escapeHtml(king)}</b>${capital ? ` from ${escapeHtml(capital)}` : ''}</span>`
@@ -14328,6 +15121,9 @@ function renderNationCard(){
   host.hidden = false;
 
   host.querySelector('[data-act="zoom"]').addEventListener('click', () => focusNationTowns(nation));
+  host.querySelector('[data-act="alone"]').addEventListener('click', () => {
+    setNationFocus(nation, { alone: !(nationFocus.alone && nationFocus.name === nation) });
+  });
   const tr = host.querySelector('[data-act="track"]');
   if (tr) tr.addEventListener('click', () => {
     state.targetNations.add(nation);
@@ -17312,20 +18108,49 @@ function hwMapClick(latlng){
 /* Painting runs on mousedown/move/up rather than click, because a drag never
    produces a click at all — Leaflet treats it as a pan gesture. These sit
    alongside the click handler below, which still covers a single tap. */
-mapController.map.on('mousedown', (e) => {
-  if (!expansionState.editing || expansionState.panMode) return;
-  const mc = CoordUtils.latLngToMc(e.latlng);
-  expBeginPaint(Math.floor(mc.x / 16), Math.floor(mc.z / 16));
-});
-mapController.map.on('mousemove', (e) => {
-  if (!expansionState.painting) return;
-  const mc = CoordUtils.latLngToMc(e.latlng);
-  expPaintAt(Math.floor(mc.x / 16), Math.floor(mc.z / 16));
-});
+/* Raw pointer events on the map's box, caught before Leaflet sees them.
+   Leaflet's own mousemove skips events whose target is a label or tooltip,
+   and the planner draws labels right under the pointer (a box's size), so a
+   drag would stall. Pointer events also make a finger paint on a phone; a
+   second finger ends the stroke and Leaflet pinches as usual. */
+{
+  const map = mapController.map, el = map.getContainer();
+  const chunkOf = (e) => {
+    const mc = CoordUtils.latLngToMc(map.mouseEventToLatLng(e));
+    return [Math.floor(mc.x / 16), Math.floor(mc.z / 16)];
+  };
+  let stroke = null;           // the pointer painting, if any
+  el.addEventListener('pointerdown', (e) => {
+    if (stroke !== null && e.pointerId !== stroke){ stroke = null; expEndPaint(); return; }
+    if (!expansionState.editing || expPanning() || e.button !== 0) return;
+    if (e.target.closest && e.target.closest('.leaflet-control, .leaflet-popup, .leaflet-marker-icon')) return;
+    const [cx, cz] = chunkOf(e);
+    if (!expPointerDown(cx, cz, e.shiftKey)) return;
+    stroke = e.pointerId;
+    try { el.setPointerCapture(e.pointerId); } catch (_e) { /* fine without */ }
+    e.preventDefault();
+  }, true);
+  el.addEventListener('pointermove', (e) => {
+    if (!expansionState.editing) return;
+    const [cx, cz] = chunkOf(e);
+    if (e.pointerType === 'mouse') expHoverAt(cx, cz);
+    if (stroke === e.pointerId) expPointerMove(cx, cz);
+  }, true);
+  const lift = (e) => {
+    if (stroke !== e.pointerId) return;
+    stroke = null;
+    try { el.releasePointerCapture(e.pointerId); } catch (_e) { /* already released */ }
+    expEndPaint();
+  };
+  el.addEventListener('pointerup', lift, true);
+  el.addEventListener('pointercancel', lift, true);
+  el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && expansionState.hover && stroke === null){ expansionState.hover = null; expHoverDraw(); } });
+}
 /* On the document, not the map: releasing outside the map still has to end
    the stroke, or the next mousemove over the map keeps painting with no
    button held. */
 document.addEventListener('mouseup', expEndPaint);
+document.addEventListener('pointerup', expEndPaint);
 document.addEventListener('pointercancel', expEndPaint);
 
 mapController.map.on('click', (e) => {
@@ -17349,25 +18174,11 @@ mapController.map.on('click', (e) => {
   if (expansionState.editing){
     const mc = CoordUtils.latLngToMc(e.latlng);
     const cx = Math.floor(mc.x / 16), cz = Math.floor(mc.z / 16);
-    if (e.originalEvent && e.originalEvent.shiftKey){
-      /* Two corners rather than a drag: dragging already means panning on
-         this map, and stealing it would break the thing people do most. */
-      if (!expansionState.dragFrom){
-        expansionState.dragFrom = [cx, cz];
-        renderExpansionOverlay();
-        auditLog.log('Corner set — shift-click the opposite corner', 'info');
-      } else {
-        expFillRect(expansionState.dragFrom, [cx, cz]);
-        expansionState.dragFrom = null;
-      }
-      return;
-    }
-    /* A plain tap has already been handled by the mousedown painter above.
-       Toggling again here would undo it instantly — which is exactly what a
-       single click looked like it was doing. Only the panning case, where
-       the painter stood down, still needs the toggle. */
+    /* A press has already been handled by the painter (brush, box, or a
+       shift-drag box). Toggling again here would undo it at once. Only Pan,
+       where the painter stands down, still needs the toggle. */
     expansionState.dragFrom = null;
-    if (expansionState.panMode) expToggleChunk(cx, cz);
+    if (expPanning()) expToggleChunk(cx, cz);
     return;
   }
   hwMapClick(e.latlng);
@@ -18896,6 +19707,291 @@ function startPerkClock(){
   };
   step();
   perkClock = setInterval(step, 1000);
+}
+
+/* =========================================================================
+   ONE NATION, PICKED OUT
+
+   Picking a nation (in the Global list, from a town's card, or its land on
+   the globe) lights its land: everything else is dimmed behind a veil, and
+   the nation's outline glows in its own colour — the whole nation as one
+   shape, however balkanized the land around it. "Show alone" hides every
+   other nation's towns and territory, so its real size reads at a glance.
+   The nation's own colours are untouched: the veil is cut out over it.
+   ========================================================================= */
+/* (state declared near the top, with the planner's, so anything drawn early can read it) */
+
+function setNationFocus(name, opts){
+  const o = opts || {};
+  const next = name && name !== 'Unaffiliated' ? String(name) : null;
+  const wasAlone = nationFocus.alone, wasName = nationFocus.name;
+  if (next !== nationFocus.name && !o.keepAlone) nationFocus.alone = false;
+  nationFocus.name = next;
+  if (o.alone != null) nationFocus.alone = !!o.alone;
+  if (!next) nationFocus.alone = false;
+  /* Kept in step with the Global list, which filters its table by it. */
+  if (nationView.activeNation !== next && (next || nationView.activeNation === wasName)){
+    nationView.activeNation = next;
+    if (typeof renderNationPanel === 'function') renderNationPanel(state.towns);
+  } else if (typeof renderNationCard === 'function') renderNationCard();
+  if (next !== wasName) nationFocus.t0 = performance.now();
+  /* Hiding the other towns rebuilds the claim layer; only when it changes. */
+  if (wasAlone !== nationFocus.alone || (nationFocus.alone && next !== wasName)){
+    refreshMapLayers();
+    if (liveBorders.layer && liveBorders.layer.redraw) liveBorders.layer.redraw();
+    if (hist.layer && hist.layer.redraw) hist.layer.redraw();
+  }
+  renderFocusChip();
+  focusRedraw();
+  focusPulse();
+  if (hist.on) histLedgerSoon();
+}
+window.focusNationFromPopup = function(name){
+  if (mapController && mapController.map) mapController.map.closePopup();
+  setNationFocus(name);
+};
+
+function focusFilter(list){
+  if (!nationFocus.alone || !nationFocus.name) return list;
+  const want = nationFocus.name.toLowerCase();
+  return list.filter(t => (t.nationName || '').toLowerCase() === want);
+}
+/* The nation's number in a day's territory, or null when nothing is hidden. */
+function focusOnlyId(f){
+  if (!nationFocus.alone || !nationFocus.name || !f || !f.nations) return null;
+  const want = nationFocus.name.toLowerCase();
+  const i = f.nations.findIndex(n => n && String(n.name || '').toLowerCase() === want);
+  return i >= 0 ? i + 1 : -1;
+}
+/* The territory being drawn right now, if any: the timelapse day, or the
+   live nation borders. */
+function focusFrame(){
+  if (hist.on) return hist.frame || null;
+  return liveBordersShown() ? liveBorders.frame : null;
+}
+function focusTowns(){
+  if (hist.on || !nationFocus.name) return [];
+  const want = nationFocus.name.toLowerCase();
+  return townsForActiveView(state.towns || []).filter(t => (t.nationName || '').toLowerCase() === want);
+}
+
+/* The glow colour: the nation's own, lifted toward white enough to read on
+   the veil (a black or navy nation would otherwise glow invisibly). */
+function focusTint(){
+  const hex = (nationColors(nationFocus.name) || {}).fill || '#ffffff';
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  let r = 255, g = 255, b = 255;
+  if (m){ const v = parseInt(m[1], 16); r = v >> 16; g = (v >> 8) & 255; b = v & 255; }
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  const lift = lum < 0.25 ? 0.6 : lum < 0.45 ? 0.38 : 0.18;
+  const mix = (c) => Math.round(c + (255 - c) * lift);
+  return { glow: `rgb(${mix(r)},${mix(g)},${mix(b)})`, line: `rgb(${Math.round(mix(r) * .5 + 127)},${Math.round(mix(g) * .5 + 127)},${Math.round(mix(b) * .5 + 127)})` };
+}
+
+/* The veil, the glow and the outline, composed on a scratch canvas the size
+   of the target and laid over it. `path` is the nation's land in the
+   target's current coordinates; `clip`, if given, limits the veil (the ball,
+   on the globe). */
+function focusCompose(ctx, path, clip){
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  let L2 = nationFocus.scratch;
+  if (!L2) L2 = nationFocus.scratch = document.createElement('canvas');
+  if (L2.width !== W || L2.height !== H){ L2.width = W; L2.height = H; }
+  const c = L2.getContext('2d');
+  const T = ctx.getTransform(), dpr = Math.hypot(T.a, T.b) || 1;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+  c.clearRect(0, 0, W, H);
+  c.setTransform(T);
+  const age = performance.now() - nationFocus.t0;
+  const pulse = age < 1100 ? 1 + 1.6 * Math.pow(1 - age / 1100, 2) : 1;
+  const tint = focusTint();
+  // The veil over everything else.
+  c.save();
+  if (clip) c.clip(clip);
+  c.fillStyle = nationFocus.alone ? 'rgba(6,8,12,.34)' : 'rgba(6,8,12,.52)';
+  c.fillRect(-T.e / dpr - 8, -T.f / dpr - 8, W / dpr + 16, H / dpr + 16);
+  c.restore();
+  c.globalCompositeOperation = 'destination-out';
+  c.fill(path);
+  c.globalCompositeOperation = 'source-over';
+  // The glow: the land drawn with a soft shadow, then the land taken out
+  // again so only the light spilling past its edge is left.
+  c.save();
+  c.shadowColor = tint.glow; c.shadowBlur = 18 * dpr * pulse;
+  c.fillStyle = tint.glow;
+  c.globalAlpha = Math.min(1, 0.75 * pulse);
+  c.fill(path); c.fill(path);
+  c.restore();
+  // A crisp edge, half of it showing outside the land.
+  c.lineJoin = 'round'; c.lineWidth = 3.2; c.strokeStyle = tint.line; c.globalAlpha = .95;
+  c.stroke(path);
+  c.globalAlpha = 1;
+  c.globalCompositeOperation = 'destination-out';
+  c.fill(path);
+  c.globalCompositeOperation = 'source-over';
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(L2, 0, 0);
+  ctx.restore();
+}
+
+/* The nation's land as one path, given a way to add a ring of [x, z] blocks
+   and a flat ring (x, z, x, z…) to it. */
+function focusBuild(addRing, addFlat, k){
+  const f = focusFrame();
+  let any = false;
+  if (f){
+    const id = (() => { const want = nationFocus.name.toLowerCase();
+      const i = f.nations.findIndex(n => n && String(n.name || '').toLowerCase() === want); return i >= 0 ? i + 1 : -1; })();
+    if (id > 0){
+      const rings = histShowsTerritory(f) ? f.rings[k >= HIST_FINE_FROM_K ? 'fine' : 'coarse'].get(id) || [] : [];
+      rings.forEach(r => { if (addFlat(r)) any = true; });
+      if (hist.on) for (const s of f.shapes){ if (s.id === id) histTownRings(s).forEach(r => { if (addFlat(r)) any = true; }); }
+    }
+  }
+  focusTowns().forEach(t => {
+    const rings = tracedOutlinesFor(t);
+    if (rings) rings.forEach(r => { if (addRing(r)) any = true; });
+  });
+  return any;
+}
+
+/* Flat map: one canvas over the claims and markers, under popups. */
+function focusPaintFlat(ctx, view){
+  if (!nationFocus.name || mapWorld === 'moon') return;
+  const { k, ox, oz, w, h } = view;
+  const m = 40 / k, x0 = ox - m, z0 = oz - m, x1 = ox + w / k + m, z1 = oz + h / k + m;
+  const path = new Path2D();
+  const addRing = (ring) => {
+    if (!ring || ring.length < 3) return false;
+    path.moveTo((ring[0][0] - ox) * k, (ring[0][1] - oz) * k);
+    for (let i = 1; i < ring.length; i++) path.lineTo((ring[i][0] - ox) * k, (ring[i][1] - oz) * k);
+    path.closePath();
+    return true;
+  };
+  const addFlat = (r) => {
+    if (r.x1 < x0 || r.x0 > x1 || r.z1 < z0 || r.z0 > z1) return true;   // off screen, but still the nation's
+    const p = r.p;
+    path.moveTo((p[0] - ox) * k, (p[1] - oz) * k);
+    for (let i = 2; i < p.length; i += 2) path.lineTo((p[i] - ox) * k, (p[i + 1] - oz) * k);
+    path.closePath();
+    return true;
+  };
+  if (!focusBuild(addRing, addFlat, k)) return;
+  focusCompose(ctx, path, null);
+}
+
+/* Globe: the same, projected, with the veil kept to the ball. */
+function globeDrawFocus(ctx, V, rPx){
+  const k = 1 / V.bpp;
+  const path = new Path2D();
+  const add = (e) => {
+    if (!e || e.n < 3 || !globeSeen(V, e.c, e.rad)) return true;
+    if (globeProjectRing(V, e) >= e.n) return true;
+    globePathFill(path, V, e.n);
+    return true;
+  };
+  if (!focusBuild((ring) => add(globeRing(ring, 512, null, true)), (r) => add(histGlobeRing(r)), k)) return;
+  const disk = new Path2D();
+  disk.arc(V.cx, V.cy, rPx, 0, Math.PI * 2);
+  focusCompose(ctx, path, disk);
+}
+
+let CanvasOverlay = null;
+if (typeof L !== 'undefined' && L.Layer && L.Layer.extend){
+  /* A plain canvas over the map, repainted after every move and zoom, with
+     the same 12% margin as the territory layer so a pan shows no edge. */
+  CanvasOverlay = L.Layer.extend({
+    initialize(paint, pane){ this._paint = paint; this._paneName = pane; },
+    onAdd(map){
+      this._map = map;
+      this._c = L.DomUtil.create('canvas', 'leaflet-zoom-animated');
+      this._c.style.pointerEvents = 'none';
+      map.getPane(this._paneName).appendChild(this._c);
+      map.on('moveend resize viewreset', this.redraw, this);
+      if (map._zoomAnimated) map.on('zoomanim', this._anim, this);
+      this.redraw();
+    },
+    onRemove(map){
+      L.DomUtil.remove(this._c);
+      map.off('moveend resize viewreset', this.redraw, this);
+      map.off('zoomanim', this._anim, this);
+    },
+    _anim(e){
+      if (!this._bounds) return;
+      const scale = this._map.getZoomScale(e.zoom, this._zoom);
+      const offset = this._map._latLngBoundsToNewLayerBounds(this._bounds, e.zoom, e.center).min;
+      L.DomUtil.setTransform(this._c, offset, scale);
+    },
+    redraw(){
+      const map = this._map, c = this._c;
+      if (!map || !c) return;
+      const size = map.getSize(), dpr = Math.min(2, window.devicePixelRatio || 1);
+      const px = Math.round(size.x * 0.12), py = Math.round(size.y * 0.12);
+      const w = size.x + px * 2, h = size.y + py * 2, W = Math.round(w * dpr), H = Math.round(h * dpr);
+      const tl = map.containerPointToLatLng([-px, -py]), br = map.containerPointToLatLng([size.x + px, size.y + py]);
+      if (c.width !== W || c.height !== H){ c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px'; }
+      L.DomUtil.setPosition(c, map.containerPointToLayerPoint([-px, -py]));
+      this._bounds = L.latLngBounds(tl, br); this._zoom = map.getZoom();
+      const ctx = c.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this._paint(ctx, { k: Math.pow(2, this._zoom), ox: tl.lng, oz: -tl.lat, w, h });
+    },
+  });
+}
+
+/* Redraws the highlight wherever it is shown. */
+function focusRedraw(){
+  globeRequestDraw();
+  const map = mapController && mapController.map;
+  if (!map || !CanvasOverlay) return;
+  if (!nationFocus.name){
+    if (nationFocus.layer && map.hasLayer(nationFocus.layer)) map.removeLayer(nationFocus.layer);
+    return;
+  }
+  if (!map.getPane('focusPane')){
+    map.createPane('focusPane');
+    map.getPane('focusPane').style.zIndex = 640;          // over markers (600), under tooltips and popups
+    map.getPane('focusPane').style.pointerEvents = 'none';
+  }
+  if (!nationFocus.layer) nationFocus.layer = new CanvasOverlay(focusPaintFlat, 'focusPane');
+  if (!map.hasLayer(nationFocus.layer)) nationFocus.layer.addTo(map);
+  else nationFocus.layer.redraw();
+}
+/* A brief swell of the glow when a nation is picked, so the eye finds it. */
+function focusPulse(){
+  cancelAnimationFrame(nationFocus.raf);
+  if (!nationFocus.name || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const step = () => {
+    const live = performance.now() - nationFocus.t0 < 1150;
+    if (nationFocus.layer && nationFocus.layer._map && mapProjection !== 'globe') nationFocus.layer.redraw();
+    globeRequestDraw();
+    nationFocus.raf = live ? requestAnimationFrame(step) : 0;
+  };
+  nationFocus.raf = requestAnimationFrame(step);
+}
+
+/* The chip over the map while a nation is picked out. */
+function renderFocusChip(){
+  const el = document.getElementById('focusChip');
+  if (!el) return;
+  const name = nationFocus.name;
+  if (!name){ el.hidden = true; el.replaceChildren(); return; }
+  const col = (nationColors(name) || {}).fill || '#fff';
+  el.innerHTML = `<span class="fc-sw" style="background:${escapeHtml(col)}"></span>
+    <b>${escapeHtml(name)}</b>
+    <button type="button" class="fc-btn${nationFocus.alone ? ' on' : ''}" data-fc="alone" aria-pressed="${nationFocus.alone}"
+      title="Hide every other nation">Show alone</button>
+    <button type="button" class="fc-btn" data-fc="zoom" title="Fit the map to it">Zoom</button>
+    <button type="button" class="fc-x" data-fc="close" aria-label="Stop highlighting ${escapeHtml(name)}">×</button>`;
+  el.hidden = false;
+  el.querySelector('[data-fc="alone"]').onclick = () => setNationFocus(name, { alone: !nationFocus.alone });
+  el.querySelector('[data-fc="zoom"]').onclick = () => (hist.on ? histZoomTo(name) : focusNationTowns(name));
+  el.querySelector('[data-fc="close"]').onclick = () => setNationFocus(null);
 }
 
 /* Fit the map to a nation's towns. Used for the hub's "your nation" link. */
